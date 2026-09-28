@@ -1,0 +1,85 @@
+<!doctype html><html><head><title>Coconut Berry Energy Drink, 12 Pack - MegaMart</title>
+<!-- Big-store product page patterns that trip element pickers: a search-category dropdown with
+     dozens of options at the top of the page text, an off-screen keyboard-shortcut panel whose
+     buttons are named like the real ones, an unlabeled icon button, and a buy box whose real
+     buttons are transparent <input>s laid over styled text (Amazon's a-button). -->
+<script src="common.js"></script>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 0; }
+  header { background: #131921; color: #fff; padding: 8px 12px; display: flex; gap: 8px; align-items: center; }
+  header a { color: #fff; }
+  .skip { position: absolute; left: -10000px; top: 60px; }
+  main { display: flex; gap: 24px; padding: 16px; }
+  .img { width: 380px; height: 380px; background: #eee; position: relative; }
+  .icon { position: absolute; right: 8px; top: 8px; width: 32px; height: 32px; border: 0; background: #fff; border-radius: 50%; }
+  .center { flex: 1; }
+  .buybox { width: 240px; border: 1px solid #ddd; border-radius: 8px; padding: 14px; }
+  .a-button { display: block; position: relative; margin: 8px 0; border-radius: 20px; background: #ffd814; }
+  .a-button.buy { background: #ffa41c; }
+  .a-button-inner { position: relative; display: block; height: 32px; }
+  .a-button-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.01; cursor: pointer; z-index: 1; margin: 0; }
+  .a-button-text { display: block; text-align: center; line-height: 32px; }
+  #sheet { position: fixed; right: 0; top: 0; bottom: 0; width: 320px; background: #fff; box-shadow: -2px 0 8px #0003; padding: 16px; }
+</style></head><body>
+<div class="skip" id="shortcuts">
+  <a href="#main">Skip to main content</a>
+  <button onclick="document.getElementById('add-to-cart-button').focus()">Add to cart, shift, alt, K</button>
+  <button onclick="document.getElementById('buy-now-button').focus()">Buy now, shift, alt, B</button>
+  <a href="cart.html">Cart, shift, alt, C</a>
+</div>
+<header>
+  <a href="index.html">MegaMart</a>
+  <form action="search.html" style="display:flex;gap:4px">
+    <select name="dept" aria-label="Search in" id="dept"></select>
+    <input name="q" aria-label="Search MegaMart" size="40">
+    <input type="submit" value="Go">
+  </form>
+  <a href="login.html">Hello, sign in</a>
+  <a href="cart.html" id="navcart">0 items in cart</a>
+</header>
+<main id="main">
+  <div class="img"><button class="icon" id="share-icon" onclick="document.getElementById('share').hidden = false"><svg width="16" height="16"><circle cx="8" cy="8" r="6"/></svg></button>
+    <div id="share" hidden>Share: <a href="#">Email</a> <a href="#">Copy link</a></div></div>
+  <div class="center">
+    <h1>Coconut Berry Energy Drink, 8.4 fl oz, Pack of 12 Cans</h1>
+    <p>4.7 out of 5 stars (356 ratings) · 200+ bought in past month</p>
+    <p><b>$39.60</b> ($0.39 / fluid ounce)</p>
+    <ul><li>Coconut berry flavour</li><li>80mg caffeine per can</li><li>12 cans per pack</li></ul>
+  </div>
+  <div class="buybox">
+    <p><b>$39.60</b></p><p>FREE delivery Wednesday, October 14</p><p>Only 16 left in stock - order soon.</p>
+    <label>Quantity: <select id="quantity"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+    <span class="a-button"><span class="a-button-inner">
+      <input id="add-to-cart-button" class="a-button-input" type="submit" value="Add to cart" aria-labelledby="atc-announce">
+      <span class="a-button-text" id="atc-announce">Add to cart</span></span></span>
+    <span class="a-button buy"><span class="a-button-inner">
+      <input id="buy-now-button" class="a-button-input" type="submit" value="Buy Now" aria-labelledby="buy-announce">
+      <span class="a-button-text" id="buy-announce">Buy Now</span></span></span>
+    <p>Ships from MegaMart · Returns: non-returnable</p>
+    <a href="#">Add to List</a>
+  </div>
+</main>
+<div id="sheet" hidden><h2>Added to cart</h2><p id="sheetmsg"></p><a href="cart.html">Go to Cart</a></div>
+<script>
+const DEPTS = ["All Departments", "Alexa Skills", "Autos", "Devices", "Global Store", "Haul", "One Medical", "Pharmacy",
+  "Resale", "Appliances", "Apps & Games", "Arts, Crafts & Sewing", "Audible Books & Originals", "Automotive Parts & Accessories",
+  "Baby", "Beauty & Personal Care", "Books", "CDs & Vinyl", "Cell Phones & Accessories", "Clothing, Shoes & Jewelry",
+  "Women's Clothing, Shoes & Jewelry", "Men's Clothing, Shoes & Jewelry", "Girl's Clothing, Shoes & Jewelry",
+  "Boy's Clothing, Shoes & Jewelry", "Baby Clothing, Shoes & Jewelry", "Collectibles & Fine Art", "Computers",
+  "Credit and Payment Cards", "Digital Music", "Electronics", "Garden & Outdoor", "Gift Cards", "Grocery & Gourmet Food",
+  "Handmade", "Health, Household & Baby Care", "Home & Business Services", "Home & Kitchen", "Industrial & Scientific",
+  "Just for Prime", "Kindle Store", "Luggage & Travel Gear", "Luxury Stores", "Magazine Subscriptions", "Movies & TV",
+  "Musical Instruments", "Office Products", "Pet Supplies", "Premium Beauty", "Prime Video", "Smart Home", "Software",
+  "Sports & Outdoors", "Subscribe & Save", "Tools & Home Improvement", "Toys & Games", "Under $10", "Video Games"];
+document.getElementById("dept").innerHTML = DEPTS.map(d => `<option>${d}</option>`).join("");
+const cartCount = () => store.get("cart", []).reduce((n, i) => n + i.qty, 0);
+document.getElementById("navcart").textContent = `${cartCount()} items in cart`;
+document.getElementById("add-to-cart-button").onclick = (ev) => { ev.preventDefault();
+  const qty = +document.getElementById("quantity").value, c = store.get("cart", []);
+  c.push({id: "coconut-12", name: "Coconut Berry Energy Drink, 12 Pack", qty}); store.set("cart", c);
+  document.getElementById("navcart").textContent = `${cartCount()} items in cart`;
+  document.getElementById("sheetmsg").textContent = `${qty} × Coconut Berry Energy Drink, 12 Pack. Cart subtotal: $${(39.6 * cartCount()).toFixed(2)}`;
+  document.getElementById("sheet").hidden = false; };
+document.getElementById("buy-now-button").onclick = (ev) => { ev.preventDefault(); store.set("order", {id: "coconut-12"});
+  document.querySelector("main").innerHTML = "<h1>Order placed</h1>"; };
+</script></body></html>

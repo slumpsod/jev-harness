@@ -65,6 +65,13 @@ CASES = [
      "true", None, False),
     ("go-to-cart", "product.html?id=red-mug", "open the shopping cart", None, DONE,
      "location.href.includes('cart.html')", CART, False),
+    # big-store product page (Amazon's patterns; see buybox.html), added after a live Amazon miss
+    ("bb-add", "buybox.html", "add the coconut berry energy drink 12 pack to the cart", None, DONE,
+     "store.get('cart', []).length === 1 && !localStorage.getItem('order')", None, False),
+    ("bb-add-qty", "buybox.html", "add 3 of these to my cart", None, DONE,
+     "store.get('cart', []).some(i => i.qty === 3) && !localStorage.getItem('order')", None, False),
+    ("bb-cart", "buybox.html", "open the shopping cart", None, DONE,
+     "location.href.includes('cart.html') && store.get('cart', []).length === 0", None, False),
 ]
 # Written after the loop was tuned on CASES and run once without changes (--holdout).
 HOLDOUT = [
@@ -120,6 +127,7 @@ def main() -> None:
     ap.add_argument("--holdout", action="store_true", help="run only the held-out cases")
     ap.add_argument("--headed", action="store_true")
     ap.add_argument("-k", default="")
+    ap.add_argument("--buttons", action="store_true", help="print Jev's scores for every button it checks")
     args = ap.parse_args()
     if args.cloud:
         os.environ["JEVH_TOOLS_JEV"] = "cloud"
@@ -158,6 +166,12 @@ def main() -> None:
               f"{' > '.join(r['actions'])[:110]}", flush=True)
         if not good and r.get("note"):
             print(f"      note: {r['note'][:200]}")
+        if args.buttons:
+            for b in s.button_log:
+                print(f"      button {b['element'][:50]:50} " + " ".join(f"{k}={v}" for k, v in b.items()
+                                                                     if k not in ("goal", "element")))
+        rows[-1]["buttons"] = list(s.button_log)
+        s.button_log.clear()
     s.close()
     n = len(cases)
     print(f"\n{ok}/{n} correct, {false_done} false 'done', {t_all:.0f}s total, {t_all / max(n, 1):.1f}s per goal "

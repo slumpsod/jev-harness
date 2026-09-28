@@ -41,8 +41,13 @@ MAX_ELEMENTS = 300
 SECRET = re.compile(r"pass|secret|token|pin|cvv|cvc|card|ssn|otp|code", re.I)
 IRREVERSIBLE = re.compile(r"\b(place|confirm|submit)\s+(order|payment|purchase)|\b(buy|pay|purchase|"
                           r"delete|remove account|send|publish|post|transfer|subscribe|donate)\b", re.I)
+# putting something in a cart or on a list charges and sends nothing: never ask about undoing it
+REVERSIBLE = re.compile(r"\s*(add\s+(it\s+|this\s+|all\s+\d+\s+)?to\s+(the\s+|your\s+|my\s+)?(shopping\s+)?"
+                        r"(cart|bag|basket|trolley|list|wish\s*list|registry|favou?rites|compare)|save\s+for\s+later)\b",
+                        re.I)
 FIELDS = {"text field", "search box", "password"}
 TOGGLES = {"checkbox", "radio", "dropdown"}
+WANTED_MIN = float(os.environ.get("JEVH_BROWSER_WANTED", "0.4"))
 SUBMIT_WORDS = re.compile(r"\b(save|submit|continue|apply|confirm|send|proceed|update|place)\b", re.I)
 SEARCH_KEYS = {"query", "q", "search", "term", "terms", "keywords", "keyword"}
 
@@ -51,11 +56,19 @@ PAGE_JS = r"""() => {
     '[role=menuitem],[role=checkbox],[role=radio],[role=switch],[role=option],[role=combobox],' +
     '[role=searchbox],[role=textbox],[contenteditable=""],[contenteditable=true],[onclick],label[for]';
   const clean = t => (t || '').replace(/\s+/g, ' ').trim();
+  const pageW = document.documentElement.scrollWidth;
+  // parked off-page (skip links, keyboard-shortcut panels): not something a person can see or click
+  const offPage = r => r.right <= 0 || r.left >= pageW || r.bottom + scrollY <= 0;
   const vis = e => {
     const r = e.getBoundingClientRect();
-    if (r.width < 2 || r.height < 2) return false;
+    if (r.width < 2 || r.height < 2 || offPage(r)) return false;
     const s = getComputedStyle(e);
-    return s.visibility !== 'hidden' && s.display !== 'none' && parseFloat(s.opacity || '1') > 0.05;
+    if (s.visibility === 'hidden' || s.display === 'none') return false;
+    if (parseFloat(s.opacity || '1') > 0.05) return true;
+    // a transparent input/button laid over styled text is the real control (Amazon's a-button)
+    const p = e.parentElement;
+    return ['INPUT', 'BUTTON'].includes(e.tagName) && !!p && parseFloat(getComputedStyle(p).opacity || '1') > 0.05 &&
+      clean(p.innerText) !== '';
   };
   const ownText = l => { const c = l.cloneNode(true); c.querySelectorAll('select,input,textarea').forEach(x => x.remove()); return c.textContent; };
   const labelOf = e => {
@@ -117,8 +130,44 @@ PAGE_JS = r"""() => {
   }
   const notices = [...document.querySelectorAll('dialog[open],[role=dialog],[role=alertdialog],[role=alert],[role=status],[aria-live]')]
     .filter(vis).map(d => clean(d.innerText).slice(0, 300)).filter(Boolean);
-  const text = (document.body?.innerText || '').replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n');
-  return {url: location.href, title: document.title, elements: out, text, notices};
+  // Page text as a person sees it: not dropdown option lists (a store's 60 search departments
+  // used to fill the whole decision window), hidden or off-page text, or the watch overlay.
+  // One line per block element; view_start marks where the visible part of the page begins.
+  const SKIP = 'select,script,style,noscript,template,[aria-hidden="true"],.jevh-watch';
+  const blockOf = new Map(), okOf = new Map(), lines = [];
+  const block = el => {
+    if (blockOf.has(el)) return blockOf.get(el);
+    let x = el;
+    while (x && x !== document.body && getComputedStyle(x).display.startsWith('inline')) x = x.parentElement;
+    blockOf.set(el, x || document.body);
+    return x || document.body;
+  };
+  const shown = el => {
+    if (!okOf.has(el)) {
+      const r = el.getBoundingClientRect();
+      okOf.set(el, !el.closest(SKIP) && !offPage(r) && (r.width > 0 || r.height > 0) &&
+        el.checkVisibility({visibilityProperty: true, checkVisibilityCSS: true}));
+    }
+    return okOf.get(el);
+  };
+  let cur = null;
+  if (document.body) {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const t = clean(n.data), p = n.parentElement;
+      if (!t || !p || !shown(p)) continue;
+      const b = block(p);
+      if (cur && cur.b === b) { cur.t += ' ' + t; continue; }
+      cur = {b, t, bottom: b.getBoundingClientRect().bottom};
+      lines.push(cur);
+    }
+  }
+  let text = '', view_start = -1;
+  for (const l of lines) {
+    if (view_start < 0 && l.bottom > 0) view_start = text.length;
+    text += l.t + '\n';
+  }
+  return {url: location.href, title: document.title, elements: out, text, view_start: Math.max(view_start, 0), notices};
 }""" % MAX_ELEMENTS
 
 PSEUDO = {"scroll": "scroll down to reveal more of the page",
@@ -135,6 +184,9 @@ Q_LOGIN = "Is `page` a sign-in or sign-up screen, or asking the user to log in, 
 Q_IRREV = ("Would clicking `element`, by itself and with no further confirmation step, place an order, take a "
            "payment, send a message, publish, or delete something?")
 Q_PENDING = "Does `controls` show a setting that still differs from what `goal` asks for?"
+# evals/button_intent_cases.py: 9/11 unwanted clicks caught on tuning, 4/6 held out, no wanted click
+# blocked (plateau 0.3-0.6). Misses share a word with the goal ("open the cart" vs "Add to cart").
+Q_WANTED = "Does `goal` ask for what clicking `element` would do?"
 Q_TARGET = "Which element of `page` should the next action toward `task.goal` act on?"
 Q_GROUP = "Which group of `page` elements contains the one the next action toward `task.goal` should act on?"
 Q_VALUE = "Which of `values` should be typed into `field` to make progress on `goal`?"
@@ -217,6 +269,7 @@ class Session:
         self.headed = headed
         self.pause = float(os.environ.get("JEVH_BROWSER_PAUSE", "0.8" if headed else "0"))
         self.jev_calls = 0
+        self.button_log: list[dict] = []   # every button check's scores, for evals and debugging
         self.jev_secs = 0.0
 
     # ------------------------------------------------------------------ plumbing
@@ -265,8 +318,17 @@ class Session:
 
     @staticmethod
     def _signature(obs: dict) -> str:
-        controls = [(e.get("value"), e.get("checked")) for e in obs["elements"]]
-        return hashlib.sha1(repr((obs["url"], obs["text"][:4000], controls, obs["notices"])).encode()).hexdigest()
+        # the whole page: a store's cart sheet or "1 item in cart" can change far below the top
+        controls = [(e.get("label"), e.get("value"), e.get("checked")) for e in obs["elements"]]
+        return hashlib.sha1(repr((obs["url"], obs["text"], controls, obs["notices"])).encode()).hexdigest()
+
+    @staticmethod
+    def _view(obs: dict, n: int = TEXT_CHARS) -> str:
+        """The part of the page text a person is looking at: from the top of the viewport on
+        (after a scroll, not the page header again), filled up from above near the page end."""
+        text = obs["text"]
+        start = max(0, min(obs.get("view_start", 0), len(text) - n))
+        return text[start:start + n]
 
     # ------------------------------------------------------------------ public API
     def goto(self, url: str) -> dict:
@@ -274,7 +336,7 @@ class Session:
             url = "https://" + url
         self.page.goto(url, wait_until="domcontentloaded", timeout=30000)
         obs = self.observe()
-        return {"url": obs["url"], "title": obs["title"], "page": obs["text"][:1200]}
+        return {"url": obs["url"], "title": obs["title"], "page": self._view(obs, 1200)}
 
     def read(self, question: str | None = None, max_chars: int = 4000) -> str:
         """Page text. With a question, only the passages Jev finds relevant to it."""
@@ -318,7 +380,7 @@ class Session:
 
         def result(status: str, obs: dict, note: str = "", probs: dict | None = None) -> dict:
             return {"status": status, "goal": goal, "url": obs["url"], "title": obs["title"],
-                    "actions": history, "note": note, "page": obs["text"][:1200],
+                    "actions": history, "note": note, "page": self._view(obs, 1200),
                     "p": {k: round(v, 2) for k, v in (probs or {}).items()},
                     "jev_calls": self.jev_calls - calls0, "jev_seconds": round(self.jev_secs - secs0, 1),
                     "seconds": round(time.monotonic() - started, 1)}
@@ -337,7 +399,7 @@ class Session:
             els = [e for e in obs["elements"] if e["i"] not in banned | deferred and not e.get("disabled")]
             controls = [describe(e) for e in obs["elements"] if e["kind"] in FIELDS | TOGGLES][:30]
             state = {"task": {"goal": goal, "history": history[-6:] or ["(no actions yet)"], "last_change": last_change},
-                     "page": {"url": obs["url"], "title": obs["title"], "text": obs["text"][:TEXT_CHARS],
+                     "page": {"url": obs["url"], "title": obs["title"], "text": self._view(obs),
                               "controls": controls, "notices": obs["notices"]}}
             extra = {"done": noul(Q_DONE)}
             if history:
@@ -394,7 +456,11 @@ class Session:
                 value = next((v for v in values.values() if any(v.lower() == o.lower() for o in target.get("options", []))),
                              None) or self._pick_option(state, target)
             elif tool == "click" and target["kind"] == "button":
-                irreversible, ready = self._check_button(goal, target, obs, allow_irreversible)
+                irreversible, ready, wanted = self._check_button(goal, target, obs, allow_irreversible)
+                if not wanted:
+                    deferred.add(target["i"])   # a side effect nobody asked for (add to cart, share): pick again
+                    last_change = f"not clicking {describe(target)}: it isn't part of the goal"
+                    continue
                 if not ready:
                     deferred.add(target["i"])   # the form isn't filled in as asked yet: pick something else
                     last_change = f"not clicking {describe(target)} yet: the form doesn't match the goal"
@@ -501,24 +567,27 @@ class Session:
                                 {f"o{i}": o or "(blank)" for i, o in enumerate(opts)})
         return opts[int(max(probs, key=probs.get)[1:])]
 
-    def _check_button(self, goal: str, target: dict, obs: dict, allow_irreversible: bool) -> tuple[bool, bool]:
-        """(irreversible, ready) for clicking a button, in one small call. `ready`: a form on the
-        page already holds what the goal asks for, so a submit/continue isn't premature."""
+    def _check_button(self, goal: str, target: dict, obs: dict, allow_irreversible: bool) -> tuple[bool, bool, bool]:
+        """(irreversible, ready, wanted) for clicking a button, in one small call. `ready`: a form
+        on the page already holds what the goal asks for, so a submit/continue isn't premature.
+        `wanted`: the click serves the goal (not "Add to cart" when asked to open the cart)."""
         controls = [describe(e) for e in obs["elements"] if e["kind"] in FIELDS | TOGGLES][:30]
-        qs = {}
-        if not allow_irreversible and not IRREVERSIBLE.search(target.get("label", "")):
-            qs["irreversible"] = noul(Q_IRREV)
+        qs = {"wanted": noul(Q_WANTED)}
+        label = target.get("label", "")
+        if not allow_irreversible and not IRREVERSIBLE.search(label) and not REVERSIBLE.match(label):
+            qs["irreversible"] = noul(Q_IRREV)   # semif gave Amazon's "Add to cart" 0.73: those skip it
         if controls:
             qs["pending"] = noul(Q_PENDING)
         irreversible = not allow_irreversible and bool(IRREVERSIBLE.search(target.get("label", "")))
-        if not qs:
-            return irreversible, True
         res = self._ask({"goal": goal, "element": describe(target), "controls": controls,
                          "page": {"title": obs["title"], "url": obs["url"]}}, qs)
         if "irreversible" in qs:
             irreversible = res["irreversible"].noul >= 0.6
+        self.button_log.append({"goal": goal, "element": describe(target),
+                                **{k: round(res[k].noul, 3) for k in qs}})
         # measured: 0.97-0.99 when a requested setting is still unset, 0.32-0.44 once it is
-        return irreversible, ("pending" not in qs or res["pending"].noul < 0.8)
+        return (irreversible, ("pending" not in qs or res["pending"].noul < 0.8),
+                res["wanted"].noul >= WANTED_MIN)
 
     def _act(self, tool: str, target: dict | None, value: str | None) -> str:
         page = self.page
