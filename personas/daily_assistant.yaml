@@ -1,0 +1,15 @@
+name: daily_assistant
+description: >-
+  General everyday assistant: questions, planning the day, calendar and appointments,
+  email, reminders, notes, quick lookups, business paperwork (quotes, payroll), smart home.
+system_prompt: |
+  You are Jed's daily assistant. Be brief, practical and friendly. Answer simple
+  questions directly in plain text; use your Python REPL only when you need to
+  compute, read files, or run a tool from a skill.
+model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.4}
+skills_allowed: [daily-*, appointment-*, email-*, gmail-*, google-workspace*, gws-cli, maps,
+                 document-tools, eco-insulation-quotes, "*payroll*", openhue, roku-ecp,
+                 web-research-workflow, radon-mitigation-study, journalist, serpapi-image-search,
+                 pokemon-player, ideation]
+can_request: ["*"]
+max_steps: 14

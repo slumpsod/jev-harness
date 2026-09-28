@@ -1,0 +1,1640 @@
+[
+ {
+  "id": "insulation",
+  "want": "eco-insulation-quotes",
+  "persona": "daily_assistant",
+  "probs": {
+   "eco-insulation-quotes": 0.9267,
+   "ideation": 0.0016,
+   "pokemon-player": 0.0005,
+   "appointment-scheduling": 0.0003,
+   "journalist": 0.0004,
+   "roku-ecp": 0.0001,
+   "google-workspace": 0.0002,
+   "document-tools": 0.0003,
+   "gws-cli": 0.0003,
+   "insulation-specialists-payroll": 0.0016,
+   "web-research-workflow": 0.0003,
+   "payroll-tracker": 0.0004,
+   "maps": 0.0001,
+   "radon-mitigation-study": 0.0001,
+   "none_of_these": 0.0671
+  },
+  "fits": {
+   "eco-insulation-quotes": 0.0474,
+   "ideation": 0.0032,
+   "insulation-specialists-payroll": 0.0421
+  },
+  "secs": 1.64
+ },
+ {
+  "id": "payroll-field",
+  "want": "payroll-tracker",
+  "persona": "daily_assistant",
+  "probs": {
+   "google-workspace": 0.0186,
+   "ideation": 0.0029,
+   "appointment-scheduling": 0.0014,
+   "pokemon-player": 0.0007,
+   "roku-ecp": 0.0006,
+   "eco-insulation-quotes": 0.0006,
+   "journalist": 0.0002,
+   "payroll-tracker": 0.7925,
+   "gws-cli": 0.0025,
+   "insulation-specialists-payroll": 0.1215,
+   "document-tools": 0.0003,
+   "maps": 0.0005,
+   "web-research-workflow": 0.0001,
+   "radon-mitigation-study": 0.0002,
+   "none_of_these": 0.0574
+  },
+  "fits": {
+   "payroll-tracker": 0.5312,
+   "insulation-specialists-payroll": 0.1192,
+   "google-workspace": 0.0421
+  },
+  "secs": 1.36
+ },
+ {
+  "id": "payroll-ins",
+  "want": "insulation-specialists-payroll",
+  "persona": "daily_assistant",
+  "probs": {
+   "google-workspace": 0.0225,
+   "ideation": 0.001,
+   "pokemon-player": 0.0005,
+   "eco-insulation-quotes": 0.0009,
+   "appointment-scheduling": 0.0009,
+   "roku-ecp": 0.0001,
+   "email-search": 0.0003,
+   "insulation-specialists-payroll": 0.9584,
+   "payroll-tracker": 0.0031,
+   "gws-cli": 0.0001,
+   "document-tools": 0.0,
+   "maps": 0.0001,
+   "radon-mitigation-study": 0.0001,
+   "web-research-workflow": 0.0001,
+   "none_of_these": 0.0121
+  },
+  "fits": {
+   "insulation-specialists-payroll": 0.8808,
+   "google-workspace": 0.0293,
+   "payroll-tracker": 0.3208
+  },
+  "secs": 1.4
+ },
+ {
+  "id": "calendar-add",
+  "want": "appointment-scheduling",
+  "persona": "daily_assistant",
+  "probs": {
+   "appointment-scheduling": 0.9071,
+   "ideation": 0.0025,
+   "google-workspace": 0.0054,
+   "pokemon-player": 0.0003,
+   "roku-ecp": 0.0002,
+   "journalist": 0.0001,
+   "eco-insulation-quotes": 0.0002,
+   "maps": 0.0003,
+   "gws-cli": 0.0004,
+   "document-tools": 0.0001,
+   "radon-mitigation-study": 0.0001,
+   "insulation-specialists-payroll": 0.0006,
+   "payroll-tracker": 0.0078,
+   "web-research-workflow": 0.0001,
+   "none_of_these": 0.0745
+  },
+  "fits": {
+   "appointment-scheduling": 0.982,
+   "payroll-tracker": 0.0028,
+   "google-workspace": 0.1067
+  },
+  "secs": 1.33
+ },
+ {
+  "id": "calendar-multi",
+  "want": "google-workspace-multi-calendar",
+  "persona": "daily_assistant",
+  "probs": {
+   "google-workspace-multi-calendar": 0.4219,
+   "google-workspace": 0.2258,
+   "ideation": 0.0041,
+   "appointment-scheduling": 0.0112,
+   "pokemon-player": 0.0022,
+   "roku-ecp": 0.0003,
+   "journalist": 0.001,
+   "gws-cli": 0.0008,
+   "payroll-tracker": 0.0015,
+   "insulation-specialists-payroll": 0.0003,
+   "maps": 0.0003,
+   "document-tools": 0.0008,
+   "web-research-workflow": 0.0007,
+   "radon-mitigation-study": 0.0004,
+   "none_of_these": 0.3285
+  },
+  "fits": {
+   "google-workspace-multi-calendar": 0.2451,
+   "google-workspace": 0.2018,
+   "appointment-scheduling": 0.0373
+  },
+  "secs": 1.46
+ },
+ {
+  "id": "gmail-search",
+  "want": "email-search",
+  "persona": "daily_assistant",
+  "probs": {
+   "email-search": 0.5585,
+   "gmail-attachments": 0.0458,
+   "google-workspace": 0.1813,
+   "ideation": 0.0012,
+   "pokemon-player": 0.0008,
+   "appointment-scheduling": 0.0002,
+   "journalist": 0.0006,
+   "gws-cli": 0.001,
+   "document-tools": 0.0026,
+   "insulation-specialists-payroll": 0.0007,
+   "web-research-workflow": 0.0004,
+   "payroll-tracker": 0.0012,
+   "maps": 0.0002,
+   "radon-mitigation-study": 0.0001,
+   "none_of_these": 0.2054
+  },
+  "fits": {
+   "email-search": 0.6792,
+   "google-workspace": 0.5927,
+   "gmail-attachments": 0.1645
+  },
+  "secs": 1.56
+ },
+ {
+  "id": "gmail-attach",
+  "want": "gmail-attachments",
+  "persona": "daily_assistant",
+  "probs": {
+   "gmail-attachments": 0.6275,
+   "email-search": 0.14,
+   "google-workspace": 0.0584,
+   "ideation": 0.002,
+   "pokemon-player": 0.0009,
+   "appointment-scheduling": 0.0003,
+   "journalist": 0.0008,
+   "document-tools": 0.0276,
+   "gws-cli": 0.0115,
+   "insulation-specialists-payroll": 0.0029,
+   "payroll-tracker": 0.0033,
+   "maps": 0.0005,
+   "radon-mitigation-study": 0.0002,
+   "openhue": 0.0005,
+   "none_of_these": 0.1236
+  },
+  "fits": {
+   "gmail-attachments": 0.5,
+   "email-search": 0.6514,
+   "google-workspace": 0.3208
+  },
+  "secs": 1.38
+ },
+ {
+  "id": "gmail-send",
+  "want": "google-workspace",
+  "persona": "daily_assistant",
+  "probs": {
+   "google-workspace": 0.2542,
+   "ideation": 0.0047,
+   "appointment-scheduling": 0.0047,
+   "email-search": 0.0209,
+   "pokemon-player": 0.0041,
+   "eco-insulation-quotes": 0.0012,
+   "roku-ecp": 0.0022,
+   "document-tools": 0.0022,
+   "gws-cli": 0.0036,
+   "insulation-specialists-payroll": 0.0028,
+   "payroll-tracker": 0.0047,
+   "web-research-workflow": 0.0022,
+   "maps": 0.0012,
+   "radon-mitigation-study": 0.0006,
+   "none_of_these": 0.6909
+  },
+  "fits": {
+   "google-workspace": 0.1824,
+   "email-search": 0.0159,
+   "ideation": 0.0013
+  },
+  "secs": 1.49
+ },
+ {
+  "id": "gws-cli-trap",
+  "want": "gws-cli",
+  "persona": "daily_assistant",
+  "probs": {
+   "google-workspace": 0.0315,
+   "gmail-attachments": 0.0062,
+   "email-search": 0.0038,
+   "ideation": 0.0004,
+   "roku-ecp": 0.0007,
+   "appointment-scheduling": 0.0002,
+   "pokemon-player": 0.0004,
+   "gws-cli": 0.9193,
+   "document-tools": 0.0008,
+   "insulation-specialists-payroll": 0.0001,
+   "maps": 0.0001,
+   "payroll-tracker": 0.0007,
+   "web-research-workflow": 0.0002,
+   "radon-mitigation-study": 0.0001,
+   "none_of_these": 0.0356
+  },
+  "fits": {
+   "gws-cli": 0.9707,
+   "google-workspace": 0.6225,
+   "gmail-attachments": 0.6514
+  },
+  "secs": 1.58
+ },
+ {
+  "id": "comfyui",
+  "want": "comfyui",
+  "persona": "comfyui_manager",
+  "probs": {
+   "comfyui": 0.9816,
+   "video-analysis": 0.0075,
+   "none_of_these": 0.0109
+  },
+  "fits": {
+   "comfyui": 0.9325,
+   "video-analysis": 0.0025
+  },
+  "secs": 0.53
+ },
+ {
+  "id": "blender-mcp",
+  "want": "blender-mcp",
+  "persona": "high_end_dev",
+  "probs": {
+   "blender-mcp": 0.7004,
+   "harness-artifacts": 0.0022,
+   "claude-code": 0.0004,
+   "prime-agent": 0.0002,
+   "blender-headless": 0.0037,
+   "desktop-gui-automation": 0.292,
+   "touchdesigner-mcp": 0.0002,
+   "kanban-orchestrator": 0.0001,
+   "webhook-subscriptions": 0.0001,
+   "tailscale-funnel": 0.0,
+   "native-mcp": 0.0,
+   "hermes-local-web-apps": 0.0,
+   "mlops-tools": 0.0,
+   "openjev-systemone": 0.0,
+   "simple-web-app-build": 0.0001,
+   "none_of_these": 0.0004
+  },
+  "fits": {
+   "blender-mcp": 0.8355,
+   "desktop-gui-automation": 0.0076,
+   "blender-headless": 0.011
+  },
+  "secs": 1.43
+ },
+ {
+  "id": "blender-proc",
+  "want": "blender-3d-modeling",
+  "persona": "high_end_dev",
+  "probs": {
+   "blender-3d-modeling": 0.8194,
+   "harness-artifacts": 0.0071,
+   "blender-headless": 0.0117,
+   "claude-code": 0.0008,
+   "blender-scripting": 0.1424,
+   "desktop-gui-automation": 0.0006,
+   "touchdesigner-mcp": 0.0001,
+   "local-ai-models": 0.0001,
+   "kanban-orchestrator": 0.0002,
+   "webhook-subscriptions": 0.0,
+   "native-mcp": 0.0,
+   "mlops-tools": 0.0001,
+   "openjev-systemone": 0.0004,
+   "dspy": 0.0001,
+   "simple-web-app-build": 0.0,
+   "none_of_these": 0.017
+  },
+  "fits": {
+   "blender-3d-modeling": 0.9669,
+   "blender-scripting": 0.7549,
+   "blender-headless": 0.5
+  },
+  "secs": 1.91
+ },
+ {
+  "id": "blender-render",
+  "want": "blender-render-automation",
+  "persona": "high_end_dev",
+  "probs": {
+   "blender-render-automation": 0.2116,
+   "blender-headless": 0.0072,
+   "harness-artifacts": 0.0016,
+   "blender-scripting": 0.7386,
+   "blender-3d-modeling": 0.0007,
+   "touchdesigner-mcp": 0.0003,
+   "desktop-gui-automation": 0.0011,
+   "local-ai-models": 0.0003,
+   "kanban-orchestrator": 0.0011,
+   "webhook-subscriptions": 0.0,
+   "native-mcp": 0.0002,
+   "mlops-tools": 0.0001,
+   "hermes-local-web-apps": 0.0002,
+   "dspy": 0.0001,
+   "openjev-systemone": 0.0001,
+   "none_of_these": 0.0368
+  },
+  "fits": {
+   "blender-scripting": 0.4688,
+   "blender-render-automation": 0.8355,
+   "blender-headless": 0.7311
+  },
+  "secs": 1.84
+ },
+ {
+  "id": "hue",
+  "want": "openhue",
+  "persona": "daily_assistant",
+  "probs": {
+   "roku-ecp": 0.0208,
+   "ideation": 0.0013,
+   "google-workspace": 0.0003,
+   "pokemon-player": 0.0003,
+   "appointment-scheduling": 0.0005,
+   "journalist": 0.0001,
+   "gmail-attachments": 0.0001,
+   "openhue": 0.7787,
+   "gws-cli": 0.0005,
+   "insulation-specialists-payroll": 0.0001,
+   "maps": 0.0,
+   "payroll-tracker": 0.0002,
+   "document-tools": 0.0002,
+   "radon-mitigation-study": 0.0001,
+   "none_of_these": 0.1969
+  },
+  "fits": {
+   "openhue": 0.1824,
+   "roku-ecp": 0.0331,
+   "ideation": 0.0019
+  },
+  "secs": 1.67
+ },
+ {
+  "id": "roku",
+  "want": "roku-ecp",
+  "persona": "daily_assistant",
+  "probs": {
+   "roku-ecp": 0.9909,
+   "ideation": 0.0002,
+   "journalist": 0.0001,
+   "pokemon-player": 0.0001,
+   "appointment-scheduling": 0.0,
+   "eco-insulation-quotes": 0.0,
+   "email-search": 0.0,
+   "gws-cli": 0.0,
+   "openhue": 0.0,
+   "payroll-tracker": 0.0,
+   "document-tools": 0.0,
+   "web-research-workflow": 0.0,
+   "insulation-specialists-payroll": 0.0,
+   "maps": 0.0,
+   "none_of_these": 0.0086
+  },
+  "fits": {
+   "roku-ecp": 0.1067,
+   "ideation": 0.0019,
+   "journalist": 0.001
+  },
+  "secs": 1.5
+ },
+ {
+  "id": "cyberpunk",
+  "want": "cyberpunk-2077-modding",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0312,
+   "claude-code": 0.0061,
+   "prime-agent": 0.0115,
+   "blender-3d-modeling": 0.0007,
+   "blender-scripting": 0.0005,
+   "cyberpunk-2077-modding": 0.9124,
+   "touchdesigner-mcp": 0.0003,
+   "desktop-gui-automation": 0.0004,
+   "kanban-orchestrator": 0.0003,
+   "webhook-subscriptions": 0.0,
+   "native-mcp": 0.0002,
+   "mlops-tools": 0.0001,
+   "simple-web-app-build": 0.0001,
+   "hermes-local-web-apps": 0.0003,
+   "dspy": 0.0003,
+   "none_of_these": 0.0354
+  },
+  "fits": {
+   "cyberpunk-2077-modding": 0.7773,
+   "harness-artifacts": 0.0097,
+   "prime-agent": 0.011
+  },
+  "secs": 1.59
+ },
+ {
+  "id": "dlss",
+  "want": "dlss5-game-injection",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0051,
+   "claude-code": 0.0021,
+   "prime-agent": 0.0013,
+   "blender-3d-modeling": 0.0007,
+   "hermes-agent": 0.0002,
+   "dlss5-game-injection": 0.9766,
+   "desktop-gui-automation": 0.0007,
+   "touchdesigner-mcp": 0.0001,
+   "kanban-orchestrator": 0.0001,
+   "tailscale-funnel": 0.0,
+   "native-mcp": 0.0001,
+   "mlops-tools": 0.0002,
+   "hermes-local-web-apps": 0.0001,
+   "openjev-systemone": 0.0002,
+   "dspy": 0.0002,
+   "none_of_these": 0.0123
+  },
+  "fits": {
+   "dlss5-game-injection": 0.2451,
+   "harness-artifacts": 0.0076,
+   "claude-code": 0.0141
+  },
+  "secs": 1.93
+ },
+ {
+  "id": "minecraft",
+  "want": "minecraft-modpack-server",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0152,
+   "blender-3d-modeling": 0.0023,
+   "claude-code": 0.0008,
+   "prime-agent": 0.0005,
+   "hermes-agent": 0.0002,
+   "minecraft-modpack-server": 0.9378,
+   "touchdesigner-mcp": 0.0001,
+   "tailscale-funnel": 0.0003,
+   "kanban-orchestrator": 0.0002,
+   "desktop-gui-automation": 0.0001,
+   "native-mcp": 0.0001,
+   "simple-web-app-build": 0.0002,
+   "mlops-tools": 0.0002,
+   "hermes-local-web-apps": 0.0003,
+   "dspy": 0.0005,
+   "none_of_these": 0.0412
+  },
+  "fits": {
+   "minecraft-modpack-server": 0.2018,
+   "harness-artifacts": 0.0076,
+   "blender-3d-modeling": 0.0028
+  },
+  "secs": 1.9
+ },
+ {
+  "id": "pokemon",
+  "want": "pokemon-player",
+  "persona": "daily_assistant",
+  "probs": {
+   "pokemon-player": 0.1462,
+   "ideation": 0.0057,
+   "appointment-scheduling": 0.0016,
+   "journalist": 0.001,
+   "google-workspace": 0.0007,
+   "roku-ecp": 0.0004,
+   "eco-insulation-quotes": 0.0004,
+   "gws-cli": 0.0002,
+   "document-tools": 0.0004,
+   "web-research-workflow": 0.0004,
+   "payroll-tracker": 0.0001,
+   "insulation-specialists-payroll": 0.0006,
+   "radon-mitigation-study": 0.0006,
+   "maps": 0.0003,
+   "none_of_these": 0.8414
+  },
+  "fits": {
+   "pokemon-player": 0.2689,
+   "ideation": 0.0036,
+   "appointment-scheduling": 0.0046
+  },
+  "secs": 1.64
+ },
+ {
+  "id": "radon",
+  "want": "radon-mitigation-study",
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0201,
+   "roku-ecp": 0.0019,
+   "appointment-scheduling": 0.0006,
+   "google-workspace": 0.0009,
+   "pokemon-player": 0.0006,
+   "eco-insulation-quotes": 0.0002,
+   "email-search": 0.0003,
+   "radon-mitigation-study": 0.7542,
+   "gws-cli": 0.0007,
+   "web-research-workflow": 0.0024,
+   "insulation-specialists-payroll": 0.0001,
+   "maps": 0.0006,
+   "document-tools": 0.0003,
+   "payroll-tracker": 0.0011,
+   "none_of_these": 0.2161
+  },
+  "fits": {
+   "radon-mitigation-study": 0.133,
+   "ideation": 0.0013,
+   "web-research-workflow": 0.0293
+  },
+  "secs": 1.62
+ },
+ {
+  "id": "fitness",
+  "want": "fitness-tracker",
+  "persona": "fitness_coach",
+  "probs": {
+   "harness-artifacts": 0.0137,
+   "workout-programming": 0.5841,
+   "fitness-tracker": 0.3543,
+   "none_of_these": 0.0479
+  },
+  "fits": {
+   "workout-programming": 0.5,
+   "fitness-tracker": 0.9399,
+   "harness-artifacts": 0.0097
+  },
+  "secs": 0.83
+ },
+ {
+  "id": "claude-code",
+  "want": "claude-code",
+  "persona": "high_end_dev",
+  "probs": {
+   "claude-code": 0.9718,
+   "harness-artifacts": 0.0031,
+   "hermes-agent": 0.0013,
+   "prime-agent": 0.0074,
+   "blender-3d-modeling": 0.0002,
+   "github-pr-workflow": 0.0045,
+   "touchdesigner-mcp": 0.0,
+   "desktop-gui-automation": 0.0,
+   "kanban-orchestrator": 0.0024,
+   "webhook-subscriptions": 0.0001,
+   "native-mcp": 0.0001,
+   "mlops-tools": 0.0001,
+   "simple-web-app-build": 0.0001,
+   "hermes-local-web-apps": 0.0001,
+   "dspy": 0.0004,
+   "none_of_these": 0.0084
+  },
+  "fits": {
+   "claude-code": 0.9859,
+   "prime-agent": 0.0203,
+   "github-pr-workflow": 0.4688
+  },
+  "secs": 1.57
+ },
+ {
+  "id": "hermes-agent",
+  "want": "hermes-agent",
+  "persona": "high_end_dev",
+  "probs": {
+   "hermes-agent": 0.1443,
+   "harness-artifacts": 0.0009,
+   "claude-code": 0.0016,
+   "prime-agent": 0.0002,
+   "blender-mcp": 0.0002,
+   "local-ai-models": 0.0001,
+   "touchdesigner-mcp": 0.0001,
+   "windows-system-admin": 0.0002,
+   "tailscale-funnel": 0.0004,
+   "desktop-gui-automation": 0.0001,
+   "native-mcp": 0.8304,
+   "mlops-tools": 0.0002,
+   "debugging-hermes-tui-commands": 0.0007,
+   "openjev-systemone": 0.0005,
+   "hermes-local-web-apps": 0.0008,
+   "none_of_these": 0.0195
+  },
+  "fits": {
+   "native-mcp": 0.9627,
+   "hermes-agent": 0.0534,
+   "claude-code": 0.0474
+  },
+  "secs": 1.66
+ },
+ {
+  "id": "hermes-webapp",
+  "want": "hermes-local-web-apps",
+  "persona": "front_end_designer",
+  "probs": {
+   "frontend-design": 0.0159,
+   "harness-artifacts": 0.0035,
+   "baoyu-article-illustrator": 0.0012,
+   "baoyu-comic": 0.0005,
+   "ideation": 0.0004,
+   "pixel-art": 0.0001,
+   "pretext": 0.0004,
+   "simple-web-app-build": 0.1037,
+   "hermes-local-web-apps": 0.8684,
+   "none_of_these": 0.0059
+  },
+  "fits": {
+   "hermes-local-web-apps": 0.8933,
+   "simple-web-app-build": 0.9526,
+   "frontend-design": 0.3208
+  },
+  "secs": 0.83
+ },
+ {
+  "id": "prime-agent",
+  "want": "prime-agent",
+  "persona": "high_end_dev",
+  "probs": {
+   "prime-agent": 0.9941,
+   "harness-artifacts": 0.0012,
+   "claude-code": 0.0008,
+   "hermes-agent": 0.0002,
+   "blender-3d-modeling": 0.0003,
+   "kanban-orchestrator": 0.0008,
+   "touchdesigner-mcp": 0.0001,
+   "local-ai-models": 0.0,
+   "windows-system-admin": 0.0001,
+   "desktop-gui-automation": 0.0,
+   "native-mcp": 0.0001,
+   "hermes-local-web-apps": 0.0,
+   "mlops-tools": 0.0001,
+   "simple-web-app-build": 0.0,
+   "openjev-systemone": 0.0001,
+   "none_of_these": 0.0022
+  },
+  "fits": {
+   "prime-agent": 0.982,
+   "harness-artifacts": 0.1067,
+   "claude-code": 0.2942
+  },
+  "secs": 1.47
+ },
+ {
+  "id": "github-pr",
+  "want": "github-pr-workflow",
+  "persona": "high_end_dev",
+  "probs": {
+   "claude-code": 0.0895,
+   "harness-artifacts": 0.0039,
+   "prime-agent": 0.0014,
+   "hermes-agent": 0.0004,
+   "blender-3d-modeling": 0.0004,
+   "github-pr-workflow": 0.849,
+   "touchdesigner-mcp": 0.0005,
+   "tailscale-funnel": 0.0006,
+   "desktop-gui-automation": 0.0004,
+   "kanban-orchestrator": 0.0014,
+   "simple-web-app-build": 0.0083,
+   "native-mcp": 0.0004,
+   "mlops-tools": 0.0002,
+   "hermes-local-web-apps": 0.0006,
+   "dspy": 0.0007,
+   "none_of_these": 0.0423
+  },
+  "fits": {
+   "github-pr-workflow": 0.7982,
+   "claude-code": 0.6514,
+   "simple-web-app-build": 0.3208
+  },
+  "secs": 1.73
+ },
+ {
+  "id": "native-mcp",
+  "want": "native-mcp",
+  "persona": "high_end_dev",
+  "probs": {
+   "blender-mcp": 0.1663,
+   "harness-artifacts": 0.0035,
+   "blender-3d-modeling": 0.0106,
+   "claude-code": 0.0004,
+   "prime-agent": 0.0002,
+   "touchdesigner-mcp": 0.0001,
+   "local-ai-models": 0.0001,
+   "desktop-gui-automation": 0.0003,
+   "tailscale-funnel": 0.0006,
+   "kanban-orchestrator": 0.0002,
+   "native-mcp": 0.7455,
+   "mlops-tools": 0.0016,
+   "dspy": 0.0004,
+   "openjev-systemone": 0.0005,
+   "hermes-local-web-apps": 0.0005,
+   "none_of_these": 0.0693
+  },
+  "fits": {
+   "native-mcp": 0.7773,
+   "blender-mcp": 0.2689,
+   "blender-3d-modeling": 0.1824
+  },
+  "secs": 2.07
+ },
+ {
+  "id": "web-research",
+  "want": "web-research-workflow",
+  "persona": "daily_assistant",
+  "probs": {
+   "journalist": 0.4917,
+   "ideation": 0.0029,
+   "google-workspace": 0.0007,
+   "pokemon-player": 0.0003,
+   "appointment-scheduling": 0.0003,
+   "roku-ecp": 0.0001,
+   "eco-insulation-quotes": 0.0002,
+   "web-research-workflow": 0.2322,
+   "gws-cli": 0.0009,
+   "radon-mitigation-study": 0.0356,
+   "insulation-specialists-payroll": 0.0003,
+   "document-tools": 0.0016,
+   "maps": 0.0002,
+   "payroll-tracker": 0.0007,
+   "none_of_these": 0.2322
+  },
+  "fits": {
+   "journalist": 0.7311,
+   "web-research-workflow": 0.2451,
+   "radon-mitigation-study": 0.0373
+  },
+  "secs": 1.65
+ },
+ {
+  "id": "journalist",
+  "want": "journalist",
+  "persona": "daily_assistant",
+  "probs": {
+   "journalist": 0.6684,
+   "ideation": 0.0024,
+   "google-workspace": 0.0007,
+   "pokemon-player": 0.0003,
+   "roku-ecp": 0.0002,
+   "appointment-scheduling": 0.0002,
+   "eco-insulation-quotes": 0.0002,
+   "web-research-workflow": 0.2459,
+   "gws-cli": 0.0005,
+   "insulation-specialists-payroll": 0.0002,
+   "document-tools": 0.0003,
+   "payroll-tracker": 0.0004,
+   "maps": 0.0003,
+   "radon-mitigation-study": 0.0002,
+   "none_of_these": 0.0798
+  },
+  "fits": {
+   "journalist": 0.982,
+   "web-research-workflow": 0.1824,
+   "ideation": 0.0017
+  },
+  "secs": 1.38
+ },
+ {
+  "id": "local-ai",
+  "want": "local-ai-models",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0193,
+   "prime-agent": 0.008,
+   "claude-code": 0.0018,
+   "blender-3d-modeling": 0.001,
+   "hermes-agent": 0.001,
+   "local-ai-models": 0.9297,
+   "touchdesigner-mcp": 0.0004,
+   "kanban-orchestrator": 0.0003,
+   "webhook-subscriptions": 0.0003,
+   "desktop-gui-automation": 0.0001,
+   "mlops-tools": 0.0004,
+   "openjev-systemone": 0.0071,
+   "hermes-local-web-apps": 0.0007,
+   "native-mcp": 0.0014,
+   "simple-web-app-build": 0.0005,
+   "none_of_these": 0.0281
+  },
+  "fits": {
+   "local-ai-models": 0.9627,
+   "harness-artifacts": 0.0059,
+   "prime-agent": 0.023
+  },
+  "secs": 1.6
+ },
+ {
+  "id": "video-analysis",
+  "want": "video-analysis",
+  "persona": "comfyui_manager",
+  "probs": {
+   "comfyui": 0.014,
+   "video-analysis": 0.9835,
+   "none_of_these": 0.0024
+  },
+  "fits": {
+   "video-analysis": 0.2451,
+   "comfyui": 0.2451
+  },
+  "secs": 0.64
+ },
+ {
+  "id": "maps",
+  "want": "maps",
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0095,
+   "google-workspace": 0.0008,
+   "roku-ecp": 0.0004,
+   "appointment-scheduling": 0.0002,
+   "pokemon-player": 0.0003,
+   "eco-insulation-quotes": 0.0,
+   "journalist": 0.0001,
+   "maps": 0.9707,
+   "gws-cli": 0.0001,
+   "insulation-specialists-payroll": 0.0,
+   "payroll-tracker": 0.0,
+   "document-tools": 0.0001,
+   "radon-mitigation-study": 0.0,
+   "serpapi-image-search": 0.0,
+   "none_of_these": 0.0178
+  },
+  "fits": {
+   "maps": 0.9149,
+   "ideation": 0.0015,
+   "google-workspace": 0.0013
+  },
+  "secs": 1.3
+ },
+ {
+  "id": "serpapi",
+  "want": "serpapi-image-search",
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0107,
+   "pokemon-player": 0.0008,
+   "eco-insulation-quotes": 0.0005,
+   "google-workspace": 0.0003,
+   "roku-ecp": 0.0002,
+   "appointment-scheduling": 0.0001,
+   "journalist": 0.0001,
+   "serpapi-image-search": 0.9613,
+   "gws-cli": 0.0001,
+   "insulation-specialists-payroll": 0.0,
+   "maps": 0.0,
+   "document-tools": 0.0001,
+   "web-research-workflow": 0.0002,
+   "payroll-tracker": 0.0001,
+   "none_of_these": 0.0256
+  },
+  "fits": {
+   "serpapi-image-search": 0.8808,
+   "ideation": 0.0015,
+   "pokemon-player": 0.0067
+  },
+  "secs": 1.37
+ },
+ {
+  "id": "doc-tools",
+  "want": "document-tools",
+  "persona": "daily_assistant",
+  "probs": {
+   "google-workspace": 0.023,
+   "gmail-attachments": 0.023,
+   "ideation": 0.0009,
+   "appointment-scheduling": 0.0007,
+   "pokemon-player": 0.001,
+   "email-search": 0.0031,
+   "roku-ecp": 0.0003,
+   "document-tools": 0.8634,
+   "gws-cli": 0.0013,
+   "insulation-specialists-payroll": 0.0001,
+   "maps": 0.0,
+   "payroll-tracker": 0.0024,
+   "radon-mitigation-study": 0.0002,
+   "serpapi-image-search": 0.0001,
+   "none_of_these": 0.0803
+  },
+  "fits": {
+   "document-tools": 0.9876,
+   "google-workspace": 0.0953,
+   "gmail-attachments": 0.5927
+  },
+  "secs": 1.28
+ },
+ {
+  "id": "desktop-gui",
+  "want": "desktop-gui-automation",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0025,
+   "claude-code": 0.0009,
+   "prime-agent": 0.0004,
+   "blender-3d-modeling": 0.0002,
+   "hermes-agent": 0.0001,
+   "desktop-gui-automation": 0.9941,
+   "touchdesigner-mcp": 0.0001,
+   "kanban-orchestrator": 0.0,
+   "webhook-subscriptions": 0.0,
+   "tailscale-funnel": 0.0,
+   "native-mcp": 0.0,
+   "mlops-tools": 0.0,
+   "openjev-systemone": 0.0,
+   "hermes-local-web-apps": 0.0,
+   "dspy": 0.0001,
+   "none_of_these": 0.0015
+  },
+  "fits": {
+   "desktop-gui-automation": 0.8355,
+   "harness-artifacts": 0.0086,
+   "claude-code": 0.0331
+  },
+  "secs": 1.33
+ },
+ {
+  "id": "win-admin",
+  "want": "windows-system-admin",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0066,
+   "prime-agent": 0.0045,
+   "claude-code": 0.0005,
+   "blender-3d-modeling": 0.0004,
+   "hermes-agent": 0.0003,
+   "windows-system-admin": 0.9785,
+   "touchdesigner-mcp": 0.0001,
+   "desktop-gui-automation": 0.0001,
+   "kanban-orchestrator": 0.0001,
+   "tailscale-funnel": 0.0,
+   "native-mcp": 0.0,
+   "simple-web-app-build": 0.0,
+   "mlops-tools": 0.0,
+   "hermes-local-web-apps": 0.0001,
+   "dspy": 0.0001,
+   "none_of_these": 0.0085
+  },
+  "fits": {
+   "windows-system-admin": 0.4073,
+   "harness-artifacts": 0.0141,
+   "prime-agent": 0.0141
+  },
+  "secs": 1.44
+ },
+ {
+  "id": "openjev-judge",
+  "want": "openjev-judgment-tools",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0096,
+   "claude-code": 0.0011,
+   "prime-agent": 0.0013,
+   "blender-3d-modeling": 0.0002,
+   "hermes-agent": 0.0001,
+   "local-ai-models": 0.0003,
+   "touchdesigner-mcp": 0.0001,
+   "webhook-subscriptions": 0.0001,
+   "kanban-orchestrator": 0.0005,
+   "desktop-gui-automation": 0.0004,
+   "openjev-judgment-tools": 0.9791,
+   "openjev": 0.0045,
+   "native-mcp": 0.0002,
+   "mlops-tools": 0.0001,
+   "openjev-systemone": 0.0003,
+   "none_of_these": 0.0021
+  },
+  "fits": {
+   "openjev-judgment-tools": 0.867,
+   "harness-artifacts": 0.0293,
+   "openjev": 0.4073
+  },
+  "secs": 1.61
+ },
+ {
+  "id": "openjev-up",
+  "want": "openjev",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0085,
+   "claude-code": 0.0006,
+   "prime-agent": 0.0009,
+   "blender-3d-modeling": 0.0001,
+   "hermes-agent": 0.0002,
+   "local-ai-models": 0.0028,
+   "touchdesigner-mcp": 0.0,
+   "webhook-subscriptions": 0.0,
+   "kanban-orchestrator": 0.0002,
+   "desktop-gui-automation": 0.0001,
+   "openjev": 0.9826,
+   "native-mcp": 0.0005,
+   "openjev-judgment-tools": 0.0001,
+   "openjev-systemone": 0.0002,
+   "mlops-tools": 0.0002,
+   "none_of_these": 0.0031
+  },
+  "fits": {
+   "openjev": 0.148,
+   "harness-artifacts": 0.0067,
+   "local-ai-models": 0.0851
+  },
+  "secs": 1.76
+ },
+ {
+  "id": "koe-hash",
+  "want": "koe-no-hashi-voice-dashboard",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0124,
+   "claude-code": 0.0007,
+   "prime-agent": 0.0013,
+   "blender-3d-modeling": 0.0001,
+   "blender-scripting": 0.0001,
+   "local-ai-models": 0.0001,
+   "touchdesigner-mcp": 0.0,
+   "desktop-gui-automation": 0.0001,
+   "kanban-orchestrator": 0.0002,
+   "webhook-subscriptions": 0.0,
+   "koe-no-hashi-voice-dashboard": 0.9827,
+   "native-mcp": 0.0002,
+   "mlops-tools": 0.0,
+   "dspy": 0.0,
+   "simple-web-app-build": 0.0001,
+   "none_of_these": 0.0019
+  },
+  "fits": {
+   "koe-no-hashi-voice-dashboard": 0.7058,
+   "harness-artifacts": 0.023,
+   "prime-agent": 0.023
+  },
+  "secs": 1.85
+ },
+ {
+  "id": "hermes-tui",
+  "want": "debugging-hermes-tui-commands",
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0032,
+   "claude-code": 0.0003,
+   "prime-agent": 0.0007,
+   "blender-3d-modeling": 0.0002,
+   "hermes-agent": 0.0001,
+   "local-ai-models": 0.0,
+   "touchdesigner-mcp": 0.0001,
+   "desktop-gui-automation": 0.0001,
+   "kanban-orchestrator": 0.0004,
+   "windows-system-admin": 0.0001,
+   "debugging-hermes-tui-commands": 0.9937,
+   "native-mcp": 0.0001,
+   "mlops-tools": 0.0001,
+   "dspy": 0.0,
+   "openjev": 0.0,
+   "none_of_these": 0.0008
+  },
+  "fits": {
+   "debugging-hermes-tui-commands": 0.9627,
+   "harness-artifacts": 0.018,
+   "prime-agent": 0.023
+  },
+  "secs": 1.79
+ },
+ {
+  "id": "lift-split",
+  "want": "workout-programming",
+  "persona": "fitness_coach",
+  "probs": {
+   "harness-artifacts": 0.0013,
+   "workout-programming": 0.997,
+   "fitness-tracker": 0.0006,
+   "none_of_these": 0.001
+  },
+  "fits": {
+   "workout-programming": 0.8355,
+   "harness-artifacts": 0.026,
+   "fitness-tracker": 0.2689
+  },
+  "secs": 1.08
+ },
+ {
+  "id": "deload",
+  "want": "workout-programming",
+  "persona": "fitness_coach",
+  "probs": {
+   "harness-artifacts": 0.0022,
+   "workout-programming": 0.9937,
+   "fitness-tracker": 0.0022,
+   "none_of_these": 0.0019
+  },
+  "fits": {
+   "workout-programming": 0.867,
+   "harness-artifacts": 0.0331,
+   "fitness-tracker": 0.8176
+  },
+  "secs": 0.92
+ },
+ {
+  "id": "landing",
+  "want": "frontend-design",
+  "persona": "front_end_designer",
+  "probs": {
+   "frontend-design": 0.929,
+   "harness-artifacts": 0.0055,
+   "baoyu-article-illustrator": 0.0008,
+   "baoyu-comic": 0.0005,
+   "ideation": 0.0016,
+   "pixel-art": 0.0007,
+   "pretext": 0.0008,
+   "simple-web-app-build": 0.0071,
+   "hermes-local-web-apps": 0.0014,
+   "none_of_these": 0.0524
+  },
+  "fits": {
+   "frontend-design": 0.9399,
+   "simple-web-app-build": 0.148,
+   "harness-artifacts": 0.2942
+  },
+  "secs": 0.82
+ },
+ {
+  "id": "palette",
+  "want": "frontend-design",
+  "persona": "front_end_designer",
+  "probs": {
+   "frontend-design": 0.8398,
+   "harness-artifacts": 0.0154,
+   "baoyu-article-illustrator": 0.0057,
+   "baoyu-comic": 0.0016,
+   "ideation": 0.0027,
+   "pixel-art": 0.0027,
+   "pretext": 0.001,
+   "simple-web-app-build": 0.0093,
+   "hermes-local-web-apps": 0.0082,
+   "none_of_these": 0.1137
+  },
+  "fits": {
+   "frontend-design": 0.9579,
+   "harness-artifacts": 0.0953,
+   "simple-web-app-build": 0.0953
+  },
+  "secs": 0.88
+ },
+ {
+  "id": "pixel",
+  "want": "pixel-art",
+  "persona": "front_end_designer",
+  "probs": {
+   "frontend-design": 0.022,
+   "harness-artifacts": 0.002,
+   "baoyu-article-illustrator": 0.0012,
+   "baoyu-comic": 0.0002,
+   "ideation": 0.0005,
+   "pixel-art": 0.9371,
+   "pretext": 0.0002,
+   "simple-web-app-build": 0.0002,
+   "hermes-local-web-apps": 0.0002,
+   "none_of_these": 0.0363
+  },
+  "fits": {
+   "pixel-art": 0.4378,
+   "frontend-design": 0.0036,
+   "harness-artifacts": 0.0124
+  },
+  "secs": 0.85
+ },
+ {
+  "id": "comic",
+  "want": "baoyu-comic",
+  "persona": "front_end_designer",
+  "probs": {
+   "frontend-design": 0.0031,
+   "harness-artifacts": 0.0005,
+   "baoyu-article-illustrator": 0.0017,
+   "baoyu-comic": 0.9889,
+   "ideation": 0.0002,
+   "pixel-art": 0.0001,
+   "pretext": 0.0001,
+   "simple-web-app-build": 0.0001,
+   "hermes-local-web-apps": 0.0001,
+   "none_of_these": 0.0052
+  },
+  "fits": {
+   "baoyu-comic": 0.9526,
+   "frontend-design": 0.0059,
+   "baoyu-article-illustrator": 0.018
+  },
+  "secs": 0.9
+ },
+ {
+  "id": "comfy-img",
+  "want": "comfyui",
+  "persona": "comfyui_manager",
+  "probs": {
+   "comfyui": 0.9355,
+   "video-analysis": 0.0282,
+   "none_of_these": 0.0363
+  },
+  "fits": {
+   "comfyui": 0.6225,
+   "video-analysis": 0.0028
+  },
+  "secs": 0.71
+ },
+ {
+  "id": "webapp-simple",
+  "want": "simple-web-app-build",
+  "persona": "front_end_designer",
+  "probs": {
+   "frontend-design": 0.0158,
+   "harness-artifacts": 0.004,
+   "baoyu-article-illustrator": 0.0005,
+   "baoyu-comic": 0.0002,
+   "ideation": 0.0005,
+   "pixel-art": 0.0001,
+   "pretext": 0.0003,
+   "simple-web-app-build": 0.9763,
+   "hermes-local-web-apps": 0.0009,
+   "none_of_these": 0.0015
+  },
+  "fits": {
+   "simple-web-app-build": 0.9526,
+   "frontend-design": 0.7311,
+   "harness-artifacts": 0.0675
+  },
+  "secs": 0.96
+ },
+ {
+  "id": "none-math",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0046,
+   "pokemon-player": 0.0005,
+   "appointment-scheduling": 0.0006,
+   "roku-ecp": 0.0009,
+   "eco-insulation-quotes": 0.0017,
+   "journalist": 0.0005,
+   "google-workspace": 0.0005,
+   "gws-cli": 0.0002,
+   "web-research-workflow": 0.0002,
+   "payroll-tracker": 0.0002,
+   "document-tools": 0.0003,
+   "insulation-specialists-payroll": 0.0002,
+   "maps": 0.0008,
+   "radon-mitigation-study": 0.0001,
+   "none_of_these": 0.9887
+  },
+  "fits": {
+   "ideation": 0.0041,
+   "eco-insulation-quotes": 0.0097,
+   "roku-ecp": 0.0036
+  },
+  "secs": 1.32
+ },
+ {
+  "id": "none-fact",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "journalist": 0.0319,
+   "ideation": 0.0018,
+   "google-workspace": 0.0012,
+   "pokemon-player": 0.0006,
+   "appointment-scheduling": 0.0007,
+   "google-workspace-multi-calendar": 0.0003,
+   "eco-insulation-quotes": 0.0006,
+   "web-research-workflow": 0.0281,
+   "gws-cli": 0.0004,
+   "maps": 0.0005,
+   "insulation-specialists-payroll": 0.0001,
+   "payroll-tracker": 0.001,
+   "document-tools": 0.0008,
+   "radon-mitigation-study": 0.0005,
+   "none_of_these": 0.9315
+  },
+  "fits": {
+   "journalist": 0.1645,
+   "web-research-workflow": 0.0601,
+   "ideation": 0.0036
+  },
+  "secs": 1.57
+ },
+ {
+  "id": "none-chat",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.014,
+   "pokemon-player": 0.0007,
+   "appointment-scheduling": 0.0006,
+   "google-workspace": 0.0007,
+   "journalist": 0.0005,
+   "roku-ecp": 0.0002,
+   "eco-insulation-quotes": 0.0004,
+   "web-research-workflow": 0.0004,
+   "gws-cli": 0.0003,
+   "document-tools": 0.0005,
+   "insulation-specialists-payroll": 0.0001,
+   "maps": 0.0004,
+   "payroll-tracker": 0.0004,
+   "radon-mitigation-study": 0.0005,
+   "none_of_these": 0.9803
+  },
+  "fits": {
+   "ideation": 0.0203,
+   "pokemon-player": 0.0046,
+   "google-workspace": 0.0025
+  },
+  "secs": 1.64
+ },
+ {
+  "id": "none-opinion",
+  "want": null,
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0492,
+   "claude-code": 0.011,
+   "blender-3d-modeling": 0.0024,
+   "prime-agent": 0.0028,
+   "hermes-agent": 0.0007,
+   "local-ai-models": 0.8722,
+   "touchdesigner-mcp": 0.0005,
+   "kanban-orchestrator": 0.0006,
+   "webhook-subscriptions": 0.0005,
+   "desktop-gui-automation": 0.0001,
+   "mlops-tools": 0.0002,
+   "native-mcp": 0.0007,
+   "hermes-local-web-apps": 0.0004,
+   "openjev-systemone": 0.0015,
+   "dspy": 0.0013,
+   "none_of_these": 0.0558
+  },
+  "fits": {
+   "local-ai-models": 0.9149,
+   "harness-artifacts": 0.018,
+   "claude-code": 0.0851
+  },
+  "secs": 2.02
+ },
+ {
+  "id": "none-general",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0224,
+   "appointment-scheduling": 0.0044,
+   "eco-insulation-quotes": 0.0034,
+   "roku-ecp": 0.0016,
+   "google-workspace": 0.0093,
+   "pokemon-player": 0.0005,
+   "journalist": 0.0008,
+   "web-research-workflow": 0.0021,
+   "gws-cli": 0.0009,
+   "document-tools": 0.0007,
+   "insulation-specialists-payroll": 0.0004,
+   "payroll-tracker": 0.001,
+   "maps": 0.0009,
+   "radon-mitigation-study": 0.0005,
+   "none_of_these": 0.9512
+  },
+  "fits": {
+   "ideation": 0.0017,
+   "google-workspace": 0.0032,
+   "appointment-scheduling": 0.0067
+  },
+  "secs": 1.57
+ },
+ {
+  "id": "none-translate",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0109,
+   "google-workspace": 0.0015,
+   "roku-ecp": 0.001,
+   "pokemon-player": 0.0008,
+   "appointment-scheduling": 0.001,
+   "journalist": 0.0005,
+   "eco-insulation-quotes": 0.0006,
+   "gws-cli": 0.0003,
+   "maps": 0.0008,
+   "web-research-workflow": 0.0004,
+   "document-tools": 0.0002,
+   "insulation-specialists-payroll": 0.0005,
+   "payroll-tracker": 0.0017,
+   "radon-mitigation-study": 0.0005,
+   "none_of_these": 0.9793
+  },
+  "fits": {
+   "ideation": 0.0012,
+   "payroll-tracker": 0.0046,
+   "google-workspace": 0.0052
+  },
+  "secs": 1.55
+ },
+ {
+  "id": "none-writing",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "google-workspace": 0.0406,
+   "appointment-scheduling": 0.0149,
+   "ideation": 0.0029,
+   "pokemon-player": 0.0014,
+   "email-search": 0.0033,
+   "roku-ecp": 0.0011,
+   "eco-insulation-quotes": 0.0018,
+   "gws-cli": 0.0012,
+   "web-research-workflow": 0.0012,
+   "document-tools": 0.0023,
+   "payroll-tracker": 0.0006,
+   "insulation-specialists-payroll": 0.002,
+   "maps": 0.0016,
+   "radon-mitigation-study": 0.0007,
+   "none_of_these": 0.9243
+  },
+  "fits": {
+   "google-workspace": 0.0474,
+   "appointment-scheduling": 0.023,
+   "email-search": 0.011
+  },
+  "secs": 1.77
+ },
+ {
+  "id": "none-trivia2",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0187,
+   "google-workspace": 0.0015,
+   "roku-ecp": 0.0005,
+   "appointment-scheduling": 0.0008,
+   "pokemon-player": 0.0006,
+   "journalist": 0.0004,
+   "email-search": 0.0003,
+   "maps": 0.0952,
+   "gws-cli": 0.0006,
+   "web-research-workflow": 0.2588,
+   "insulation-specialists-payroll": 0.0001,
+   "document-tools": 0.0006,
+   "payroll-tracker": 0.0004,
+   "openhue": 0.0004,
+   "none_of_these": 0.6209
+  },
+  "fits": {
+   "web-research-workflow": 0.0759,
+   "maps": 0.1645,
+   "ideation": 0.0046
+  },
+  "secs": 1.48
+ },
+ {
+  "id": "none-py",
+  "want": null,
+  "persona": "high_end_dev",
+  "probs": {
+   "harness-artifacts": 0.0257,
+   "claude-code": 0.0039,
+   "blender-3d-modeling": 0.0009,
+   "prime-agent": 0.001,
+   "hermes-agent": 0.0005,
+   "local-ai-models": 0.0003,
+   "touchdesigner-mcp": 0.0003,
+   "kanban-orchestrator": 0.0009,
+   "desktop-gui-automation": 0.0005,
+   "webhook-subscriptions": 0.0001,
+   "native-mcp": 0.0001,
+   "mlops-tools": 0.0003,
+   "simple-web-app-build": 0.0006,
+   "hermes-local-web-apps": 0.0006,
+   "debugging-hermes-tui-commands": 0.0004,
+   "none_of_these": 0.9639
+  },
+  "fits": {
+   "harness-artifacts": 0.0076,
+   "claude-code": 0.018,
+   "prime-agent": 0.0086
+  },
+  "secs": 1.8
+ },
+ {
+  "id": "none-pack",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0256,
+   "appointment-scheduling": 0.0016,
+   "google-workspace": 0.0009,
+   "roku-ecp": 0.0009,
+   "email-search": 0.0009,
+   "pokemon-player": 0.0005,
+   "eco-insulation-quotes": 0.0005,
+   "maps": 0.0256,
+   "gws-cli": 0.0013,
+   "web-research-workflow": 0.1895,
+   "insulation-specialists-payroll": 0.0003,
+   "payroll-tracker": 0.0011,
+   "document-tools": 0.0014,
+   "radon-mitigation-study": 0.0005,
+   "none_of_these": 0.7493
+  },
+  "fits": {
+   "web-research-workflow": 0.026,
+   "ideation": 0.0032,
+   "maps": 0.0124
+  },
+  "secs": 1.67
+ },
+ {
+  "id": "none-fact2",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0237,
+   "journalist": 0.0068,
+   "google-workspace": 0.0005,
+   "pokemon-player": 0.0005,
+   "roku-ecp": 0.0003,
+   "appointment-scheduling": 0.0003,
+   "email-search": 0.0003,
+   "maps": 0.1365,
+   "gws-cli": 0.0006,
+   "web-research-workflow": 0.289,
+   "insulation-specialists-payroll": 0.0001,
+   "document-tools": 0.0004,
+   "payroll-tracker": 0.0004,
+   "serpapi-image-search": 0.0007,
+   "none_of_these": 0.5399
+  },
+  "fits": {
+   "web-research-workflow": 0.0601,
+   "maps": 0.0675,
+   "ideation": 0.0052
+  },
+  "secs": 1.76
+ },
+ {
+  "id": "none-joke",
+  "want": null,
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0178,
+   "pokemon-player": 0.0011,
+   "eco-insulation-quotes": 0.0017,
+   "appointment-scheduling": 0.0006,
+   "roku-ecp": 0.0015,
+   "journalist": 0.0003,
+   "google-workspace": 0.0004,
+   "gws-cli": 0.0001,
+   "web-research-workflow": 0.0004,
+   "insulation-specialists-payroll": 0.0002,
+   "document-tools": 0.0006,
+   "maps": 0.0003,
+   "serpapi-image-search": 0.0004,
+   "payroll-tracker": 0.0005,
+   "none_of_these": 0.9741
+  },
+  "fits": {
+   "ideation": 0.0086,
+   "eco-insulation-quotes": 0.0203,
+   "roku-ecp": 0.0086
+  },
+  "secs": 1.68
+ },
+ {
+  "id": "none-protein",
+  "want": null,
+  "persona": "fitness_coach",
+  "probs": {
+   "harness-artifacts": 0.0815,
+   "workout-programming": 0.0635,
+   "fitness-tracker": 0.1726,
+   "none_of_these": 0.6825
+  },
+  "fits": {
+   "fitness-tracker": 0.0759,
+   "harness-artifacts": 0.0052,
+   "workout-programming": 0.0124
+  },
+  "secs": 0.97
+ },
+ {
+  "id": "none-accent",
+  "want": null,
+  "persona": "front_end_designer",
+  "probs": {
+   "frontend-design": 0.1595,
+   "harness-artifacts": 0.0168,
+   "baoyu-article-illustrator": 0.0029,
+   "baoyu-comic": 0.002,
+   "ideation": 0.0029,
+   "pixel-art": 0.0007,
+   "pretext": 0.0005,
+   "simple-web-app-build": 0.0005,
+   "hermes-local-web-apps": 0.0042,
+   "none_of_these": 0.8099
+  },
+  "fits": {
+   "frontend-design": 0.5927,
+   "harness-artifacts": 0.0331,
+   "hermes-local-web-apps": 0.0534
+  },
+  "secs": 0.75
+ }
+]

@@ -1,0 +1,20 @@
+[project]
+name = "jev-harness"
+version = "0.1.0"
+description = "Multi-persona agent harness where a System One model (Jev) gates what each worker sees."
+requires-python = ">=3.10"
+dependencies = ["pyyaml", "rich"]
+
+[project.optional-dependencies]
+claude = ["anthropic"]
+dev = ["pytest"]
+
+[project.scripts]
+jevh = "jevh.cli:main"
+
+[tool.setuptools]
+packages = ["jevh", "jevh.repl", "jevh.tools"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]

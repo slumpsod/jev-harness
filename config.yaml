@@ -1,0 +1,57 @@
+# Jev harness configuration. Paths are relative to this file.
+
+jev:
+  url: http://127.0.0.1:33001     # openjev/systemone.py adapter
+  backend: semif                  # semif (4B, ~10GB on the 4080) | laya (1.7GB) | openjev
+  timeout: 300
+
+thresholds:
+  route: 0.45          # persona choice confidence needed to switch persona
+  stick: 0.55          # "continues the conversation" noul needed to stay with the current persona
+  skill_none_veto: 0.90  # P("none of these") in the skill Choice at/above which no skill loads
+  skill_override: 0.90   # Choice leader this sure loads without the fits check
+  skill_fits: 0.10       # else: best Choice*fits leader needs fits >= this (fits noul runs low)
+  memory: 0.20         # "depends on this snippet" noul on the Choice leaders (0.15-0.20 plateau; 0.10 leaks)
+  collab: 0.60         # per-persona "needs this expertise" noul
+  approve: 0.50        # in_scope and necessary nouls for persona->persona requests
+
+limits:
+  max_skills: 1                 # evals: every extra skill was mostly noise
+  max_memory_chunks: 4          # after gating
+  memory_candidates_own: 20     # recent turns from the persona's own log
+  memory_candidates_shared: 6   # recent turns from other personas (Jev decides if they leak in)
+  max_depth: 3                  # nested persona requests
+  max_tasks_per_turn: 8
+  repl_timeout: 120             # seconds per code block (time spent in callbacks excluded)
+  output_cap: 4000              # chars of REPL output shown to the model per step
+
+default_persona: daily_assistant
+personas_dir: personas
+skills_dirs:                    # first root wins on name clashes; hidden dirs (.archive) skipped
+  - skills
+  - C:/Users/Jedidiah/AppData/Local/hermes/skills
+workspace: workspace
+
+# Model providers. type: openai = any OpenAI-compatible server; anthropic = Claude API (SDK).
+providers:
+  lmstudio:
+    type: openai
+    base_url: http://127.0.0.1:1234/v1
+  llamacpp:
+    type: openai
+    base_url: http://127.0.0.1:8080/v1
+  vllm:
+    type: openai
+    base_url: http://127.0.0.1:8000/v1
+  openai:
+    type: openai
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+  anthropic:
+    type: anthropic
+    # credentials: ANTHROPIC_API_KEY or an `ant auth login` profile
+    fallbacks: default           # server-side refusal fallbacks (Opus 5 / Fable 5.1)
+
+tools:
+  comfy_url: http://127.0.0.1:8188
+  comfy_workflows: C:/Comfyui workflows
