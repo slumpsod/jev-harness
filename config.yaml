@@ -43,6 +43,8 @@ providers:
   lmstudio:
     type: openai
     base_url: http://127.0.0.1:1234/v1
+    exclusive: true    # keep ONE LLM loaded: unload the current model before loading another
+    swap_linger: 8     # seconds a model stays after its last request, so a worker's next step keeps it
   llamacpp:
     type: openai
     base_url: http://127.0.0.1:8080/v1

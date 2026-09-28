@@ -25,7 +25,7 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
 python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 51 offline tests (fake Jev + scripted LLMs)
+python -m pytest -q                  # 59 offline tests (fake Jev + scripted LLMs)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
@@ -114,8 +114,15 @@ answer beats a fast wrong one.
   So it sees the task text only.
 - Opt a persona out with `fast_ok: false`. Delete the `models:` block to turn tiering off.
 - CLI: `--tier auto|fast|strong`, or `/tier ...` mid-chat. The trace shows `tier: fast (P(strong)=0.01 vs 0.55)`.
-- VRAM: ornith (~21GB) and qwen3.8-27b can't both sit on the 3090, so a "strong" task on a local
-  persona makes LM Studio swap models. A cloud strong model (e.g. Claude for the dev) avoids that.
+- **One model at a time in LM Studio** (`jevh/lmstudio.py`, `exclusive: true` on the provider).
+  LM Studio will happily JIT-load a second big model next to the first. Both then spill out of VRAM, and
+  a one-word reply took 15–19s. The harness **unloads** the current model before **loading** the next one,
+  over LM Studio's REST API, and waits for in-flight requests first. A swap takes about 12–23s. A warm ornith
+  call is ~0.5s again. The trace shows `LM Studio: unloaded X -> loaded Y (12s)`.
+- **Linger** (`swap_linger: 8`): after its last request, a model stays loaded briefly, so the same worker's
+  next step keeps it. In parallel turns with mixed tiers, that means one swap per worker rather than one per step.
+  It was verified live: 3 ornith steps finished, then a single swap to Qwen. A waiter for the other model gets it once the
+  current one has been idle that long, or after `max_wait` (180s).
 
 ## Parallel hand-offs
 

@@ -17,6 +17,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from .lmstudio import gate_for
+
 THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 
 
@@ -44,7 +46,8 @@ class OpenAICompat:
 
     def __init__(self, base_url: str, model: str, api_key: str | None = None,
                  temperature: float | None = None, max_tokens: int | None = 8192,
-                 idle_timeout: float = 180.0, extra: dict[str, Any] | None = None):
+                 idle_timeout: float = 180.0, extra: dict[str, Any] | None = None,
+                 gate: Any = None):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.api_key = api_key
@@ -54,8 +57,15 @@ class OpenAICompat:
         self.extra = extra or {}
         self.name = f"{model}@{self.base_url}"
         self.on_progress = None  # callable(tokens_so_far) set by the UI, optional
+        self.gate = gate         # lmstudio.ExclusiveModels: one model resident at a time
 
     def chat(self, messages: list[dict[str, str]]) -> LLMResult:
+        if self.gate is None:
+            return self._chat(messages)
+        with self.gate.use(self.model):
+            return self._chat(messages)
+
+    def _chat(self, messages: list[dict[str, str]]) -> LLMResult:
         body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True,
                                 "stream_options": {"include_usage": True}, **self.extra}
         if self.temperature is not None:
@@ -177,7 +187,8 @@ def make_llm(model_cfg: dict[str, Any], providers: dict[str, dict[str, Any]]) ->
             return OpenAICompat(base_url=prov["base_url"], model=cfg["model"],
                                 api_key=os.environ.get(key_env) if key_env else None,
                                 temperature=cfg.get("temperature"), max_tokens=cfg.get("max_tokens", 8192),
-                                extra=cfg.get("extra"))
+                                extra=cfg.get("extra"),
+                                gate=gate_for(prov["base_url"]) if prov.get("exclusive") else None)
         if prov["type"] == "anthropic":
             return AnthropicLLM(model=cfg.get("model", "claude-opus-5"),
                                 max_tokens=cfg.get("max_tokens", 16000), effort=cfg.get("effort"),

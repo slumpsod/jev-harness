@@ -74,6 +74,10 @@ class Printer:
             if d.suggested:
                 console.print(f"{_indent(t)}[magenta]collab suggested:[/] {', '.join(d.suggested)}"
                               f"[dim] (complexity {d.complexity:.2f})[/]")
+        elif kind == "swap":
+            gone = ", ".join(data["unloaded"]) or "nothing"
+            console.print(f"[magenta]    LM Studio: unloaded {esc(gone)} -> loaded {esc(data['loaded'])} "
+                          f"({data['seconds']:.0f}s)[/]")
         elif kind == "tier":
             d, t = data["decision"], data["task"]
             color = "green" if d.tier == "fast" else "blue"

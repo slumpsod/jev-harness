@@ -20,6 +20,7 @@ from .config import Config, load_config
 from .decide import SystemOneError
 from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision
 from .llm import LLM, make_llm
+from .lmstudio import gate_for
 from .memory import Memory
 from .personas import Persona, load_personas
 from .skills import load_roster
@@ -95,6 +96,12 @@ class Harness:
         self._llms: dict[str, LLM] = {}
         self._llm_lock = threading.Lock()
         self.board = Board()
+        for prov in self.cfg.providers.values():  # surface LM Studio model swaps in the trace
+            if prov.get("exclusive") and prov.get("base_url"):
+                gate = gate_for(prov["base_url"])
+                gate.linger = float(prov.get("swap_linger", gate.linger))
+                gate.on_swap = lambda dropped, model, secs: self.on_event(
+                    "swap", {"unloaded": dropped, "loaded": model, "seconds": secs})
         for key, env in (("comfy_url", "JEVH_COMFY_URL"), ("comfy_workflows", "JEVH_COMFY_WORKFLOWS")):
             if self.cfg.tools.get(key):  # REPL children inherit these
                 os.environ.setdefault(env, str(self.cfg.tools[key]))
