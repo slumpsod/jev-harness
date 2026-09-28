@@ -100,6 +100,7 @@ tools:
   comfy_url: http://127.0.0.1:8188
   comfy_workflows: C:/Comfyui workflows
   tools_jev: local            # browser/web/project decisions: local (the adapter above) | cloud (TYPESAFE_API_KEY)
+  browser_watch: false        # true: the browser tool opens a visible window with Jev's picks outlined
 
 # MCP servers (stdio). Started on first use; Jev picks which of their tools a task sees.
 # Personas opt in with `mcp: ["server.*"]`.

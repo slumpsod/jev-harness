@@ -143,6 +143,8 @@ class Harness:
         self.on_event = _shielded(on_event or (lambda kind, data: None))
         self.model_override = model_override
         self.tier_mode = "auto"  # auto (Jev decides) | fast | strong
+        # show the browser tool's window, with Jev's picks outlined (dashboard toggle, CLI /watch)
+        self.watch_browser = bool(self.cfg.tools.get("browser_watch")) or os.environ.get("JEVH_BROWSER_HEADED") == "1"
         # the factory gets the persona with its model block already resolved for the tier
         self._llm_factory = llm_factory or (lambda p: make_llm(p.model, self.cfg.providers))
         self._llms: dict[str, LLM] = {}
@@ -394,6 +396,8 @@ class Harness:
         ctx = {"request": task.text, "memory": mem.kept, "inputs": task.inputs,
                "skills": {s.name: s.body for s in picked}}
         env = {}
+        if "browser" in persona.tools:
+            env["JEVH_BROWSER_HEADED"] = "1" if self.watch_browser else "0"
         if self.project and "project" in persona.tools:
             ctx["project"] = self.project
             env["JEVH_PROJECT"] = self.project

@@ -1,12 +1,13 @@
 """Terminal chat for the harness.
 
-    python -m jevh.cli [--as persona] [--project path] [--verbose] [--config path]
+    python -m jevh.cli [--as persona] [--project path] [--watch] [--verbose] [--config path]
 
 Ctrl-C during a turn stops it (model, running code, hand-offs); a worker's question is
 asked right here in the terminal.
 
 Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
-/project <path> (open a project folder; "/project off" closes it), /facts, /forget <id>, /usage,
+/project <path> (open a project folder; "/project off" closes it), /watch [on|off] (see the
+browser tool work in a visible window), /facts, /forget <id>, /usage,
 /resume [n|list] (continue an interrupted task: stopped, step limit, stalled, crashed),
 /personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
 """
@@ -173,6 +174,7 @@ def main(argv: list[str] | None = None) -> None:
                     help="model tier: Jev decides per task (auto), or force one")
     ap.add_argument("--model", help="put every persona on one model for testing, e.g. lmstudio:qwen3-4b")
     ap.add_argument("--project", help="open a project folder for personas with the project tool")
+    ap.add_argument("--watch", action="store_true", help="show the browser tool's window with Jev's picks outlined")
     a = ap.parse_args(argv)
 
     printer = Printer(a.verbose)
@@ -180,6 +182,8 @@ def main(argv: list[str] | None = None) -> None:
     h.tier_mode = a.tier
     if a.project:
         h.set_project(a.project)
+    if a.watch:
+        h.watch_browser = True
     pin = a.pin
     last = None
 
@@ -262,6 +266,9 @@ def main(argv: list[str] | None = None) -> None:
                     console.print(f"project: {h.project or 'none'}")
                 except NotADirectoryError as e:
                     console.print(f"[red]not a folder: {esc(str(e))}[/]")
+            elif cmd == "watch":
+                h.watch_browser = not h.watch_browser if arg.strip() not in ("on", "off") else arg.strip() == "on"
+                console.print(f"watch browser: {'on (a visible window from the next task)' if h.watch_browser else 'off'}")
             elif cmd == "resume":
                 found = h.resumable(10)
                 if not found:
@@ -312,9 +319,9 @@ def main(argv: list[str] | None = None) -> None:
                 except Exception as e:  # noqa: BLE001
                     console.print(f"[red]{esc(str(e))}[/]")
             elif cmd == "reset":
-                mode, project = h.tier_mode, h.project
+                mode, project, watch = h.tier_mode, h.project, h.watch_browser
                 h = Harness(h.cfg, on_event=printer, model_override=a.model)
-                h.tier_mode, h.project = mode, project
+                h.tier_mode, h.project, h.watch_browser = mode, project, watch
                 console.print(f"new session {h.session}")
             else:
                 console.print(__doc__)

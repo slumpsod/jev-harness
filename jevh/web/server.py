@@ -139,9 +139,9 @@ class Hub:
     def reset(self) -> None:
         if self.busy.locked():
             raise HTTPException(409, "wait for the running turn to finish")
-        mode, project = self.harness.tier_mode, self.harness.project
+        mode, project, watch = self.harness.tier_mode, self.harness.project, self.harness.watch_browser
         self.harness = self._factory(self.publish)
-        self.harness.tier_mode, self.harness.project = mode, project
+        self.harness.tier_mode, self.harness.project, self.harness.watch_browser = mode, project, watch
         self.turns.clear()
         self.publish("reset", {"session": self.harness.session})
 
@@ -225,7 +225,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                 "personas": {n: {"description": p.description, "model": p.model.get("model"),
                                  "fast_ok": p.fast_ok} for n, p in h.personas.items()},
                 "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq, "project": h.project,
-                "questions": h.pending_questions(),
+                "watch_browser": h.watch_browser, "questions": h.pending_questions(),
                 "thresholds": h.cfg.thresholds}
 
     @app.post("/api/chat")
@@ -288,7 +288,10 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                 hub.harness.set_project(str(body["project"]).strip() if body["project"] else None)
             except (NotADirectoryError, OSError) as e:
                 raise HTTPException(400, f"not a folder: {e}") from None
-        return {"tier_mode": hub.harness.tier_mode, "pin": hub.pin, "project": hub.harness.project}
+        if "watch_browser" in body:
+            hub.harness.watch_browser = bool(body["watch_browser"])  # applies from the next task's browser
+        return {"tier_mode": hub.harness.tier_mode, "pin": hub.pin, "project": hub.harness.project,
+                "watch_browser": hub.harness.watch_browser}
 
     @app.get("/api/memory")
     def memory() -> dict:

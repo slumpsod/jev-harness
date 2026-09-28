@@ -21,7 +21,8 @@ decides, Playwright acts. Differences, measured on evals/browser_cases.py with l
 (field -> type, dropdown -> select, else click) instead of a separate question; values are
 typed into fields whose label matches them by plain code; the irreversible check runs only
 before clicking a button. Environment: JEVH_TOOLS_JEV=local|cloud (see _pick.py),
-JEVH_BROWSER_HEADED=1 to watch it, JEVH_BROWSER_PROFILE=<dir> to keep logins.
+JEVH_BROWSER_HEADED=1 to watch it (the element Jev picked is outlined and held for
+JEVH_BROWSER_PAUSE seconds, default 0.8), JEVH_BROWSER_PROFILE=<dir> to keep logins.
 """
 from __future__ import annotations
 
@@ -138,6 +139,26 @@ Q_TARGET = "Which element of `page` should the next action toward `task.goal` ac
 Q_GROUP = "Which group of `page` elements contains the one the next action toward `task.goal` should act on?"
 Q_VALUE = "Which of `values` should be typed into `field` to make progress on `goal`?"
 
+# watch mode only: a caption bar with the goal and Jev's pick, and an outline on the element
+SHOW_JS = r"""([sel, caption]) => {
+  document.querySelectorAll('.jevh-watch').forEach(x => x.remove());
+  const bar = document.createElement('div');
+  bar.className = 'jevh-watch';
+  bar.textContent = caption;
+  bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 14px;' +
+    'background:rgba(20,20,30,.88);color:#fff;font:14px/1.4 system-ui,sans-serif;pointer-events:none';
+  document.documentElement.appendChild(bar);
+  const e = sel && document.querySelector(sel);
+  if (!e) return;
+  const r = e.getBoundingClientRect();
+  const box = document.createElement('div');
+  box.className = 'jevh-watch';
+  box.style.cssText = `position:fixed;left:${r.left - 4}px;top:${r.top - 4}px;width:${r.width + 8}px;` +
+    `height:${r.height + 8}px;border:3px solid #ff3d7f;border-radius:6px;z-index:2147483646;` +
+    'pointer-events:none;box-shadow:0 0 0 4px rgba(255,61,127,.25)';
+  document.documentElement.appendChild(box);
+}"""
+
 
 def describe(e: dict) -> str:
     s = f"{e['kind']} '{e['label']}'" if e.get("label") else e["kind"]
@@ -192,6 +213,9 @@ class Session:
             self._browser = self._pw.chromium.launch(headless=not headed)
             self.context = self._browser.new_context(viewport=viewport)
         self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+        # watching: outline what Jev picked and hold it on screen before acting
+        self.headed = headed
+        self.pause = float(os.environ.get("JEVH_BROWSER_PAUSE", "0.8" if headed else "0"))
         self.jev_calls = 0
         self.jev_secs = 0.0
 
@@ -220,6 +244,16 @@ class Session:
             except Exception:  # noqa: BLE001 - a busy page is still usable
                 pass
         time.sleep(0.1)
+
+    def _show(self, i: int | None, caption: str) -> None:
+        """Watch mode: outline element `i` (None: just the caption) and pause so a person can follow."""
+        if not self.pause:
+            return
+        try:
+            self.page.evaluate(SHOW_JS, [f'[data-jevh-i="{i}"]' if i is not None else "", caption])
+        except Exception:  # noqa: BLE001 - cosmetic; never let it break an action
+            pass
+        time.sleep(self.pause)
 
     def observe(self) -> dict:
         self._settle()
@@ -257,6 +291,8 @@ class Session:
         dest = ARTIFACTS / Path(name).name
         if dest.suffix.lower() not in (".png", ".jpg", ".jpeg"):
             dest = dest.with_name(dest.name + ".png")  # Playwright picks the format from the extension
+        if self.pause:  # keep the watch-mode outline out of saved screenshots
+            self.page.evaluate("() => document.querySelectorAll('.jevh-watch').forEach(x => x.remove())")
         self.page.screenshot(path=str(dest), full_page=full_page)
         return str(dest)
 
@@ -371,6 +407,8 @@ class Session:
                               f"to undo; call again with allow_irreversible=True if the user wants it", probs)
 
             before = self._signature(obs)
+            self._caption = (f"Jev ({target_p[best]:.2f}): {tool.replace('_', ' ')} "
+                             f"{describe(target) if target else ''}   |   goal: {goal}")
             try:
                 label = self._act(tool, target, value)
             except Exception as e:  # noqa: BLE001 - a failed action is information, not a crash
@@ -438,6 +476,7 @@ class Session:
             if not fields:
                 continue
             for e in fields if fields[0]["kind"] == "password" else fields[:1]:
+                self._show(e["i"], f"Jev: fill {describe(e)} with '{key}' (label match)")
                 self.page.locator(f'[data-jevh-i="{e["i"]}"]').first.fill(val, timeout=5000)
                 filled.append(f"{e['kind']} '{e['label']}' (value '{key}')")
             used.add(key)
@@ -483,6 +522,9 @@ class Session:
 
     def _act(self, tool: str, target: dict | None, value: str | None) -> str:
         page = self.page
+        caption = getattr(self, "_caption", f"Jev: {tool}")
+        if target is None:
+            self._show(None, caption)
         if tool == "scroll":
             page.mouse.wheel(0, 700)
             return "scrolled down"
@@ -501,6 +543,8 @@ class Session:
             loc.scroll_into_view_if_needed(timeout=2000)
         except Exception:  # noqa: BLE001
             pass
+        if self.pause:
+            self._show(int(loc.get_attribute("data-jevh-i", timeout=2000) or target["i"]), caption)
         if tool == "select":
             opts = target.get("options", [])
             match = next((o for o in opts if o.lower() == str(value).lower()), None) or \

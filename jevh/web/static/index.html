@@ -125,6 +125,7 @@ a { color: var(--accent); }
   <span class="pill" id="pill-comfy">ComfyUI</span>
   <label class="kv">Persona <select id="pin"><option value="">Jev routes</option></select></label>
   <label class="kv" title="A folder the project tool may read, edit and run commands in (dev and designer). Empty = none.">Project <input id="project" placeholder="none - paste a folder path" size="26"></label>
+  <label class="kv" title="Open the browser tool in a visible window, with the element Jev picks outlined before each action. Applies from the next task.">Watch browser <input type="checkbox" id="watch"></label>
   <label class="kv">Tier <select id="tier"><option value="auto">Jev decides</option><option value="fast">fast</option><option value="strong">strong</option></select></label>
   <button id="reset" title="Start a new session">New session</button>
 </header>
@@ -566,6 +567,7 @@ $("form").addEventListener("submit", async (ev) => {
 });
 $("input").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); $("form").requestSubmit(); } });
 $("tier").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({tier_mode: $("tier").value})}));
+$("watch").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({watch_browser: $("watch").checked})}));
 $("pin").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({pin: $("pin").value || null})}));
 $("stop").addEventListener("click", async () => { $("stop").disabled = true; try { await api("/api/cancel", {method: "POST"}); } finally { $("stop").disabled = false; } });
 $("reset").addEventListener("click", async () => { try { await api("/api/reset", {method: "POST"}); } catch (e) { alert(e.message); } });
@@ -586,6 +588,7 @@ function connect() {
   }
   $("pin").value = st.pin || "";
   $("project").value = st.project || "";
+  $("watch").checked = !!st.watch_browser;
   connect();
   refreshStatus(); setInterval(refreshStatus, 5000);
   setInterval(() => { if (S.order.some((id) => S.turns.get(id).status === "running")) schedule(); }, 1000);
