@@ -14,4 +14,4 @@ skills_allowed: [daily-*, appointment-*, email-*, gmail-*, google-workspace*, gw
 tools: [web, browser]
 mcp: ["*"]
 can_request: ["*"]
-max_steps: 14
+max_steps: 30

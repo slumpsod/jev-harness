@@ -187,3 +187,17 @@ def test_usage_api(cfg):
     u = client.get("/api/usage?range=session", headers=auth()).json()
     assert u["summary"]["turns"] == 1 and u["turns"][0]["turn"] == 1
     assert client.get("/api/usage?range=week", headers=auth()).json()["summary"]["total"]["calls"] >= 1
+
+
+def test_resume_through_the_api(cfg):
+    client, app = make_client(cfg, [py("open('draft.txt','w').write('half')\nprint('saved')"), py("print('more')"),
+                                    py("print(open('draft.txt').read())\nfinal('finished')")])
+    app.state.hub.harness.personas["daily_assistant"].max_steps = 2
+    client.post("/api/chat", json={"message": "write the report"}, headers=auth())
+    first = wait_done(client)
+    assert first["checkpoint"]
+    assert [x["path"] for x in client.get("/api/resumable", headers=auth()).json()] == [first["checkpoint"]]
+    assert client.post("/api/resume", json={"path": "nope"}, headers=auth()).status_code == 404
+    app.state.hub.harness.personas["daily_assistant"].max_steps = 5
+    client.post("/api/resume", json={"path": first["checkpoint"]}, headers=auth())
+    assert wait_done(client, 2)["answer"] == "finished"

@@ -94,6 +94,48 @@ def remember(fact: str) -> str:
     return _call("remember", fact)
 
 
+_JOBS: dict = {}
+
+
+def start_job(cmd: str, cwd: str | None = None) -> str:
+    """Run a long command (build, install, training, test suite) in the background; returns an id
+    for job_status()/job_wait(). Output goes to .jobs/<id>.log in your working directory."""
+    import subprocess
+    import time
+    jid = f"j{len(_JOBS) + 1}"
+    log = Path(".jobs") / f"{jid}.log"
+    log.parent.mkdir(exist_ok=True)
+    fh = open(log, "w", encoding="utf-8", errors="replace")  # noqa: SIM115 - the job owns it
+    proc = subprocess.Popen(cmd, shell=True, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+    _JOBS[jid] = {"proc": proc, "log": log, "fh": fh, "cmd": cmd, "started": time.time()}
+    return jid
+
+
+def job_status(jid: str) -> dict:
+    import time
+    j = _JOBS[jid]
+    code = j["proc"].poll()
+    out = j["log"].read_text(encoding="utf-8", errors="replace") if j["log"].exists() else ""
+    return {"id": jid, "cmd": j["cmd"], "running": code is None, "code": code,
+            "seconds": round(time.time() - j["started"], 1), "out": out[-2000:]}
+
+
+def job_wait(jid: str, timeout: float | None = None) -> dict:
+    """Wait for a job to finish (or until `timeout` seconds); returns job_status()."""
+    import subprocess
+    try:
+        _JOBS[jid]["proc"].wait(timeout)
+    except subprocess.TimeoutExpired:
+        pass
+    return job_status(jid)
+
+
+def _stop_jobs() -> None:
+    for j in _JOBS.values():
+        if j["proc"].poll() is None:
+            j["proc"].kill()
+
+
 def ask_user(question: str, options: list | None = None) -> str:
     """Ask the user something only they can answer and wait for the reply, keeping all your
     state (variables, an open browser page). options: short choices shown as buttons."""
@@ -181,7 +223,8 @@ G: dict = {"__name__": "__main__", "ctx": {}, "peek": peek, "llm_query": llm_que
            "request": request, "request_async": request_async, "wait": wait, "request_all": request_all,
            "save_artifact": save_artifact, "load_artifact": load_artifact,
            "list_artifacts": list_artifacts, "final": final, "mcp": mcp, "recall": recall,
-           "remember": remember, "ask_user": ask_user}
+           "remember": remember, "ask_user": ask_user, "start_job": start_job, "job_status": job_status,
+           "job_wait": job_wait}
 
 
 def _exec(code: str) -> tuple[str, bool]:
@@ -242,4 +285,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import atexit
+    atexit.register(_stop_jobs)  # the REPL ending ends its jobs (a stop kills the whole process tree anyway)
     main()

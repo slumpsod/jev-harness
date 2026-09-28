@@ -112,7 +112,7 @@ class Hub:
             if q in self._subs:
                 self._subs.remove(q)
 
-    def start_turn(self, message: str) -> dict:
+    def start_turn(self, message: str, resume: str | None = None) -> dict:
         if not self.busy.acquire(blocking=False):
             raise HTTPException(409, "a turn is already running")
         turn = {"id": len(self.turns) + 1, "message": message, "status": "running", "started": time.time(),
@@ -122,8 +122,8 @@ class Hub:
 
         def run() -> None:
             try:
-                r = self.harness.turn(message, force=self.pin)
-                turn.update(usage=r.usage)
+                r = self.harness.resume(resume) if resume else self.harness.turn(message, force=self.pin)
+                turn.update(usage=r.usage, checkpoint=r.checkpoint)
                 turn.update(status="cancelled" if r.cancelled else "done", persona=r.persona, answer=r.answer, artifacts=r.artifacts,
                             seconds=r.seconds, trace=jsonable(r.trace), tasks=[task_json(t) for t in r.tasks])
                 self.publish("turn_done", {"turn": dict(turn)})
@@ -243,6 +243,20 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         session = h.session if range == "session" else None
         return {"range": range, "summary": h.usage.summary(session=session, since=since),
                 "turns": h.usage.turns(session=session, limit=60)}
+
+    @app.get("/api/resumable")
+    def resumable() -> list:
+        return hub.harness.resumable(10)
+
+    @app.post("/api/resume")
+    async def resume(request: Request) -> dict:
+        body = await request.json()
+        path = str(body.get("path", ""))
+        if path not in {x["path"] for x in hub.harness.resumable(50)}:
+            raise HTTPException(404, "nothing to resume there")
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        task = data.get("task_text", "").split("\n\n(In your REPL:")[0]
+        return {"turn": hub.start_turn(f"(resume) {task[:300]}", resume=path)}
 
     @app.post("/api/cancel")
     def cancel() -> dict:

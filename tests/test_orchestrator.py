@@ -439,3 +439,13 @@ def test_follow_up_also_works_with_a_pinned_persona_and_informs_jev(cfg):
     assert [m["role"] for m in llm.seen[1]][:3] == ["system", "user", "assistant"]
     tier_states = [s for s, q in fake.calls if "tier" in q]
     assert "plan my workouts" in tier_states[-1]["task"] and "Latest message: 4 days, full gym" in tier_states[-1]["task"]
+
+
+def test_a_broken_event_handler_cannot_stop_the_work(cfg):
+    def explode(kind, data):
+        raise KeyError("stuck")
+    llm = ScriptedLLM([py("print('working')"), py("final('done anyway')")])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(team_rules("daily_assistant"))), llm_factory=lambda p: llm,
+                on_event=explode)
+    h.learning = False
+    assert h.turn("do it").answer == "done anyway"

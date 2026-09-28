@@ -7,9 +7,12 @@ sits in the REPL as `ctx[...]` and is only listed by name and size.
 from __future__ import annotations
 
 import inspect
+import json
+import os
 import re
 import shutil
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -28,6 +31,20 @@ FIRST_STEP_NUDGE = ("\n\nIf this needs code: reply now with a short plan (at mos
                     "python block for step one, and build incrementally across replies - do not design "
                     "the whole solution before replying. If it needs no code, reply with just the answer.")
 HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-up
+CHARS_PER_TOKEN = 3.2      # conservative for code-heavy transcripts (context-size estimate)
+PROGRESS_CHARS = 12000     # condensed progress log above this gets summarized by the model
+SUMMARY_PROMPT = """You are partway through a long task. Below is a condensed log of your earlier steps. \
+Write a compact progress summary for yourself to continue from: what is done (files, results, \
+decisions and why), what failed and what you learned from it, and what is left. Keep exact names, \
+paths, numbers and commands. Plain text, at most 40 lines.
+
+Task: {task}
+
+Log:
+{log}"""
+RESUME_NOTE = ("[Resumed after an interruption. Your REPL was restarted, so variables are gone; files in your "
+               "working directory, the artifact store and the project are as you left them. Continue the task "
+               "from where you were.]")
 SKILL_PROMPT_CHARS = 6000   # longer skills: head in the prompt, full text in ctx['skills']
 CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
 # Some local models (seen: ornith in LM Studio) sometimes answer in their native tool-call
@@ -51,6 +68,8 @@ Available in the REPL:
 - jev(state, questions) -> dict: fast typed decisions; questions like
   {"is_x": {"type": "noul", "instructions": "Is ...?"}}.
 - save_artifact(name, data=None, path=None) -> path; load_artifact(ref); list_artifacts().
+- start_job(cmd, cwd=None) -> id; job_status(id) -> {running, code, seconds, out}; job_wait(id, timeout=None):
+  run long commands (builds, installs, training, test suites) in the background while you keep working.
 - ask_user(question, options=None) -> str: ask the user mid-task and wait, keeping all your work
   (variables, an open browser page). Use it for details only they know, and to confirm before
   anything hard to undo (an order, a payment, sending, deleting). In a simple chat, just ask
@@ -146,7 +165,9 @@ class Worker:
                  handlers: dict[str, Callable[..., Any]], tools: dict[str, str] | None = None,
                  repl_timeout: float = 120.0, output_cap: int = 4000,
                  on_step: Callable[[str, dict], None] | None = None, env: dict[str, str] | None = None,
-                 cancel: threading.Event | None = None, verify: Callable | None = None, max_bounces: int = 2):
+                 cancel: threading.Event | None = None, verify: Callable | None = None, max_bounces: int = 2,
+                 progress: Callable[[str], float] | None = None, stall_at: float = 0.6, progress_every: int = 8,
+                 compact_tokens: int = 60000, keep_steps: int = 3, checkpoint: Path | None = None):
         self.persona = persona
         self.llm = llm
         self.workdir = workdir
@@ -162,6 +183,14 @@ class Worker:
         self.max_bounces = max_bounces
         self._bounces = 0
         self._verdict = None
+        self.progress = progress        # (recent work log) -> P(going in circles); None = no check
+        self.stall_at, self.progress_every = stall_at, progress_every
+        self._stalls = 0
+        self.compact_tokens, self.keep_steps = compact_tokens, keep_steps
+        self.checkpoint = checkpoint    # json of the conversation after every step (for resume)
+        self._task_idx = 0              # index of the task message (compaction rewrites everything after it)
+        self._task_text = ""
+        self._progress_log = ""
         self.repl: Repl | None = None      # the orchestrator kills it when the user stops the turn
         try:
             self._llm_cancel = "cancel" in inspect.signature(llm.chat).parameters
@@ -169,17 +198,27 @@ class Worker:
             self._llm_cancel = False
 
     def run(self, task: str, ctx: dict[str, Any], system: str,
-            history: list[tuple[str, str]] | None = None) -> WorkerResult:
-        """`history`: the (user, assistant) turns this message follows up on, as real chat turns."""
+            history: list[tuple[str, str]] | None = None, resume: dict | None = None) -> WorkerResult:
+        """`history`: the (user, assistant) turns this message follows up on, as real chat turns.
+        `resume`: a checkpoint of an interrupted run of this task: its conversation continues."""
         prior = []
         for u, a in history or []:
             prior += [{"role": "user", "content": u}, {"role": "assistant", "content": a[:HISTORY_CHARS]}]
         if not self.persona.code:
             return self._chat(task, ctx, system, prior)
-        messages = [{"role": "system", "content": system}, *prior,
-                    {"role": "user", "content": f"{task}\n\n(In your REPL:\n{describe_ctx(ctx)})"
-                                                + ("" if getattr(self.llm, "unlimited_thinking", False)
-                                                   else FIRST_STEP_NUDGE)}]
+        if resume:
+            messages = [{"role": "system", "content": system}, *[m for m in resume["messages"] if m["role"] != "system"]]
+            self._task_idx, self._task_text = resume.get("task_idx", 1), resume.get("task_text", task)
+            self._progress_log = resume.get("progress_log", "")
+            if messages[-1]["role"] == "user":
+                messages[-1] = {"role": "user", "content": messages[-1]["content"] + "\n\n" + RESUME_NOTE}
+            else:
+                messages.append({"role": "user", "content": RESUME_NOTE})
+        else:
+            self._task_text = (f"{task}\n\n(In your REPL:\n{describe_ctx(ctx)})"
+                               + ("" if getattr(self.llm, "unlimited_thinking", False) else FIRST_STEP_NUDGE))
+            messages = [{"role": "system", "content": system}, *prior, {"role": "user", "content": self._task_text}]
+            self._task_idx = len(messages) - 1
         res = WorkerResult(answer="")
         self._last_err, self._err_streak = None, 0
         with Repl(self.workdir, self.artifacts, self.handlers, self.tools,
@@ -188,6 +227,7 @@ class Worker:
             repl.set("ctx", ctx)
             for step in range(1, self.persona.max_steps + 1):
                 self._check()
+                self._compact(messages, step)
                 out = self._llm(messages)
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
@@ -229,14 +269,123 @@ class Worker:
                 messages.append({"role": "user", "content": f"Output:\n{ex.output or '(no output)'}"
                                                             + self._stuck_note(ex.output, ex.error)
                                                             + self._steps_left_note(step)})
+                self._save(messages, step, False)
+                if self._stalled(messages, step):
+                    res.artifacts = self._harvest()
+                    res.answer = (f"[{self.persona.name} stopped: its recent steps kept repeating the same attempt "
+                                  f"with the same result, even after being told. Files it wrote were collected; "
+                                  f"you can resume it with more guidance.]\n" + messages[-2]["content"][-2000:])
+                    res.stopped = "stalled"
+                    break
             else:
                 res.artifacts = self._harvest()
-                res.answer = (f"[{self.persona.name} hit its {self.persona.max_steps}-step limit without "
-                              f"calling final(); files it wrote were collected as artifacts]\n"
+                res.answer = (f"[{self.persona.name} reached its step limit ({self.persona.max_steps}) without "
+                              f"calling final(); files it wrote were collected as artifacts, and you can resume "
+                              f"it to continue where it stopped]\n"
                               + messages[-2]["content"][-2000:])
                 res.stopped = "max_steps"
         res.transcript = messages
+        self._save(messages, res.steps, True, res.stopped)
         return res
+
+    # -- stamina ---------------------------------------------------------------------
+    def _compact(self, messages: list[dict], step: int) -> None:
+        """Keep the conversation inside the model's context: past `compact_tokens`, older steps
+        become a condensed progress log in the task message (code heads + output snippets); the
+        last `keep_steps` steps stay verbatim. A log that grows too big is summarized by the model."""
+        size = sum(len(str(m.get("content", ""))) for m in messages) / CHARS_PER_TOKEN
+        if size <= self.compact_tokens:
+            return
+        body = messages[self._task_idx + 1:]
+        keep = 2 * self.keep_steps
+        if len(body) <= keep:
+            return
+        old, recent = body[:-keep], body[-keep:]
+        if recent and recent[0]["role"] != "assistant":  # the tail must start with the model's turn
+            old, recent = body[:-(keep - 1)], body[-(keep - 1):]
+        condensed = self._condense(old)
+        old_chars = sum(len(str(m.get("content", ""))) for m in old)
+        if old_chars < 2 * len(condensed) or old_chars / CHARS_PER_TOKEN < self.compact_tokens * 0.1:
+            return  # not enough old material to be worth condensing (e.g. a big system prompt)
+        log = self._progress_log + condensed
+        summarized = False
+        if len(log) > PROGRESS_CHARS:
+            try:
+                log = self._llm([{"role": "user", "content": SUMMARY_PROMPT.format(
+                    task=self._task_text[:2000], log=log[-40000:])}]).text.strip() + "\n"
+                summarized = True
+            except Cancelled:
+                raise
+            except Exception:  # noqa: BLE001 - keep the condensed log if summarizing fails
+                log = log[-PROGRESS_CHARS:]
+        self._progress_log = log
+        task_msg = {"role": "user", "content": self._task_text + "\n\n[Progress so far - earlier steps condensed to "
+                    "save context; your REPL variables and files are intact:\n" + log + "]"}
+        before = int(size)
+        messages[:] = messages[:self._task_idx] + [task_msg] + recent
+        after = int(sum(len(str(m.get("content", ""))) for m in messages) / CHARS_PER_TOKEN)
+        self.on_step("compact", {"persona": self.persona.name, "step": step, "tokens_before": before,
+                                 "tokens_after": after, "summarized": summarized})
+
+    @staticmethod
+    def _condense(old: list[dict]) -> str:
+        lines = []
+        for m in old:
+            text = str(m.get("content", ""))
+            if m["role"] == "assistant":
+                codes = CODE_RE.findall(text) or TOOL_CALL_RE.findall(text)
+                prose = CODE_RE.sub("", text).strip()
+                if prose:
+                    lines.append("- note: " + prose[:300].replace("\n", " "))
+                for c in codes:
+                    head = c.strip().splitlines()
+                    lines.append("- ran: " + " | ".join(head[:8])[:600] + (" ..." if len(head) > 8 else ""))
+            else:
+                out = text.split("[Not accepted yet", 1)[0].replace("Output:\n", "", 1).strip()
+                lines.append("  -> " + out[:400].replace("\n", " ") + (" ..." if len(out) > 400 else ""))
+        return "\n".join(lines) + "\n"
+
+    def _stalled(self, messages: list[dict], step: int) -> bool:
+        """Every `progress_every` steps, Jev looks at the recent steps: going in circles? The first
+        time the worker is told to change approach; a second time in a row stops it."""
+        if self.progress is None or step % self.progress_every:
+            return False
+        recent = messages[-2 * self.progress_every:]
+        log = self._condense(recent)
+        try:
+            circles = self.progress(log)
+        except Exception:  # noqa: BLE001 - Jev down: no check this time
+            return False
+        stuck = circles >= self.stall_at
+        self.on_step("progress_check", {"persona": self.persona.name, "step": step, "circles": round(circles, 3),
+                                  "stuck": stuck, "strike": self._stalls + (1 if stuck else 0)})
+        if not stuck:
+            self._stalls = 0
+            return False
+        self._stalls += 1
+        if self._stalls >= 2:
+            return True
+        messages[-1] = {"role": "user", "content": messages[-1]["content"] + (
+            "\n\n[The harness's progress check: your recent steps look like the same attempt repeating with the "
+            "same result. Step back: find the root cause (read the error, inspect the data or the docs), try a "
+            "genuinely different approach, or ask_user() for what you need. If it can't be done, call final() and "
+            "say what blocks it.]")}
+        return False
+
+    def _save(self, messages: list[dict], step: int, finished: bool, stopped: str | None = None) -> None:
+        if self.checkpoint is None:
+            return
+        data = {"version": 1, "persona": self.persona.name, "task_text": self._task_text, "task_idx": self._task_idx,
+                "progress_log": self._progress_log, "step": step, "finished": finished, "stopped": stopped,
+                "workdir": str(self.workdir), "saved": time.time(),
+                "messages": [m for m in messages if m["role"] != "system"]}
+        try:
+            self.checkpoint.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.checkpoint.with_suffix(".tmp")
+            tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp, self.checkpoint)
+        except OSError:
+            pass  # a checkpoint is a convenience; never fail the task over it
 
     def _bounce(self, answer: str, artifacts: list[str], changed: list[str], messages: list[dict],
                 step: int, prefix: str) -> bool:

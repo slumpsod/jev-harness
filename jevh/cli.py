@@ -7,6 +7,7 @@ asked right here in the terminal.
 
 Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
 /project <path> (open a project folder; "/project off" closes it), /facts, /forget <id>, /usage,
+/resume [n|list] (continue an interrupted task: stopped, step limit, stalled, crashed),
 /personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
 """
 from __future__ import annotations
@@ -82,6 +83,15 @@ class Printer:
             if d.tools or d.mcp or self.verbose:
                 shown = ", ".join(d.tools + d.mcp) or "none"
                 console.print(f"[dim]{_indent(t)}tools: {esc(shown)}[/]")
+        elif kind == "compact":
+            console.print(f"[dim]    {esc(data['persona'])}: context compacted at step {data['step']} "
+                          f"(~{data['tokens_before']:,} -> ~{data['tokens_after']:,} tokens"
+                          f"{', summarized' if data['summarized'] else ''})[/]")
+        elif kind == "progress_check":
+            if data["stuck"]:
+                console.print(f"[yellow]    {esc(data['persona'])}: progress check at step {data['step']}: "
+                              f"going in circles ({data['circles']:.2f}); "
+                              f"{'stopping' if data['strike'] >= 2 else 'told to change approach'}[/]")
         elif kind == "verify":
             if data["ok"]:
                 console.print(f"[dim]    {esc(data['persona'])}: final() verified "
@@ -173,7 +183,7 @@ def main(argv: list[str] | None = None) -> None:
     pin = a.pin
     last = None
 
-    def run(msg: str) -> None:
+    def run(msg: str, resume_path: str | None = None, resuming: bool = False) -> None:
         """The turn runs on a thread so this one can answer ask_user() questions, and Ctrl-C
         stops the turn instead of abandoning it."""
         nonlocal last
@@ -181,7 +191,7 @@ def main(argv: list[str] | None = None) -> None:
 
         def go() -> None:
             try:
-                box["r"] = h.turn(msg, force=pin)
+                box["r"] = h.resume(resume_path) if resuming else h.turn(msg, force=pin)
             except BaseException as e:  # noqa: BLE001 - re-raised below in the main thread
                 box["e"] = e
 
@@ -211,6 +221,8 @@ def main(argv: list[str] | None = None) -> None:
                             border_style="cyan"))
         for art in last.artifacts:
             console.print(f"  [green]artifact:[/] {esc(art)}")
+        if last.checkpoint:
+            console.print("  [yellow]This task can be resumed: /resume[/]")
         work, wall = handoff_overlap(last.tasks)
         if work:
             console.print(f"  [dim]hand-offs: {work:.0f}s of work in {wall:.0f}s wall "
@@ -250,6 +262,18 @@ def main(argv: list[str] | None = None) -> None:
                     console.print(f"project: {h.project or 'none'}")
                 except NotADirectoryError as e:
                     console.print(f"[red]not a folder: {esc(str(e))}[/]")
+            elif cmd == "resume":
+                found = h.resumable(10)
+                if not found:
+                    console.print("nothing to resume")
+                elif arg.strip().isdigit() or not arg.strip():
+                    pick = found[int(arg) - 1 if arg.strip().isdigit() else 0]
+                    console.print(f"resuming {pick['persona']} (step {pick['step']}, {pick['stopped']}): "
+                                  f"{esc(pick['task'][:100])}")
+                    run("", pick["path"], True)
+                if found and arg.strip() == "list":
+                    for i, x in enumerate(found, 1):
+                        console.print(f"  {i}. {x['persona']} step {x['step']} ({x['stopped']}): {esc(x['task'][:90])}")
             elif cmd == "usage":
                 day = time.time() - 86400
                 for label, s in (("this session", h.usage.summary(h.session)),

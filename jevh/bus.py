@@ -5,6 +5,7 @@ from __future__ import annotations
 import itertools
 import threading
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -21,6 +22,7 @@ class Task:
     answer: str = ""
     artifacts: list[str] = field(default_factory=list)
     history: list[tuple[str, str]] = field(default_factory=list)  # (user, assistant) turns this follows up on
+    checkpoint: Any = None       # path of this task's worker checkpoint (resume)
 
     @property
     def jev_text(self) -> str:

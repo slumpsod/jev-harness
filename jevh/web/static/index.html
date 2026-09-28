@@ -243,6 +243,8 @@ function handle(e) {
         : `${d.persona}: final() ${d.bounced ? "sent back" : "accepted with warnings"}: ${d.problems.map((p) => p.split("\n")[0]).join(" | ")}`});
       break;
     }
+    case "compact": t.activity.push({ts: e.ts, kind: "learn", text: `${d.persona}: context compacted at step ${d.step} (~${d.tokens_before} -> ~${d.tokens_after} tokens${d.summarized ? ", summarized" : ""})`}); break;
+    case "progress_check": if (d.stuck) t.activity.push({ts: e.ts, kind: "warn", text: `${d.persona}: progress check at step ${d.step}: going in circles (${d.circles.toFixed(2)}); ${d.strike >= 2 ? "stopped" : "told to change approach"}`}); break;
     case "learn_error": t.activity.push({ts: e.ts, kind: "warn", text: `learning skipped: ${d.error}`}); break;
     case "skills": case "memory": case "collab": case "tier": case "tools":
       dec(t, d.task.id)[e.kind] = e.kind === "memory" ? {...d.decision, candidates: d.candidates} : d.decision; break;
@@ -317,6 +319,7 @@ function renderChat() {
         ${body}
         ${arts ? `<div class="kv" style="margin-top:6px">artifacts: ${arts}</div>` : ""}
         ${t.usage && t.usage.total ? `<div class="kv" style="margin-top:4px" title="tokens and time for this turn">${esc(usageBrief(t.usage))}</div>` : ""}
+        ${t.checkpoint && t.status !== "running" ? `<div style="margin-top:6px"><button data-resume="${esc(t.checkpoint)}" title="Continue this task where it stopped: same working folder and files, fresh REPL">Resume this task</button></div>` : ""}
         ${steps ? `<details class="activity"><summary>${t.activity.filter((a) => a.kind === "code").length} code steps</summary>${steps}</details>` : ""}
       </div>`;
   }).join("");
@@ -539,6 +542,8 @@ $("project").addEventListener("change", async () => {
   catch (e) { alert(e.message); }
 });
 $("log").addEventListener("click", async (ev) => {
+  const res = ev.target.closest("button[data-resume]");
+  if (res) { try { await api("/api/resume", {method: "POST", body: JSON.stringify({path: res.dataset.resume})}); } catch (e) { alert(e.message); } return; }
   const opt = ev.target.closest("button[data-q]");
   if (opt) { try { await api("/api/answer", {method: "POST", body: JSON.stringify({id: opt.dataset.q, answer: opt.dataset.a})}); } catch (e) { alert(e.message); } return; }
   const a = ev.target.closest("a[data-art]");

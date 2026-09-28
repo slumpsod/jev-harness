@@ -6,10 +6,13 @@ process); request() is request_async() + wait()."""
 from __future__ import annotations
 
 import itertools
+import json
 import os
+import sys
 from pathlib import Path
 import threading
 import time
+import traceback
 import uuid
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FutureTimeout
@@ -18,7 +21,7 @@ from typing import Any, Callable
 
 from .bus import Board, LimitError, Task
 from .config import Config, load_config
-from .decide import SystemOneError
+from .decide import SystemOneError, noul
 from .errors import Cancelled
 from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision
 from .learn import Learner, work_log
@@ -34,7 +37,23 @@ from .verify import Verifier
 from .worker import Worker, WorkerResult, build_system
 
 Event = Callable[[str, dict], None]
+RESUMABLE = {"max_steps", "stalled", "error", "cancelled"}
+# Progress check (tuned on evals/progress_cases.py, semif): 6/6 stalls caught with 0/8 healthy runs
+# interrupted at any threshold 0.3-0.8; "is it stuck?" interrupted a healthy test-fixing run.
+CIRCLES_Q = ("Is `work_log` repeating the same or nearly the same attempt and getting the same result, "
+             "without learning anything new?")
 STOPPED_NOTE = "[stopped by the user before finishing]"
+
+
+def _shielded(callback: Event) -> Event:
+    """Events are for display. A bug in a UI's handler must never stop the work that emitted
+    it (seen live: a printer's KeyError failed a long task at step 2)."""
+    def safe(kind: str, data: dict) -> None:
+        try:
+            callback(kind, data)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc(file=sys.stderr)
+    return safe
 
 
 class Handles:
@@ -83,6 +102,7 @@ class TurnResult:
     seconds: float = 0.0
     cancelled: bool = False
     usage: dict[str, Any] = field(default_factory=dict)   # Usage.summary() for this turn
+    checkpoint: str | None = None     # the lead task's checkpoint, when the turn can be resumed
 
 
 @dataclass
@@ -120,7 +140,7 @@ class Harness:
         self.session_dir = self.cfg.workspace / "sessions" / self.session
         self.artifacts = self.session_dir / "artifacts"
         self.current: str | None = None
-        self.on_event = on_event or (lambda kind, data: None)
+        self.on_event = _shielded(on_event or (lambda kind, data: None))
         self.model_override = model_override
         self.tier_mode = "auto"  # auto (Jev decides) | fast | strong
         # the factory gets the persona with its model block already resolved for the tier
@@ -159,18 +179,18 @@ class Harness:
         self._qids = itertools.count(1)
 
     # -- public ----------------------------------------------------------------------
-    def turn(self, message: str, force: str | None = None) -> TurnResult:
+    def turn(self, message: str, force: str | None = None, resume: dict | None = None) -> TurnResult:
         self.learner.cancel.set()               # background learning yields the model to this turn
         self.turn_no += 1
         self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = self.turn_no, "", None, "llm"
         self._cancel = threading.Event()
         self._running = True
         try:
-            return self._turn(message, force)
+            return self._turn(message, force, resume)
         finally:
             self._running = False
 
-    def _turn(self, message: str, force: str | None) -> TurnResult:
+    def _turn(self, message: str, force: str | None, resume: dict | None = None) -> TurnResult:
         started = time.time()
         self.jev.trace = []
         self.board = Board(self.cfg.lim("max_depth"), self.cfg.lim("max_tasks_per_turn"))
@@ -189,10 +209,12 @@ class Harness:
                 RouteDecision(self.current or self.cfg.default_persona, 0.0, {}, None, "jev unavailable"))
         self.on_event("route", {"decision": route})
         root = self.board.open(None, "user", route.persona, message)
+        if resume:  # continuing an interrupted task: its own conversation is the context
+            route.follows = False
         if route.follows:  # the exchange this answers goes along as real context, not via the memory gate
             root.history = [(t.user, t.assistant) for t in self.memory.session_turns(
                 self.session, self.cfg.lim("follow_turns"))]
-        result = self.run_task(root, goal=message, allow_collab=True)
+        result = self.run_task(root, goal=message, allow_collab=True, resume=resume)
         cancelled = root.status == "cancelled"
         if root.status == "done":  # a crashed turn's error text must not become "memory"
             self.memory.append(route.persona, message, result.answer, self.session)
@@ -203,7 +225,50 @@ class Harness:
         self.current = route.persona
         return TurnResult(route.persona, result.answer, result.artifacts, self.board.tasks,
                           list(self.jev.trace), time.time() - started, cancelled,
-                          self.usage.summary(self.session, self.turn_no))
+                          self.usage.summary(self.session, self.turn_no),
+                          str(root.checkpoint) if (cancelled or result.stopped in RESUMABLE) and root.checkpoint
+                          else None)
+
+    # -- resume ----------------------------------------------------------------------
+    def resumable(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Interrupted lead tasks (stopped, step limit, stalled, crashed or harness restarted), newest first."""
+        out = []
+        for ck in sorted((self.cfg.workspace / "sessions").glob("*/t*/checkpoint.json"),
+                         key=lambda p: p.stat().st_mtime, reverse=True):
+            try:
+                data = json.loads(ck.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if data.get("finished") and data.get("stopped") not in RESUMABLE:
+                continue
+            if data.get("resumed_by"):
+                continue
+            task = data.get("task_text", "").split("\n\n(In your REPL:")[0]
+            out.append({"path": str(ck), "persona": data.get("persona"), "task": task[:300], "step": data.get("step"),
+                        "stopped": data.get("stopped") or "interrupted", "saved": data.get("saved")})
+            if len(out) >= limit:
+                break
+        return out
+
+    def resume(self, path: str | None = None) -> TurnResult:
+        """Continue an interrupted task in its own working folder (files intact, REPL fresh)."""
+        if path is None:
+            found = self.resumable(1)
+            if not found:
+                raise LookupError("nothing to resume")
+            path = found[0]["path"]
+        ck = Path(path)
+        data = json.loads(ck.read_text(encoding="utf-8"))
+        data["checkpoint_path"] = str(ck)
+        task = data.get("task_text", "").split("\n\n(In your REPL:")[0]
+        result = self.turn(task, force=data["persona"], resume=data)
+        try:  # mark the old checkpoint as taken over, so it isn't offered twice
+            data.pop("checkpoint_path", None)
+            data["resumed_by"] = self.session
+            ck.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
+        return result
 
     # -- stop / ask ------------------------------------------------------------------
     def cancel(self) -> bool:
@@ -297,7 +362,7 @@ class Harness:
         t.start()
 
     # -- tasks -----------------------------------------------------------------------
-    def run_task(self, task: Task, goal: str, allow_collab: bool) -> WorkerResult:
+    def run_task(self, task: Task, goal: str, allow_collab: bool, resume: dict | None = None) -> WorkerResult:
         persona = self.personas[task.to]
         turn_no = getattr(self._tl, "turn", self.turn_no)
         self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = turn_no, persona.name, task.id, "llm"
@@ -348,19 +413,24 @@ class Harness:
             "remember": lambda fact: self.learner.remember(str(fact), f"{self.session}/{persona.name}"),
             "ask_user": lambda question, options=None: self._ask_user(task, persona, question, options),
         }
-        worker = Worker(persona, llm, self.session_dir / f"t{task.id}-{persona.name}", self.artifacts,
+        workdir = Path(resume["workdir"]) if resume and resume.get("workdir") else \
+            self.session_dir / f"t{task.id}-{persona.name}"
+        task.checkpoint = workdir / "checkpoint.json"
+        worker = Worker(persona, llm, workdir, self.artifacts,
                         handlers, {t: f"jevh.tools.{t}" for t in persona.tools},
                         self.cfg.lim("repl_timeout"), self.cfg.lim("output_cap"),
                         lambda kind, data: self._on_worker(kind, data, task), env,
                         self._cancel, self._verify_fn(task) if persona.code and self.verifier.enabled else None,
-                        int(self.verifier.settings.get("max_bounces", 2)))
+                        int(self.verifier.settings.get("max_bounces", 2)),
+                        self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
+                        self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
         task.started = time.time()
         self.on_event("start", {"task": task, "model": getattr(llm, "name", "?")})
         self._workers.add(worker)
         try:
             if self._cancel.is_set():
                 raise Cancelled("stopped by the user")
-            result = worker.run(task.text, ctx, system, task.history)
+            result = worker.run(task.text, ctx, system, task.history, resume)
             result.skills, result.llm = list(skills.skills), llm
             task.status = "done"
         except Cancelled:
@@ -465,6 +535,13 @@ class Harness:
             return ToolDecision([])
         fallback = ToolDecision(list(own))  # Jev down: all guides (capability beats a lean prompt)
         return self._safe("tools", lambda: self.jev.pick_tools(task.jev_text, own, mcp), fallback)
+
+    def _progress_fn(self, task: Task):
+        def circles(log: str) -> float:
+            r = self.jev._ask("progress", {"request": task.text[:1500], "work_log": log[-4000:]},
+                              {"circles": noul(CIRCLES_Q)})
+            return r["circles"].noul
+        return circles
 
     def _verify_fn(self, task: Task):
         project = self.project

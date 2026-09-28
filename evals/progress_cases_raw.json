@@ -1,0 +1,72 @@
+[
+ {
+  "progress": 0.9988,
+  "circles": 0.2227,
+  "stuck": 0.011
+ },
+ {
+  "progress": 0.9954,
+  "circles": 0.2942,
+  "stuck": 0.5622
+ },
+ {
+  "progress": 0.6225,
+  "circles": 0.974,
+  "stuck": 0.8933
+ },
+ {
+  "progress": 0.1067,
+  "circles": 0.9466,
+  "stuck": 0.989
+ },
+ {
+  "progress": 0.9983,
+  "circles": 0.1824,
+  "stuck": 0.0474
+ },
+ {
+  "progress": 0.9985,
+  "circles": 0.2227,
+  "stuck": 0.0474
+ },
+ {
+  "progress": 0.7058,
+  "circles": 0.9669,
+  "stuck": 0.2018
+ },
+ {
+  "progress": 0.9975,
+  "circles": 0.2689,
+  "stuck": 0.0421
+ },
+ {
+  "progress": 0.018,
+  "circles": 0.9914,
+  "stuck": 0.9997
+ },
+ {
+  "progress": 0.9997,
+  "circles": 0.0851,
+  "stuck": 0.0067
+ },
+ {
+  "progress": 0.2689,
+  "circles": 0.9669,
+  "stuck": 0.7982
+ },
+ {
+  "progress": 0.9992,
+  "circles": 0.0474,
+  "stuck": 0.0036
+ },
+ {
+  "progress": 0.9991,
+  "circles": 0.2018,
+  "stuck": 0.0953
+ },
+ {
+  "progress": 0.0141,
+  "circles": 0.9978,
+  "stuck": 0.9988
+ }
+]

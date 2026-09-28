@@ -24,4 +24,4 @@ skills_allowed: [learned-*, python-*, github-*, windows-system-admin, local-ai-m
                  cyberpunk-2077-modding, dlss5-game-injection, minecraft-modpack-server]
 tools: [project, web, browser]
 can_request: [front_end_designer, comfyui_manager]
-max_steps: 24
+max_steps: 60

@@ -25,7 +25,7 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
 python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 119 offline tests (fake Jev + scripted LLMs, a fake MCP server)
+python -m pytest -q                  # 126 offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
@@ -85,6 +85,7 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
 | Model tier (fast/strong) | `tier_cases.py`, 39 tasks + 15 held out | 100% and 15/15, 0 hard tasks sent fast | ~0.2s |
 | Tool guides | `tool_cases.py`, 42 requests x 4 tools | 40/42 exact, 0 needless | ~0.6s |
 | final() answer check | `verify_cases.py`, 22 tuning + 2 held-out sets of 12 | 12/12 tuning; fresh held-out 4/6 bad caught, 0 false alarms | ~0.3s |
+| Progress check (long tasks) | `progress_cases.py`, 14 work logs | 6/6 stalls caught, 0/8 healthy runs interrupted | every 8 steps |
 | Browser agent | `browser_cases.py`, 16 tuning + 12 held-out + 2 Wikipedia goals | 29-30/30, 0 false "done" | ~2.3s per goal |
 | Learning gates | `learn_cases.py`, 25 + 10 + 7 cases | 12/12 facts, 5/5 replacements, 3/3 skills; 0 false positives | ~0.2s each |
 | Memory reach | `recall_cases.py 4`, history under 160 newer turns | 14/19 needed turns reached (recent-window design: 1/19) | ~1.3s |
@@ -223,6 +224,41 @@ Live on uncapped Qwen: fixing the tip-calculator project, the gate ran the proje
 before accepting. Building a bakery landing page (30 KB, real copy, no placeholders), the page was
 opened in a headless browser and passed. (Both runs also showed the gate sending back correct work
 listed by a bare file name; `final()` now resolves those.)
+
+## Long tasks
+
+Workers used to stop after 10-24 steps, with 120s per code block and a conversation that only
+grew. Now:
+- **Bigger budgets:** 20-60 steps per persona (dev 60, designer 40), and 30 minutes per code
+  block (Stop ends one sooner). Long commands run as background jobs:
+  `j = start_job("npm run build")`, `job_status(j)`, `job_wait(j)`. They end with the REPL.
+- **Compaction:** past `limits.compact_tokens` (60k; Qwen has 100k of context loaded), older
+  steps condense into a progress log inside the task message: code heads plus output snippets.
+  The last `keep_steps` (3) steps stay verbatim, and variables and files are untouched. If the
+  log itself grows past ~12k chars, the model summarizes it (what's done, what failed and why,
+  what's left). It only fires when there's real old material, never just because the system
+  prompt is big.
+- **Progress check:** every `progress_every` (8) steps, Jev asks whether the recent steps repeat
+  the same attempt with the same result (`evals/progress_cases.py`: 6/6 stalls caught, 0/8 healthy
+  runs interrupted, over thresholds 0.3-0.8). The first time, the worker is told to step back and
+  change approach. The second time in a row, it stops, keeps its files, and can be resumed. It
+  replaced a "stuck?" wording that interrupted a healthy test-fixing run.
+- **Checkpoint and resume:** after every step the worker's conversation is saved to
+  `checkpoint.json` in its working folder. A task that was stopped, hit its step limit, stalled,
+  crashed, or was cut off by a harness restart can be resumed in the same folder, with its files
+  intact and a fresh REPL:
+  - "Resume this task" under the answer in the dashboard;
+  - `/resume` (or `/resume list`, `/resume 2`) in the CLI;
+  - `Harness.resume()`.
+
+Live on uncapped Qwen, a multi-part job ("make tipcalc a proper package: CLI with an exact-cent
+breakdown, thorough tests, README") first crashed at step 2. That was a harness bug: a display
+handler's error killed the worker. Event handlers are now shielded, and that's covered by a test.
+The resumed run took 12 more steps and 17.5 min: 62.0k tokens in, 32.7k out, 26.8k of them
+thinking. It restructured the code into a package with integer-cent math (100 split 3 ways ->
+38.34 / 38.33 / 38.33), 25 tests and a README, and the final() gate ran the tests itself before
+accepting. Compaction didn't fire in that run (about 5k tokens per step even with the threshold at
+12k), so it is covered by tests so far, not by a live run.
 
 ## Usage tracking
 

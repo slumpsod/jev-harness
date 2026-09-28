@@ -14,4 +14,4 @@ model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.3, think: un
 tools: [comfy, web]
 skills_allowed: ["comfyui*", video-analysis, learned-*]
 can_request: []
-max_steps: 14
+max_steps: 24

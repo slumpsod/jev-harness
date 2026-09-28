@@ -26,6 +26,7 @@ thresholds:
   verify_delivers: 0.80  # 12/12 bad answers caught, 0/10 false alarms with the plain rules), "delivers what
   verify_honest: 0.80  # was asked", "says plainly what is not done"
   verify_accurate: 0.40  # final() gate: "accurate report of the work log" noul (flags only if also not honest)
+  stall: 0.60          # progress check: "repeating the same attempt" noul (6/6 stalls, 0/8 healthy runs; progress_cases.py)
   learn_skill: 0.50    # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
 
 limits:
@@ -37,9 +38,14 @@ limits:
   memory_facts: 6               # + remembered facts that share words with the request
   follow_turns: 2               # a follow-up carries this session's last N turns as real conversation
   ask_timeout: 1800             # seconds a worker's ask_user() waits for the user before carrying on
+  progress_every: 8             # every N steps Jev checks a long task isn't going in circles
+  compact_tokens: 60000         # past this estimated size, older steps condense to a progress log
+                                # (Qwen has 100k of context loaded in LM Studio)
+  keep_steps: 3                 # recent steps kept verbatim when compacting
   max_depth: 3                  # nested persona requests
   max_tasks_per_turn: 8
-  repl_timeout: 120             # seconds per code block (time spent in callbacks excluded)
+  repl_timeout: 1800            # seconds per code block (callbacks excluded); Stop ends it sooner
+                                # (long commands: start_job() in the background)
   output_cap: 4000              # chars of REPL output shown to the model per step
   max_mcp_tools: 3              # MCP tool descriptions per task, after Jev's pick
 

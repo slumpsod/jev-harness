@@ -13,4 +13,4 @@ skills_allowed: [frontend-design, hermes-local-web-apps, simple-web-app-build, p
                  pixel-art, "baoyu-*", ideation, harness-artifacts, learned-*]
 tools: [browser, project, web]
 can_request: [comfyui_manager]
-max_steps: 16
+max_steps: 40
