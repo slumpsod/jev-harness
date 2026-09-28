@@ -180,7 +180,7 @@ def main() -> None:
             continue
         t = time.time()
         try:
-            r = run_base(cfg, task, a.limit) if a.mode == "base" else run_harness(cfg, tid, task, a.limit, RUNS / "h")
+            r = run_base(cfg, task, a.limit) if a.mode == "base" else run_harness(cfg, tid, task, a.limit, RUNS / ("h" + a.tag))
             err = None
         except Exception as e:  # noqa: BLE001 - a crash is a result, keep going
             r, err = {"answer": "", "input": 0, "output": 0, "thinking": 0, "timed_out": False}, f"{type(e).__name__}: {e}"
