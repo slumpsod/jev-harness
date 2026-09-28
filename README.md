@@ -25,7 +25,7 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
 python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 93 offline tests (fake Jev + scripted LLMs, a fake MCP server)
+python -m pytest -q                  # 96 offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
@@ -61,6 +61,13 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
 - Memory is on disk (`workspace/memory/*.jsonl`). The candidates are a persona's own recent turns plus a
   few from other personas, and only snippets Jev scores as relevant (`thresholds.memory`) reach the worker,
   as `ctx['memory']`.
+- **Follow-ups keep their thread.** The routing call also asks two follow-up questions: does the message
+  continue the recent topic, and is it a reply to the assistant's last message? If either passes,
+  this chat's last 2 turns go along as real conversation turns, and Jev's other decisions judge the
+  message together with that exchange. This check is needed because a follow-up judged alone
+  ("4 days, full gym", or an answer to the assistant's own clarifying question) has nothing to match
+  in the memory gate: live, the previous turn scored 0 and the worker asked "your message looks cut
+  off?". `followup_cases.py`: 14/14 follow-ups kept, 0/8 new topics joined. A new topic still starts clean.
 - Delegated workers get no conversation history, only the brief and the artifact paths they were handed.
 - Big data never goes into prompts: the worker sees `ctx` key names and sizes, and reads values with `peek()`.
 - Hard limits hold no matter what Jev says: delegation depth, tasks per turn, cycle guard, per-exec
@@ -71,6 +78,7 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
 | Decision | Eval | Result | Per turn |
 |---|---|---|---|
 | Persona routing | `routing_cases.py`, 33 requests | 97% top-1 | ~0.2s |
+| Follow-up detection | `followup_cases.py`, 22 message pairs | 14/14 follow-ups kept, 0/8 new topics joined | (in the routing call) |
 | Collaborators | `routing_cases.py` | 94% exact, 0 needless | ~0.2s |
 | Skill picking | `skill_cases.py`, 63 requests (your 52 Hermes-router cases + 11) | 94% right skill, 93% correct "no skill", 3 needless | ~1.5s |
 | Memory gating | `memory_cases.py`, 18 requests over an 18-turn history | 95% of needed turns passed, 0 leaks | ~1.5s |

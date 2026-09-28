@@ -61,7 +61,7 @@ def learn_rules(fact=0.95, same=0.9, skill=0.9):
 
 def learner(cfg, tmp_path, rules):
     mem = Memory(tmp_path / "mem")
-    return Learner(Jev(cfg, FakeSystemOne(rules)), mem, tmp_path / "skills", cfg.thresholds), mem
+    return Learner(Jev(cfg, FakeSystemOne(rules)), mem, tmp_path / "skills", cfg.t), mem
 
 
 def test_fact_is_extracted_and_replaces_the_outdated_one(cfg, tmp_path):

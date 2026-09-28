@@ -35,6 +35,13 @@ MEMORY_TOP_N = 4           # Choice leaders that get the noul
 # Model tier (tuned on evals/tier_cases.py, semif): a two-way Choice on the task text alone
 # (a 3-level Score scored 97%, nouls 77-82%); 42/42 labelled + held-out tasks at any threshold
 # 0.45-0.65, so 0.55 sits mid-plateau.
+# Follow-ups (tuned on evals/followup_cases.py, semif): the routing call's "continues the topic"
+# noul caught 13/14 follow-ups at 0.25 with 0/8 new topics joined; its miss ("something older"
+# after a movie tip, 0.06) is caught by the reply noul (>= 0.4, which joined 0/8 new topics).
+# Together: 14/14, 0/8. "only makes sense together with" rated every new topic ~0.75: unusable.
+CONTINUES_Q = "Is the latest request a continuation of the recent conversation's topic?"
+REPLY_Q = "Is the latest message a reply to the assistant's last message, or a follow-up to it?"
+
 TIER_Q = "Which model should handle this task?"
 TIER_OPTIONS = {"fast": "a small fast model - good for quick answers, lookups, short scripts and simple edits",
                 "strong": "a large careful model - needed for deep reasoning, hard debugging, long or complex builds"}
@@ -77,6 +84,8 @@ class RouteDecision:
     probabilities: dict[str, float]
     continues: float | None
     reason: str
+    replies: float | None = None
+    follows: bool = False      # the message follows up on the recent exchange: it goes along as context
 
 
 @dataclass
@@ -153,22 +162,37 @@ class Jev:
             "Which assistant is best suited to handle the user's latest request?",
             {name: p.description for name, p in personas.items()})}
         state: dict[str, Any] = {"latest_request": request}
-        if current and recent:
+        if recent:
             state["recent_conversation"] = _clip(recent, 1500)
-            questions["continues"] = noul(
-                "Is the latest request a continuation of the recent conversation's topic?")
+            questions["continues"] = noul(CONTINUES_Q)
+            questions["replies"] = noul(REPLY_Q)
         r = self._ask("route", state, questions)
         pick, conf = r["persona"].choice, r["persona"].confidence
         cont = r["continues"].noul if "continues" in questions else None
+        rep = r["replies"].noul if "replies" in questions else None
+        follows = self._follows(cont, rep)
+        probs = r["persona"].probabilities
+        if follows and current and current in personas and pick != current and conf < self.cfg.t("route"):
+            return RouteDecision(current, conf, probs, cont, f"follow-up; stays with {current}", rep, True)
         if pick == current:
-            return RouteDecision(pick, conf, r["persona"].probabilities, cont, "choice (same persona)")
+            return RouteDecision(pick, conf, probs, cont, "choice (same persona)", rep, follows)
         if conf >= self.cfg.t("route"):
-            return RouteDecision(pick, conf, r["persona"].probabilities, cont, "choice")
+            return RouteDecision(pick, conf, probs, cont, "choice", rep, follows)
         if current and cont is not None and cont >= self.cfg.t("stick"):
-            return RouteDecision(current, conf, r["persona"].probabilities, cont,
-                                 f"low confidence for {pick}; conversation continues")
-        return RouteDecision(default if default in personas else pick, conf,
-                             r["persona"].probabilities, cont, f"low confidence for {pick}; default")
+            return RouteDecision(current, conf, probs, cont, f"low confidence for {pick}; conversation continues",
+                                 rep, follows)
+        return RouteDecision(default if default in personas else pick, conf, probs, cont,
+                             f"low confidence for {pick}; default", rep, follows)
+
+    def _follows(self, cont: float | None, rep: float | None) -> bool:
+        return (cont or 0.0) >= self.cfg.t("follow_topic") or (rep or 0.0) >= self.cfg.t("follow_reply")
+
+    def follow_up(self, request: str, recent: str) -> tuple[bool, float, float]:
+        """For a pinned persona (no routing call): (follows, continues, replies)."""
+        r = self._ask("follow_up", {"latest_request": request, "recent_conversation": _clip(recent, 1500)},
+                      {"continues": noul(CONTINUES_Q), "replies": noul(REPLY_Q)})
+        cont, rep = r["continues"].noul, r["replies"].noul
+        return self._follows(cont, rep), cont, rep
 
     # -- 2. which skills -----------------------------------------------------------
     def pick_skills(self, request: str, persona: Persona, roster: dict[str, Skill]) -> SkillDecision:

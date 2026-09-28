@@ -327,7 +327,10 @@ function renderInspector() {
   const th = S.thresholds;
   let html = "";
   if (t.route) html += `<div class="card"><h3>Routing <span class="badge">${esc(t.route.persona)}</span><span class="kv">${esc(t.route.reason)}</span></h3>
-    ${probRows(t.route.probabilities, t.route.persona)}${t.route.continues != null ? `<div class="kv">continues conversation: ${t.route.continues.toFixed(2)}</div>` : ""}</div>`;
+    ${probRows(t.route.probabilities, t.route.persona)}
+    ${t.route.continues != null ? `<h4>Follow-up: ${t.route.follows ? "yes - the last turns of this chat go along as context" : "no - starts clean"}</h4>
+      ${probRows({"continues the topic": t.route.continues}, t.route.follows ? "continues the topic" : null, {thr: th.follow_topic})}
+      ${t.route.replies != null ? probRows({"replies to the assistant": t.route.replies}, t.route.follows ? "replies to the assistant" : null, {thr: th.follow_reply}) : ""}` : ""}</div>`;
   const tasks = [...t.tasks.values()].sort((a, b) => a.id - b.id);
   for (const x of tasks) {
     const d = t.decisions.get(x.id) || {};

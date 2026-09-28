@@ -24,6 +24,7 @@ from .skills import Skill
 FIRST_STEP_NUDGE = ("\n\nReply now with a short plan (at most 5 bullets) and a first python block "
                     "for step one. Build incrementally across replies - do not design the whole "
                     "solution before replying.")
+HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-up
 SKILL_PROMPT_CHARS = 6000   # longer skills: head in the prompt, full text in ctx['skills']
 CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
 # Some local models (seen: ornith in LM Studio) sometimes answer in their native tool-call
@@ -149,10 +150,15 @@ class Worker:
         self.on_step = on_step or (lambda kind, data: None)
         self.env = env or {}
 
-    def run(self, task: str, ctx: dict[str, Any], system: str) -> WorkerResult:
+    def run(self, task: str, ctx: dict[str, Any], system: str,
+            history: list[tuple[str, str]] | None = None) -> WorkerResult:
+        """`history`: the (user, assistant) turns this message follows up on, as real chat turns."""
+        prior = []
+        for u, a in history or []:
+            prior += [{"role": "user", "content": u}, {"role": "assistant", "content": a[:HISTORY_CHARS]}]
         if not self.persona.code:
-            return self._chat(task, ctx, system)
-        messages = [{"role": "system", "content": system},
+            return self._chat(task, ctx, system, prior)
+        messages = [{"role": "system", "content": system}, *prior,
                     {"role": "user", "content": f"{task}\n\n(In your REPL:\n{describe_ctx(ctx)})"
                                                 + FIRST_STEP_NUDGE}]
         res = WorkerResult(answer="")
@@ -238,14 +244,14 @@ class Worker:
                 out.append(str(dest))
         return out[:20]
 
-    def _chat(self, task: str, ctx: dict[str, Any], system: str) -> WorkerResult:
+    def _chat(self, task: str, ctx: dict[str, Any], system: str, prior: list | None = None) -> WorkerResult:
         memory = ctx.get("memory") or []
         extra = ""
         if memory:
             extra += "\n\nRelevant earlier conversation:\n" + "\n---\n".join(memory)
         if ctx.get("inputs"):
             extra += "\n\nInputs: " + ", ".join(map(str, ctx["inputs"]))
-        messages = [{"role": "system", "content": system},
+        messages = [{"role": "system", "content": system}, *(prior or []),
                     {"role": "user", "content": task + extra}]
         out = self.llm.chat(messages)
         messages.append({"role": "assistant", "content": out.text})

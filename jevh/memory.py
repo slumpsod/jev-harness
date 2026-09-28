@@ -130,6 +130,11 @@ class Memory:
                            "ORDER BY id DESC LIMIT ?", (session, n))
         return "\n\n".join(t.chunk() for t in rows[::-1])
 
+    def session_turns(self, session: str, n: int = 2) -> list[Turn]:
+        rows = self._turns("SELECT persona, session, ts, user, assistant FROM turns WHERE session=? "
+                           "ORDER BY id DESC LIMIT ?", (session, n))
+        return rows[::-1]
+
     def search(self, text: str, n: int = 10) -> list[Turn]:
         """Turns from any time that share words with `text`, best match first (BM25)."""
         q = fts_query(text)

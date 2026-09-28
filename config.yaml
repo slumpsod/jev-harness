@@ -9,6 +9,8 @@ jev:
 thresholds:
   route: 0.45          # persona choice confidence needed to switch persona
   stick: 0.55          # "continues the conversation" noul needed to stay with the current persona
+  follow_topic: 0.25   # follow-up if "continues the topic" >= this ... (14/14 follow-ups, 0/8 new topics
+  follow_reply: 0.40   # ... or "reply to the assistant's last message" >= this   on followup_cases.py)
   skill_none_veto: 0.90  # P("none of these") in the skill Choice at/above which no skill loads
   skill_override: 0.90   # Choice leader this sure loads without the fits check
   skill_fits: 0.08       # else: best Choice*fits leader needs fits >= this (fits noul runs low; 0.08 > 0.10 on 63 cases)
@@ -29,6 +31,7 @@ limits:
   memory_candidates_shared: 6   # recent turns from other personas (Jev decides if they leak in)
   memory_search: 10             # + turns from ANY time that share words with the request (full-text index)
   memory_facts: 6               # + remembered facts that share words with the request
+  follow_turns: 2               # a follow-up carries this session's last N turns as real conversation
   max_depth: 3                  # nested persona requests
   max_tasks_per_turn: 8
   repl_timeout: 120             # seconds per code block (time spent in callbacks excluded)

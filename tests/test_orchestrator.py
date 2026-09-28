@@ -393,3 +393,48 @@ def test_handoffs_are_tiered_independently(cfg):
     assert got["fitness_coach"] == cfg.models["fast"]["model"]
     assert got["front_end_designer"] == cfg.models["fast"]["model"]
     assert got["high_end_dev"] == h.personas["high_end_dev"].model["model"]
+
+
+def followup_rules(continues, replies, persona="daily_assistant"):
+    def rules(k, q, s):
+        if k == "persona":
+            return choice_ans(persona, 0.9, q["criteria"])
+        if k == "continues":
+            return noul_ans(continues)
+        if k == "replies":
+            return noul_ans(replies)
+    return rules
+
+
+def test_answer_to_a_clarifying_question_gets_the_exchange(cfg):
+    llm = ScriptedLLM(["Which state, and mail forwarding or DMV?", "USPS mail forwarding in Utah: ..."])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(followup_rules(0.3, 0.1))), llm_factory=lambda p: llm)
+    h.learning = False
+    h.turn("how do I make a change of address?")
+    h.turn("Utah, for my mail")
+    second = llm.seen[1]
+    assert [m["role"] for m in second] == ["system", "user", "assistant", "user"]
+    assert second[1]["content"] == "how do I make a change of address?"
+    assert second[2]["content"] == "Which state, and mail forwarding or DMV?"
+    assert second[3]["content"].startswith("Utah, for my mail")
+
+
+def test_new_topic_starts_clean(cfg):
+    llm = ScriptedLLM(["plan...", "Salt Lake City."])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(followup_rules(0.05, 0.1))), llm_factory=lambda p: llm)
+    h.learning = False
+    h.turn("plan my week")
+    h.turn("what's the capital of Utah?")
+    assert [m["role"] for m in llm.seen[1]] == ["system", "user"]
+
+
+def test_follow_up_also_works_with_a_pinned_persona_and_informs_jev(cfg):
+    fake = FakeSystemOne(followup_rules(0.1, 0.8))
+    llm = ScriptedLLM(["How many days can you train?", "4-day plan..."])
+    h = Harness(cfg, jev=Jev(cfg, fake), llm_factory=lambda p: llm)
+    h.learning = False
+    h.turn("plan my workouts", force="fitness_coach")
+    h.turn("4 days, full gym", force="fitness_coach")
+    assert [m["role"] for m in llm.seen[1]][:3] == ["system", "user", "assistant"]
+    tier_states = [s for s, q in fake.calls if "tier" in q]
+    assert "plan my workouts" in tier_states[-1]["task"] and "Latest message: 4 days, full gym" in tier_states[-1]["task"]

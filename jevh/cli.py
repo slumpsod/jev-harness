@@ -60,6 +60,8 @@ class Printer:
             top = sorted(d.probabilities.items(), key=lambda kv: -kv[1])[:3]
             alts = "  ".join(f"{k} {v:.2f}" for k, v in top)
             cont = f"  continues={d.continues:.2f}" if d.continues is not None else ""
+            if d.replies is not None:
+                cont += f" replies={d.replies:.2f}" + (" -> follow-up: last turns go along" if d.follows else "")
             console.print(f"[bold cyan]jev[/] → [bold]{d.persona}[/] ({esc(d.reason)}; conf {d.confidence:.2f})"
                           f"[dim]  {alts}{cont}[/]")
         elif kind == "skills":

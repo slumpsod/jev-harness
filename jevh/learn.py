@@ -109,7 +109,7 @@ def slug(text: str) -> str:
 
 
 class Learner:
-    def __init__(self, jev, memory: Memory, skills_root: Path, thresholds: dict[str, float],
+    def __init__(self, jev, memory: Memory, skills_root: Path, thresholds: Callable[[str], float],
                  on_event: Callable[[str, dict], None] | None = None):
         self.jev, self.memory, self.root = jev, memory, Path(skills_root)
         self.t = thresholds
@@ -119,7 +119,7 @@ class Learner:
     def facts(self, user: str, assistant: str, llm, source: str = "") -> tuple[list[str], list[str], float]:
         state = {"user_message": user[:2000], "assistant_reply": assistant[:600]}
         p = self.jev._ask("learn_fact", state, {"fact": noul(FACT_Q)})["fact"].noul
-        if p < self.t.get("fact", 0.5):
+        if p < self.t("fact"):
             return [], [], p
         raw = llm.chat([{"role": "user", "content": FACT_PROMPT.format(user=user[:3000], assistant=assistant[:1500])}]).text
         new = [f.strip() for f in _json_list(raw) if isinstance(f, str) and 8 <= len(f.strip()) <= 300][:3]
@@ -138,7 +138,7 @@ class Learner:
                                   {f"f{o.id}": noul(SAME_FACT_Q.replace("`old_fact`", f"`old_facts.f{o.id}`"))
                                    for o in old})
                 for o in old:
-                    if r[f"f{o.id}"].noul >= self.t.get("same_fact", 0.6):
+                    if r[f"f{o.id}"].noul >= self.t("same_fact"):
                         self.memory.retire_fact(o.id)
                         retired.append(o.text)
             self.memory.add_fact(fact, source)
@@ -150,7 +150,7 @@ class Learner:
         if not log:
             return None, None, 0.0
         p = self.jev._ask("learn_skill", {"task": task[:1500], "work_log": log[-3500:]}, {"skill": noul(SKILL_Q)})["skill"].noul
-        if p < self.t.get("learn_skill", 0.6):
+        if p < self.t("learn_skill"):
             return None, None, p
         if used:
             return self._lessons(task, log, used[0], llm), "lessons", p

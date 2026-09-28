@@ -28,10 +28,16 @@ class Config:
     workspace: Path = ROOT / "workspace"
 
     def t(self, name: str) -> float:
-        return float(self.thresholds[name])
+        return float(self.thresholds[name] if name in self.thresholds else DEFAULT_THRESHOLDS[name])
 
     def lim(self, name: str) -> int:
-        return int(self.limits[name])
+        return int(self.limits[name] if name in self.limits else DEFAULT_LIMITS[name])
+
+
+# Settings added after the first config.yaml: an older config keeps working with the tuned values.
+DEFAULT_THRESHOLDS = {"tool": 0.65, "mcp_fits": 0.5, "fact": 0.88, "same_fact": 0.5, "learn_skill": 0.5,
+                      "follow_topic": 0.25, "follow_reply": 0.4}
+DEFAULT_LIMITS = {"max_mcp_tools": 3, "memory_search": 10, "memory_facts": 6, "follow_turns": 2}
 
 
 def load_config(path: str | os.PathLike | None = None) -> Config:

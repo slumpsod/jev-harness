@@ -117,7 +117,7 @@ class Harness:
                 os.environ.setdefault(env, str(self.cfg.tools[key]))
         os.environ.setdefault("JEVH_JEV_URL", str(self.cfg.jev.get("url", "http://127.0.0.1:33001")))
         os.environ.setdefault("JEVH_JEV_BACKEND", str(self.cfg.jev.get("backend", "semif")))
-        self.learner = Learner(self.jev, self.memory, self.skills_home, self.cfg.thresholds,
+        self.learner = Learner(self.jev, self.memory, self.skills_home, self.cfg.t,
                                lambda kind, data: self.on_event(kind, data))
         self._learn_threads: list[threading.Thread] = []
 
@@ -126,16 +126,24 @@ class Harness:
         started = time.time()
         self.jev.trace = []
         self.board = Board(self.cfg.lim("max_depth"), self.cfg.lim("max_tasks_per_turn"))
+        recent = self.memory.recent_text(self.session)
         if force:
             if force not in self.personas:
                 raise KeyError(f"unknown persona '{force}'")
             route = RouteDecision(force, 1.0, {}, None, "forced by user")
+            if recent:
+                follows, cont, rep = self._safe("follow_up", lambda: self.jev.follow_up(message, recent),
+                                                (False, None, None))
+                route.follows, route.continues, route.replies = follows, cont, rep
         else:
             route = self._safe("route", lambda: self.jev.route_persona(
-                message, self.personas, self.current, self.memory.recent_text(self.session)),
+                message, self.personas, self.current, recent),
                 RouteDecision(self.current or self.cfg.default_persona, 0.0, {}, None, "jev unavailable"))
         self.on_event("route", {"decision": route})
         root = self.board.open(None, "user", route.persona, message)
+        if route.follows:  # the exchange this answers goes along as real context, not via the memory gate
+            root.history = [(t.user, t.assistant) for t in self.memory.session_turns(
+                self.session, self.cfg.lim("follow_turns"))]
         result = self.run_task(root, goal=message, allow_collab=True)
         if root.status == "done":  # a crashed turn's error text must not become "memory"
             self.memory.append(route.persona, message, result.answer, self.session)
@@ -181,19 +189,22 @@ class Harness:
     # -- tasks -----------------------------------------------------------------------
     def run_task(self, task: Task, goal: str, allow_collab: bool) -> WorkerResult:
         persona = self.personas[task.to]
-        skills = self._safe("skills", lambda: self.jev.pick_skills(task.text, persona, self.roster),
+        skills = self._safe("skills", lambda: self.jev.pick_skills(task.jev_text, persona, self.roster),
                             SkillDecision([]))
         self.on_event("skills", {"task": task, "decision": skills})
         candidates = self.memory.candidates(persona.name, self.cfg.lim("memory_candidates_own"),
-                                            self.cfg.lim("memory_candidates_shared"), task.text,
-                                            self.cfg.limits.get("memory_search", 0),
-                                            self.cfg.limits.get("memory_facts", 0))
-        mem = self._safe("memory", lambda: self.jev.gate_context(task.text, candidates),
+                                            self.cfg.lim("memory_candidates_shared"), task.jev_text,
+                                            self.cfg.lim("memory_search"),
+                                            self.cfg.lim("memory_facts"))
+        if task.history:  # those turns are already in the conversation itself
+            said = [f"User: {u}\n" for u, _ in task.history]
+            candidates = [c for c in candidates if not any(s in c for s in said)]
+        mem = self._safe("memory", lambda: self.jev.gate_context(task.jev_text, candidates),
                          MemoryDecision([], []))
         self.on_event("memory", {"task": task, "decision": mem, "candidates": len(candidates)})
         collab = CollabDecision([], {})
         if allow_collab and persona.code:
-            collab = self._safe("collab", lambda: self.jev.collab(task.text, persona, self.personas), collab)
+            collab = self._safe("collab", lambda: self.jev.collab(task.jev_text, persona, self.personas), collab)
             self.on_event("collab", {"task": task, "decision": collab})
         requestable = {n: p.description for n, p in self.personas.items()
                        if persona.may_request(n) or n in collab.suggested}
@@ -231,7 +242,7 @@ class Harness:
         task.started = time.time()
         self.on_event("start", {"task": task, "model": getattr(llm, "name", "?")})
         try:
-            result = worker.run(task.text, ctx, system)
+            result = worker.run(task.text, ctx, system, task.history)
             result.skills, result.llm = list(skills.skills), llm
             task.status = "done"
         except Exception as e:  # noqa: BLE001 - a dead model server must not kill the harness
@@ -304,7 +315,7 @@ class Harness:
         if not own and not mcp:
             return ToolDecision([])
         fallback = ToolDecision(list(own))  # Jev down: all guides (capability beats a lean prompt)
-        return self._safe("tools", lambda: self.jev.pick_tools(task.text, own, mcp), fallback)
+        return self._safe("tools", lambda: self.jev.pick_tools(task.jev_text, own, mcp), fallback)
 
     def _mcp_call(self, persona: Persona, key: str, arguments: dict) -> str:
         if not persona.allows_mcp(key):
@@ -326,7 +337,7 @@ class Harness:
         if self.tier_mode in ("fast", "strong"):
             return TierDecision(self.tier_mode, None, "forced by user")
         # Jev down -> persona's own model: a slow right answer beats a fast wrong one
-        return self._safe("tier", lambda: self.jev.pick_tier(task.text, persona),
+        return self._safe("tier", lambda: self.jev.pick_tier(task.jev_text, persona),
                           TierDecision("strong", None, "jev unavailable"))
 
     def _llm(self, persona: Persona, tier: str = "strong") -> LLM:
