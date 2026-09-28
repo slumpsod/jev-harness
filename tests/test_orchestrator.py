@@ -300,3 +300,96 @@ def test_handoff_overlap_math():
     ts = [NS(depth=1, started=0, finished=10), NS(depth=1, started=2, finished=8),
           NS(depth=1, started=12, finished=15), NS(depth=2, started=1, finished=9), NS(depth=0, started=0, finished=20)]
     assert handoff_overlap(ts) == (19, 13)
+
+
+def tier_harness(cfg, p_strong, persona="daily_assistant"):
+    """Jev answers the tier Choice with P(strong)=p_strong; records each model block used."""
+    def rules(k, q, s):
+        if k == "tier":
+            return {"choice": "strong" if p_strong >= 0.5 else "fast", "confidence": max(p_strong, 1 - p_strong),
+                    "probabilities": {"strong": p_strong, "fast": 1 - p_strong}}
+        return team_rules(persona)(k, q, s)
+    used = []
+
+    def factory(p):
+        used.append((p.name, p.model["model"]))
+        return ScriptedLLM(["ok"])
+    fake = FakeSystemOne(rules)
+    return Harness(cfg, jev=Jev(cfg, fake), llm_factory=factory), used, fake
+
+
+def test_easy_task_goes_to_fast_model(cfg):
+    h, used, _ = tier_harness(cfg, p_strong=0.1)
+    h.turn("what's 2+2")
+    assert used == [("daily_assistant", cfg.models["fast"]["model"])]
+
+
+def test_hard_task_keeps_persona_model(cfg):
+    h, used, _ = tier_harness(cfg, p_strong=0.9)
+    h.turn("reconcile a year of ledgers")
+    assert used == [("daily_assistant", h.personas["daily_assistant"].model["model"])]
+
+
+def test_fast_model_keeps_persona_sampling_but_drops_fallback(cfg):
+    h, _, _ = tier_harness(cfg, p_strong=0.1)
+    dev = h._model_cfg(h.personas["high_end_dev"], "fast")
+    assert dev["model"] == cfg.models["fast"]["model"] and "fallback" not in dev and "effort" not in dev
+    fe = h._model_cfg(h.personas["front_end_designer"], "fast")
+    assert fe["model"] == cfg.models["fast"]["model"]
+    assert fe["temperature"] == 0.6 and fe["max_tokens"] == 16384  # the persona's own sampling settings
+
+
+def test_no_tier_call_when_persona_opts_out(cfg):
+    h, used, fake = tier_harness(cfg, p_strong=0.1)
+    h.personas["daily_assistant"].fast_ok = False
+    h.turn("hi")
+    assert not any("tier" in q for _, q in fake.calls)
+    assert used == [("daily_assistant", h.personas["daily_assistant"].model["model"])]
+
+
+def test_forced_tier_skips_jev(cfg):
+    h, used, fake = tier_harness(cfg, p_strong=0.99)
+    h.tier_mode = "fast"
+    h.turn("reconcile a year of ledgers")
+    assert not any("tier" in q for _, q in fake.calls)
+    assert used == [("daily_assistant", cfg.models["fast"]["model"])]
+
+
+def test_tiering_off_without_fast_model(cfg):
+    cfg.models = {}
+    h, used, fake = tier_harness(cfg, p_strong=0.1)
+    h.turn("hi")
+    assert used == [("daily_assistant", h.personas["daily_assistant"].model["model"])]
+
+
+def test_jev_down_during_tier_uses_strong(cfg):
+    h, used, _ = tier_harness(cfg, p_strong=0.1)
+
+    def boom(*a, **k):
+        raise SystemOneError("down")
+    h.jev.pick_tier = boom
+    h.turn("hi")
+    assert used == [("daily_assistant", h.personas["daily_assistant"].model["model"])]
+
+
+def test_handoffs_are_tiered_independently(cfg):
+    def rules(k, q, s):
+        if k == "tier":
+            hard = "hard" in s["task"]
+            p = 0.95 if hard else 0.05
+            return {"choice": "strong" if hard else "fast", "confidence": 0.95,
+                    "probabilities": {"strong": p, "fast": 1 - p}}
+        return team_rules("fitness_coach")(k, q, s)
+    used = []
+    replies = {"fitness_coach": [py("request_all([('high_end_dev', 'hard build'), "
+                                    "('front_end_designer', 'easy tweak')])\nfinal('ok')")]}
+
+    def factory(p):
+        used.append((p.name, p.model["model"]))
+        return ScriptedLLM(replies.get(p.name, [py("final('done')")]))
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=factory)
+    h.turn("easy app request")
+    got = dict(used)
+    assert got["fitness_coach"] == cfg.models["fast"]["model"]
+    assert got["front_end_designer"] == cfg.models["fast"]["model"]
+    assert got["high_end_dev"] == h.personas["high_end_dev"].model["model"]

@@ -1,0 +1,432 @@
+[
+ {
+  "persona": "daily_assistant",
+  "text": "What's 17% of 2,340?",
+  "label": "fast",
+  "secs": 0.67,
+  "score": 0.2456,
+  "can_fast": 0.9978,
+  "needs_deep": 0.0421,
+  "p_strong": 0.0203
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Remind me to call Dave at 3pm tomorrow.",
+  "label": "fast",
+  "secs": 0.67,
+  "score": 0.0539,
+  "can_fast": 0.9876,
+  "needs_deep": 0.0032,
+  "p_strong": 0.018
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Draft a two-line text telling my crew we start at 8 tomorrow.",
+  "label": "fast",
+  "secs": 0.73,
+  "score": 0.0379,
+  "can_fast": 0.9996,
+  "needs_deep": 0.0015,
+  "p_strong": 0.0009
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "What's a good sourdough starter feeding ratio?",
+  "label": "fast",
+  "secs": 0.67,
+  "score": 0.0346,
+  "can_fast": 0.9903,
+  "needs_deep": 0.0076,
+  "p_strong": 0.0097
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Turn off the living room lights.",
+  "label": "fast",
+  "secs": 0.66,
+  "score": 0.0235,
+  "can_fast": 0.9841,
+  "needs_deep": 0.0041,
+  "p_strong": 0.018
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Convert 2,400 square feet to square meters.",
+  "label": "fast",
+  "secs": 0.79,
+  "score": 0.0263,
+  "can_fast": 0.9941,
+  "needs_deep": 0.0141,
+  "p_strong": 0.0159
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Suggest three names for a hiking playlist.",
+  "label": "fast",
+  "secs": 0.76,
+  "score": 0.3789,
+  "can_fast": 0.9975,
+  "needs_deep": 0.0076,
+  "p_strong": 0.0041
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "What's on my calendar tomorrow?",
+  "label": "fast",
+  "secs": 0.67,
+  "score": 0.0265,
+  "can_fast": 0.7549,
+  "needs_deep": 0.023,
+  "p_strong": 0.0076
+ },
+ {
+  "persona": "fitness_coach",
+  "text": "How long should I rest between heavy squat sets?",
+  "label": "fast",
+  "secs": 0.71,
+  "score": 0.0213,
+  "can_fast": 0.9579,
+  "needs_deep": 0.0041,
+  "p_strong": 0.011
+ },
+ {
+  "persona": "fitness_coach",
+  "text": "Log bench press 100kg for 5 reps today.",
+  "label": "fast",
+  "secs": 0.66,
+  "score": 0.0782,
+  "can_fast": 0.9241,
+  "needs_deep": 0.0022,
+  "p_strong": 0.2018
+ },
+ {
+  "persona": "fitness_coach",
+  "text": "Give me a quick 20-minute bodyweight workout.",
+  "label": "fast",
+  "secs": 0.81,
+  "score": 0.4725,
+  "can_fast": 0.9876,
+  "needs_deep": 0.0067,
+  "p_strong": 0.0001
+ },
+ {
+  "persona": "fitness_coach",
+  "text": "Is creatine safe to take every day?",
+  "label": "fast",
+  "secs": 0.68,
+  "score": 0.0243,
+  "can_fast": 0.9399,
+  "needs_deep": 0.0067,
+  "p_strong": 0.0293
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "What's the difference between a list and a tuple in Python?",
+  "label": "fast",
+  "secs": 0.74,
+  "score": 0.2054,
+  "can_fast": 0.9972,
+  "needs_deep": 0.0373,
+  "p_strong": 0.0331
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Write a Python function that reverses a string.",
+  "label": "fast",
+  "secs": 0.76,
+  "score": 0.1832,
+  "can_fast": 0.9998,
+  "needs_deep": 0.0421,
+  "p_strong": 0.018
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "What does HTTP status 404 mean?",
+  "label": "fast",
+  "secs": 0.74,
+  "score": 0.0002,
+  "can_fast": 0.999,
+  "needs_deep": 0.0097,
+  "p_strong": 0.0007
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Give me the git command to undo my last commit but keep the changes.",
+  "label": "fast",
+  "secs": 0.87,
+  "score": 0.0094,
+  "can_fast": 0.9954,
+  "needs_deep": 0.0097,
+  "p_strong": 0.0012
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Write a small JavaScript widget: square feet in, estimated insulation cost out.",
+  "label": "fast",
+  "secs": 0.71,
+  "score": 0.6919,
+  "can_fast": 0.9998,
+  "needs_deep": 0.018,
+  "p_strong": 0.0004
+ },
+ {
+  "persona": "front_end_designer",
+  "text": "Suggest a hex color that pairs well with navy #1B2A4A.",
+  "label": "fast",
+  "secs": 0.73,
+  "score": 0.1665,
+  "can_fast": 0.9924,
+  "needs_deep": 0.023,
+  "p_strong": 0.0012
+ },
+ {
+  "persona": "front_end_designer",
+  "text": "Make this button's corners rounded and add a hover state.",
+  "label": "fast",
+  "secs": 0.77,
+  "score": 0.5035,
+  "can_fast": 0.9968,
+  "needs_deep": 0.018,
+  "p_strong": 0.0032
+ },
+ {
+  "persona": "comfyui_manager",
+  "text": "Generate a hero image of mountains at sunset.",
+  "label": "fast",
+  "secs": 0.66,
+  "score": 0.6256,
+  "can_fast": 0.6792,
+  "needs_deep": 0.0032,
+  "p_strong": 0.1192
+ },
+ {
+  "persona": "comfyui_manager",
+  "text": "Upscale this photo 2x.",
+  "label": "fast",
+  "secs": 0.65,
+  "score": 0.6206,
+  "can_fast": 0.4073,
+  "needs_deep": 0.0373,
+  "p_strong": 0.4073
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Design the database schema and API for a multi-tenant payroll system with audit logs, then implement the core endpoints.",
+  "label": "strong",
+  "secs": 0.66,
+  "score": 1.986,
+  "can_fast": 0.3208,
+  "needs_deep": 0.9994,
+  "p_strong": 0.9994
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "My async FastAPI app deadlocks under load only in production. Here are the logs - find the root cause and fix it.",
+  "label": "strong",
+  "secs": 0.74,
+  "score": 1.9555,
+  "can_fast": 0.3775,
+  "needs_deep": 0.9924,
+  "p_strong": 0.9914
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Refactor this 2,000-line module into a clean package with tests, keeping behavior identical.",
+  "label": "strong",
+  "secs": 0.7,
+  "score": 1.9843,
+  "can_fast": 0.0759,
+  "needs_deep": 0.9964,
+  "p_strong": 0.9981
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Build a full-stack web app for booking appointments with login, a calendar view, and email reminders.",
+  "label": "strong",
+  "secs": 0.74,
+  "score": 1.9892,
+  "can_fast": 0.026,
+  "needs_deep": 0.9997,
+  "p_strong": 0.9994
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Write a parser for our custom config language with error recovery and helpful error messages.",
+  "label": "strong",
+  "secs": 0.77,
+  "score": 1.9733,
+  "can_fast": 0.9149,
+  "needs_deep": 0.9987,
+  "p_strong": 0.9914
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Port our payroll calculations from Excel formulas to Python and verify they match last year's data.",
+  "label": "strong",
+  "secs": 0.79,
+  "score": 1.4246,
+  "can_fast": 0.6792,
+  "needs_deep": 0.9325,
+  "p_strong": 0.9399
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Figure out why our model's training loss diverges after epoch 3 and propose fixes.",
+  "label": "strong",
+  "secs": 0.68,
+  "score": 1.9049,
+  "can_fast": 0.7549,
+  "needs_deep": 0.977,
+  "p_strong": 0.9948
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Prove this sorting algorithm is correct and analyze its worst-case complexity.",
+  "label": "strong",
+  "secs": 0.67,
+  "score": 1.8827,
+  "can_fast": 0.7549,
+  "needs_deep": 0.9669,
+  "p_strong": 0.982
+ },
+ {
+  "persona": "front_end_designer",
+  "text": "Create a complete design system - tokens, type scale, and 20 components with all states - and document it.",
+  "label": "strong",
+  "secs": 0.69,
+  "score": 1.989,
+  "can_fast": 0.0851,
+  "needs_deep": 0.9241,
+  "p_strong": 0.9978
+ },
+ {
+  "persona": "front_end_designer",
+  "text": "Redesign our whole 12-page website for WCAG AA accessibility, with a migration plan.",
+  "label": "strong",
+  "secs": 0.75,
+  "score": 1.9606,
+  "can_fast": 0.4378,
+  "needs_deep": 0.9399,
+  "p_strong": 0.9948
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Plan a 10-day Japan itinerary for a family of four with a budget breakdown, rail passes, and rainy-day alternatives.",
+  "label": "strong",
+  "secs": 0.8,
+  "score": 1.8122,
+  "can_fast": 0.2018,
+  "needs_deep": 0.148,
+  "p_strong": 0.867
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Compare these three insurance quotes line by line and tell me which gives the best coverage for the price, with reasoning.",
+  "label": "strong",
+  "secs": 0.75,
+  "score": 0.8029,
+  "can_fast": 0.8808,
+  "needs_deep": 0.4688,
+  "p_strong": 0.9526
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Reconcile last month's payroll ledger against the bank statement and explain every discrepancy.",
+  "label": "strong",
+  "secs": 0.81,
+  "score": 1.4179,
+  "can_fast": 0.1067,
+  "needs_deep": 0.8176,
+  "p_strong": 0.989
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Write a detailed, persuasive two-page proposal for a commercial insulation contract.",
+  "label": "strong",
+  "secs": 0.7,
+  "score": 1.8122,
+  "can_fast": 0.2942,
+  "needs_deep": 0.0159,
+  "p_strong": 0.977
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Research the history of radon mitigation standards and build a sourced timeline.",
+  "label": "strong",
+  "secs": 0.74,
+  "score": 1.5922,
+  "can_fast": 0.1067,
+  "needs_deep": 0.026,
+  "p_strong": 0.9924
+ },
+ {
+  "persona": "fitness_coach",
+  "text": "Build me a 16-week periodized powerlifting program peaking for a meet, with deloads and attempt selection.",
+  "label": "strong",
+  "secs": 0.76,
+  "score": 1.9712,
+  "can_fast": 0.7058,
+  "needs_deep": 0.3208,
+  "p_strong": 0.9985
+ },
+ {
+  "persona": "fitness_coach",
+  "text": "I have a herniated disc history, knee pain and a 6-day schedule - design a program that works around all of it and explain why.",
+  "label": "strong",
+  "secs": 0.81,
+  "score": 1.5728,
+  "can_fast": 0.867,
+  "needs_deep": 0.0373,
+  "p_strong": 0.9399
+ },
+ {
+  "persona": "comfyui_manager",
+  "text": "Build a new ComfyUI workflow from scratch that chains image generation, upscaling and video, and debug it until it runs.",
+  "label": "strong",
+  "secs": 0.66,
+  "score": 1.9824,
+  "can_fast": 0.1067,
+  "needs_deep": 0.9993,
+  "p_strong": 0.999
+ },
+ {
+  "persona": "high_end_dev",
+  "text": "Build a single-file HTML workout tracker with local storage and progress charts.",
+  "label": "either",
+  "secs": 0.6,
+  "score": 1.9476,
+  "can_fast": 0.9954,
+  "needs_deep": 0.9579,
+  "p_strong": 0.852
+ },
+ {
+  "persona": "front_end_designer",
+  "text": "Design a landing page for my insulation business.",
+  "label": "either",
+  "secs": 0.37,
+  "score": 1.6398,
+  "can_fast": 0.9669,
+  "needs_deep": 0.0373,
+  "p_strong": 0.852
+ },
+ {
+  "persona": "fitness_coach",
+  "text": "Make me a 4-day upper/lower split for strength.",
+  "label": "either",
+  "secs": 0.6,
+  "score": 0.8389,
+  "can_fast": 0.9841,
+  "needs_deep": 0.0097,
+  "p_strong": 0.0601
+ },
+ {
+  "persona": "daily_assistant",
+  "text": "Put together a quote for 2,400 sqft of R-30 attic insulation.",
+  "label": "either",
+  "secs": 0.45,
+  "score": 0.3005,
+  "can_fast": 0.9241,
+  "needs_deep": 0.0373,
+  "p_strong": 0.3208
+ }
+]

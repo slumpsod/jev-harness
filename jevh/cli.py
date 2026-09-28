@@ -2,8 +2,8 @@
 
     python -m jevh.cli [--as persona] [--verbose] [--config path]
 
-Commands: /as <persona> (pin), /auto (let Jev route), /personas, /skills, /trace,
-/verbose, /jev (health), /reset, /quit
+Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong, /personas,
+/skills, /trace, /verbose, /jev (health), /reset, /quit
 """
 from __future__ import annotations
 
@@ -74,6 +74,10 @@ class Printer:
             if d.suggested:
                 console.print(f"{_indent(t)}[magenta]collab suggested:[/] {', '.join(d.suggested)}"
                               f"[dim] (complexity {d.complexity:.2f})[/]")
+        elif kind == "tier":
+            d, t = data["decision"], data["task"]
+            color = "green" if d.tier == "fast" else "blue"
+            console.print(f"[dim]{_indent(t)}tier: [{color}]{d.tier}[/{color}] ({esc(d.reason)})[/]")
         elif kind == "start":
             t = data["task"]
             console.print(f"[dim]{_indent(t)}{t.to} working on {esc(str(data['model']))}[/]")
@@ -118,11 +122,14 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--as", dest="pin", help="pin a persona (skip routing)")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("-c", "--command", help="run one message and exit")
+    ap.add_argument("--tier", choices=["auto", "fast", "strong"], default="auto",
+                    help="model tier: Jev decides per task (auto), or force one")
     ap.add_argument("--model", help="put every persona on one model for testing, e.g. lmstudio:qwen3-4b")
     a = ap.parse_args(argv)
 
     printer = Printer(a.verbose)
     h = Harness(load_config(a.config), on_event=printer, model_override=a.model)
+    h.tier_mode = a.tier
     pin = a.pin
     last = None
 
@@ -162,6 +169,10 @@ def main(argv: list[str] | None = None) -> None:
                 else:
                     pin = arg
                     console.print(f"pinned to {pin} (/auto to let Jev route)")
+            elif cmd == "tier":
+                if arg in ("auto", "fast", "strong"):
+                    h.tier_mode = arg
+                console.print(f"tier: {h.tier_mode} (fast model: {h.cfg.models.get('fast', {}).get('model', 'none')})")
             elif cmd == "auto":
                 pin = None
                 console.print("Jev routes again")
@@ -182,7 +193,9 @@ def main(argv: list[str] | None = None) -> None:
                 except Exception as e:  # noqa: BLE001
                     console.print(f"[red]{esc(str(e))}[/]")
             elif cmd == "reset":
+                mode = h.tier_mode
                 h = Harness(h.cfg, on_event=printer, model_override=a.model)
+                h.tier_mode = mode
                 console.print(f"new session {h.session}")
             else:
                 console.print(__doc__)

@@ -32,6 +32,13 @@ MEMORY_NONE_OPTION = ("none_of_these", "None - the request stands on its own.")
 MEMORY_Q = "Does the latest request refer to or depend on information in this earlier snippet?"
 MEMORY_TOP_N = 4           # Choice leaders that get the noul
 
+# Model tier (tuned on evals/tier_cases.py, semif): a two-way Choice on the task text alone
+# (a 3-level Score scored 97%, nouls 77-82%); 42/42 labelled + held-out tasks at any threshold
+# 0.45-0.65, so 0.55 sits mid-plateau.
+TIER_Q = "Which model should handle this task?"
+TIER_OPTIONS = {"fast": "a small fast model - good for quick answers, lookups, short scripts and simple edits",
+                "strong": "a large careful model - needed for deep reasoning, hard debugging, long or complex builds"}
+
 
 def decide_skills(probs: dict[str, float], fits: dict[str, float], fits_t: float,
                   override: float, veto: float, k: int = 1) -> list[str]:
@@ -75,6 +82,13 @@ class SkillDecision:
 class MemoryDecision:
     kept: list[str]
     scores: list[float]
+
+
+@dataclass
+class TierDecision:
+    tier: str                  # "fast" | "strong"
+    p_strong: float | None
+    reason: str
 
 
 @dataclass
@@ -204,6 +218,17 @@ class Jev:
         scores = [r[f"m{i}"].noul if i in top else 0.0 for i in range(len(chunks))]
         kept = decide_memory(scores, self.cfg.t("memory"), self.cfg.lim("max_memory_chunks"))
         return MemoryDecision([chunks[i] for i in kept], scores)
+
+    # -- 3b. which model tier ---------------------------------------------------------
+    def pick_tier(self, task: str, persona: Persona) -> TierDecision:
+        """Fast model for quick work, the persona's own model for hard work. Errs toward
+        strong: a hard task on the fast model costs quality, the reverse only costs speed."""
+        # task only: with the persona description in the state, simple dev/designer tasks
+        # drifted to P(strong) ~0.6 (39/42); task-only scored 42/42 at thresholds 0.45-0.65
+        r = self._ask("tier", {"task": task}, {"tier": choice(TIER_Q, TIER_OPTIONS)})
+        p = r["tier"].probabilities.get("strong", 0.0)
+        t = self.cfg.t("tier_strong")
+        return TierDecision("strong" if p >= t else "fast", p, f"P(strong)={p:.2f} vs {t:.2f}")
 
     # -- 4. who else ---------------------------------------------------------------
     def collab(self, request: str, lead: Persona, personas: dict[str, Persona]) -> CollabDecision:

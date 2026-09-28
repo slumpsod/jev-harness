@@ -12,13 +12,13 @@ import time
 import uuid
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FutureTimeout
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
 from .bus import Board, LimitError, Task
 from .config import Config, load_config
 from .decide import SystemOneError
-from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision
+from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision
 from .llm import LLM, make_llm
 from .memory import Memory
 from .personas import Persona, load_personas
@@ -89,7 +89,9 @@ class Harness:
         self.current: str | None = None
         self.on_event = on_event or (lambda kind, data: None)
         self.model_override = model_override
-        self._llm_factory = llm_factory or (lambda p: make_llm(self._model_cfg(p), self.cfg.providers))
+        self.tier_mode = "auto"  # auto (Jev decides) | fast | strong
+        # the factory gets the persona with its model block already resolved for the tier
+        self._llm_factory = llm_factory or (lambda p: make_llm(p.model, self.cfg.providers))
         self._llms: dict[str, LLM] = {}
         self._llm_lock = threading.Lock()
         self.board = Board()
@@ -140,7 +142,9 @@ class Harness:
         system = build_system(persona, picked, requestable, collab.suggested)
         ctx = {"request": task.text, "memory": mem.kept, "inputs": task.inputs,
                "skills": {s.name: s.body for s in picked}}
-        llm = self._llm(persona)
+        tier = self._pick_tier(task, persona)
+        self.on_event("tier", {"task": task, "decision": tier})
+        llm = self._llm(persona, tier.tier)
         handles = Handles(self._start_request, task, goal, requestable)
         handlers = {
             "llm_query": lambda prompt, data=None: llm.chat([{"role": "user", "content": (
@@ -216,25 +220,42 @@ class Harness:
         return fut
 
     # -- helpers ---------------------------------------------------------------------
-    def _llm(self, persona: Persona) -> LLM:
+    def _pick_tier(self, task: Task, persona: Persona) -> TierDecision:
+        if self.model_override:
+            return TierDecision("strong", None, "--model override")
+        if not self.cfg.models.get("fast") or not persona.fast_ok:
+            return TierDecision("strong", None, "no fast tier for this persona")
+        if self.tier_mode in ("fast", "strong"):
+            return TierDecision(self.tier_mode, None, "forced by user")
+        # Jev down -> persona's own model: a slow right answer beats a fast wrong one
+        return self._safe("tier", lambda: self.jev.pick_tier(task.text, persona),
+                          TierDecision("strong", None, "jev unavailable"))
+
+    def _llm(self, persona: Persona, tier: str = "strong") -> LLM:
+        key = (persona.name, tier)
         with self._llm_lock:  # parallel hand-offs may build the same persona's client at once
-            if persona.name not in self._llms:
-                llm = self._llm_factory(persona)
+            if key not in self._llms:
+                llm = self._llm_factory(replace(persona, model=self._model_cfg(persona, tier)))
                 for target in (llm, getattr(llm, "fallback", None)):
                     if target is not None and hasattr(target, "on_progress"):
                         target.on_progress = lambda n, thinking=0, name=persona.name: self.on_event(
                             "progress", {"persona": name, "chunks": n, "thinking": thinking})
-                self._llms[persona.name] = llm
-            return self._llms[persona.name]
+                self._llms[key] = llm
+            return self._llms[key]
 
-    def _model_cfg(self, persona: Persona) -> dict[str, Any]:
-        """--model provider:model puts every persona on one model (testing); keeps each
-        persona's temperature/max_tokens, drops its fallback."""
-        if not self.model_override:
+    def _model_cfg(self, persona: Persona, tier: str = "strong") -> dict[str, Any]:
+        """The model block a persona runs on. --model puts every persona on one model
+        (testing); the fast tier swaps in config models.fast. Both keep the persona's own
+        temperature/max_tokens and drop its fallback/Claude-only settings."""
+        if self.model_override:
+            provider, _, model = self.model_override.partition(":")
+            swap = {"provider": provider, "model": model}
+        elif tier == "fast" and self.cfg.models.get("fast"):
+            swap = dict(self.cfg.models["fast"])
+        else:
             return persona.model
-        provider, _, model = self.model_override.partition(":")
         cfg = {k: v for k, v in persona.model.items() if k not in ("fallback", "effort", "thinking")}
-        cfg.update(provider=provider, model=model)
+        cfg.update(swap)
         return cfg
 
     def _safe(self, step: str, fn: Callable[[], Any], fallback: Any) -> Any:

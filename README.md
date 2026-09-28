@@ -25,10 +25,11 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
 python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 43 offline tests (fake Jev + scripted LLMs)
+python -m pytest -q                  # 51 offline tests (fake Jev + scripted LLMs)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
+python evals/tier_cases.py             # live fast/strong tier accuracy + sweep
 ```
 
 CLI commands: `/as <persona>`, `/auto`, `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn),
@@ -65,6 +66,7 @@ CLI commands: `/as <persona>`, `/auto`, `/personas`, `/skills`, `/trace` (raw Je
 | Collaborators | `routing_cases.py` | 94% exact, 0 needless | ~0.2s |
 | Skill picking | `skill_cases.py`, 62 requests (your 52 Hermes-router cases + 10) | 94% right skill, 93% correct "no skill", 3 needless | ~1.5s |
 | Memory gating | `memory_cases.py`, 18 requests over an 18-turn history | 95% of needed turns passed, 0 leaks | ~1.5s |
+| Model tier (fast/strong) | `tier_cases.py`, 39 tasks + 15 held out | 100% and 15/15, 0 hard tasks sent fast | ~0.2s |
 
 Skill picking and memory both use the same two-stage design. One **Choice** ranks all candidates;
 it's relative, so it separates sibling skills, and it's cheap because a Choice is scored in one pass.
@@ -98,6 +100,22 @@ Lessons from getting there (all handled in code now):
 - Workers get a "2 steps left, call final()" warning. If they still hit the limit, the files they wrote are
   collected as artifacts instead of being lost.
 - Failed turns are not written to memory.
+
+## Fast tier: Jev picks the model per task
+
+Before each task, including every hand-off, Jev asks one two-way Choice on the task text: *fast
+model* (quick answers, lookups, short scripts, small edits) or *strong model* (deep reasoning, hard
+debugging, big builds). Easy tasks go to `models.fast` in `config.yaml` (ornith). Hard ones keep the
+persona's own model. The call takes ~0.2s. If Jev is down, the persona's own model is used, since a slow right
+answer beats a fast wrong one.
+
+- `evals/tier_cases.py`: 39 labelled tasks at **100%**, and 15 held-out tasks at **15/15**, with 0 hard tasks sent to fast.
+  Giving Jev the persona's description made it *worse*: simple dev and design tasks drifted toward "strong".
+  So it sees the task text only.
+- Opt a persona out with `fast_ok: false`. Delete the `models:` block to turn tiering off.
+- CLI: `--tier auto|fast|strong`, or `/tier ...` mid-chat. The trace shows `tier: fast (P(strong)=0.01 vs 0.55)`.
+- VRAM: ornith (~21GB) and qwen3.8-27b can't both sit on the 3090, so a "strong" task on a local
+  persona makes LM Studio swap models. A cloud strong model (e.g. Claude for the dev) avoids that.
 
 ## Parallel hand-offs
 

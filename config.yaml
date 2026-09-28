@@ -14,6 +14,7 @@ thresholds:
   memory: 0.20         # "depends on this snippet" noul on the Choice leaders (0.15-0.20 plateau; 0.10 leaks)
   collab: 0.60         # per-persona "needs this expertise" noul
   approve: 0.50        # in_scope and necessary nouls for persona->persona requests
+  tier_strong: 0.55    # P(strong) in Jev's fast/strong Choice at/above which a task keeps the persona's own model
 
 limits:
   max_skills: 1                 # evals: every extra skill was mostly noise
@@ -31,6 +32,11 @@ skills_dirs:                    # first root wins on name clashes; hidden dirs (
   - skills
   - C:/Users/Jedidiah/AppData/Local/hermes/skills
 workspace: workspace
+
+# Jev sends easy tasks here (per task, incl. hand-offs); hard ones keep the persona's own model.
+# Remove this block to disable tiering. Personas can opt out with `fast_ok: false`.
+models:
+  fast: {provider: lmstudio, model: ornith-1.5-35b-a3b}
 
 # Model providers. type: openai = any OpenAI-compatible server; anthropic = Claude API (SDK).
 providers:

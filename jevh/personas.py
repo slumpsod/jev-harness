@@ -20,6 +20,7 @@ class Persona:
     can_request: list[str] = field(default_factory=list)    # persona names, or ["*"]
     max_steps: int = 12
     code: bool = True                     # False = plain chat persona, no REPL
+    fast_ok: bool = True                  # Jev may send easy tasks to config models.fast
 
     def allows_skill(self, skill_name: str) -> bool:
         return any(fnmatch.fnmatch(skill_name, pat) for pat in self.skills_allowed)
