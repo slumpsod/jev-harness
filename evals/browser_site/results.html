@@ -1,0 +1,12 @@
+<!doctype html><html><head><title>Job listings</title></head><body>
+<h1>Remote jobs</h1><p id="info"></p><ol id="jobs"></ol>
+<nav aria-label="Pagination" id="pages"></nav>
+<script>
+const all = Array.from({length: 45}, (_, i) => `Job ${i + 1}: ${["Backend engineer", "Data analyst", "Product designer", "Support lead", "QA tester"][i % 5]}`);
+const page = +(new URLSearchParams(location.search).get("page") || 1);
+info.textContent = `Showing page ${page} of 5`;
+jobs.innerHTML = all.slice((page - 1) * 9, page * 9).map(j => `<li>${j}</li>`).join("");
+pages.innerHTML = (page > 1 ? `<a href="?page=${page - 1}">Previous</a> ` : "") +
+  [1, 2, 3, 4, 5].map(n => n === page ? `<strong>${n}</strong>` : `<a href="?page=${n}">${n}</a>`).join(" ") +
+  (page < 5 ? ` <a href="?page=${page + 1}">Next</a>` : "");
+</script></body></html>

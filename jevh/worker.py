@@ -26,6 +26,10 @@ FIRST_STEP_NUDGE = ("\n\nReply now with a short plan (at most 5 bullets) and a f
                     "solution before replying.")
 SKILL_PROMPT_CHARS = 6000   # longer skills: head in the prompt, full text in ctx['skills']
 CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
+# Some local models (seen: ornith in LM Studio) sometimes answer in their native tool-call
+# template instead of a fenced block: <tool_call><function=python><parameter=content>...
+TOOL_CALL_RE = re.compile(r"<function=python[^>]*>\s*<parameter=\w+>\s*(.*?)\s*(?:</parameter>|</function>|</tool_call>|\Z)",
+                          re.DOTALL)
 OPEN_FENCE_RE = re.compile(r"```(?:python|py)[ \t]*\n")
 
 REPL_GUIDE = """\
@@ -68,6 +72,8 @@ class WorkerResult:
     output_tokens: int = 0
     stopped: str = "final"            # final | plain | max_steps | error
     transcript: list[dict[str, str]] = field(default_factory=list)
+    skills: list[str] = field(default_factory=list)   # set by the orchestrator (for learning)
+    llm: Any = None                                    # the model that ran it (learning reuses it)
 
 
 def describe_ctx(ctx: dict[str, Any]) -> str:
@@ -85,15 +91,33 @@ def describe_ctx(ctx: dict[str, Any]) -> str:
     return "\n".join(lines) or "- (nothing else)"
 
 
+MEMORY_GUIDE = """\
+- recall(query) -> [snippets]: search ALL past conversations and remembered facts (ctx['memory']
+  only holds what Jev judged relevant up front). remember(fact): save a lasting fact about the user."""
+
+
 def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, str],
-                 suggested: list[str]) -> str:
+                 suggested: list[str], tools: list[str] | None = None,
+                 mcp_tools: list | None = None) -> str:
+    """`tools`: the tool guides Jev picked for this task; the persona's other tools are still
+    importable and named in one line. `mcp_tools`: McpTool objects Jev picked."""
+    from .tools import TOOLS
     parts = [persona.system_prompt.strip()]
     if persona.code:
-        guide = REPL_GUIDE
+        guide = REPL_GUIDE + "\n" + MEMORY_GUIDE
         if requestable:
             roster = "\n".join(f"    - {n}: {d}" for n, d in requestable.items())
             guide += "\n" + REQUEST_GUIDE.format(roster=roster)
         parts.append(guide)
+        picked = [t for t in tools or [] if t in TOOLS]
+        if picked:
+            parts.append("## Tools in your REPL\n" + "\n".join(TOOLS[t].guide for t in picked))
+        rest = [t for t in persona.tools if t not in picked]
+        if rest:
+            parts.append("Also importable in your REPL (help(name) shows how): " + ", ".join(rest))
+        if mcp_tools:
+            parts.append("## MCP tools (call from the REPL; returns text)\n" + "\n".join(
+                f"- {t.signature()}: {t.description[:300]}" for t in mcp_tools))
     if suggested:
         parts.append("Jev (the router) suggests this request likely needs help from: "
                      + ", ".join(suggested) + ". Delegate the parts in their expertise with request().")
@@ -102,6 +126,9 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
         if persona.code and len(body) > SKILL_PROMPT_CHARS:
             body = (body[:SKILL_PROMPT_CHARS] + f"\n\n[... {len(s.body) - SKILL_PROMPT_CHARS} more chars: "
                     f"full text in ctx['skills'][{s.name!r}] - search it rather than printing it all]")
+        if s.draft:
+            body = ("(Learned automatically from one earlier run and not yet reviewed: treat it as hints, "
+                    "and check its claims - e.g. that an API returns what you need - before relying on it.)\n" + body)
         parts.append(f"## Skill: {s.name}\n{body}")
     return "\n\n".join(parts)
 
@@ -110,7 +137,7 @@ class Worker:
     def __init__(self, persona: Persona, llm: LLM, workdir: Path, artifacts: Path,
                  handlers: dict[str, Callable[..., Any]], tools: dict[str, str] | None = None,
                  repl_timeout: float = 120.0, output_cap: int = 4000,
-                 on_step: Callable[[str, dict], None] | None = None):
+                 on_step: Callable[[str, dict], None] | None = None, env: dict[str, str] | None = None):
         self.persona = persona
         self.llm = llm
         self.workdir = workdir
@@ -120,6 +147,7 @@ class Worker:
         self.repl_timeout = repl_timeout
         self.output_cap = output_cap
         self.on_step = on_step or (lambda kind, data: None)
+        self.env = env or {}
 
     def run(self, task: str, ctx: dict[str, Any], system: str) -> WorkerResult:
         if not self.persona.code:
@@ -130,14 +158,14 @@ class Worker:
         res = WorkerResult(answer="")
         self._last_err, self._err_streak = None, 0
         with Repl(self.workdir, self.artifacts, self.handlers, self.tools,
-                  self.repl_timeout, self.output_cap) as repl:
+                  self.repl_timeout, self.output_cap, self.env) as repl:
             repl.set("ctx", ctx)
             for step in range(1, self.persona.max_steps + 1):
                 out = self.llm.chat(messages)
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 messages.append({"role": "assistant", "content": out.text})
-                blocks = CODE_RE.findall(out.text)
+                blocks = CODE_RE.findall(out.text) or TOOL_CALL_RE.findall(out.text)
                 if "[output cut off at max_tokens" in out.text[-120:] or (
                         not blocks and OPEN_FENCE_RE.search(out.text)):
                     self.on_step("output", {"persona": self.persona.name, "step": step,

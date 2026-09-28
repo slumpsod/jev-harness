@@ -3,7 +3,7 @@
 Shapes follow the TypeSafe wire format so the same questions run against laya, openjev,
 semif, or the hosted API. Question builders and the Answer/Response shapes are adapted
 from typesafe-skill-router (MIT, Ritesh Patel), trimmed to what the harness needs:
-no API key, no disk cache, stdlib only.
+an optional API key for the hosted API, no disk cache, stdlib only.
 """
 from __future__ import annotations
 
@@ -87,8 +87,9 @@ class SystemOneClient:
     """One endpoint, typed answers. `backend` is the adapter's `model` selector."""
 
     def __init__(self, base_url: str = "http://127.0.0.1:33001", backend: str | None = "laya",
-                 timeout: float = 300.0, max_retries: int = 2):
+                 timeout: float = 300.0, max_retries: int = 2, api_key: str | None = None):
         self.base_url = base_url.rstrip("/")
+        self.api_key = api_key  # only for the hosted API; the local adapter needs none
         self.backend = backend
         self.timeout = timeout
         self.max_retries = max_retries
@@ -117,8 +118,11 @@ class SystemOneClient:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         attempt = 0
         while True:
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
             req = urllib.request.Request(f"{self.base_url}/v1/systemone", data=body, method="POST",
-                                         headers={"Content-Type": "application/json"})
+                                         headers=headers)
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as r:
                     return json.loads(r.read().decode("utf-8"))

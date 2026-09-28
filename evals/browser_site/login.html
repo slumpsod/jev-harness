@@ -1,0 +1,8 @@
+<!doctype html><html><head><title>Sign in - Kettle &amp; Co</title><script src="common.js"></script></head><body>
+<h1>Sign in to your account</h1>
+<form id="f"><label>Email <input name="email" type="email"></label><br><label>Password <input name="password" type="password"></label><br>
+<button type="submit">Sign in</button> <a href="reset.html">Forgot password?</a></form><p id="err" role="alert" style="color:red"></p>
+<script>nav(); document.getElementById("f").onsubmit = e => { e.preventDefault(); const f = new FormData(e.target);
+  if (f.get("email") === "user@example.com" && f.get("password") === "hunter22") { store.set("user", "user@example.com"); location.href = "account.html"; }
+  else document.getElementById("err").textContent = "Invalid email or password. Please try again."; };
+</script></body></html>

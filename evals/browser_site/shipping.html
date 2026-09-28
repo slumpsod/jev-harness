@@ -1,0 +1,11 @@
+<!doctype html><html><head><title>Shipping options</title></head><body>
+<h1>How should we ship it?</h1>
+<fieldset><legend>Shipping speed</legend>
+<label><input type="radio" name="ship" value="std" checked> Standard, 5-7 days (free)</label><br>
+<label><input type="radio" name="ship" value="exp"> Express, 2 days ($9)</label><br>
+<label><input type="radio" name="ship" value="ovn"> Overnight ($25)</label></fieldset>
+<label><input type="checkbox" id="gift"> This is a gift (add a gift receipt)</label><br>
+<button id="cont">Continue to payment</button><p id="msg" role="status"></p>
+<script>cont.onclick = () => { localStorage.setItem("ship", document.querySelector("[name=ship]:checked").value);
+  localStorage.setItem("gift", gift.checked); msg.textContent = "Shipping saved. Next: payment."; };</script>
+</body></html>

@@ -22,6 +22,7 @@ class Skill:
     description: str
     body: str
     path: str
+    draft: bool = False    # learned from one run and not yet approved by the user
 
     @property
     def excerpt(self) -> str:
@@ -44,10 +45,12 @@ def parse_skill(path: Path) -> Skill | None:
     desc = " ".join(str(meta.get("description") or "").split())
     if not name or not desc:
         return None
-    return Skill(name=name, description=desc, body=body.strip(), path=str(path))
+    return Skill(name=name, description=desc, body=body.strip(), path=str(path), draft=bool(meta.get("draft")))
 
 
-def load_roster(roots: Iterable[Path]) -> dict[str, Skill]:
+def load_roster(roots: Iterable[Path], lessons: Path | None = None) -> dict[str, Skill]:
+    """`lessons`: folder of <skill name>.md notes the harness learned while using a skill it
+    doesn't own (e.g. a Hermes skill); they are appended to that skill's body."""
     roster: dict[str, Skill] = {}
     for root in roots:
         root = Path(root)
@@ -59,4 +62,11 @@ def load_roster(roots: Iterable[Path]) -> dict[str, Skill]:
             skill = parse_skill(path)
             if skill and skill.name not in roster:  # first root wins on name clashes
                 roster[skill.name] = skill
+    if lessons and Path(lessons).is_dir():
+        for note in Path(lessons).glob("*.md"):
+            s = roster.get(note.stem)
+            if s:
+                extra = note.read_text(encoding="utf-8", errors="replace").strip()
+                body = f"{s.body}\n\n## Lessons from past runs\n{extra}"
+                roster[s.name] = Skill(s.name, s.description, body, s.path, s.draft)
     return roster

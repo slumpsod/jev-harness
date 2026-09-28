@@ -1,0 +1,10 @@
+<!doctype html><html><head><title>Checkout - Kettle &amp; Co</title><script src="common.js"></script></head><body>
+<h1>Checkout</h1><p id="sum"></p>
+<form id="f"><label>Full name <input name="name" required></label><br><label>Street address <input name="address" required></label><br>
+<label>Delivery <select name="delivery"><option>Standard (free)</option><option>Express ($9)</option></select></label><br>
+<button type="submit">Place order</button></form><p id="out" role="status"></p>
+<script>nav(); const c = store.get("cart", []); document.getElementById("sum").textContent = `${c.length} item(s) in your order.`;
+document.getElementById("f").onsubmit = e => { e.preventDefault(); const f = new FormData(e.target);
+  store.set("order", {name: f.get("name"), address: f.get("address"), items: c});
+  document.body.innerHTML = `<h1>Thank you!</h1><p>Order #4471 placed for ${f.get("name")}. A receipt was emailed.</p>`; };
+</script></body></html>

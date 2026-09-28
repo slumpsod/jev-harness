@@ -1,0 +1,3 @@
+<!doctype html><html><head><title>Your account - Kettle &amp; Co</title><script src="common.js"></script></head><body>
+<h1>Welcome back</h1><p id="who"></p><p>You are signed in. Recent orders: none.</p><button onclick="localStorage.removeItem('user');location.href='index.html'">Sign out</button>
+<script>nav(); document.getElementById("who").textContent = "Signed in as " + store.get("user", "(nobody)");</script></body></html>

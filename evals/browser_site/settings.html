@@ -1,0 +1,10 @@
+<!doctype html><html><head><title>Settings - Kettle &amp; Co</title><script src="common.js"></script></head><body>
+<h1>Settings</h1>
+<label><input type="checkbox" id="email"> Email notifications</label><br>
+<label><input type="checkbox" id="sms"> SMS notifications</label><br>
+<label>Theme <select id="theme"><option>Light</option><option>Dark</option><option>System</option></select></label><br>
+<button id="save">Save settings</button><p id="msg" role="status"></p>
+<script>nav(); const s = store.get("settings", {email: true, sms: false, theme: "Light"});
+email.checked = s.email; sms.checked = s.sms; theme.value = s.theme;
+save.onclick = () => { store.set("settings", {email: email.checked, sms: sms.checked, theme: theme.value}); msg.textContent = "Settings saved."; };
+</script></body></html>

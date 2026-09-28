@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import itertools
 import os
+from pathlib import Path
 import threading
 import time
 import uuid
@@ -18,12 +19,15 @@ from typing import Any, Callable
 from .bus import Board, LimitError, Task
 from .config import Config, load_config
 from .decide import SystemOneError
-from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision
+from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision
+from .learn import Learner
 from .llm import LLM, make_llm
 from .lmstudio import gate_for
+from .mcp import McpHub
 from .memory import Memory
 from .personas import Persona, load_personas
 from .skills import load_roster
+from .tools import TOOLS
 from .worker import Worker, WorkerResult, build_system
 
 Event = Callable[[str, dict], None]
@@ -82,8 +86,13 @@ class Harness:
         self.cfg = cfg or load_config()
         self.jev = jev or Jev(self.cfg)
         self.personas = load_personas(self.cfg.personas_dir)
-        self.roster = load_roster(self.cfg.skills_dirs)
+        self.skills_home = self.cfg.skills_dirs[0]    # where learned skills and lessons are written
+        self.roster = load_roster(self.cfg.skills_dirs, self.skills_home / "_lessons")
         self.memory = Memory(self.cfg.workspace / "memory")
+        self.mcp = McpHub(self.cfg.mcp_servers)
+        self.project: str | None = None             # the user's project folder, if one is open
+        self.learning = bool(self.cfg.raw.get("learning", True))
+        self.learn_sync = False                     # tests: learn inline instead of on a thread
         self.session = session or time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4]
         self.session_dir = self.cfg.workspace / "sessions" / self.session
         self.artifacts = self.session_dir / "artifacts"
@@ -102,9 +111,15 @@ class Harness:
                 gate.linger = float(prov.get("swap_linger", gate.linger))
                 gate.on_swap = lambda dropped, model, secs: self.on_event(
                     "swap", {"unloaded": dropped, "loaded": model, "seconds": secs})
-        for key, env in (("comfy_url", "JEVH_COMFY_URL"), ("comfy_workflows", "JEVH_COMFY_WORKFLOWS")):
+        for key, env in (("comfy_url", "JEVH_COMFY_URL"), ("comfy_workflows", "JEVH_COMFY_WORKFLOWS"),
+                         ("tools_jev", "JEVH_TOOLS_JEV")):
             if self.cfg.tools.get(key):  # REPL children inherit these
                 os.environ.setdefault(env, str(self.cfg.tools[key]))
+        os.environ.setdefault("JEVH_JEV_URL", str(self.cfg.jev.get("url", "http://127.0.0.1:33001")))
+        os.environ.setdefault("JEVH_JEV_BACKEND", str(self.cfg.jev.get("backend", "semif")))
+        self.learner = Learner(self.jev, self.memory, self.skills_home, self.cfg.thresholds,
+                               lambda kind, data: self.on_event(kind, data))
+        self._learn_threads: list[threading.Thread] = []
 
     # -- public ----------------------------------------------------------------------
     def turn(self, message: str, force: str | None = None) -> TurnResult:
@@ -124,9 +139,44 @@ class Harness:
         result = self.run_task(root, goal=message, allow_collab=True)
         if root.status == "done":  # a crashed turn's error text must not become "memory"
             self.memory.append(route.persona, message, result.answer, self.session)
+            if self.learning and result.stopped in ("final", "plain"):
+                self._learn(route.persona, message, result)
         self.current = route.persona
         return TurnResult(route.persona, result.answer, result.artifacts, self.board.tasks,
                           list(self.jev.trace), time.time() - started)
+
+    def set_project(self, path: str | None) -> str | None:
+        """Open a project folder for personas with the `project` tool (None closes it)."""
+        if path:
+            p = Path(path).expanduser().resolve()
+            if not p.is_dir():
+                raise NotADirectoryError(str(p))
+            self.project = str(p)
+        else:
+            self.project = None
+        return self.project
+
+    def wait_learning(self, timeout: float | None = None) -> None:
+        for t in list(self._learn_threads):
+            t.join(timeout)
+
+    def _learn(self, persona: str, message: str, result: WorkerResult) -> None:
+        if result.llm is None:
+            return
+        used = [self.roster[n] for n in result.skills if n in self.roster]
+
+        def run() -> None:
+            out = self.learner.after_turn(persona, message, result.answer, result.transcript, result.steps,
+                                          used, result.llm, self.session)
+            if out.skill:  # a new or improved skill is picked up from the next turn on
+                self.roster = load_roster(self.cfg.skills_dirs, self.skills_home / "_lessons")
+
+        if self.learn_sync:
+            run()
+            return
+        t = threading.Thread(target=run, name="learn", daemon=False)
+        self._learn_threads = [x for x in self._learn_threads if x.is_alive()] + [t]
+        t.start()
 
     # -- tasks -----------------------------------------------------------------------
     def run_task(self, task: Task, goal: str, allow_collab: bool) -> WorkerResult:
@@ -135,7 +185,9 @@ class Harness:
                             SkillDecision([]))
         self.on_event("skills", {"task": task, "decision": skills})
         candidates = self.memory.candidates(persona.name, self.cfg.lim("memory_candidates_own"),
-                                            self.cfg.lim("memory_candidates_shared"))
+                                            self.cfg.lim("memory_candidates_shared"), task.text,
+                                            self.cfg.limits.get("memory_search", 0),
+                                            self.cfg.limits.get("memory_facts", 0))
         mem = self._safe("memory", lambda: self.jev.gate_context(task.text, candidates),
                          MemoryDecision([], []))
         self.on_event("memory", {"task": task, "decision": mem, "candidates": len(candidates)})
@@ -145,10 +197,18 @@ class Harness:
             self.on_event("collab", {"task": task, "decision": collab})
         requestable = {n: p.description for n, p in self.personas.items()
                        if persona.may_request(n) or n in collab.suggested}
+        tools = self._pick_tools(task, persona)
+        self.on_event("tools", {"task": task, "decision": tools})
+        catalog = self.mcp.catalog() if tools.mcp else {}
         picked = [self.roster[s] for s in skills.skills]
-        system = build_system(persona, picked, requestable, collab.suggested)
+        system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
+                              [catalog[k] for k in tools.mcp if k in catalog])
         ctx = {"request": task.text, "memory": mem.kept, "inputs": task.inputs,
                "skills": {s.name: s.body for s in picked}}
+        env = {}
+        if self.project and "project" in persona.tools:
+            ctx["project"] = self.project
+            env["JEVH_PROJECT"] = self.project
         tier = self._pick_tier(task, persona)
         self.on_event("tier", {"task": task, "decision": tier})
         llm = self._llm(persona, tier.tier)
@@ -160,15 +220,19 @@ class Harness:
             "request": lambda to, text, inputs=None: handles.wait(handles.start(to, text, inputs)),
             "request_async": lambda to, text, inputs=None: handles.start(to, text, inputs),
             "wait": lambda h, timeout=None: handles.wait(h, timeout),
+            "mcp": lambda key, arguments: self._mcp_call(persona, key, arguments),
+            "recall": lambda query, k=5: self._recall(query, k),
+            "remember": lambda fact: self.learner.remember(str(fact), f"{self.session}/{persona.name}"),
         }
         worker = Worker(persona, llm, self.session_dir / f"t{task.id}-{persona.name}", self.artifacts,
                         handlers, {t: f"jevh.tools.{t}" for t in persona.tools},
                         self.cfg.lim("repl_timeout"), self.cfg.lim("output_cap"),
-                        lambda kind, data: self.on_event(kind, {**data, "task_id": task.id}))
+                        lambda kind, data: self.on_event(kind, {**data, "task_id": task.id}), env)
         task.started = time.time()
         self.on_event("start", {"task": task, "model": getattr(llm, "name", "?")})
         try:
             result = worker.run(task.text, ctx, system)
+            result.skills, result.llm = list(skills.skills), llm
             task.status = "done"
         except Exception as e:  # noqa: BLE001 - a dead model server must not kill the harness
             result = WorkerResult(answer=f"[{persona.name} failed: {type(e).__name__}: {e}]",
@@ -228,6 +292,32 @@ class Harness:
         return fut
 
     # -- helpers ---------------------------------------------------------------------
+    def _pick_tools(self, task: Task, persona: Persona) -> ToolDecision:
+        """Which tool guides (and MCP tools) this task's prompt carries."""
+        if not persona.code:
+            return ToolDecision([])
+        own = {t: TOOLS[t].description for t in persona.tools
+               if t in TOOLS and (t != "project" or self.project)}
+        mcp = {}
+        if persona.mcp and self.mcp:
+            mcp = {k: t.description for k, t in self.mcp.catalog().items() if persona.allows_mcp(k)}
+        if not own and not mcp:
+            return ToolDecision([])
+        fallback = ToolDecision(list(own))  # Jev down: all guides (capability beats a lean prompt)
+        return self._safe("tools", lambda: self.jev.pick_tools(task.text, own, mcp), fallback)
+
+    def _mcp_call(self, persona: Persona, key: str, arguments: dict) -> str:
+        if not persona.allows_mcp(key):
+            raise PermissionError(f"{persona.name} may not use MCP tool {key}")
+        return self.mcp.call(key, dict(arguments or {}))
+
+    def _recall(self, query: str, k: int = 5) -> list[str]:
+        chunks = [t.chunk() for t in self.memory.search(query, 24)] + [f.chunk() for f in self.memory.facts(query, 8)]
+        if not chunks:
+            return []
+        dec = self._safe("recall", lambda: self.jev.gate_context(query, chunks), MemoryDecision(chunks[:k], []))
+        return dec.kept[:k]
+
     def _pick_tier(self, task: Task, persona: Persona) -> TierDecision:
         if self.model_override:
             return TierDecision("strong", None, "--model override")

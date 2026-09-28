@@ -21,6 +21,7 @@ class Config:
     providers: dict[str, dict[str, Any]] = field(default_factory=dict)
     tools: dict[str, Any] = field(default_factory=dict)
     models: dict[str, dict[str, Any]] = field(default_factory=dict)   # e.g. {'fast': {...}}
+    mcp_servers: dict[str, dict[str, Any]] = field(default_factory=dict)
     default_persona: str = "daily_assistant"
     personas_dir: Path = ROOT / "personas"
     skills_dirs: list[Path] = field(default_factory=list)
@@ -51,6 +52,7 @@ def load_config(path: str | os.PathLike | None = None) -> Config:
         providers=raw.get("providers", {}),
         tools=raw.get("tools", {}),
         models=raw.get("models") or {},
+        mcp_servers=raw.get("mcp_servers") or {},
         default_persona=raw.get("default_persona", "daily_assistant"),
         personas_dir=rel(raw.get("personas_dir", "personas")),
         skills_dirs=[rel(p) for p in raw.get("skills_dirs", ["skills"])],

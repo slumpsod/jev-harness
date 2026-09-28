@@ -127,3 +127,32 @@ def test_jsonable_handles_nested_tasks():
     out = jsonable({"task": child, "tasks": [root, child]})
     assert out["task"]["parent"] == 1 and out["task"]["depth"] == 1
     assert out["tasks"][0]["parent"] is None
+
+
+def test_memory_tab_lists_facts_and_reviews_learned_skills(cfg, tmp_path):
+    from jevh.config import ROOT
+    cfg.skills_dirs = [tmp_path / "skills", ROOT / "skills"]
+    d = tmp_path / "skills" / "learned" / "learned-x"
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text("---\nname: learned-x\ndraft: true\ndescription: does x\n---\nsteps", encoding="utf-8")
+    client, app = make_client(cfg)
+    h = app.state.hub.harness
+    fid = h.memory.add_fact("Jed's gym is closed on Sundays.")
+    m = client.get("/api/memory", headers=auth()).json()
+    assert [f["text"] for f in m["facts"]] == ["Jed's gym is closed on Sundays."]
+    assert m["learned"] == [{"name": "learned-x", "description": "does x", "path": str(d / "SKILL.md"), "draft": True}]
+    client.post("/api/memory/forget", json={"id": fid}, headers=auth())
+    assert client.get("/api/memory", headers=auth()).json()["facts"] == []
+    client.post("/api/skills/review", json={"name": "learned-x", "action": "approve"}, headers=auth())
+    assert h.roster["learned-x"].draft is False
+    assert client.post("/api/skills/review", json={"name": "frontend-design", "action": "delete"},
+                       headers=auth()).status_code == 404  # only learned skills can be touched
+    client.post("/api/skills/review", json={"name": "learned-x", "action": "delete"}, headers=auth())
+    assert not d.exists() and "learned-x" not in h.roster
+
+
+def test_project_setting_validates_the_folder(cfg, tmp_path):
+    client, app = make_client(cfg)
+    assert client.post("/api/settings", json={"project": str(tmp_path / "nope")}, headers=auth()).status_code == 400
+    r = client.post("/api/settings", json={"project": str(tmp_path)}, headers=auth()).json()
+    assert r["project"] == str(tmp_path) and client.get("/api/state", headers=auth()).json()["project"] == str(tmp_path)

@@ -1,0 +1,368 @@
+[
+ {
+  "case": "search",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.3,
+  "calls": 2,
+  "actions": [
+   "filled search box 'Search products' (value 'query')",
+   "typed into search box 'Search products' and pressed Enter (value 'query')"
+  ],
+  "note": ""
+ },
+ {
+  "case": "open-result",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.2,
+  "calls": 2,
+  "actions": [
+   "clicked link 'Blue ceramic mug'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "select-size",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 1.9,
+  "calls": 3,
+  "actions": [
+   "selected 'Large' in dropdown 'Size'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "add-to-cart",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 3.2,
+  "calls": 5,
+  "actions": [
+   "selected 'Large' in dropdown 'Size'",
+   "clicked button 'Add to cart'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "login",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.3,
+  "calls": 3,
+  "actions": [
+   "filled text field 'Email' (value 'email'), password 'Password' (value 'password')",
+   "clicked button 'Sign in'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "login-wrong",
+  "ok": true,
+  "status": "error",
+  "check": true,
+  "secs": 2.0,
+  "calls": 3,
+  "actions": [
+   "filled text field 'Email' (value 'email'), password 'Password' (value 'password')",
+   "clicked button 'Sign in'"
+  ],
+  "note": "the page shows an error after the last action"
+ },
+ {
+  "case": "login-needed",
+  "ok": true,
+  "status": "needs_login",
+  "check": true,
+  "secs": 0.9,
+  "calls": 1,
+  "actions": [],
+  "note": "sign-in required: call again with values= for the form"
+ },
+ {
+  "case": "settings-toggle",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.9,
+  "calls": 4,
+  "actions": [
+   "clicked checkbox 'Email notifications'",
+   "clicked button 'Save settings'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "settings-theme",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 3.0,
+  "calls": 5,
+  "actions": [
+   "selected 'Dark' in dropdown 'Theme'",
+   "clicked button 'Save settings'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "checkout-guard",
+  "ok": true,
+  "status": "needs_confirmation",
+  "check": true,
+  "secs": 0.9,
+  "calls": 2,
+  "actions": [
+   "filled text field 'Full name' (value 'name'), text field 'Street address' (value 'address')"
+  ],
+  "note": "next: click button 'Place order', which looks hard to undo; call again with allow_irreversible=True if the user wants it"
+ },
+ {
+  "case": "checkout-allowed",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 1.7,
+  "calls": 3,
+  "actions": [
+   "filled text field 'Full name' (value 'name'), text field 'Street address' (value 'address')",
+   "clicked button 'Place order'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "dense-links",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 3.0,
+  "calls": 3,
+  "actions": [
+   "clicked link 'Tidal locking'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "already-done",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 0.9,
+  "calls": 1,
+  "actions": [],
+  "note": ""
+ },
+ {
+  "case": "no-such-page",
+  "ok": true,
+  "status": "needs_value",
+  "check": true,
+  "secs": 0.9,
+  "calls": 1,
+  "actions": [],
+  "note": "search box 'Search products' needs text: call again with values={'<name>': '<text>'}"
+ },
+ {
+  "case": "search-no-value",
+  "ok": true,
+  "status": "needs_value",
+  "check": true,
+  "secs": 0.9,
+  "calls": 1,
+  "actions": [],
+  "note": "search box 'Search products' needs text: call again with values={'<name>': '<text>'}"
+ },
+ {
+  "case": "go-to-cart",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.2,
+  "calls": 2,
+  "actions": [
+   "clicked link 'Cart (1)'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-todo-add",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.1,
+  "calls": 3,
+  "actions": [
+   "filled text field 'New todo' (value 'todo')",
+   "clicked button 'Add'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-todo-check",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 1.7,
+  "calls": 2,
+  "actions": [
+   "clicked checkbox 'Call mom'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-todo-delete",
+  "ok": true,
+  "status": "needs_confirmation",
+  "check": true,
+  "secs": 1.0,
+  "calls": 2,
+  "actions": [],
+  "note": "next: click button 'Delete Book dentist', which looks hard to undo; call again with allow_irreversible=True if the user wants it"
+ },
+ {
+  "case": "h-tab",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 1.5,
+  "calls": 2,
+  "actions": [
+   "clicked tab 'Reviews (42)'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-tab-read",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 1.5,
+  "calls": 2,
+  "actions": [
+   "clicked tab 'Specifications'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-cookie",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 1.7,
+  "calls": 3,
+  "actions": [
+   "clicked button 'Reject non-essential'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-radio",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 3.9,
+  "calls": 6,
+  "actions": [
+   "clicked radio 'Overnight ($25)'",
+   "clicked button 'Continue to payment'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-gift",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.8,
+  "calls": 4,
+  "actions": [
+   "clicked checkbox 'This is a gift (add a gift receipt)'",
+   "clicked button 'Continue to payment'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-page3",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.3,
+  "calls": 2,
+  "actions": [
+   "clicked link '3'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-next",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.1,
+  "calls": 2,
+  "actions": [
+   "clicked link 'Next'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "h-signup-short",
+  "ok": false,
+  "status": "stuck",
+  "check": true,
+  "secs": 3.8,
+  "calls": 6,
+  "actions": [
+   "filled text field 'Work email' (value 'email'), password 'Choose a password' (value 'password')",
+   "clicked checkbox 'I agree to the terms of service'",
+   "clicked button 'Create account'",
+   "clicked button 'Create account'"
+  ],
+  "note": "no action on this page seems to help"
+ },
+ {
+  "case": "h-signup",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 2.7,
+  "calls": 4,
+  "actions": [
+   "filled text field 'Work email' (value 'email'), password 'Choose a password' (value 'password')",
+   "clicked checkbox 'I agree to the terms of service'",
+   "clicked button 'Create account'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "wiki-link",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 5.5,
+  "calls": 6,
+  "actions": [
+   "clicked link 'espresso'"
+  ],
+  "note": ""
+ },
+ {
+  "case": "wiki-search",
+  "ok": true,
+  "status": "done",
+  "check": true,
+  "secs": 4.8,
+  "calls": 4,
+  "actions": [
+   "filled search box 'Search Wikipedia' (value 'query')",
+   "typed into search box 'Search Wikipedia' and pressed Enter (value 'query')"
+  ],
+  "note": ""
+ }
+]

@@ -1,0 +1,11 @@
+<!doctype html><html><head><title>Create account</title></head><body>
+<h1>Create your account</h1>
+<form id="f" novalidate><label>Work email <input name="email" type="email"></label><br>
+<label>Choose a password <input name="password" type="password"></label><br>
+<label><input type="checkbox" name="terms"> I agree to the terms of service</label><br>
+<button type="submit">Create account</button></form><p id="err" role="alert" style="color:red"></p>
+<script>f.onsubmit = e => { e.preventDefault(); const d = new FormData(f);
+  if ((d.get("password") || "").length < 8) return err.textContent = "Password must be at least 8 characters.";
+  if (!d.get("terms")) return err.textContent = "Please accept the terms of service.";
+  localStorage.setItem("account", d.get("email")); document.body.innerHTML = "<h1>Account created</h1><p>Check your inbox to verify.</p>"; };</script>
+</body></html>

@@ -10,6 +10,8 @@ model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.4}
 skills_allowed: [daily-*, appointment-*, email-*, gmail-*, google-workspace*, gws-cli, maps,
                  document-tools, eco-insulation-quotes, "*payroll*", openhue, roku-ecp,
                  web-research-workflow, radon-mitigation-study, journalist, serpapi-image-search,
-                 pokemon-player, ideation]
+                 pokemon-player, ideation, learned-*]
+tools: [web, browser]
+mcp: ["*"]
 can_request: ["*"]
 max_steps: 14

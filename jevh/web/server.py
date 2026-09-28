@@ -16,7 +16,9 @@ import asyncio
 import dataclasses
 import json
 import mimetypes
+import re
 import secrets
+import shutil
 import subprocess
 import threading
 import time
@@ -32,6 +34,7 @@ from ..bus import Task
 from ..config import Config, load_config
 from ..lmstudio import gate_for
 from ..orchestrator import Harness
+from ..skills import load_roster
 
 STATIC = Path(__file__).with_name("static")
 MAX_EVENTS = 5000
@@ -135,9 +138,9 @@ class Hub:
     def reset(self) -> None:
         if self.busy.locked():
             raise HTTPException(409, "wait for the running turn to finish")
-        mode = self.harness.tier_mode
+        mode, project = self.harness.tier_mode, self.harness.project
         self.harness = self._factory(self.publish)
-        self.harness.tier_mode = mode
+        self.harness.tier_mode, self.harness.project = mode, project
         self.turns.clear()
         self.publish("reset", {"session": self.harness.session})
 
@@ -220,7 +223,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                 "fast_model": (h.cfg.models.get("fast") or {}).get("model"), "model_override": hub.model_override,
                 "personas": {n: {"description": p.description, "model": p.model.get("model"),
                                  "fast_ok": p.fast_ok} for n, p in h.personas.items()},
-                "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq,
+                "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq, "project": h.project,
                 "thresholds": h.cfg.thresholds}
 
     @app.post("/api/chat")
@@ -242,7 +245,55 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             if body["pin"] not in (None, "", *hub.harness.personas):
                 raise HTTPException(400, "unknown persona")
             hub.pin = body["pin"] or None
-        return {"tier_mode": hub.harness.tier_mode, "pin": hub.pin}
+        if "project" in body:
+            try:
+                hub.harness.set_project(str(body["project"]).strip() if body["project"] else None)
+            except (NotADirectoryError, OSError) as e:
+                raise HTTPException(400, f"not a folder: {e}") from None
+        return {"tier_mode": hub.harness.tier_mode, "pin": hub.pin, "project": hub.harness.project}
+
+    @app.get("/api/memory")
+    def memory() -> dict:
+        h = hub.harness
+        home = Path(h.skills_home).resolve()
+        learned = [{"name": s.name, "description": s.description, "path": s.path, "draft": s.draft}
+                   for s in h.roster.values() if (home / "learned") in Path(s.path).resolve().parents]
+        lessons = []
+        for note in sorted((home / "_lessons").glob("*.md")) if (home / "_lessons").is_dir() else []:
+            text = note.read_text(encoding="utf-8", errors="replace")
+            lessons.append({"name": note.stem, "entries": text.count("<!--")})
+        for s in h.roster.values():  # our own skills improve in place
+            if home in Path(s.path).resolve().parents and "## Lessons from past runs" in Path(s.path).read_text(
+                    encoding="utf-8", errors="replace"):
+                lessons.append({"name": s.name, "entries": s.body.count("<!--")})
+        return {"facts": [dataclasses.asdict(f) for f in h.memory.facts(None, 200)], "turns": h.memory.count(),
+                "learned": learned, "lessons": lessons}
+
+    @app.post("/api/skills/review")
+    async def review_skill(request: Request) -> dict:
+        """Approve (drop the draft flag) or delete a learned skill. Only skills/learned/ is touched."""
+        body = await request.json()
+        h = hub.harness
+        s = h.roster.get(str(body.get("name", "")))
+        learned_root = (Path(h.skills_home) / "learned").resolve()
+        if not s or learned_root not in Path(s.path).resolve().parents:
+            raise HTTPException(404, "no such learned skill")
+        path = Path(s.path)
+        if body.get("action") == "approve":
+            path.write_text(re.sub(r"^draft:\s*true\s*\n", "", path.read_text(encoding="utf-8"), count=1, flags=re.M),
+                            encoding="utf-8")
+        elif body.get("action") == "delete":
+            shutil.rmtree(path.parent)
+        else:
+            raise HTTPException(400, "action must be approve|delete")
+        h.roster = load_roster(h.cfg.skills_dirs, Path(h.skills_home) / "_lessons")
+        return {"ok": True}
+
+    @app.post("/api/memory/forget")
+    async def forget(request: Request) -> dict:
+        body = await request.json()
+        hub.harness.memory.retire_fact(int(body.get("id", -1)))
+        return {"ok": True}
 
     @app.post("/api/reset")
     def reset() -> dict:

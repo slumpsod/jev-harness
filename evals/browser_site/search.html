@@ -1,0 +1,8 @@
+<!doctype html><html><head><title>Search - Kettle &amp; Co</title><script src="common.js"></script></head><body>
+<form action="search.html"><input type="search" name="q" aria-label="Search products" id="q"><button>Search</button></form>
+<div id="res"></div>
+<script>nav(); const q = (qs("q") || "").toLowerCase(); document.getElementById("q").value = qs("q") || "";
+const hits = PRODUCTS.filter(p => !q || q.split(/\s+/).every(w => p.name.toLowerCase().includes(w)));
+document.getElementById("res").innerHTML = (q ? `<h2>${hits.length} results for "${q}"</h2>` : "<h2>All products</h2>") +
+  hits.map(p => `<div class="card"><a href="product.html?id=${p.id}">${p.name}</a> <span>$${p.price}</span></div>`).join("");
+</script></body></html>

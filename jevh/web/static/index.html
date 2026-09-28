@@ -116,6 +116,7 @@ a { color: var(--accent); }
   <span class="pill" id="pill-jev">Jev</span>
   <span class="pill" id="pill-comfy">ComfyUI</span>
   <label class="kv">Persona <select id="pin"><option value="">Jev routes</option></select></label>
+  <label class="kv" title="A folder the project tool may read, edit and run commands in (dev and designer). Empty = none.">Project <input id="project" placeholder="none - paste a folder path" size="26"></label>
   <label class="kv">Tier <select id="tier"><option value="auto">Jev decides</option><option value="fast">fast</option><option value="strong">strong</option></select></label>
   <button id="reset" title="Start a new session">New session</button>
 </header>
@@ -132,11 +133,13 @@ a { color: var(--accent); }
       <button data-tab="timeline" class="on">Timeline</button>
       <button data-tab="inspector">Inspector</button>
       <button data-tab="artifacts">Artifacts</button>
+      <button data-tab="memory">Memory</button>
       <button data-tab="status">Status</button>
     </nav>
     <div class="panel on" id="p-timeline"></div>
     <div class="panel" id="p-inspector"></div>
     <div class="panel" id="p-artifacts"></div>
+    <div class="panel" id="p-memory"></div>
     <div class="panel" id="p-status"></div>
   </section>
 </main>
@@ -210,7 +213,17 @@ function handle(e) {
       break;
     }
     case "route": t.route = d.decision; break;
-    case "skills": case "memory": case "collab": case "tier":
+    case "learned": {
+      const L = d.learned || {};
+      t.learned = L;
+      (L.facts || []).forEach((f) => t.activity.push({ts: e.ts, kind: "learn", text: `remembered: ${f}`}));
+      (L.retired || []).forEach((f) => t.activity.push({ts: e.ts, kind: "learn", text: `replaced: ${f}`}));
+      if (L.skill) t.activity.push({ts: e.ts, kind: "learn", text: `${L.skill_action === "created" ? "learned a new skill" : "added lessons to"}: ${L.skill}`});
+      if (S.tab === "memory") refreshMemory();
+      break;
+    }
+    case "learn_error": t.activity.push({ts: e.ts, kind: "warn", text: `learning skipped: ${d.error}`}); break;
+    case "skills": case "memory": case "collab": case "tier": case "tools":
       dec(t, d.task.id)[e.kind] = e.kind === "memory" ? {...d.decision, candidates: d.candidates} : d.decision; break;
     case "start": upsertTask(t, {...d.task, model: d.model}); break;
     case "request": upsertTask(t, {...d.task, approved: d.approved, reason: d.reason, approval: d.scores}); break;
@@ -256,7 +269,7 @@ function renderChat() {
     const steps = t.activity.map((a) => {
       if (a.kind === "code") return `<div class="step"><b>${esc(a.persona)}</b> step ${a.step}<pre>${esc(a.text)}</pre></div>`;
       if (a.kind === "output") return `<div class="step">${a.error ? '<span class="err">error</span>' : "output"}<pre>${esc((a.text || "(no output)").slice(-2000))}</pre></div>`;
-      return `<div class="step" style="color:var(--${a.kind === "swap" ? "swap" : "warn"})">${esc(a.text)}</div>`;
+      return `<div class="step" style="color:var(--${a.kind === "swap" ? "swap" : a.kind === "learn" ? "fast" : "warn"})">${esc(a.text)}</div>`;
     }).join("");
     return `<div class="msg user">${esc(t.message || "")}</div>
       <div class="msg assistant ${S.selected === id ? "selected" : ""}" data-turn="${id}">
@@ -330,6 +343,10 @@ function renderInspector() {
         ${d.memory.kept.map((k) => `<div class="kv">&#10003; ${esc(k.slice(0, 160))}</div>`).join("")}
         ${scored.length ? `<div class="kv">checked: ${scored.map(([i, v]) => `#${i} ${v.toFixed(2)}`).join(", ")}</div>` : ""}`;
     }
+    if (d.tools && (Object.keys(d.tools.scores || {}).length || (d.tools.mcp || []).length)) {
+      inner += `<h4>Tools - guides in the prompt: ${d.tools.tools.length ? d.tools.tools.map(esc).join(", ") : "none"}</h4>${probRows(d.tools.scores, d.tools.tools, {thr: th.tool})}`;
+      if (Object.keys(d.tools.mcp_probs || {}).length) inner += `<div class="kv" style="margin-top:4px">MCP - picked: ${(d.tools.mcp || []).map(esc).join(", ") || "none"}</div>${probRows(d.tools.mcp_fits, d.tools.mcp, {thr: th.mcp_fits})}`;
+    }
     if (d.collab) inner += `<h4>Collaborators - suggested: ${d.collab.suggested.length ? d.collab.suggested.map(esc).join(", ") : "none"} (complexity ${(d.collab.complexity ?? 0).toFixed(2)})</h4>${probRows(d.collab.scores, d.collab.suggested, {thr: th.collab})}`;
     if (x.approval && Object.keys(x.approval).length) inner += `<h4>Hand-off approval</h4>${probRows(x.approval, null, {thr: th.approve})}`;
     if (x.status === "rejected") inner += `<div class="kv" style="color:var(--bad)">refused: ${esc(x.answer || x.reason)}</div>`;
@@ -337,7 +354,34 @@ function renderInspector() {
       ${x.requester !== "user" ? `<span class="kv">asked by ${esc(x.requester)}</span>` : ""}${x.model ? `<span class="kv">on ${esc(String(x.model).split("@http")[0].replace(/^\(primary\)->/, ""))}</span>` : ""}</h3>
       <div class="kv" title="${esc(x.text)}">${esc((x.text || "").slice(0, 220))}</div>${inner || '<div class="kv">no decisions recorded</div>'}</div>`;
   }
+  if (t.learned) {
+    const L = t.learned, sc = L.scores || {};
+    html += `<div class="card"><h3>After the turn: learning</h3>
+      <div class="prob ${L.facts?.length ? "pick" : ""}"><span class="name">states a lasting fact</span><span class="meter"><b style="width:${pct(sc.fact || 0)}"></b><span class="thr" style="left:${pct(th.fact)}"></span></span><span class="v">${(sc.fact ?? 0).toFixed(2)}</span></div>
+      ${sc.skill != null ? `<div class="prob ${L.skill ? "pick" : ""}"><span class="name">worked out a procedure</span><span class="meter"><b style="width:${pct(sc.skill)}"></b><span class="thr" style="left:${pct(th.learn_skill)}"></span></span><span class="v">${sc.skill.toFixed(2)}</span></div>` : ""}
+      ${(L.facts || []).map((f) => `<div class="kv">&#10003; remembered: ${esc(f)}</div>`).join("")}
+      ${(L.retired || []).map((f) => `<div class="kv">replaced: ${esc(f)}</div>`).join("")}
+      ${L.skill ? `<div class="kv">&#10003; ${L.skill_action === "created" ? "new skill" : "lessons added"}: ${esc(L.skill)}</div>` : ""}</div>`;
+  }
   el.innerHTML = html || `<div class="empty">Waiting for Jev...</div>`;
+}
+
+// ---- memory ----
+async function refreshMemory() {
+  let m;
+  try { m = await api("/api/memory"); } catch { return; }
+  if (S.tab !== "memory") return;
+  const facts = m.facts.map((f) => `<div class="prob"><span class="name" style="white-space:normal" title="${esc(f.source || "")}">${esc(f.text)}</span>
+    <span class="kv">${new Date(f.ts * 1000).toLocaleDateString()}</span><button data-forget="${f.id}" title="Forget this fact">forget</button></div>`).join("");
+  const skills = m.learned.map((s) => `<div class="prob"><span class="name" style="white-space:normal" title="${esc(s.path)}"><b>${esc(s.name)}</b>
+    ${s.draft ? '<span class="badge running">draft</span>' : '<span class="badge done">approved</span>'} - ${esc(s.description)}</span>
+    <span>${s.draft ? `<button data-skill="${esc(s.name)}" data-act="approve" title="Workers stop treating it as unverified">approve</button>` : ""}
+    <button data-skill="${esc(s.name)}" data-act="delete" title="Delete skills/learned/${esc(s.name)}">delete</button></span></div>`).join("");
+  const lessons = m.lessons.map((s) => `<div class="kv"><b>${esc(s.name)}</b>: ${s.entries} lesson note(s)</div>`).join("");
+  $("p-memory").innerHTML = `<div class="card"><h3>Remembered facts <span class="kv">${m.facts.length} active | ${m.turns} past turns searchable</span></h3>
+      ${facts || '<div class="kv">None yet. Tell an assistant something lasting (e.g. "my gym is closed on Sundays") and it is kept here.</div>'}</div>
+    <div class="card"><h3>Learned skills</h3>${skills || '<div class="kv">None yet. After a multi-step task that needed fixes or non-obvious steps, a how-to is written to skills/learned/.</div>'}</div>
+    <div class="card"><h3>Lessons added to existing skills</h3>${lessons || '<div class="kv">None yet.</div>'}</div>`;
 }
 
 // ---- artifacts ----
@@ -393,7 +437,21 @@ $("tabs").addEventListener("click", (ev) => {
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("on", p.id === `p-${S.tab}`));
   if (S.tab === "artifacts") refreshArtifacts();
   if (S.tab === "status") refreshStatus();
+  if (S.tab === "memory") refreshMemory();
   render();
+});
+$("p-memory").addEventListener("click", async (ev) => {
+  const f = ev.target.closest("button[data-forget]"), k = ev.target.closest("button[data-skill]");
+  if (f) await api("/api/memory/forget", {method: "POST", body: JSON.stringify({id: Number(f.dataset.forget)})});
+  else if (k) {
+    if (k.dataset.act === "delete" && !confirm(`Delete the learned skill ${k.dataset.skill}?`)) return;
+    await api("/api/skills/review", {method: "POST", body: JSON.stringify({name: k.dataset.skill, action: k.dataset.act})});
+  } else return;
+  refreshMemory();
+});
+$("project").addEventListener("change", async () => {
+  try { const r = await api("/api/settings", {method: "POST", body: JSON.stringify({project: $("project").value.trim() || null})}); $("project").value = r.project || ""; }
+  catch (e) { alert(e.message); }
 });
 $("log").addEventListener("click", (ev) => {
   const a = ev.target.closest("a[data-art]");
@@ -431,6 +489,7 @@ function connect() {
     const o = document.createElement("option"); o.value = n; o.textContent = n; o.title = p.description; $("pin").appendChild(o);
   }
   $("pin").value = st.pin || "";
+  $("project").value = st.project || "";
   connect();
   refreshStatus(); setInterval(refreshStatus, 5000);
   setInterval(() => { if (S.order.some((id) => S.turns.get(id).status === "running")) schedule(); }, 1000);

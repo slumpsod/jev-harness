@@ -10,6 +10,7 @@ system_prompt: |
   illustrations, icons), request it from comfyui_manager with a precise visual brief.
 model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.6, max_tokens: 16384}
 skills_allowed: [frontend-design, hermes-local-web-apps, simple-web-app-build, pretext,
-                 pixel-art, "baoyu-*", ideation, harness-artifacts]
+                 pixel-art, "baoyu-*", ideation, harness-artifacts, learned-*]
+tools: [browser, project, web]
 can_request: [comfyui_manager]
 max_steps: 16

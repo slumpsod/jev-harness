@@ -36,8 +36,10 @@ def truncate(text: str, cap: int) -> str:
 
 class Repl:
     def __init__(self, cwd: Path, artifacts: Path, handlers: dict[str, Handler] | None = None,
-                 tools: dict[str, str] | None = None, timeout: float = 120.0, output_cap: int = 4000):
+                 tools: dict[str, str] | None = None, timeout: float = 120.0, output_cap: int = 4000,
+                 env: dict[str, str] | None = None):
         self.cwd = Path(cwd)
+        self.extra_env = dict(env or {})
         self.artifacts = Path(artifacts)
         self.handlers = handlers or {}
         self.tools = tools or {}
@@ -53,7 +55,7 @@ class Repl:
         self.artifacts.mkdir(parents=True, exist_ok=True)
         env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1",
                    JEVH_ARTIFACTS=str(self.artifacts),
-                   PYTHONPATH=os.pathsep.join([str(ROOT), os.environ.get("PYTHONPATH", "")]))
+                   PYTHONPATH=os.pathsep.join([str(ROOT), os.environ.get("PYTHONPATH", "")]), **self.extra_env)
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         self.proc = subprocess.Popen([sys.executable, "-u", "-m", "jevh.repl.server"], cwd=self.cwd,
                                      env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,

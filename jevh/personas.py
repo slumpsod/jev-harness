@@ -21,9 +21,13 @@ class Persona:
     max_steps: int = 12
     code: bool = True                     # False = plain chat persona, no REPL
     fast_ok: bool = True                  # Jev may send easy tasks to config models.fast
+    mcp: list[str] = field(default_factory=list)            # globs over "server.tool" MCP keys
 
     def allows_skill(self, skill_name: str) -> bool:
         return any(fnmatch.fnmatch(skill_name, pat) for pat in self.skills_allowed)
+
+    def allows_mcp(self, key: str) -> bool:
+        return any(fnmatch.fnmatch(key, pat) for pat in self.mcp)
 
     def may_request(self, other: str) -> bool:
         return other != self.name and ("*" in self.can_request or other in self.can_request)

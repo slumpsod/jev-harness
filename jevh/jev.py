@@ -40,6 +40,15 @@ TIER_OPTIONS = {"fast": "a small fast model - good for quick answers, lookups, s
                 "strong": "a large careful model - needed for deep reasoning, hard debugging, long or complex builds"}
 
 
+# Tools (tuned on evals/tool_cases.py): which REPL tools' guides the worker's prompt carries.
+TOOL_Q = "Would the assistant need this tool to handle the latest request?"
+# MCP tools: a catalog can be large, so the same Choice + fits design as skills.
+MCP_CHOICE_Q = "Which of these tools, if any, does the latest request need?"
+MCP_NONE_OPTION = ("none_of_these", "No tool is needed for this request.")
+MCP_FITS_Q = "Does the latest request need this tool?"
+MCP_TOP_N = 3
+
+
 def decide_skills(probs: dict[str, float], fits: dict[str, float], fits_t: float,
                   override: float, veto: float, k: int = 1) -> list[str]:
     """Pure decision rule (shared with evals/skill_cases.py).
@@ -89,6 +98,15 @@ class TierDecision:
     tier: str                  # "fast" | "strong"
     p_strong: float | None
     reason: str
+
+
+@dataclass
+class ToolDecision:
+    tools: list[str]                                        # built-in tool guides for the prompt
+    scores: dict[str, float] = field(default_factory=dict)
+    mcp: list[str] = field(default_factory=list)            # "server.tool" keys
+    mcp_probs: dict[str, float] = field(default_factory=dict)
+    mcp_fits: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -199,6 +217,31 @@ class Jev:
             finalists += sorted(chunk, key=lambda n: -p.get(n, 0.0))[:keep]
         final = {n: options[n] for n in finalists}
         return self.choice_probs(step, state, question, final, final_extra)
+
+    # -- 2b. which tools -------------------------------------------------------------
+    def pick_tools(self, request: str, tools: dict[str, str], mcp: dict[str, str] | None = None) -> ToolDecision:
+        """`tools`: the persona's built-in tools (name -> description), one noul each in one
+        call. `mcp`: MCP catalog (key -> description): Choice ranks it, fits noul on the top."""
+        state = {"latest_request": request}
+        scores: dict[str, float] = {}
+        if tools:
+            r = self._ask("tools", state, {f"t_{n}": noul({"question": TOOL_Q, "tool": d}) for n, d in tools.items()})
+            scores = {n: r[f"t_{n}"].noul for n in tools}
+        picked = [n for n in tools if scores.get(n, 0.0) >= self.cfg.t("tool")]
+        dec = ToolDecision(picked, scores)
+        if mcp:
+            none_key, none_desc = MCP_NONE_OPTION
+            probs = self.choice_probs("mcp_rank", state, MCP_CHOICE_Q, {k: _clip(d, 300) for k, d in mcp.items()},
+                                      {none_key: none_desc})
+            top = [k for k in sorted(probs, key=lambda k: -probs[k]) if k in mcp][:MCP_TOP_N]
+            if top and probs.get(none_key, 0.0) < self.cfg.t("skill_none_veto"):
+                r = self._ask("mcp_fits", state, {f"m{i}": noul({"question": MCP_FITS_Q, "tool": f"{k}: {_clip(mcp[k], 400)}"})
+                                                  for i, k in enumerate(top)})
+                fits = {k: r[f"m{i}"].noul for i, k in enumerate(top)}
+                dec.mcp = [k for k in top if fits[k] >= self.cfg.t("mcp_fits")][:self.cfg.lim("max_mcp_tools")]
+                dec.mcp_fits = fits
+            dec.mcp_probs = probs
+        return dec
 
     # -- 3. which memory -----------------------------------------------------------
     def gate_context(self, request: str, chunks: Sequence[str]) -> MemoryDecision:

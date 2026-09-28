@@ -8,6 +8,7 @@ dependencies = ["pyyaml", "rich"]
 [project.optional-dependencies]
 claude = ["anthropic"]
 web = ["fastapi", "uvicorn"]
+browser = ["playwright"]   # then: python -m playwright install chromium
 dev = ["pytest", "httpx"]
 
 [project.scripts]

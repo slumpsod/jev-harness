@@ -1,0 +1,11 @@
+<!doctype html><html><head><title>Daily News</title>
+<style>#banner{position:fixed;inset:auto 0 0 0;background:#222;color:#fff;padding:20px}</style></head><body>
+<h1>Daily News</h1><p>City council approves new bike lanes. Weather: sunny, 21°C.</p>
+<a href="#sports">Sports</a> <a href="#weather">Weather</a>
+<div id="banner" role="dialog" aria-label="Cookie consent"><p>We use cookies for analytics and personalised ads.</p>
+<button id="acc">Accept all</button> <button id="rej">Reject non-essential</button> <button id="more">Manage preferences</button></div>
+<script>
+const b = document.getElementById("banner");
+acc.onclick = () => { localStorage.setItem("consent", "all"); b.remove(); };
+rej.onclick = () => { localStorage.setItem("consent", "essential"); b.remove(); };
+</script></body></html>

@@ -1,0 +1,17 @@
+<!doctype html><html><head><title>Todos</title></head><body>
+<h1>My todos</h1>
+<input id="new" placeholder="What needs doing?" aria-label="New todo"> <button id="add">Add</button>
+<ul id="list"></ul>
+<script>
+const load = () => JSON.parse(localStorage.getItem("todos") || '[{"t":"Buy milk","d":false},{"t":"Call mom","d":false},{"t":"Book dentist","d":false}]');
+const save = v => localStorage.setItem("todos", JSON.stringify(v));
+function render() {
+  const v = load();
+  list.innerHTML = v.map((x, i) => `<li><label><input type="checkbox" data-i="${i}" ${x.d ? "checked" : ""}> ${x.t}</label>
+    <button data-del="${i}" aria-label="Delete ${x.t}">✕</button></li>`).join("");
+  list.querySelectorAll("input").forEach(c => c.onchange = () => { const v = load(); v[c.dataset.i].d = c.checked; save(v); });
+  list.querySelectorAll("button").forEach(b => b.onclick = () => { const v = load(); v.splice(b.dataset.del, 1); save(v); render(); });
+}
+add.onclick = () => { if (!document.getElementById("new").value) return; const v = load(); v.push({t: document.getElementById("new").value, d: false}); save(v); document.getElementById("new").value = ""; render(); };
+render();
+</script></body></html>

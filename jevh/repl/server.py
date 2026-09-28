@@ -78,6 +78,22 @@ def jev(state, questions: dict) -> dict:
     return _call("jev", state, questions)
 
 
+def mcp(tool: str, **arguments) -> str:
+    """Call an MCP tool listed in your prompt: mcp("server.tool", arg=value)."""
+    return _call("mcp", tool, arguments)
+
+
+def recall(query: str, k: int = 5) -> list:
+    """Search ALL past conversations and remembered facts (not just what you were given);
+    Jev keeps the snippets that match. -> ["[date persona] User: ... Assistant: ...", ...]"""
+    return _call("recall", query, k)
+
+
+def remember(fact: str) -> str:
+    """Save a lasting fact about the user or their world for future conversations."""
+    return _call("remember", fact)
+
+
 def request(persona: str, task: str, inputs: list | None = None) -> dict:
     """Hand a sub-task to another assistant and wait. Returns {status, answer, artifacts}."""
     return _call("request", persona, task, inputs or [])
@@ -141,7 +157,8 @@ def final(answer: str, artifacts: list | None = None) -> str:
 G: dict = {"__name__": "__main__", "ctx": {}, "peek": peek, "llm_query": llm_query, "jev": jev,
            "request": request, "request_async": request_async, "wait": wait, "request_all": request_all,
            "save_artifact": save_artifact, "load_artifact": load_artifact,
-           "list_artifacts": list_artifacts, "final": final}
+           "list_artifacts": list_artifacts, "final": final, "mcp": mcp, "recall": recall,
+           "remember": remember}
 
 
 def _exec(code: str) -> tuple[str, bool]:

@@ -1,9 +1,10 @@
 """Terminal chat for the harness.
 
-    python -m jevh.cli [--as persona] [--verbose] [--config path]
+    python -m jevh.cli [--as persona] [--project path] [--verbose] [--config path]
 
-Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong, /personas,
-/skills, /trace, /verbose, /jev (health), /reset, /quit
+Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
+/project <path> (open a project folder; "/project off" closes it), /facts, /forget <id>,
+/personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
 """
 from __future__ import annotations
 
@@ -69,6 +70,23 @@ class Printer:
         elif kind == "memory":
             d, t = data["decision"], data["task"]
             console.print(f"[dim]{_indent(t)}memory: {len(d.kept)}/{data['candidates']} snippets passed[/]")
+        elif kind == "tools":
+            d, t = data["decision"], data["task"]
+            if d.tools or d.mcp or self.verbose:
+                shown = ", ".join(d.tools + d.mcp) or "none"
+                console.print(f"[dim]{_indent(t)}tools: {esc(shown)}[/]")
+        elif kind == "learned":
+            out = data["learned"]
+            for f in out.facts:
+                console.print(f"[dim]    remembered: {esc(f)}[/]")
+            for f in out.retired:
+                console.print(f"[dim]    replaced: {esc(f)}[/]")
+            if out.skill:
+                verb = "learned a new skill (draft; /skills to review)" if out.skill_action == "created" \
+                    else "added lessons to"
+                console.print(f"[dim]    {verb}: {esc(out.skill)}[/]")
+        elif kind == "learn_error":
+            console.print(f"[yellow]    learning skipped: {esc(data['error'][:160])}[/]")
         elif kind == "collab":
             d, t = data["decision"], data["task"]
             if d.suggested:
@@ -129,11 +147,14 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--tier", choices=["auto", "fast", "strong"], default="auto",
                     help="model tier: Jev decides per task (auto), or force one")
     ap.add_argument("--model", help="put every persona on one model for testing, e.g. lmstudio:qwen3-4b")
+    ap.add_argument("--project", help="open a project folder for personas with the project tool")
     a = ap.parse_args(argv)
 
     printer = Printer(a.verbose)
     h = Harness(load_config(a.config), on_event=printer, model_override=a.model)
     h.tier_mode = a.tier
+    if a.project:
+        h.set_project(a.project)
     pin = a.pin
     last = None
 
@@ -152,6 +173,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if a.command:
         run(a.command)
+        h.wait_learning()
         return
 
     console.print(f"[bold]jev harness[/] · session {h.session} · personas: {', '.join(h.personas)}"
@@ -177,6 +199,19 @@ def main(argv: list[str] | None = None) -> None:
                 if arg in ("auto", "fast", "strong"):
                     h.tier_mode = arg
                 console.print(f"tier: {h.tier_mode} (fast model: {h.cfg.models.get('fast', {}).get('model', 'none')})")
+            elif cmd == "project":
+                try:
+                    h.set_project(None if arg.strip() in ("", "off", "close") else arg.strip())
+                    console.print(f"project: {h.project or 'none'}")
+                except NotADirectoryError as e:
+                    console.print(f"[red]not a folder: {esc(str(e))}[/]")
+            elif cmd == "facts":
+                for f in h.memory.facts(None, 50):
+                    console.print(f"[bold]{f.id}[/] {esc(f.chunk())}")
+            elif cmd == "forget":
+                if arg.strip().isdigit():
+                    h.memory.retire_fact(int(arg))
+                    console.print(f"forgot fact {arg.strip()}")
             elif cmd == "auto":
                 pin = None
                 console.print("Jev routes again")
@@ -185,7 +220,8 @@ def main(argv: list[str] | None = None) -> None:
                     console.print(f"[bold]{n}[/] ({p.model.get('provider')}:{p.model.get('model')}) — {esc(p.description)}")
             elif cmd == "skills":
                 for s in h.roster.values():
-                    console.print(f"[bold]{s.name}[/] — {esc(s.description)}")
+                    tag = " [yellow](draft: learned, not reviewed)[/]" if s.draft else ""
+                    console.print(f"[bold]{s.name}[/]{tag} — {esc(s.description)}")
             elif cmd == "trace":
                 console.print_json(json.dumps(last.trace if last else [], default=str))
             elif cmd == "verbose":
@@ -197,9 +233,9 @@ def main(argv: list[str] | None = None) -> None:
                 except Exception as e:  # noqa: BLE001
                     console.print(f"[red]{esc(str(e))}[/]")
             elif cmd == "reset":
-                mode = h.tier_mode
+                mode, project = h.tier_mode, h.project
                 h = Harness(h.cfg, on_event=printer, model_override=a.model)
-                h.tier_mode = mode
+                h.tier_mode, h.project = mode, project
                 console.print(f"new session {h.session}")
             else:
                 console.print(__doc__)

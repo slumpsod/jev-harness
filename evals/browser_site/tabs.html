@@ -1,0 +1,13 @@
+<!doctype html><html><head><title>Aeron chair - Specs</title>
+<style>[role=tabpanel][hidden]{display:none} [aria-selected=true]{font-weight:bold}</style></head><body>
+<h1>Aeron office chair</h1>
+<div role="tablist"><button role="tab" aria-selected="true" data-p="ov">Overview</button>
+<button role="tab" aria-selected="false" data-p="sp">Specifications</button>
+<button role="tab" aria-selected="false" data-p="rv">Reviews (42)</button></div>
+<section role="tabpanel" id="ov">An ergonomic chair with a breathable mesh seat.</section>
+<section role="tabpanel" id="sp" hidden>Weight: 18 kg. Max load: 136 kg. Warranty: 12 years.</section>
+<section role="tabpanel" id="rv" hidden>"Best chair I have owned." - Priya. "Pricey but worth it." - Tom.</section>
+<script>document.querySelectorAll("[role=tab]").forEach(t => t.onclick = () => {
+  document.querySelectorAll("[role=tab]").forEach(x => x.setAttribute("aria-selected", x === t));
+  document.querySelectorAll("[role=tabpanel]").forEach(p => p.hidden = p.id !== t.dataset.p); });</script>
+</body></html>

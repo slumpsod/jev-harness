@@ -1,0 +1,12 @@
+<!doctype html><html><head><title>Product - Kettle &amp; Co</title><script src="common.js"></script></head><body>
+<div id="p"></div>
+<script>nav(); const p = PRODUCTS.find(x => x.id === qs("id")) || PRODUCTS[0]; document.title = p.name + " - Kettle & Co";
+document.getElementById("p").innerHTML = `<h1>${p.name}</h1><p>$${p.price}. Dishwasher safe.</p>
+<label>Size <select id="size"><option>Small</option><option selected>Medium</option><option>Large</option></select></label>
+<label>Quantity <input id="qty" type="number" value="1" min="1"></label>
+<button id="add">Add to cart</button><p id="msg" role="status"></p>`;
+document.getElementById("add").onclick = () => { const c = store.get("cart", []);
+  c.push({id: p.id, name: p.name, size: document.getElementById("size").value, qty: +document.getElementById("qty").value});
+  store.set("cart", c); document.getElementById("msg").textContent = `Added ${p.name} (${c.at(-1).size}) to your cart.`;
+  document.querySelector("nav a[href='cart.html']").textContent = `Cart (${c.length})`; };
+</script></body></html>

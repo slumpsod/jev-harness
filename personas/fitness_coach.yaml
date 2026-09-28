@@ -9,6 +9,7 @@ system_prompt: |
   build software yourself; if the user wants an app or tool, hand the build to
   high_end_dev with a clear spec of what to track and why, and share the result.
 model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.5}
-skills_allowed: [fitness-tracker, workout-programming, harness-artifacts]
+skills_allowed: [fitness-tracker, workout-programming, harness-artifacts, learned-*]
+tools: [web]
 can_request: [high_end_dev, front_end_designer]
 max_steps: 10

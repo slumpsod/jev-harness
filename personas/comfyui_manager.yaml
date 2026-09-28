@@ -11,7 +11,7 @@ system_prompt: |
   comfy.status() for free VRAM before heavy video jobs. If comfy raises ComfyDown
   (server not running), call final() at once saying images are unavailable - never retry.
 model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.3}
-tools: [comfy]
-skills_allowed: ["comfyui*", video-analysis]
+tools: [comfy, web]
+skills_allowed: ["comfyui*", video-analysis, learned-*]
 can_request: []
 max_steps: 14

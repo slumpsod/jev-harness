@@ -1,0 +1,128 @@
+"""Tools (project, web parsing, Jev choice rounds, MCP) and how the orchestrator wires them."""
+import sys
+from pathlib import Path
+
+import pytest
+
+from jevh.jev import Jev
+from jevh.mcp import McpError, McpHub
+from jevh.orchestrator import Harness
+from jevh.repl.client import Repl
+from jevh.tools import _pick, web
+
+from conftest import FakeSystemOne, ScriptedLLM, choice_ans, noul_ans, py
+
+FAKE_MCP = {"fake": {"command": sys.executable, "args": [str(Path(__file__).with_name("fake_mcp_server.py"))],
+                     "timeout": 20}}
+
+
+def test_choose_runs_rounds_over_the_cap():
+    fake = FakeSystemOne(lambda k, q, s: choice_ans("o37", 0.9, q["criteria"]) if "o37" in q.get("criteria", {})
+                         else None)
+    opts = {f"o{i}": f"option {i}" for i in range(40)}
+    probs, _ = _pick.choose(fake, {"q": "x"}, "pick", opts, cap=16)
+    assert max(probs, key=probs.get) == "o37"
+    assert set(probs) == set(opts)
+    assert all(len(q["_pick" if "_pick" in q else next(iter(q))]["criteria"]) <= 16
+               for _, q in fake.calls for q in [q])
+    assert len(fake.calls) == 2  # all rounds in one request, then the final
+
+
+def test_web_html_to_text_skips_chrome():
+    p = web._Text()
+    p.feed("<html><head><title>T</title><style>x{}</style></head><body><nav>menu</nav>"
+           "<h1>Hello</h1><p>First <b>para</b>.</p><script>evil()</script><footer>foot</footer></body></html>")
+    text = "".join(p.out)
+    assert "Hello" in text and "First para." in text
+    assert "menu" not in text and "evil" not in text and "foot" not in text and p.title == "T"
+
+
+def test_project_tool_edits_inside_the_folder_and_undoes(tmp_path):
+    proj = tmp_path / "proj"
+    (proj / "src").mkdir(parents=True)
+    (proj / "src" / "app.py").write_text("def hello():\n    return 'hi'\n", encoding="utf-8")
+    with Repl(tmp_path / "wd", tmp_path / "arts", tools={"project": "jevh.tools.project"},
+              env={"JEVH_PROJECT": str(proj)}) as r:
+        out = r.run("print(project.grep(r'def \\w+', '**/*.py'))\n"
+                    "print(project.edit('src/app.py', \"'hi'\", \"'hello'\"))\n"
+                    "print(project.read('src/app.py'))\n"
+                    "print(project.sh('python -c \"print(40+2)\"')['out'])")
+        assert "src/app.py:1: def hello():" in out.output
+        assert "return 'hello'" in out.output and "42" in out.output
+        bad = r.run("project.write('../escape.txt', 'x')")
+        assert bad.error and "outside the project" in bad.output
+        r.run("project.undo()")
+    assert (proj / "src" / "app.py").read_text(encoding="utf-8") == "def hello():\n    return 'hi'\n"
+    assert not (tmp_path / "escape.txt").exists()
+
+
+def test_mcp_hub_lists_and_calls_tools():
+    hub = McpHub(FAKE_MCP)
+    try:
+        cat = hub.catalog()
+        assert set(cat) == {"fake.echo", "fake.add", "fake.boom"}
+        assert cat["fake.add"].signature() == 'mcp("fake.add", a: number, b: number)'
+        assert hub.call("fake.echo", {"text": "hi"}) == "hi"
+        assert hub.call("fake.add", {"a": 2, "b": 3}) == "5"
+        with pytest.raises(McpError, match="it broke"):
+            hub.call("fake.boom", {})
+    finally:
+        hub.close()
+
+
+def test_broken_mcp_server_does_not_break_the_catalog():
+    hub = McpHub({"nope": {"command": "definitely-not-a-real-binary-xyz"}, **FAKE_MCP})
+    try:
+        assert set(hub.catalog()) == {"fake.echo", "fake.add", "fake.boom"}
+        assert "nope" in hub.errors
+    finally:
+        hub.close()
+
+
+def tool_rules(tools_yes=(), mcp_pick=None):
+    def rules(k, q, s):
+        if k == "persona":
+            return choice_ans("daily_assistant", 0.9, q["criteria"])
+        if k.startswith("t_"):
+            return noul_ans(0.95 if k[2:] in tools_yes else 0.02)
+        if mcp_pick and q.get("type") == "choice" and mcp_pick in q.get("criteria", {}):
+            return choice_ans(mcp_pick, 0.9, q["criteria"])
+        if mcp_pick and k.startswith("m") and q.get("type") == "noul" and mcp_pick in str(q["instructions"]):
+            return noul_ans(0.9)
+    return rules
+
+
+def test_only_picked_tool_guides_reach_the_prompt(cfg):
+    llm = ScriptedLLM(["The weather is sunny."])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(tool_rules(tools_yes={"web"}))), llm_factory=lambda p: llm)
+    h.learning = False
+    h.turn("what's the weather in Seattle?", force="daily_assistant")
+    system = llm.seen[0][0]["content"]
+    assert "web.ask(question)" in system
+    assert "browser.do(" not in system and "Also importable in your REPL (help(name) shows how): browser" in system
+
+
+def test_worker_calls_an_mcp_tool_jev_picked(cfg):
+    cfg.mcp_servers = FAKE_MCP
+    llm = ScriptedLLM([py("final(mcp('fake.add', a=2, b=40))")])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(tool_rules(mcp_pick="fake.add"))), llm_factory=lambda p: llm)
+    h.learning = False
+    try:
+        r = h.turn("add 2 and 40 with the calculator tool", force="daily_assistant")
+        assert r.answer == "42"
+        assert 'mcp("fake.add", a: number, b: number)' in llm.seen[0][0]["content"]
+        assert "fake.echo" not in llm.seen[0][0]["content"]
+    finally:
+        h.mcp.close()
+
+
+def test_project_is_visible_to_dev_only_when_open(cfg, tmp_path):
+    (tmp_path / "repo").mkdir()
+    llm = ScriptedLLM([py("final(str(ctx.get('project')) + '|' + str(project.root))")] * 2)
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(tool_rules(tools_yes={"project"}))), llm_factory=lambda p: llm)
+    h.learning = False
+    assert h.turn("what's in my repo?", force="high_end_dev").answer == "None|None"
+    h.set_project(str(tmp_path / "repo"))
+    r = h.turn("what's in my repo?", force="high_end_dev")
+    assert r.answer == f"{tmp_path / 'repo'}|{tmp_path / 'repo'}"
+    assert "project.find(question)" in llm.seen[1][0]["content"]

@@ -16,11 +16,12 @@ model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.2, max_token
 #   model: claude-opus-5
 #   effort: high
 #   fallback: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.2, max_tokens: 16384}
-skills_allowed: [python-*, github-*, windows-system-admin, local-ai-models, mlops-tools, dspy,
+skills_allowed: [learned-*, python-*, github-*, windows-system-admin, local-ai-models, mlops-tools, dspy,
                  native-mcp, "openjev*", simple-web-app-build, hermes-local-web-apps,
                  "blender-*", harness-artifacts, claude-code, prime-agent, hermes-agent,
                  debugging-*, desktop-gui-automation, koe-no-hashi-voice-dashboard,
                  kanban-orchestrator, tailscale-funnel, webhook-subscriptions, touchdesigner-mcp,
                  cyberpunk-2077-modding, dlss5-game-injection, minecraft-modpack-server]
+tools: [project, web, browser]
 can_request: [front_end_designer, comfyui_manager]
 max_steps: 24

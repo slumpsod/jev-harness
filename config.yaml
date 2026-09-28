@@ -16,17 +16,26 @@ thresholds:
   collab: 0.60         # per-persona "needs this expertise" noul
   approve: 0.50        # in_scope and necessary nouls for persona->persona requests
   tier_strong: 0.55    # P(strong) in Jev's fast/strong Choice at/above which a task keeps the persona's own model
+  tool: 0.65           # "need this tool" noul per REPL tool guide (40/42, 0 needless at 0.6-0.7 on tool_cases.py)
+  mcp_fits: 0.50       # "needs this tool" noul on the MCP Choice leaders
+  fact: 0.88           # learning: "the user states a lasting fact" noul (12/12, 0 false at 0.85-0.9; learn_cases.py)
+  same_fact: 0.50      # learning: "old fact made redundant or outdated by the new one" (5/5, 0 false)
+  learn_skill: 0.50    # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
 
 limits:
   max_skills: 1                 # evals: every extra skill was mostly noise
   max_memory_chunks: 4          # after gating
   memory_candidates_own: 20     # recent turns from the persona's own log
   memory_candidates_shared: 6   # recent turns from other personas (Jev decides if they leak in)
+  memory_search: 10             # + turns from ANY time that share words with the request (full-text index)
+  memory_facts: 6               # + remembered facts that share words with the request
   max_depth: 3                  # nested persona requests
   max_tasks_per_turn: 8
   repl_timeout: 120             # seconds per code block (time spent in callbacks excluded)
   output_cap: 4000              # chars of REPL output shown to the model per step
+  max_mcp_tools: 3              # MCP tool descriptions per task, after Jev's pick
 
+learning: true                  # remember facts and learn skills after successful turns (jevh/learn.py)
 default_persona: daily_assistant
 personas_dir: personas
 skills_dirs:                    # first root wins on name clashes; hidden dirs (.archive) skipped
@@ -64,3 +73,12 @@ providers:
 tools:
   comfy_url: http://127.0.0.1:8188
   comfy_workflows: C:/Comfyui workflows
+  tools_jev: local            # browser/web/project decisions: local (the adapter above) | cloud (TYPESAFE_API_KEY)
+
+# MCP servers (stdio). Started on first use; Jev picks which of their tools a task sees.
+# Personas opt in with `mcp: ["server.*"]`.
+mcp_servers: {}
+#  blender:
+#    command: C:/Users/Jedidiah/AppData/Local/hermes/bin/uvx
+#    args: [--python, "3.11", blender-mcp]
+#    timeout: 90

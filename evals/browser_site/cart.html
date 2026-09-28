@@ -1,0 +1,5 @@
+<!doctype html><html><head><title>Cart - Kettle &amp; Co</title><script src="common.js"></script></head><body>
+<h1>Your cart</h1><ul id="items"></ul><a id="co" href="checkout.html">Proceed to checkout</a>
+<script>nav(); const c = store.get("cart", []);
+document.getElementById("items").innerHTML = c.length ? c.map(i => `<li>${i.name}, size ${i.size}, qty ${i.qty}</li>`).join("") : "<li>Your cart is empty.</li>";
+</script></body></html>

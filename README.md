@@ -25,15 +25,20 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
 python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 68 offline tests (fake Jev + scripted LLMs)
+python -m pytest -q                  # 93 offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
 python evals/tier_cases.py             # live fast/strong tier accuracy + sweep
+python evals/tool_cases.py             # live tool-guide picking accuracy + sweep
+python evals/browser_cases.py --live   # Jev browser agent on a local test shop (+ Wikipedia)
+python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
+python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 ```
 
-CLI commands: `/as <persona>`, `/auto`, `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn),
-`/verbose` (show code + REPL output), `/jev` (adapter health), `/reset`, `/quit`.
+CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`,
+`/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
+`/jev` (adapter health), `/reset`, `/quit`.
 
 ## Adding things
 
@@ -41,7 +46,10 @@ CLI commands: `/as <persona>`, `/auto`, `/personas`, `/skills`, `/trace` (raw Je
   `model` picks the provider from `config.yaml` (an optional `fallback:` is used if the primary errors);
   `skills_allowed` holds globs over the skill roster; `can_request` lists who it may delegate to (Jev's
   collaborator suggestions add to this per turn); `tools` are modules from `jevh/tools/` pre-imported
-  into its REPL; `code: false` makes it a plain chat persona.
+  into its REPL (`web`, `browser`, `project`, `comfy`); `mcp` holds globs over MCP tools ("server.tool");
+  `code: false` makes it a plain chat persona.
+- **MCP server**: add it under `mcp_servers:` in `config.yaml` (`command`, `args`, `env`) and give a persona
+  `mcp: ["server.*"]`. Servers start on first use.
 - **Skill**: `skills/<name>/SKILL.md` with `name` and `description` frontmatter. The Hermes skills folder is
   also a root (hidden `.archive` dirs are skipped). A picked skill's first 6k chars go in the prompt, and the
   full text is in `ctx['skills'][name]`.
@@ -67,6 +75,10 @@ CLI commands: `/as <persona>`, `/auto`, `/personas`, `/skills`, `/trace` (raw Je
 | Skill picking | `skill_cases.py`, 63 requests (your 52 Hermes-router cases + 11) | 94% right skill, 93% correct "no skill", 3 needless | ~1.5s |
 | Memory gating | `memory_cases.py`, 18 requests over an 18-turn history | 95% of needed turns passed, 0 leaks | ~1.5s |
 | Model tier (fast/strong) | `tier_cases.py`, 39 tasks + 15 held out | 100% and 15/15, 0 hard tasks sent fast | ~0.2s |
+| Tool guides | `tool_cases.py`, 42 requests x 4 tools | 40/42 exact, 0 needless | ~0.6s |
+| Browser agent | `browser_cases.py`, 16 tuning + 12 held-out + 2 Wikipedia goals | 29-30/30, 0 false "done" | ~2.3s per goal |
+| Learning gates | `learn_cases.py`, 25 + 10 + 7 cases | 12/12 facts, 5/5 replacements, 3/3 skills; 0 false positives | ~0.2s each |
+| Memory reach | `recall_cases.py 4`, history under 160 newer turns | 14/19 needed turns reached (recent-window design: 1/19) | ~1.3s |
 
 Skill picking and memory both use the same two-stage design. One **Choice** ranks all candidates;
 it's relative, so it separates sibling skills, and it's cheap because a Choice is scored in one pass.
@@ -171,8 +183,88 @@ Safeguards added after watching a weaker model (ornith) work:
 - `final()` without artifacts still ships the files the worker wrote.
 - `save_artifact` keeps the source file's extension.
 
+## Tools: web, browser, project, MCP
+
+A persona lists its tools; per task Jev decides which tools' guides go into the prompt (one noul
+each, ~0.6s for four; `thresholds.tool`). The rest are still importable and named in one line, so a
+missed pick costs one `help(name)`, not the capability. The Inspector shows the scores.
+
+- **web**: `web.ask(question)` searches (DuckDuckGo, no key), lets Jev rank the results, reads the
+  best pages in parallel (a slow site is skipped), and returns only the passages that answer the
+  question: e.g. 30k chars of Wikipedia -> 1-2k chars, in ~3s. `web.search`, `web.read(url, question)`.
+- **browser**: a Jev-driven Chromium. The worker states one outcome per call
+  (`browser.do("add the blue mug in size L to the cart")`), and Jev picks every click, field and dropdown,
+  so the worker's model never reads a page snapshot. The design is adapted from
+  [jev-browser](https://github.com/Ying-Kai-Liao/jev-browser) (MIT): the planner states outcomes, Jev
+  decides, Playwright acts. It was reworked for local semif, whose latency grows with every question
+  and which caps a Choice at 16 options:
+  - The action kind follows from the element (field -> type, dropdown -> select, else click) instead
+    of a separate question.
+  - Pages with more than 16 elements are narrowed to a group of them first.
+  - Values go into fields whose label obviously matches them (email -> "Email") without asking Jev.
+  - Before clicking a form's button, one small check ("does a setting still differ from the goal?")
+    stops premature submits.
+  - Orders, payments, sending and deleting stop with `needs_confirmation` unless the user asked
+    for it (`allow_irreversible=True`).
+  - A goal that says "save" or "continue" isn't done until something was actually submitted.
+
+  Results on `evals/browser_cases.py`: 16/16 tuning goals, 10/12 on the held-out pages on the first
+  run (both misses were multi-part forms, since fixed), then 29-30/30 with 0 false "done". That's
+  ~2s per goal on semif and ~5s on big Wikipedia pages. `browser.read(question)` works like
+  `web.read`. Set `tools_jev: cloud` (and TYPESAFE_API_KEY) to use the hosted Jev instead: 255
+  options per Choice, but page text leaves the machine.
+- **project**: the user's folder (dashboard "Project" field, `--project`, `/project`).
+  - `tree`, `grep` and `read` (numbered lines).
+  - `find(question)`: Jev ranks the files by path and first line.
+  - `edit` (exact, unique replacement) and `write`, confined to the folder, with every original kept
+    for `undo()`.
+  - `sh(cmd)`: runs a command in the project folder.
+  - Only personas that list it (dev and designer) get it, and only while a project is open.
+- **MCP**: stdio JSON-RPC client (`jevh/mcp.py`). The servers' tools form one catalog, and Jev picks
+  the few that fit a task (Choice + fits noul, like skills). Only those signatures reach the prompt:
+  `mcp("server.tool", arg=value)`. A broken server is reported and skipped.
+
+Seen live (ornith as every worker, semif as Jev):
+- "latest Playwright Python version": correct (1.63.0, 2026-09-15, checked on PyPI) in 20s.
+- "search Wikipedia for tidal locking, which Pluto moon..., screenshot": Charon plus a screenshot, in 26s.
+- "tests in my project are failing, fix them": found `tip_pct` not divided by 100, fixed it, and
+  both tests passed, in 22s.
+
+## Memory and learning
+
+- **Everything is searchable.** Turns live in SQLite with a full-text index (`workspace/memory/memory.db`,
+  Porter stemming; the old jsonl history is imported). Memory candidates are:
+  - the persona's recent turns and a few from other personas, as before;
+  - any past turns that share words with the request (`limits.memory_search`);
+  - remembered facts: those matching the request, topped up with the newest (`limits.memory_facts`).
+
+  Jev's gate is unchanged. With the history buried under 160 newer turns, 14/19 needed turns reached
+  the worker, against 1/19 for the recent-window design, with no extra latency.
+  Workers can also `recall(query)` (search everything, Jev keeps the matches) and `remember(fact)`.
+- **Facts.** After a successful turn, one Jev noul asks whether the user stated something lasting
+  (12/12, 0 false positives on `learn_cases.py`). Only then does the task's model, already loaded,
+  write 1-3 short facts. A new fact retires an older one it makes redundant or outdated (5/5, 0
+  false), so "trains at Gold's Gym" is replaced, not contradicted. Live: "my gym is closed on
+  Sundays..." was remembered, and the next day's plan from a different persona respected it.
+- **Skills.** After a multi-step task, a noul asks whether it involved non-obvious steps, fixes or
+  settings (3/3, 0 false). If a skill was loaded, lessons are added:
+  - to the SKILL.md itself for skills the harness owns;
+  - to `skills/_lessons/<name>.md` for others, e.g. Hermes skills, whose files are never edited.
+
+  Otherwise a new `skills/learned/learned-<name>/SKILL.md` is written. **Learned skills start as
+  drafts**: workers see them labelled "learned from one run, verify its claims". Approve or delete
+  them in the dashboard's Memory tab. This matters: live, ornith returned Hacker News's *all-time*
+  top stories for "current top 5" and a skill claiming "current" was learned from it.
+- Everything runs on a background thread after the turn has returned. The Memory tab lists facts
+  (with "forget"), learned skills and lesson notes. `learning: false` in config turns it all off.
+
 ## Limits / next
 
 - The REPL is a separate process with its own working dir, not a security sandbox (no WSL/Docker isolation yet).
+  With `project.sh` and the browser, a worker can now act on your files and the web: keep watching turns,
+  and hold off on unattended use until the sandbox exists.
+- Learning trusts the run it learns from: a wrong answer can become a (draft) skill. Review drafts.
+- Skill picking still loads a needless skill now and then (live: `claude-code` on a bug-fix task).
+  Lessons from such a run are now declined ("wasn't really about this task") rather than attached.
 - Parallel hand-offs share one GPU model server, so speedups depend on its concurrency (LM Studio: yes).
 - VRAM: semif (~10GB) sits on the 4080 and the workers' LLM on the 3090, so ComfyUI jobs need one of them unloaded.
