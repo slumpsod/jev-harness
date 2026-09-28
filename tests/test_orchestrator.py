@@ -416,8 +416,23 @@ def test_answer_to_a_clarifying_question_gets_the_exchange(cfg):
     second = llm.seen[1]
     assert [m["role"] for m in second] == ["system", "user", "assistant", "user"]
     assert second[1]["content"] == "how do I make a change of address?"
-    assert second[2]["content"] == "Which state, and mail forwarding or DMV?"
+    assert second[2]["content"].startswith("Which state, and mail forwarding or DMV?")
+    assert "no code or tools were run" in second[2]["content"]   # the work notes ride along
     assert second[3]["content"].startswith("Utah, for my mail")
+
+
+def test_follow_up_sees_what_the_last_answer_was_based_on(cfg):
+    """Live 2026-09-28: 'where did you pull that from?' saw only the reply and confessed to
+    making up a price the worker had read off the store's page."""
+    llm = ScriptedLLM([py("print('Fairview 4 Piece Lounge Set - Dark / Sale price $2,999.99 / Only 2 units left')"),
+                       "It's $2,999.99, and the Dark finish has 2 left.",
+                       "From the store's product listing."])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(followup_rules(0.1, 0.9))), llm_factory=lambda p: llm)
+    h.learning = False
+    h.turn("how much is the Fairview lounge set at Porch & Patio?")
+    h.turn("where did you pull that information from?")
+    earlier = llm.seen[-1][2]["content"]
+    assert earlier.startswith("It's $2,999.99") and "Sale price $2,999.99" in earlier
 
 
 def test_new_topic_starts_clean(cfg):

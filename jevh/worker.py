@@ -31,6 +31,9 @@ FIRST_STEP_NUDGE = ("\n\nIf this needs code: reply now with a short plan (at mos
                     "python block for step one, and build incrementally across replies - do not design "
                     "the whole solution before replying. If it needs no code, reply with just the answer.")
 HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-up
+NOTES_CHARS = 2500         # plus that turn's work notes (the code it ran and what came back)
+NOTES_HEADER = ("[Harness note, not part of the reply the user saw: the work this reply was based on - "
+                "the code you ran and what came back. Use it to answer questions about sources or steps.]")
 CHARS_PER_TOKEN = 3.2      # conservative for code-heavy transcripts (context-size estimate)
 PROGRESS_CHARS = 12000     # condensed progress log above this gets summarized by the model
 SUMMARY_PROMPT = """You are partway through a long task. Below is a condensed log of your earlier steps. \
@@ -52,6 +55,52 @@ CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
 TOOL_CALL_RE = re.compile(r"<function=python[^>]*>\s*<parameter=\w+>\s*(.*?)\s*(?:</parameter>|</function>|</tool_call>|\Z)",
                           re.DOTALL)
 OPEN_FENCE_RE = re.compile(r"```(?:python|py)[ \t]*\n")
+# ...and for the REPL's tools too (live 2026-09-28, ornith and Qwen alike, three turns running):
+# <tool_call><function=web><parameter=search>...  They are translated into the call they mean.
+XML_CALL_RE = re.compile(r"<function=(\w+)>(.*?)(?:</function>|</tool_call>|\Z)", re.DOTALL)
+XML_PARAM_RE = re.compile(r"<parameter=(\w+)>\s*(.*?)\s*(?:</parameter>|(?=<parameter=)|\Z)", re.DOTALL)
+PRIMARY = {"web": "ask", "browser": "do", "project": "find", "comfy": "run"}   # a bare "question=" etc.
+REPL_CALLS = {"final", "ask_user", "recall", "remember", "request", "save_artifact", "load_artifact", "peek"}
+
+
+def translate_tool_calls(text: str, tools: dict[str, str]) -> tuple[list[str], list[str]]:
+    """(code blocks, calls it couldn't map) for native-template tool calls in `text`.
+    <function=web><parameter=search>q -> web.search('q'); <parameter=question>q -> web.ask(question='q')."""
+    import importlib
+    codes, failed = [], []
+    for name, body in XML_CALL_RE.findall(text):
+        if name == "python":
+            continue   # TOOL_CALL_RE's job
+        params = {k: v for k, v in XML_PARAM_RE.findall(body)}
+        if name in REPL_CALLS and params:
+            codes.append(f"print({name}(**{params!r}))")
+            continue
+        if name not in tools or not params:
+            failed.append(name)
+            continue
+        mod = importlib.import_module(tools[name])
+        funcs = {n: f for n, f in vars(mod).items() if callable(f) and not n.startswith("_")
+                 and getattr(f, "__module__", "") == mod.__name__}
+
+        def accepts(fn):
+            try:
+                return set(inspect.signature(funcs[fn]).parameters)
+            except (TypeError, ValueError):
+                return set()
+        called = next((k for k in params if k in funcs), None)
+        if called:   # <parameter=search>q: the parameter names the function
+            rest = {k: v for k, v in params.items() if k != called and k in accepts(called)}
+            args = [repr(params[called])] + [f"{k}={v!r}" for k, v in rest.items()]
+        else:        # <parameter=question>q: the function whose arguments these are
+            fits = [f for f in funcs if params.keys() <= accepts(f)] or \
+                   [f for f in funcs if next(iter(params)) in accepts(f)]
+            if not fits:
+                failed.append(name)
+                continue
+            called = PRIMARY.get(name) if PRIMARY.get(name) in fits else fits[0]
+            args = [f"{k}={v!r}" for k, v in params.items() if k in accepts(called)]
+        codes.append(f"print({name}.{called}({', '.join(args)}))")
+    return codes, failed
 
 REPL_GUIDE = """\
 ## How you work
@@ -129,7 +178,11 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
     """`tools`: the tool guides Jev picked for this task; the persona's other tools are still
     importable and named in one line. `mcp_tools`: McpTool objects Jev picked."""
     from .tools import TOOLS
-    parts = [persona.system_prompt.strip()]
+    # the date only (not the time), so the prompt - and the local model's prompt cache - holds all day;
+    # without it "next week on Tuesday" was searched as tomorrow (live, 2026-09-28)
+    today = time.strftime("%A, %B %d, %Y").replace(" 0", " ")
+    parts = [persona.system_prompt.strip() + f"\n\nToday is {today}. Work out relative dates "
+             "(\"next Tuesday\", \"in two weeks\") from it."]
     if persona.code:
         guide = REPL_GUIDE + "\n" + MEMORY_GUIDE
         if requestable:
@@ -192,6 +245,13 @@ class Worker:
         self._task_text = ""
         self._progress_log = ""
         self.repl: Repl | None = None      # the orchestrator kills it when the user stops the turn
+        # fast tier only: () -> the persona's strong model, swapped in when the gate sends work back
+        self.escalate: Callable[[], LLM] | None = None
+        self.escalated = False
+        self._use(llm)
+
+    def _use(self, llm: LLM) -> None:
+        self.llm = llm
         try:
             self._llm_cancel = "cancel" in inspect.signature(llm.chat).parameters
         except (TypeError, ValueError):
@@ -202,8 +262,11 @@ class Worker:
         """`history`: the (user, assistant) turns this message follows up on, as real chat turns.
         `resume`: a checkpoint of an interrupted run of this task: its conversation continues."""
         prior = []
-        for u, a in history or []:
-            prior += [{"role": "user", "content": u}, {"role": "assistant", "content": a[:HISTORY_CHARS]}]
+        for u, a, *notes in history or []:
+            a = a[:HISTORY_CHARS]
+            if notes and notes[0]:   # so "where did you get that?" is answered from what happened
+                a += "\n\n" + NOTES_HEADER + "\n" + notes[0][:NOTES_CHARS]
+            prior += [{"role": "user", "content": u}, {"role": "assistant", "content": a}]
         if not self.persona.code:
             return self._chat(task, ctx, system, prior)
         if resume:
@@ -233,6 +296,18 @@ class Worker:
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 messages.append({"role": "assistant", "content": out.text})
                 blocks = CODE_RE.findall(out.text) or TOOL_CALL_RE.findall(out.text)
+                xml_note = ""
+                if not blocks and "<function=" in out.text:
+                    blocks, failed = translate_tool_calls(out.text, self.tools)
+                    if blocks:
+                        xml_note = ("\n(Your <tool_call> ran as Python: " + "; ".join(blocks) +
+                                    ". Write ```python blocks yourself from now on.)")
+                    else:
+                        messages.append({"role": "user", "content": (
+                            f"Nothing ran: this harness doesn't take <tool_call> ({', '.join(failed)}). Act by "
+                            "writing ONE ```python block; the tools are modules already imported in your REPL, "
+                            "e.g.\n```python\nprint(web.ask(\"the question\"))\n```" + self._steps_left_note(step))})
+                        continue
                 if "[output cut off at max_tokens" in out.text[-120:] or (
                         not blocks and OPEN_FENCE_RE.search(out.text)):
                     self.on_step("output", {"persona": self.persona.name, "step": step,
@@ -244,7 +319,7 @@ class Worker:
                         "several python blocks, and keep each reply short." + self._steps_left_note(step))})
                     continue
                 if not blocks:
-                    if self._bounce(out.text, [], [], messages, step, "(no code was run)"):
+                    if self._bounce(out.text, [], [], messages, step, "(no code was run)\n\n"):
                         continue
                     res.answer, res.stopped = self._with_unresolved(out.text), "plain"
                     break
@@ -266,7 +341,7 @@ class Worker:
                     res.answer, res.artifacts, res.stopped = (self._with_unresolved(ex.final["answer"]),
                                                               artifacts, "final")
                     break
-                messages.append({"role": "user", "content": f"Output:\n{ex.output or '(no output)'}"
+                messages.append({"role": "user", "content": f"Output:\n{ex.output or '(no output)'}" + xml_note
                                                             + self._stuck_note(ex.output, ex.error)
                                                             + self._steps_left_note(step)})
                 self._save(messages, step, False)
@@ -393,7 +468,9 @@ class Worker:
         self._verdict = None
         if self.verify is None:
             return False
-        verdict = self.verify(answer, artifacts, messages, changed)
+        # what the final() block itself printed counts as seen (print(total); final(...) is common)
+        seen = messages + ([{"role": "user", "content": prefix.strip()}] if prefix.startswith("Output:") else [])
+        verdict = self.verify(answer, artifacts, seen, changed)
         self._verdict = verdict
         can_retry = self._bounces < self.max_bounces and step < self.persona.max_steps
         self.on_step("verify", {"persona": self.persona.name, "step": step, "ok": verdict.ok,
@@ -402,6 +479,12 @@ class Worker:
         if verdict.ok or not can_retry:
             return False
         self._bounces += 1
+        if self.escalate is not None:   # the fast model's work didn't hold up: the strong one fixes it
+            strong, self.escalate, self.escalated = self.escalate(), None, True
+            self._use(strong)
+            self.on_step("escalate", {"persona": self.persona.name, "step": step,
+                                      "model": getattr(strong, "_model", "") or getattr(strong, "model", "")
+                                      or "the strong tier"})
         listed = "\n".join(f"- {p}" for p in verdict.problems)
         messages.append({"role": "user", "content": (
             f"{prefix}[Not accepted yet: the harness checked your work before handing it over and found:\n"
@@ -451,7 +534,7 @@ class Worker:
         self.artifacts.mkdir(parents=True, exist_ok=True)
         for p in sorted(self.workdir.rglob("*")):
             rel = p.relative_to(self.workdir)
-            if p.is_file() and p.stat().st_size and not any(
+            if p.is_file() and p.stat().st_size and p != self.checkpoint and not any(
                     part.startswith((".", "__")) for part in rel.parts):
                 dest = self.artifacts / f"{self.persona.name}_{'_'.join(rel.parts)}"
                 shutil.copyfile(p, dest)

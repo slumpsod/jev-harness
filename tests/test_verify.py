@@ -125,7 +125,7 @@ def test_unfixed_problems_are_stated_not_hidden(cfg):
 
 def test_hallucinated_plain_answer_is_sent_back(cfg):
     llm = ScriptedLLM(["I searched and the population is 38 million.",
-                       py("r = 41_800_000\nfinal('About 41.8 million.')")])
+                       py("print('Canada: 41,828,000 (Statistics Canada, July 2026)')\nfinal('About 41.8 million.')")])
     rules = answer_scores()
 
     def seq(k, q, s):  # first answer claims a search the log doesn't show; the second is fine
@@ -149,3 +149,43 @@ def test_bare_artifact_names_resolve_before_the_gate(cfg):
     assert [d["ok"] for k, d in events if k == "verify"] == [True]
     assert all(Path(a).is_absolute() and Path(a).exists() for a in r.artifacts)
     assert {Path(a).name for a in r.artifacts} == {"page.html", "notes.md"}
+
+
+def test_made_up_number_is_sent_back_and_a_bounced_fast_answer_escalates(cfg):
+    """Live 2026-09-28 every turn ran on the fast tier. Now a fast-tier answer the gate sends
+    back is retried on the persona's strong model; the number rule catches a fare no output showed."""
+    fast = ScriptedLLM([py("print('United $1,317  Delta $1,284')"), "The cheapest is United at $1,099."])
+    strong = ScriptedLLM(["The cheapest is Delta at $1,284."])
+    base = answer_scores()
+
+    def rules(k, q, s):
+        if k == "tier":
+            return {"choice": "fast", "confidence": 0.95, "probabilities": {"strong": 0.05, "fast": 0.95}}
+        return base(k, q, s)
+    events = []
+    h = Harness(gate_on(cfg), jev=Jev(cfg, FakeSystemOne(rules)),
+                llm_factory=lambda p: fast if p.model["model"] == cfg.models["fast"]["model"] else strong,
+                on_event=lambda k, d: events.append((k, d)))
+    h.learning = False
+    r = h.turn("cheapest flight SLC to Tokyo?", force="daily_assistant")
+    assert r.answer == "The cheapest is Delta at $1,284."
+    bounced = [d for k, d in events if k == "verify" and not d["ok"]]
+    assert bounced and "1,099" in bounced[0]["problems"][0]
+    assert [k for k, _ in events].count("escalate") == 1
+
+
+def test_grounding_tolerates_rounding_but_not_new_numbers():
+    from jevh.verify import grounding
+    assert grounding("About 41.8 million", "estimated at 41,828,000") == ({"41.8"}, set())
+    assert grounding("It costs $1,999 in 2026", "Regular price $1,999.00") == ({"1,999"}, set())
+    assert grounding("United at $1,099", "United $1,317") == (set(), {"1,099"})
+
+
+def test_follow_up_to_an_escalated_turn_starts_strong(cfg):
+    from jevh.bus import Task
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(answer_scores())), llm_factory=lambda p: ScriptedLLM(["ok"]))
+    p = h.personas["daily_assistant"]
+    task = Task(id=1, parent=None, requester="user", to=p.name, text="where did you get that?")
+    task.history = [("price?", "$2,999.99", "")]
+    h._escalated = True
+    assert h._pick_tier(task, p).tier == "strong"

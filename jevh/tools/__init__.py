@@ -30,6 +30,11 @@ TOOLS: dict[str, ToolInfo] = {
   done, read `note`/`page`, then rephrase or split the step. On needs_confirmation (an order, payment,
   sending, deleting) confirm first: ask_user("Place the order for $51.25?", ["Yes", "No"]), and pass
   allow_irreversible=True only after a yes. needs_value / needs_login: ask_user for the details.
+- Buying or booking something the user asked for is the job, not something to decline: find it, choose
+  it, fill in what you know (ask_user for names, dates or choices you don't have) and go up to payment.
+  Never type card numbers or passwords yourself. If browser.visible(): ask_user("It's at the payment
+  step in the browser window - pay there, then reply done", ["done", "cancel"]) and confirm the result
+  after; if not, say where you stopped and give the page URL.
 - browser.read(question=None) -> text (only the passages that answer `question`);
   browser.screenshot(name) -> artifact path; browser.elements() -> list; browser.url().
 - Local files: browser.goto("file:///C:/path/page.html") to check a page you built."""),

@@ -99,16 +99,68 @@ class Learned:
     scores: dict[str, float] = field(default_factory=dict)
 
 
-def work_log(transcript: list[dict[str, str]], cap: int = 5000) -> str:
-    """The code a worker ran and what came back, compact, most recent last."""
+NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+COMMON = {"about", "after", "their", "there", "these", "which", "would", "could", "should", "found", "price",
+          "information", "available", "current", "right", "other", "where", "while", "first", "please"}
+
+
+def evidence_terms(answer: str) -> tuple[set[str], set[str]]:
+    """Numbers (commas dropped, not single digits) and distinctive words an answer relies on."""
+    nums = {n.replace(",", "") for n in NUMBER.findall(answer)}
+    nums = {n for n in nums if len(n) >= 2}
+    words = {w.lower() for w in re.findall(r"[A-Za-z][A-Za-z'-]{4,}", answer)} - COMMON
+    return nums, words
+
+
+def evidence_lines(text: str, terms: tuple[set[str], set[str]], budget: int = 600) -> str:
+    """The lines of `text` that carry the answer's numbers or words (a number counts triple),
+    best first up to `budget` chars, then back in page order: so a price 2,000 chars into a
+    fetched page still reaches whoever checks the answer."""
+    nums, words = terms
+    scored = []
+    for i, line in enumerate(ln.strip() for ln in text.splitlines()):
+        if not line:
+            continue
+        found = {n.replace(",", "") for n in NUMBER.findall(line)}
+        score = 3 * len(found & nums) + len({w.lower() for w in re.findall(r"[A-Za-z][A-Za-z'-]{4,}", line)} & words)
+        if score:
+            scored.append((score, i, line[:200]))
+    keep, used = [], 0
+    for score, i, line in sorted(scored, key=lambda x: (-x[0], x[1])):
+        if used + len(line) > budget:
+            break
+        keep.append((i, line))
+        used += len(line) + 3
+    return " / ".join(line for _, line in sorted(keep))
+
+
+def seen_text(transcript: list[dict[str, str]]) -> str:
+    """Everything the worker was shown, uncut: prior turns (both sides), the task, every tool
+    output. Not its own replies during the task, where a made-up detail would come from."""
+    start = next((i for i, m in enumerate(transcript)
+                  if m.get("role") == "user" and "(In your REPL:" in m.get("content", "")), len(transcript))
+    return "\n".join(m.get("content", "") for i, m in enumerate(transcript)
+                     if m.get("role") == "user" or (m.get("role") == "assistant" and i < start))
+
+
+def work_log(transcript: list[dict[str, str]], cap: int = 5000, answer: str | None = None) -> str:
+    """The code a worker ran and what came back, compact, most recent last. With `answer`,
+    each long output also keeps its lines that mention the answer's numbers and words."""
     parts = []
+    terms = evidence_terms(answer) if answer else None
     for m in transcript[2:]:
         text = m.get("content", "")
         if m.get("role") == "assistant":
             for code in re.findall(r"```(?:python|py)?[ \t]*\n(.*?)```", text, re.S):
                 parts.append("CODE:\n" + code.strip()[:700])
         elif text.startswith("Output:"):
-            parts.append("OUTPUT: " + text[7:].strip()[:350])
+            out = text[7:].strip()
+            entry = "OUTPUT: " + out[:350]
+            if terms and len(out) > 350:
+                extra = evidence_lines(out[350:], terms)
+                if extra:
+                    entry += "\n  [...lines that bear on the answer:] " + extra
+            parts.append(entry)
     log = "\n".join(parts)
     return log if len(log) <= cap else "[...]\n" + log[-cap:]
 

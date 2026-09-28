@@ -245,6 +245,7 @@ function handle(e) {
       break;
     }
     case "compact": t.activity.push({ts: e.ts, kind: "learn", text: `${d.persona}: context compacted at step ${d.step} (~${d.tokens_before} -> ~${d.tokens_after} tokens${d.summarized ? ", summarized" : ""})`}); break;
+    case "escalate": t.activity.push({ts: e.ts, kind: "warn", text: `${d.persona}: fast model's answer sent back, continuing on ${d.model}`}); break;
     case "progress_check": if (d.stuck) t.activity.push({ts: e.ts, kind: "warn", text: `${d.persona}: progress check at step ${d.step}: going in circles (${d.circles.toFixed(2)}); ${d.strike >= 2 ? "stopped" : "told to change approach"}`}); break;
     case "learn_error": t.activity.push({ts: e.ts, kind: "warn", text: `learning skipped: ${d.error}`}); break;
     case "skills": case "memory": case "collab": case "tier": case "tools":

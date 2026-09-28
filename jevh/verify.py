@@ -60,18 +60,64 @@ class Verdict:
     scores: dict[str, float] = field(default_factory=dict)     # Jev's answer-check nouls
 
 
+NUM = re.compile(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)(?:\s*(thousand|million|billion|trillion|[kKmMbB]n?)\b)?")
+SCALE = {"thousand": 1e3, "k": 1e3, "million": 1e6, "m": 1e6, "billion": 1e9, "b": 1e9, "bn": 1e9, "trillion": 1e12}
+
+
+def _nums(text: str) -> list[tuple[str, float, float]]:
+    """(as written, value, rounding slack) for each number in `text`. '41.8 million' is
+    41,800,000 give or take 50,000, so it matches a page's 41,828,000; '$2,999.99' is exact."""
+    out = []
+    for digits, unit in NUM.findall(text):
+        digits = digits.rstrip(",")
+        try:
+            value = float(digits.replace(",", ""))
+        except ValueError:
+            continue
+        scale = SCALE.get(unit.lower(), 1.0) if unit else 1.0
+        places = len(digits.split(".")[1]) if "." in digits else 0
+        slack = scale * 10 ** -places / 2 if scale > 1 else 1e-6
+        out.append((digits, value * scale, slack))
+    return out
+
+
+def grounding(answer: str, evidence: str) -> tuple[set[str], set[str]]:
+    """(supported, unsupported): the answer's numbers (2+ digits, not years) that do / don't
+    appear anywhere in what the worker saw or was told. A price, fare, date or count the
+    tools never returned is the typical made-up detail; plain code catches it reliably where
+    semif's 'accurate' question does not (evals/verify_evidence_cases.py)."""
+    seen = [v for _, v, _ in _nums(evidence)]
+    supported, unsupported = set(), set()
+    for digits, value, slack in _nums(answer):
+        year = re.fullmatch(r"(19|20)\d\d", digits) is not None   # "2026" yes, "$1,999" no
+        if len(digits.replace(",", "").replace(".", "")) < 2 or year:
+            continue
+        (supported if any(abs(s - value) <= slack for s in seen) else unsupported).add(digits)
+    return supported, unsupported
+
+
 def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
-                 scores: dict[str, float], t: Callable[[str], float]) -> list[str]:
-    """Problems with the answer itself. Shared with evals/verify_cases.py."""
+                 scores: dict[str, float], t: Callable[[str], float], evidence: str | None = None) -> list[str]:
+    """Problems with the answer itself. Shared with evals/verify_cases.py. `evidence`: everything
+    the worker saw (request, prior turns, full tool outputs); `log` is the condensed version."""
     problems = []
     honest = scores.get("honest", 0.0) >= t("verify_honest")
+    supported, unsupported = grounding(answer, request + "\n" + (evidence if evidence is not None else log))
+    if log.strip() and unsupported:   # only once tools ran: a chat answer from knowledge has no outputs
+        shown = ", ".join(sorted(unsupported, key=len, reverse=True)[:5])
+        problems.append(f"These numbers in your answer appear in none of your outputs or the request: {shown}. "
+                        "Check them against what the tools returned and correct them; if one is your own "
+                        "arithmetic, compute it in code so the result is in the log.")
+    # every number grounded in the outputs: semif's 'accurate' misfires on long real logs, so it
+    # doesn't get to overrule that (it scored a correct price 0.01-0.18 against the real page)
+    grounded = len(supported) >= 2 and not unsupported
     if scores.get("claims", 0.0) >= t("verify_claims"):
         problems.append("Your answer claims things the work log doesn't show happening (e.g. tests passing, "
                         "files saved, something sent or checked). Do them, or correct the answer.")
     elif scores.get("delivers", 1.0) < t("verify_delivers") and not honest:
         problems.append("Your answer doesn't deliver what was asked (it reads like a plan, a promise or "
                         "unfinished work presented as done). Finish the work, or say plainly what is not done.")
-    elif scores.get("accurate", 1.0) < t("verify_accurate") and not honest:
+    elif scores.get("accurate", 1.0) < t("verify_accurate") and not honest and not grounded:
         problems.append("Your answer doesn't match what the work log shows (numbers, items or results differ, "
                         "or it reports steps that didn't happen). Check it against your outputs and correct it.")
     m = re.search(rf"\b(\d+|{'|'.join(NUMBERS)})\s+(?:\w+\s+){{0,3}}?{COUNTED}\b", request, re.I)
@@ -100,7 +146,7 @@ class Verifier:
         return bool(self.settings.get("enabled", True))
 
     def check(self, request: str, answer: str, artifacts: list[str], log: str,
-              project: str | None = None, changed: list[str] | None = None) -> Verdict:
+              project: str | None = None, changed: list[str] | None = None, evidence: str | None = None) -> Verdict:
         v = Verdict(ok=True)
         for a in artifacts:
             for p in self._file(Path(a)):
@@ -126,7 +172,7 @@ class Verifier:
                 v.scores = {k: r[k].noul for k in ("claims", "delivers", "honest", "accurate")}
             except Exception as e:  # noqa: BLE001 - Jev down: file/test checks still count
                 v.checks["answer"] = f"skipped: {type(e).__name__}"
-            probs = answer_rules(request, answer, artifacts, log, v.scores, self.cfg.t) if v.scores else []
+            probs = answer_rules(request, answer, artifacts, log, v.scores, self.cfg.t, evidence) if v.scores else []
             v.problems += probs
             if v.scores:
                 v.checks["answer"] = "pass" if not probs else f"fail: {len(probs)} problem(s)"

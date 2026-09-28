@@ -32,6 +32,7 @@ class Turn:
     assistant: str
     session: str
     ts: float
+    notes: str = ""   # what the worker did for this answer (code run, outputs, pages): for follow-ups
 
     def chunk(self) -> str:
         text = f"[{self.persona}] User: {self.user}\nAssistant: {self.assistant}"
@@ -73,6 +74,7 @@ class Memory:
                 content_rowid='id', tokenize='porter unicode61');
             CREATE TABLE IF NOT EXISTS facts(id INTEGER PRIMARY KEY, ts REAL, text TEXT, source TEXT,
                                              active INTEGER DEFAULT 1);
+            CREATE TABLE IF NOT EXISTS turn_notes(turn_id INTEGER PRIMARY KEY, notes TEXT);
             CREATE VIRTUAL TABLE IF NOT EXISTS facts_fts USING fts5(text, content='facts', content_rowid='id',
                 tokenize='porter unicode61');
         """)
@@ -93,6 +95,8 @@ class Memory:
                               (t.persona, t.session, t.ts, t.user, t.assistant))
         self.db.execute("INSERT INTO turns_fts(rowid, user, assistant) VALUES (?,?,?)",
                         (cur.lastrowid, t.user, t.assistant))
+        if t.notes:
+            self.db.execute("INSERT INTO turn_notes(turn_id, notes) VALUES (?,?)", (cur.lastrowid, t.notes))
 
     def _turns(self, sql: str, args: tuple = ()) -> list[Turn]:
         with self._lock:
@@ -104,12 +108,12 @@ class Memory:
             self.db.close()
 
     # ------------------------------------------------------------------ turns
-    def append(self, persona: str, user: str, assistant: str, session: str) -> None:
-        turn = Turn(persona, user, assistant, session, time.time())
+    def append(self, persona: str, user: str, assistant: str, session: str, notes: str = "") -> None:
+        turn = Turn(persona, user, assistant, session, time.time(), notes)
         with self._lock:
             self._insert(turn)
             self.db.commit()
-        line = json.dumps(asdict(turn), ensure_ascii=False) + "\n"
+        line = json.dumps({k: v for k, v in asdict(turn).items() if k != "notes"}, ensure_ascii=False) + "\n"
         for name in (persona, "timeline"):
             with open(self.root / f"{name}.jsonl", "a", encoding="utf-8") as f:
                 f.write(line)
@@ -131,9 +135,13 @@ class Memory:
         return "\n\n".join(t.chunk() for t in rows[::-1])
 
     def session_turns(self, session: str, n: int = 2) -> list[Turn]:
-        rows = self._turns("SELECT persona, session, ts, user, assistant FROM turns WHERE session=? "
-                           "ORDER BY id DESC LIMIT ?", (session, n))
-        return rows[::-1]
+        """The session's last `n` turns, oldest first, with their work notes."""
+        with self._lock:
+            rows = self.db.execute(
+                "SELECT t.persona, t.user, t.assistant, t.session, t.ts, COALESCE(n.notes, '') FROM turns t "
+                "LEFT JOIN turn_notes n ON n.turn_id = t.id WHERE t.session=? ORDER BY t.id DESC LIMIT ?",
+                (session, n)).fetchall()
+        return [Turn(*r) for r in rows[::-1]]
 
     def search(self, text: str, n: int = 10) -> list[Turn]:
         """Turns from any time that share words with `text`, best match first (BM25)."""

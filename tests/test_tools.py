@@ -99,7 +99,8 @@ def test_only_picked_tool_guides_reach_the_prompt(cfg):
     h.turn("what's the weather in Seattle?", force="daily_assistant")
     system = llm.seen[0][0]["content"]
     assert "web.ask(question)" in system
-    assert "browser.do(" not in system and "Also importable in your REPL (help(name) shows how): browser" in system
+    # (the browser guide's own text: a learned skill in the roster may mention browser.do too)
+    assert "you state outcomes, Jev picks each click" not in system and "Also importable in your REPL (help(name) shows how): browser" in system
 
 
 def test_worker_calls_an_mcp_tool_jev_picked(cfg):
@@ -162,3 +163,26 @@ def test_binary_downloads_are_refused_and_pdfs_read(tmp_path, monkeypatch):
             web.fetch(f"http://x/{name}")
     with pytest.raises(Exception):  # a broken PDF must fail loudly, never turn into junk text
         web.fetch("http://x/pdf-nolib")
+
+
+def test_native_tool_calls_are_translated():
+    """Live 2026-09-28: ornith and Qwen both wrote <tool_call><function=web>... instead of a python
+    block, three turns running; each was taken as a plain answer, bounced, and shipped."""
+    from jevh.worker import translate_tool_calls
+    tools = {n: f"jevh.tools.{n}" for n in ("web", "browser")}
+    call = "<tool_call>\n<function=web>\n<parameter={k}>\n{v}\n</parameter>\n</function>\n</tool_call>"
+    assert translate_tool_calls(call.format(k="search", v="porch and patio lindon"), tools) == \
+        (["print(web.search('porch and patio lindon'))"], [])
+    assert translate_tool_calls(call.format(k="question", v="Fairview price?"), tools) == \
+        (["print(web.ask(question='Fairview price?'))"], [])
+    assert translate_tool_calls("<function=weather><parameter=city>SLC</parameter></function>", tools) == \
+        ([], ["weather"])
+
+
+def test_native_final_call_ends_the_task_and_unknown_calls_get_a_nudge(cfg):
+    llm = ScriptedLLM(["<tool_call><function=weather><parameter=city>SLC</parameter></function></tool_call>",
+                       "<tool_call><function=final><parameter=answer>Sunny, 72F.</parameter></function></tool_call>"])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(tool_rules(tools_yes={"web"}))), llm_factory=lambda p: llm)
+    h.learning = False
+    assert h.turn("weather in Salt Lake?", force="daily_assistant").answer == "Sunny, 72F."
+    assert "doesn't take <tool_call> (weather)" in llm.seen[1][-1]["content"]

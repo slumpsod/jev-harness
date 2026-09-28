@@ -668,6 +668,12 @@ def url() -> str:
     return session().page.url
 
 
+def visible() -> bool:
+    """Is the browser a window the user can see (Watch browser on)? Then they can take over,
+    e.g. to enter payment details the worker must never type."""
+    return _session.headed if _session is not None else os.environ.get("JEVH_BROWSER_HEADED") == "1"
+
+
 def close() -> None:
     global _session
     if _session is not None:

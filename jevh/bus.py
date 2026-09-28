@@ -21,7 +21,7 @@ class Task:
     finished: float = 0.0
     answer: str = ""
     artifacts: list[str] = field(default_factory=list)
-    history: list[tuple[str, str]] = field(default_factory=list)  # (user, assistant) turns this follows up on
+    history: list[tuple] = field(default_factory=list)  # (user, assistant[, work notes]) turns this follows up on
     checkpoint: Any = None       # path of this task's worker checkpoint (resume)
 
     @property
@@ -30,7 +30,7 @@ class Task:
         up on ("4 days, full gym" alone says nothing about workouts)."""
         if not self.history:
             return self.text
-        prior = "\n".join(f"User: {u[:400]}\nAssistant: {a[:400]}" for u, a in self.history)
+        prior = "\n".join(f"User: {u[:400]}\nAssistant: {a[:400]}" for u, a, *_ in self.history)
         return f"Earlier in this conversation:\n{prior}\n\nLatest message: {self.text}"
 
     @property

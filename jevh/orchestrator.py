@@ -24,7 +24,7 @@ from .config import Config, load_config
 from .decide import SystemOneError, noul
 from .errors import Cancelled
 from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision
-from .learn import Learner, work_log
+from .learn import Learner, seen_text, work_log
 from .llm import LLM, make_llm
 from .lmstudio import gate_for
 from .mcp import McpHub
@@ -43,6 +43,14 @@ RESUMABLE = {"max_steps", "stalled", "error", "cancelled"}
 CIRCLES_Q = ("Is `work_log` repeating the same or nearly the same attempt and getting the same result, "
              "without learning anything new?")
 STOPPED_NOTE = "[stopped by the user before finishing]"
+
+
+def turn_notes(result: WorkerResult, cap: int = 2000) -> str:
+    """What a turn's answer was based on, kept with it in memory: a follow-up like "where did
+    you get that?" once saw only the reply (plus a 'Not verified' note) and confessed to making
+    up a price it had in fact read off the store's page."""
+    log = work_log(result.transcript, cap=cap, answer=result.answer)
+    return log or "(no code or tools were run for this reply: it came from the conversation and the model itself)"
 
 
 def _shielded(callback: Event) -> Event:
@@ -143,6 +151,7 @@ class Harness:
         self.on_event = _shielded(on_event or (lambda kind, data: None))
         self.model_override = model_override
         self.tier_mode = "auto"  # auto (Jev decides) | fast | strong
+        self._escalated = False  # the last turn's fast model was replaced by the strong one
         # show the browser tool's window, with Jev's picks outlined (dashboard toggle, CLI /watch)
         self.watch_browser = bool(self.cfg.tools.get("browser_watch")) or os.environ.get("JEVH_BROWSER_HEADED") == "1"
         # the factory gets the persona with its model block already resolved for the tier
@@ -214,12 +223,12 @@ class Harness:
         if resume:  # continuing an interrupted task: its own conversation is the context
             route.follows = False
         if route.follows:  # the exchange this answers goes along as real context, not via the memory gate
-            root.history = [(t.user, t.assistant) for t in self.memory.session_turns(
+            root.history = [(t.user, t.assistant, t.notes) for t in self.memory.session_turns(
                 self.session, self.cfg.lim("follow_turns"))]
         result = self.run_task(root, goal=message, allow_collab=True, resume=resume)
         cancelled = root.status == "cancelled"
         if root.status == "done":  # a crashed turn's error text must not become "memory"
-            self.memory.append(route.persona, message, result.answer, self.session)
+            self.memory.append(route.persona, message, result.answer, self.session, turn_notes(result))
             if self.learning and result.stopped in ("final", "plain"):
                 self._learn(route.persona, message, result)
         elif cancelled:  # kept, so a redirect ("no, just the USPS part") has the request as context
@@ -235,7 +244,7 @@ class Harness:
     def resumable(self, limit: int = 10) -> list[dict[str, Any]]:
         """Interrupted lead tasks (stopped, step limit, stalled, crashed or harness restarted), newest first."""
         out = []
-        for ck in sorted((self.cfg.workspace / "sessions").glob("*/t*/checkpoint.json"),
+        for ck in sorted((self.cfg.workspace / "sessions").glob("*/*/checkpoint.json"),
                          key=lambda p: p.stat().st_mtime, reverse=True):
             try:
                 data = json.loads(ck.read_text(encoding="utf-8"))
@@ -376,7 +385,7 @@ class Harness:
                                             self.cfg.lim("memory_search"),
                                             self.cfg.lim("memory_facts"))
         if task.history:  # those turns are already in the conversation itself
-            said = [f"User: {u}\n" for u, _ in task.history]
+            said = [f"User: {h[0]}\n" for h in task.history]
             candidates = [c for c in candidates if not any(s in c for s in said)]
         mem = self._safe("memory", lambda: self.jev.gate_context(task.jev_text, candidates),
                          MemoryDecision([], []))
@@ -418,7 +427,7 @@ class Harness:
             "ask_user": lambda question, options=None: self._ask_user(task, persona, question, options),
         }
         workdir = Path(resume["workdir"]) if resume and resume.get("workdir") else \
-            self.session_dir / f"t{task.id}-{persona.name}"
+            self.session_dir / f"u{turn_no}t{task.id}-{persona.name}"   # task ids restart every turn
         task.checkpoint = workdir / "checkpoint.json"
         worker = Worker(persona, llm, workdir, self.artifacts,
                         handlers, {t: f"jevh.tools.{t}" for t in persona.tools},
@@ -428,6 +437,8 @@ class Harness:
                         int(self.verifier.settings.get("max_bounces", 2)),
                         self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
+        if tier.tier == "fast" and self.tier_mode != "fast":   # quality first: a bounced fast answer escalates
+            worker.escalate = lambda: self._llm(persona, "strong")
         task.started = time.time()
         self.on_event("start", {"task": task, "model": getattr(llm, "name", "?")})
         self._workers.add(worker)
@@ -435,7 +446,9 @@ class Harness:
             if self._cancel.is_set():
                 raise Cancelled("stopped by the user")
             result = worker.run(task.text, ctx, system, task.history, resume)
-            result.skills, result.llm = list(skills.skills), llm
+            result.skills, result.llm = list(skills.skills), worker.llm   # the loaded one, if it escalated
+            if task.parent is None:   # its follow-ups start on the strong model: no swap back and forth
+                self._escalated = worker.escalated
             task.status = "done"
         except Cancelled:
             result = WorkerResult(answer=STOPPED_NOTE, stopped="cancelled")
@@ -551,7 +564,8 @@ class Harness:
         project = self.project
 
         def check(answer: str, artifacts: list[str], transcript: list[dict], changed: list[str]):
-            return self.verifier.check(task.text, answer, artifacts, work_log(transcript), project, changed)
+            return self.verifier.check(task.text, answer, artifacts, work_log(transcript, answer=answer),
+                                       project, changed, evidence=seen_text(transcript))
         return check
 
     def _mcp_call(self, persona: Persona, key: str, arguments: dict) -> str:
@@ -573,6 +587,8 @@ class Harness:
             return TierDecision("strong", None, "no fast tier for this persona")
         if self.tier_mode in ("fast", "strong"):
             return TierDecision(self.tier_mode, None, "forced by user")
+        if task.history and self._escalated:
+            return TierDecision("strong", None, "follow-up to a turn the fast model couldn't finish")
         # Jev down -> persona's own model: a slow right answer beats a fast wrong one
         return self._safe("tier", lambda: self.jev.pick_tier(task.jev_text, persona),
                           TierDecision("strong", None, "jev unavailable"))

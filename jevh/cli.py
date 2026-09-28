@@ -88,6 +88,9 @@ class Printer:
             console.print(f"[dim]    {esc(data['persona'])}: context compacted at step {data['step']} "
                           f"(~{data['tokens_before']:,} -> ~{data['tokens_after']:,} tokens"
                           f"{', summarized' if data['summarized'] else ''})[/]")
+        elif kind == "escalate":
+            console.print(f"[yellow]    {esc(data['persona'])}: the fast model's answer was sent back; "
+                          f"continuing on {esc(str(data['model']))}[/]")
         elif kind == "progress_check":
             if data["stuck"]:
                 console.print(f"[yellow]    {esc(data['persona'])}: progress check at step {data['step']}: "
