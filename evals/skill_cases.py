@@ -52,6 +52,8 @@ CASES = [
     ("minecraft", "minecraft-modpack-server", "Stand up a Minecraft modpack server from a CurseForge pack with a whitelist of three players."),
     ("pokemon", "pokemon-player", "Send my Pikachu to attack with Thunderbolt in the Pokemon battle."),
     ("radon", "radon-mitigation-study", "Quiz me on radon: what's the difference between a can test and a stack test and when do you use each?"),
+    # seen live in the dashboard 2026-09-28: Choice 0.70, fits 0.09 -> not loaded
+    ("radon-short", "radon-mitigation-study", "Quiz me on radon: what's the difference between a can test and a stack test?"),
     ("fitness", "fitness-tracker", "Update my training log: bench press went up to 225 for five reps this week."),
     ("claude-code", "claude-code", "Delegate the failing test on the Kaisen branch to Claude Code and have it open a PR when it passes."),
     ("hermes-agent", "hermes-agent", "Configure this Hermes agent: add a new MCP server to the config and make sure the tools register."),

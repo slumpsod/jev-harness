@@ -25,7 +25,7 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
 python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 59 offline tests (fake Jev + scripted LLMs)
+python -m pytest -q                  # 68 offline tests (fake Jev + scripted LLMs)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
@@ -64,7 +64,7 @@ CLI commands: `/as <persona>`, `/auto`, `/personas`, `/skills`, `/trace` (raw Je
 |---|---|---|---|
 | Persona routing | `routing_cases.py`, 33 requests | 97% top-1 | ~0.2s |
 | Collaborators | `routing_cases.py` | 94% exact, 0 needless | ~0.2s |
-| Skill picking | `skill_cases.py`, 62 requests (your 52 Hermes-router cases + 10) | 94% right skill, 93% correct "no skill", 3 needless | ~1.5s |
+| Skill picking | `skill_cases.py`, 63 requests (your 52 Hermes-router cases + 11) | 94% right skill, 93% correct "no skill", 3 needless | ~1.5s |
 | Memory gating | `memory_cases.py`, 18 requests over an 18-turn history | 95% of needed turns passed, 0 leaks | ~1.5s |
 | Model tier (fast/strong) | `tier_cases.py`, 39 tasks + 15 held out | 100% and 15/15, 0 hard tasks sent fast | ~0.2s |
 
@@ -100,6 +100,26 @@ Lessons from getting there (all handled in code now):
 - Workers get a "2 steps left, call final()" warning. If they still hit the limit, the files they wrote are
   collected as artifacts instead of being lost.
 - Failed turns are not written to memory.
+
+## Dashboard
+
+```bash
+python -m jevh.web                 # http://127.0.0.1:8740/ opens in your browser
+python -m jevh.web --no-browser --port 8740 --model lmstudio:ornith-1.5-35b-a3b
+```
+
+The chat is on the left, and every event streams in live on the right:
+- **Timeline**: one lane per task, positioned in time and coloured by tier (fast/strong). It shows nested hand-offs, refused requests, LM Studio swap markers, and "parallel saved Xs".
+- **Inspector**: every Jev decision for the selected turn, with probabilities and threshold markers: routing, tier, skill Choice + fits, memory kept/checked, collaborators and hand-off approvals.
+- **Artifacts**: files produced in this session. HTML is previewed live in a sandboxed iframe, images and video inline, and code or text as source.
+- **Status**: which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
+
+In the header you can pin a persona and set the tier (Jev decides / fast / strong). Click an answer to inspect that turn,
+and reload any time: the event history replays. **Security:** the agent executes code, so the dashboard binds to 127.0.0.1 only.
+- It rejects foreign Host headers, which blocks DNS rebinding.
+- Every API call needs a per-launch token embedded in the page.
+- It refuses POSTs from other origins, which blocks CSRF from websites you visit.
+- It serves files only from the workspace. HTML artifacts get a CSP sandbox, so a generated page can't reach the dashboard.
 
 ## Fast tier: Jev picks the model per task
 

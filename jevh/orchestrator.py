@@ -163,7 +163,8 @@ class Harness:
         }
         worker = Worker(persona, llm, self.session_dir / f"t{task.id}-{persona.name}", self.artifacts,
                         handlers, {t: f"jevh.tools.{t}" for t in persona.tools},
-                        self.cfg.lim("repl_timeout"), self.cfg.lim("output_cap"), self.on_event)
+                        self.cfg.lim("repl_timeout"), self.cfg.lim("output_cap"),
+                        lambda kind, data: self.on_event(kind, {**data, "task_id": task.id}))
         task.started = time.time()
         self.on_event("start", {"task": task, "model": getattr(llm, "name", "?")})
         try:

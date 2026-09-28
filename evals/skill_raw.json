@@ -25,7 +25,7 @@
    "ideation": 0.0032,
    "insulation-specialists-payroll": 0.0421
   },
-  "secs": 1.64
+  "secs": 1.47
  },
  {
   "id": "payroll-field",
@@ -53,7 +53,7 @@
    "insulation-specialists-payroll": 0.1192,
    "google-workspace": 0.0421
   },
-  "secs": 1.36
+  "secs": 1.14
  },
  {
   "id": "payroll-ins",
@@ -81,7 +81,7 @@
    "google-workspace": 0.0293,
    "payroll-tracker": 0.3208
   },
-  "secs": 1.4
+  "secs": 1.13
  },
  {
   "id": "calendar-add",
@@ -109,7 +109,7 @@
    "payroll-tracker": 0.0028,
    "google-workspace": 0.1067
   },
-  "secs": 1.33
+  "secs": 1.2
  },
  {
   "id": "calendar-multi",
@@ -137,7 +137,7 @@
    "google-workspace": 0.2018,
    "appointment-scheduling": 0.0373
   },
-  "secs": 1.46
+  "secs": 1.03
  },
  {
   "id": "gmail-search",
@@ -165,7 +165,7 @@
    "google-workspace": 0.5927,
    "gmail-attachments": 0.1645
   },
-  "secs": 1.56
+  "secs": 1.22
  },
  {
   "id": "gmail-attach",
@@ -193,7 +193,7 @@
    "email-search": 0.6514,
    "google-workspace": 0.3208
   },
-  "secs": 1.38
+  "secs": 1.14
  },
  {
   "id": "gmail-send",
@@ -221,7 +221,7 @@
    "email-search": 0.0159,
    "ideation": 0.0013
   },
-  "secs": 1.49
+  "secs": 1.13
  },
  {
   "id": "gws-cli-trap",
@@ -249,7 +249,7 @@
    "google-workspace": 0.6225,
    "gmail-attachments": 0.6514
   },
-  "secs": 1.58
+  "secs": 1.16
  },
  {
   "id": "comfyui",
@@ -264,7 +264,7 @@
    "comfyui": 0.9325,
    "video-analysis": 0.0025
   },
-  "secs": 0.53
+  "secs": 0.54
  },
  {
   "id": "blender-mcp",
@@ -322,7 +322,7 @@
    "blender-scripting": 0.7549,
    "blender-headless": 0.5
   },
-  "secs": 1.91
+  "secs": 1.55
  },
  {
   "id": "blender-render",
@@ -351,7 +351,7 @@
    "blender-render-automation": 0.8355,
    "blender-headless": 0.7311
   },
-  "secs": 1.84
+  "secs": 1.45
  },
  {
   "id": "hue",
@@ -379,7 +379,7 @@
    "roku-ecp": 0.0331,
    "ideation": 0.0019
   },
-  "secs": 1.67
+  "secs": 1.15
  },
  {
   "id": "roku",
@@ -407,7 +407,7 @@
    "ideation": 0.0019,
    "journalist": 0.001
   },
-  "secs": 1.5
+  "secs": 1.2
  },
  {
   "id": "cyberpunk",
@@ -436,7 +436,7 @@
    "harness-artifacts": 0.0097,
    "prime-agent": 0.011
   },
-  "secs": 1.59
+  "secs": 1.35
  },
  {
   "id": "dlss",
@@ -465,7 +465,7 @@
    "harness-artifacts": 0.0076,
    "claude-code": 0.0141
   },
-  "secs": 1.93
+  "secs": 1.24
  },
  {
   "id": "minecraft",
@@ -494,7 +494,7 @@
    "harness-artifacts": 0.0076,
    "blender-3d-modeling": 0.0028
   },
-  "secs": 1.9
+  "secs": 1.3
  },
  {
   "id": "pokemon",
@@ -522,7 +522,7 @@
    "ideation": 0.0036,
    "appointment-scheduling": 0.0046
   },
-  "secs": 1.64
+  "secs": 1.01
  },
  {
   "id": "radon",
@@ -550,7 +550,35 @@
    "ideation": 0.0013,
    "web-research-workflow": 0.0293
   },
-  "secs": 1.62
+  "secs": 1.11
+ },
+ {
+  "id": "radon-short",
+  "want": "radon-mitigation-study",
+  "persona": "daily_assistant",
+  "probs": {
+   "ideation": 0.0307,
+   "roku-ecp": 0.0037,
+   "appointment-scheduling": 0.0007,
+   "google-workspace": 0.0015,
+   "pokemon-player": 0.0011,
+   "eco-insulation-quotes": 0.0003,
+   "journalist": 0.0003,
+   "radon-mitigation-study": 0.6997,
+   "gws-cli": 0.0012,
+   "web-research-workflow": 0.0008,
+   "insulation-specialists-payroll": 0.0001,
+   "maps": 0.0011,
+   "document-tools": 0.0003,
+   "payroll-tracker": 0.0011,
+   "none_of_these": 0.2574
+  },
+  "fits": {
+   "radon-mitigation-study": 0.0851,
+   "ideation": 0.0019,
+   "roku-ecp": 0.0032
+  },
+  "secs": 1.13
  },
  {
   "id": "fitness",
@@ -567,7 +595,7 @@
    "fitness-tracker": 0.9399,
    "harness-artifacts": 0.0097
   },
-  "secs": 0.83
+  "secs": 0.71
  },
  {
   "id": "claude-code",
@@ -596,7 +624,7 @@
    "prime-agent": 0.0203,
    "github-pr-workflow": 0.4688
   },
-  "secs": 1.57
+  "secs": 1.38
  },
  {
   "id": "hermes-agent",
@@ -625,7 +653,7 @@
    "hermes-agent": 0.0534,
    "claude-code": 0.0474
   },
-  "secs": 1.66
+  "secs": 1.47
  },
  {
   "id": "hermes-webapp",
@@ -648,7 +676,7 @@
    "simple-web-app-build": 0.9526,
    "frontend-design": 0.3208
   },
-  "secs": 0.83
+  "secs": 0.76
  },
  {
   "id": "prime-agent",
@@ -677,7 +705,7 @@
    "harness-artifacts": 0.1067,
    "claude-code": 0.2942
   },
-  "secs": 1.47
+  "secs": 1.39
  },
  {
   "id": "github-pr",
@@ -706,7 +734,7 @@
    "claude-code": 0.6514,
    "simple-web-app-build": 0.3208
   },
-  "secs": 1.73
+  "secs": 1.41
  },
  {
   "id": "native-mcp",
@@ -735,7 +763,7 @@
    "blender-mcp": 0.2689,
    "blender-3d-modeling": 0.1824
   },
-  "secs": 2.07
+  "secs": 1.39
  },
  {
   "id": "web-research",
@@ -763,7 +791,7 @@
    "web-research-workflow": 0.2451,
    "radon-mitigation-study": 0.0373
   },
-  "secs": 1.65
+  "secs": 1.13
  },
  {
   "id": "journalist",
@@ -791,7 +819,7 @@
    "web-research-workflow": 0.1824,
    "ideation": 0.0017
   },
-  "secs": 1.38
+  "secs": 1.04
  },
  {
   "id": "local-ai",
@@ -820,7 +848,7 @@
    "harness-artifacts": 0.0059,
    "prime-agent": 0.023
   },
-  "secs": 1.6
+  "secs": 1.4
  },
  {
   "id": "video-analysis",
@@ -835,7 +863,7 @@
    "video-analysis": 0.2451,
    "comfyui": 0.2451
   },
-  "secs": 0.64
+  "secs": 0.54
  },
  {
   "id": "maps",
@@ -863,7 +891,7 @@
    "ideation": 0.0015,
    "google-workspace": 0.0013
   },
-  "secs": 1.3
+  "secs": 1.07
  },
  {
   "id": "serpapi",
@@ -891,7 +919,7 @@
    "ideation": 0.0015,
    "pokemon-player": 0.0067
   },
-  "secs": 1.37
+  "secs": 1.09
  },
  {
   "id": "doc-tools",
@@ -919,7 +947,7 @@
    "google-workspace": 0.0953,
    "gmail-attachments": 0.5927
   },
-  "secs": 1.28
+  "secs": 1.11
  },
  {
   "id": "desktop-gui",
@@ -948,7 +976,7 @@
    "harness-artifacts": 0.0086,
    "claude-code": 0.0331
   },
-  "secs": 1.33
+  "secs": 1.41
  },
  {
   "id": "win-admin",
@@ -977,7 +1005,7 @@
    "harness-artifacts": 0.0141,
    "prime-agent": 0.0141
   },
-  "secs": 1.44
+  "secs": 1.33
  },
  {
   "id": "openjev-judge",
@@ -1006,7 +1034,7 @@
    "harness-artifacts": 0.0293,
    "openjev": 0.4073
   },
-  "secs": 1.61
+  "secs": 1.59
  },
  {
   "id": "openjev-up",
@@ -1035,7 +1063,7 @@
    "harness-artifacts": 0.0067,
    "local-ai-models": 0.0851
   },
-  "secs": 1.76
+  "secs": 1.48
  },
  {
   "id": "koe-hash",
@@ -1064,7 +1092,7 @@
    "harness-artifacts": 0.023,
    "prime-agent": 0.023
   },
-  "secs": 1.85
+  "secs": 1.27
  },
  {
   "id": "hermes-tui",
@@ -1093,7 +1121,7 @@
    "harness-artifacts": 0.018,
    "prime-agent": 0.023
   },
-  "secs": 1.79
+  "secs": 1.33
  },
  {
   "id": "lift-split",
@@ -1110,7 +1138,7 @@
    "harness-artifacts": 0.026,
    "fitness-tracker": 0.2689
   },
-  "secs": 1.08
+  "secs": 0.58
  },
  {
   "id": "deload",
@@ -1127,7 +1155,7 @@
    "harness-artifacts": 0.0331,
    "fitness-tracker": 0.8176
   },
-  "secs": 0.92
+  "secs": 0.69
  },
  {
   "id": "landing",
@@ -1150,7 +1178,7 @@
    "simple-web-app-build": 0.148,
    "harness-artifacts": 0.2942
   },
-  "secs": 0.82
+  "secs": 0.62
  },
  {
   "id": "palette",
@@ -1173,7 +1201,7 @@
    "harness-artifacts": 0.0953,
    "simple-web-app-build": 0.0953
   },
-  "secs": 0.88
+  "secs": 0.69
  },
  {
   "id": "pixel",
@@ -1196,7 +1224,7 @@
    "frontend-design": 0.0036,
    "harness-artifacts": 0.0124
   },
-  "secs": 0.85
+  "secs": 0.67
  },
  {
   "id": "comic",
@@ -1219,7 +1247,7 @@
    "frontend-design": 0.0059,
    "baoyu-article-illustrator": 0.018
   },
-  "secs": 0.9
+  "secs": 0.66
  },
  {
   "id": "comfy-img",
@@ -1234,7 +1262,7 @@
    "comfyui": 0.6225,
    "video-analysis": 0.0028
   },
-  "secs": 0.71
+  "secs": 0.53
  },
  {
   "id": "webapp-simple",
@@ -1257,7 +1285,7 @@
    "frontend-design": 0.7311,
    "harness-artifacts": 0.0675
   },
-  "secs": 0.96
+  "secs": 0.71
  },
  {
   "id": "none-math",
@@ -1285,7 +1313,7 @@
    "eco-insulation-quotes": 0.0097,
    "roku-ecp": 0.0036
   },
-  "secs": 1.32
+  "secs": 1.06
  },
  {
   "id": "none-fact",
@@ -1313,7 +1341,7 @@
    "web-research-workflow": 0.0601,
    "ideation": 0.0036
   },
-  "secs": 1.57
+  "secs": 1.15
  },
  {
   "id": "none-chat",
@@ -1341,7 +1369,7 @@
    "pokemon-player": 0.0046,
    "google-workspace": 0.0025
   },
-  "secs": 1.64
+  "secs": 1.31
  },
  {
   "id": "none-opinion",
@@ -1370,7 +1398,7 @@
    "harness-artifacts": 0.018,
    "claude-code": 0.0851
   },
-  "secs": 2.02
+  "secs": 1.42
  },
  {
   "id": "none-general",
@@ -1398,7 +1426,7 @@
    "google-workspace": 0.0032,
    "appointment-scheduling": 0.0067
   },
-  "secs": 1.57
+  "secs": 1.08
  },
  {
   "id": "none-translate",
@@ -1426,7 +1454,7 @@
    "payroll-tracker": 0.0046,
    "google-workspace": 0.0052
   },
-  "secs": 1.55
+  "secs": 1.27
  },
  {
   "id": "none-writing",
@@ -1454,7 +1482,7 @@
    "appointment-scheduling": 0.023,
    "email-search": 0.011
   },
-  "secs": 1.77
+  "secs": 1.14
  },
  {
   "id": "none-trivia2",
@@ -1482,7 +1510,7 @@
    "maps": 0.1645,
    "ideation": 0.0046
   },
-  "secs": 1.48
+  "secs": 1.17
  },
  {
   "id": "none-py",
@@ -1511,7 +1539,7 @@
    "claude-code": 0.018,
    "prime-agent": 0.0086
   },
-  "secs": 1.8
+  "secs": 1.27
  },
  {
   "id": "none-pack",
@@ -1539,7 +1567,7 @@
    "ideation": 0.0032,
    "maps": 0.0124
   },
-  "secs": 1.67
+  "secs": 1.11
  },
  {
   "id": "none-fact2",
@@ -1567,7 +1595,7 @@
    "maps": 0.0675,
    "ideation": 0.0052
   },
-  "secs": 1.76
+  "secs": 1.12
  },
  {
   "id": "none-joke",
@@ -1595,7 +1623,7 @@
    "eco-insulation-quotes": 0.0203,
    "roku-ecp": 0.0086
   },
-  "secs": 1.68
+  "secs": 1.23
  },
  {
   "id": "none-protein",
@@ -1612,7 +1640,7 @@
    "harness-artifacts": 0.0052,
    "workout-programming": 0.0124
   },
-  "secs": 0.97
+  "secs": 0.61
  },
  {
   "id": "none-accent",
@@ -1635,6 +1663,6 @@
    "harness-artifacts": 0.0331,
    "hermes-local-web-apps": 0.0534
   },
-  "secs": 0.75
+  "secs": 0.64
  }
 ]

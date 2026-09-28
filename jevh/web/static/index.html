@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jev Harness</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel2: #f0f2f5; --text: #1b1f24; --muted: #667085; --line: #e3e6eb;
+  --accent: #4f46e5; --fast: #16a34a; --strong: #2563eb; --warn: #d97706; --bad: #dc2626; --swap: #a21caf;
+  --user: #eef2ff; --code: #0f172a; --codetext: #e2e8f0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --panel: #151b23; --panel2: #1c2430; --text: #e6edf3; --muted: #8b949e; --line: #2a3441;
+    --accent: #818cf8; --fast: #22c55e; --strong: #60a5fa; --warn: #f59e0b; --bad: #f87171; --swap: #e879f9;
+    --user: #1e2440; --code: #0b0f15; --codetext: #d1d9e0;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header h1 { font-size: 15px; margin: 0; letter-spacing: .2px; }
+header .sess { color: var(--muted); font-size: 12px; }
+header .spacer { flex: 1; }
+.pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.up { color: var(--fast); border-color: color-mix(in srgb, var(--fast) 40%, transparent); }
+.pill.down { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent); }
+select, button, textarea { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; }
+select { padding: 4px 6px; }
+button { padding: 5px 12px; cursor: pointer; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+main { flex: 1; display: grid; grid-template-columns: minmax(360px, 5fr) 7fr; min-height: 0; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; grid-auto-rows: minmax(420px, auto); } }
+.chat { display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
+.log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 100%; padding: 10px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); overflow-wrap: anywhere; }
+.msg.user { background: var(--user); align-self: flex-end; max-width: 85%; }
+.msg.assistant.selected { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); }
+.msg .who { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.msg pre { background: var(--code); color: var(--codetext); padding: 8px 10px; border-radius: 6px; overflow-x: auto; font-size: 12.5px; }
+.msg code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; }
+.msg p { margin: 6px 0; }
+details.activity { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+details.activity pre { max-height: 220px; overflow: auto; margin: 4px 0 8px; }
+.step { margin: 4px 0; }
+.step .err { color: var(--bad); }
+.live { font-size: 12px; color: var(--muted); }
+.composer { border-top: 1px solid var(--line); padding: 10px 12px; display: flex; gap: 8px; background: var(--panel); }
+.composer textarea { flex: 1; resize: none; height: 64px; padding: 8px; }
+.side { display: flex; flex-direction: column; min-height: 0; }
+.tabs { display: flex; gap: 2px; padding: 6px 12px 0; border-bottom: 1px solid var(--line); background: var(--panel); }
+.tabs button { border: none; background: transparent; border-radius: 8px 8px 0 0; padding: 8px 14px; color: var(--muted); }
+.tabs button.on { color: var(--text); background: var(--bg); box-shadow: inset 0 -2px 0 var(--accent); }
+.panel { flex: 1; overflow: auto; padding: 16px; display: none; }
+.panel.on { display: block; }
+.empty { color: var(--muted); padding: 24px; text-align: center; }
+.badge { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); }
+.badge.fast { color: var(--fast); } .badge.strong { color: var(--strong); }
+.badge.done { color: var(--fast); } .badge.failed, .badge.rejected { color: var(--bad); } .badge.running { color: var(--warn); }
+/* timeline */
+.tl { display: grid; grid-template-columns: 230px 1fr; row-gap: 6px; column-gap: 12px; align-items: center; }
+.tl .label { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl .track { position: relative; height: 22px; background: var(--panel2); border-radius: 6px; }
+.tl .bar { position: absolute; top: 3px; bottom: 3px; border-radius: 4px; min-width: 3px; opacity: .9; }
+.tl .bar.fast { background: var(--fast); } .tl .bar.strong { background: var(--strong); } .tl .bar.none { background: var(--muted); }
+.tl .bar.running { background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(255,255,255,.25) 6px 12px); }
+.tl .bar .t { position: absolute; left: 6px; top: 0; font-size: 11px; color: #fff; line-height: 16px; white-space: nowrap; }
+.tl .swapmark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--swap); }
+.tl .reject { color: var(--bad); font-size: 12px; }
+.axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin: 6px 0 0 242px; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+/* inspector */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+.card h3 { margin: 0 0 8px; font-size: 13.5px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.card h4 { margin: 10px 0 4px; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+.prob { display: grid; grid-template-columns: 170px 1fr 44px; gap: 8px; align-items: center; font-size: 12px; margin: 2px 0; }
+.prob .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prob .meter { position: relative; height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+.prob .meter b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 4px; }
+.prob.pick .meter b { background: var(--fast); } .prob.pick .name { font-weight: 600; }
+.prob .meter .thr { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--warn); }
+.prob .v { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.kv { font-size: 12.5px; color: var(--muted); }
+/* artifacts */
+.arts { display: grid; grid-template-columns: 260px 1fr; gap: 12px; height: 100%; }
+.artlist { overflow: auto; }
+.art { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; cursor: pointer; background: var(--panel); }
+.art.on { border-color: var(--accent); }
+.art .n { font-size: 13px; overflow-wrap: anywhere; } .art .m { font-size: 11.5px; color: var(--muted); }
+.preview { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-height: 420px; display: flex; flex-direction: column; }
+.preview .bar2 { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.preview iframe { flex: 1; border: 0; width: 100%; min-height: 560px; background: #fff; border-radius: 0 0 10px 10px; }
+.preview img, .preview video { max-width: 100%; margin: 10px auto; display: block; }
+.preview pre { margin: 0; padding: 12px; overflow: auto; flex: 1; font-size: 12.5px; background: var(--code); color: var(--codetext); border-radius: 0 0 10px 10px; }
+@media (max-width: 900px) { .arts { grid-template-columns: 1fr; } }
+/* status */
+.grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.gpu .meter2 { height: 10px; background: var(--panel2); border-radius: 5px; overflow: hidden; margin: 6px 0 2px; }
+.gpu .meter2 b { display: block; height: 100%; background: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+td, th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; }
+a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Jev Harness</h1>
+  <span class="sess" id="sess"></span>
+  <span class="spacer"></span>
+  <span class="pill" id="pill-lm">LM Studio</span>
+  <span class="pill" id="pill-jev">Jev</span>
+  <span class="pill" id="pill-comfy">ComfyUI</span>
+  <label class="kv">Persona <select id="pin"><option value="">Jev routes</option></select></label>
+  <label class="kv">Tier <select id="tier"><option value="auto">Jev decides</option><option value="fast">fast</option><option value="strong">strong</option></select></label>
+  <button id="reset" title="Start a new session">New session</button>
+</header>
+<main>
+  <section class="chat">
+    <div class="log" id="log"><div class="empty" id="hello">Ask anything. Jev picks the persona, skills, memory and model tier, and you can watch every decision on the right.</div></div>
+    <form class="composer" id="form">
+      <textarea id="input" placeholder="Message (Enter to send, Shift+Enter for a new line)"></textarea>
+      <button class="primary" id="send" type="submit">Send</button>
+    </form>
+  </section>
+  <section class="side">
+    <nav class="tabs" id="tabs">
+      <button data-tab="timeline" class="on">Timeline</button>
+      <button data-tab="inspector">Inspector</button>
+      <button data-tab="artifacts">Artifacts</button>
+      <button data-tab="status">Status</button>
+    </nav>
+    <div class="panel on" id="p-timeline"></div>
+    <div class="panel" id="p-inspector"></div>
+    <div class="panel" id="p-artifacts"></div>
+    <div class="panel" id="p-status"></div>
+  </section>
+</main>
+<script>
+"use strict";
+const TOKEN = "__JEVH_TOKEN__";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const pct = (v) => `${Math.round((v || 0) * 100)}%`;
+const secs = (s) => s == null ? "" : s < 60 ? `${s.toFixed(1)}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+const fileUrl = (p) => `/api/file?path=${encodeURIComponent(p)}&token=${encodeURIComponent(TOKEN)}`;
+const baseName = (p) => String(p).split(/[\\/]/).pop();
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-Jevh-Token": TOKEN, ...(opts.headers || {})}});
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+
+// ---- minimal, safe markdown (escape first, then add a few tags) ----
+function md(src) {
+  const blocks = [];
+  let s = esc(src).replace(/```[\w-]*\n?([\s\S]*?)```/g, (_, code) => { blocks.push(code); return `\u0000${blocks.length - 1}\u0000`; });
+  s = s.replace(/`([^`\n]+)`/g, "<code>$1</code>")
+       .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
+       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const out = [];
+  let list = null;
+  for (const line of s.split("\n")) {
+    const li = line.match(/^\s*(?:[-*]|\d+\.)\s+(.*)/);
+    const h = line.match(/^(#{1,4})\s+(.*)/);
+    if (li) { if (!list) { list = []; } list.push(`<li>${li[1]}</li>`); continue; }
+    if (list) { out.push(`<ul>${list.join("")}</ul>`); list = null; }
+    if (h) out.push(`<p><b>${h[2]}</b></p>`);
+    else if (line.trim()) out.push(`<p>${line}</p>`);
+  }
+  if (list) out.push(`<ul>${list.join("")}</ul>`);
+  return out.join("").replace(/<p>\u0000(\d+)\u0000<\/p>|\u0000(\d+)\u0000/g, (_, a, b) => `<pre><code>${blocks[a ?? b]}</code></pre>`);
+}
+
+// ---- state ----
+const S = { turns: new Map(), order: [], selected: null, lastSeq: 0, personas: {}, thresholds: {}, live: {}, tab: "timeline", arts: [], artSel: null };
+function turn(id) {
+  if (!S.turns.has(id)) { S.turns.set(id, {id, tasks: new Map(), decisions: new Map(), activity: [], swaps: [], status: "running"}); S.order.push(id); }
+  return S.turns.get(id);
+}
+function upsertTask(t, task) {
+  if (!task || task.id == null) return null;
+  const cur = t.tasks.get(task.id) || {};
+  const merged = {...cur, ...task};
+  if (!task.started && cur.started) merged.started = cur.started;
+  if (!task.finished && cur.finished) merged.finished = cur.finished;
+  t.tasks.set(task.id, merged);
+  return merged;
+}
+function dec(t, taskId) { if (!t.decisions.has(taskId)) t.decisions.set(taskId, {}); return t.decisions.get(taskId); }
+
+function handle(e) {
+  S.lastSeq = Math.max(S.lastSeq, e.seq);
+  const d = e.data || {};
+  if (e.kind === "reset") { S.turns.clear(); S.order = []; S.selected = null; S.live = {}; $("sess").textContent = `session ${d.session}`; return; }
+  if (e.turn == null) return;
+  const t = turn(e.turn);
+  if (d.task) upsertTask(t, d.task);
+  switch (e.kind) {
+    case "turn_start": case "turn_done": case "turn_error": {
+      const {tasks, trace, ...rest} = d.turn;  // keep our own Map of tasks; merge the final snapshot into it
+      Object.assign(t, rest);
+      (tasks || []).forEach((x) => upsertTask(t, x));
+      if (e.kind === "turn_start") S.selected = t.id; else { S.live = {}; refreshArtifacts(); }
+      break;
+    }
+    case "route": t.route = d.decision; break;
+    case "skills": case "memory": case "collab": case "tier":
+      dec(t, d.task.id)[e.kind] = e.kind === "memory" ? {...d.decision, candidates: d.candidates} : d.decision; break;
+    case "start": upsertTask(t, {...d.task, model: d.model}); break;
+    case "request": upsertTask(t, {...d.task, approved: d.approved, reason: d.reason, approval: d.scores}); break;
+    case "done": { const x = upsertTask(t, d.task); if (x) x.result = d.result; delete S.live[d.task.to]; break; }
+    case "code": t.activity.push({ts: e.ts, kind: "code", task: d.task_id, persona: d.persona, step: d.step, text: d.code}); break;
+    case "output": t.activity.push({ts: e.ts, kind: "output", task: d.task_id, persona: d.persona, step: d.step, text: d.output, error: d.error}); break;
+    case "progress": S.live[d.persona] = {chunks: d.chunks, thinking: d.thinking}; break;
+    case "swap": t.swaps.push({ts: e.ts, ...d}); t.activity.push({ts: e.ts, kind: "swap", text: `LM Studio: unloaded ${(d.unloaded || []).join(", ") || "nothing"} -> loaded ${d.loaded} (${secs(d.seconds)})`}); break;
+    case "jev_error": t.activity.push({ts: e.ts, kind: "warn", text: `Jev unavailable during ${d.step}: ${d.error}`}); break;
+    case "unwaited": t.activity.push({ts: e.ts, kind: "warn", text: `${d.task.to} never waited on a hand-off; kept its artifacts`}); break;
+  }
+  schedule();
+}
+
+// ---- rendering (batched per animation frame) ----
+let pending = false;
+function schedule() { if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; render(); }); } }
+function render() {
+  renderChat();
+  if (S.tab === "timeline") renderTimeline();
+  if (S.tab === "inspector") renderInspector();
+  const busy = S.order.some((id) => S.turns.get(id).status === "running");
+  $("send").disabled = busy; $("send").textContent = busy ? "Working..." : "Send";
+}
+
+function tierOf(t, taskId) { const x = t.decisions.get(taskId); return x && x.tier ? x.tier.tier : null; }
+
+function renderChat() {
+  const log = $("log");
+  const stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 40;
+  if (!S.order.length) return;
+  $("hello")?.remove();
+  log.innerHTML = S.order.map((id) => {
+    const t = S.turns.get(id);
+    const root = [...t.tasks.values()].find((x) => x.depth === 0);
+    const persona = t.persona || root?.to || (t.route && t.route.persona) || "";
+    const tier = root ? tierOf(t, root.id) : null;
+    const liveTxt = Object.entries(S.live).map(([p, v]) => `${esc(p)} ${v.chunks} tok (${v.thinking} think)`).join(" | ");
+    const body = t.status === "running"
+      ? `<div class="live">working${persona ? ` as <b>${esc(persona)}</b>` : ""}... ${liveTxt}</div>`
+      : md(t.answer || "(empty)");
+    const arts = (t.artifacts || []).map((a) => `<a href="#" data-art="${esc(a)}">${esc(baseName(a))}</a>`).join(" | ");
+    const steps = t.activity.map((a) => {
+      if (a.kind === "code") return `<div class="step"><b>${esc(a.persona)}</b> step ${a.step}<pre>${esc(a.text)}</pre></div>`;
+      if (a.kind === "output") return `<div class="step">${a.error ? '<span class="err">error</span>' : "output"}<pre>${esc((a.text || "(no output)").slice(-2000))}</pre></div>`;
+      return `<div class="step" style="color:var(--${a.kind === "swap" ? "swap" : "warn"})">${esc(a.text)}</div>`;
+    }).join("");
+    return `<div class="msg user">${esc(t.message || "")}</div>
+      <div class="msg assistant ${S.selected === id ? "selected" : ""}" data-turn="${id}">
+        <div class="who">${esc(persona || "assistant")}
+          ${tier ? `<span class="badge ${tier}">${tier}</span>` : ""}
+          ${t.status !== "running" ? `<span>${secs(t.seconds)}</span>` : ""}
+          ${t.status === "error" ? '<span class="badge failed">error</span>' : ""}</div>
+        ${body}
+        ${arts ? `<div class="kv" style="margin-top:6px">artifacts: ${arts}</div>` : ""}
+        ${steps ? `<details class="activity"><summary>${t.activity.filter((a) => a.kind === "code").length} code steps</summary>${steps}</details>` : ""}
+      </div>`;
+  }).join("");
+  if (stick) log.scrollTop = log.scrollHeight;
+}
+
+function selTurn() { return S.selected != null ? S.turns.get(S.selected) : S.turns.get(S.order[S.order.length - 1]); }
+
+function renderTimeline() {
+  const el = $("p-timeline"), t = selTurn();
+  if (!t || !t.tasks.size) { el.innerHTML = `<div class="empty">Hand-offs appear here as parallel lanes: who asked whom, on which model tier, and for how long.</div>`; return; }
+  const tasks = [...t.tasks.values()].sort((a, b) => a.id - b.id);
+  const now = Date.now() / 1000;
+  const t0 = Math.min(...tasks.filter((x) => x.started).map((x) => x.started), t.started || now);
+  const t1 = Math.max(now * (t.status === "running" ? 1 : 0), ...tasks.map((x) => x.finished || 0), ...t.swaps.map((s) => s.ts), t0 + 1);
+  const span = t1 - t0, X = (ts) => `${((ts - t0) / span) * 100}%`;
+  const swaps = t.swaps.map((s) => `<div class="swapmark" style="left:${X(s.ts)}" title="LM Studio swap -> ${esc(s.loaded)} (${secs(s.seconds)})"></div>`).join("");
+  const rows = tasks.map((x) => {
+    const tier = tierOf(t, x.id) || "none";
+    const label = `<div class="label" style="padding-left:${x.depth * 14}px" title="${esc(x.text)}">${x.depth ? "&#8627; " : ""}<b>${esc(x.to)}</b>
+      <span class="badge ${x.status}">${x.status}</span>${x.result ? ` <span class="kv">${x.result.steps} steps</span>` : ""}</div>`;
+    if (x.status === "rejected") return `${label}<div class="reject">refused: ${esc(x.answer || x.reason || "")}</div>`;
+    if (!x.started) return `${label}<div class="track">${swaps}</div>`;
+    const end = x.finished || now, running = !x.finished;
+    const liveTok = running && S.live[x.to] ? ` ${S.live[x.to].chunks} tok` : "";
+    return `${label}<div class="track">${swaps}<div class="bar ${tier} ${running ? "running" : ""}" style="left:${X(x.started)};width:calc(${X(end)} - ${X(x.started)})" title="${esc(x.model || "")}"><span class="t">${secs(end - x.started)}${liveTok}</span></div></div>`;
+  }).join("");
+  const done = tasks.filter((x) => x.depth === 1 && x.finished && x.started).map((x) => [x.started, x.finished]).sort((a, b) => a[0] - b[0]);
+  let work = 0, wall = 0, endT = -Infinity;
+  for (const [a, b] of done) { work += b - a; if (b > endT) { wall += b - Math.max(a, endT); endT = b; } }
+  el.innerHTML = `<div class="legend"><span><i style="background:var(--fast)"></i>fast tier</span><span><i style="background:var(--strong)"></i>strong tier</span>
+      <span><i style="background:var(--swap)"></i>LM Studio swap</span><span>turn ${t.id}: ${esc((t.message || "").slice(0, 80))}</span></div>
+    <div class="tl">${rows}</div><div class="axis"><span>0s</span><span>${secs(span / 2)}</span><span>${secs(span)}</span></div>
+    ${work ? `<p class="kv">hand-offs: ${secs(work)} of work in ${secs(wall)} wall (parallel saved ${secs(work - wall)})</p>` : ""}`;
+}
+
+function probRows(probs, pick, opts = {}) {
+  const entries = Object.entries(probs || {}).sort((a, b) => b[1] - a[1]).slice(0, opts.top || 6);
+  return entries.map(([k, v]) => `<div class="prob ${k === pick || (Array.isArray(pick) && pick.includes(k)) ? "pick" : ""}">
+    <span class="name" title="${esc(k)}">${esc(k)}</span><span class="meter"><b style="width:${pct(v)}"></b>${opts.thr != null ? `<span class="thr" style="left:${pct(opts.thr)}"></span>` : ""}</span><span class="v">${(v || 0).toFixed(2)}</span></div>`).join("");
+}
+
+function renderInspector() {
+  const el = $("p-inspector"), t = selTurn();
+  if (!t) { el.innerHTML = `<div class="empty">Every decision Jev makes for a turn shows up here with its probabilities.</div>`; return; }
+  const th = S.thresholds;
+  let html = "";
+  if (t.route) html += `<div class="card"><h3>Routing <span class="badge">${esc(t.route.persona)}</span><span class="kv">${esc(t.route.reason)}</span></h3>
+    ${probRows(t.route.probabilities, t.route.persona)}${t.route.continues != null ? `<div class="kv">continues conversation: ${t.route.continues.toFixed(2)}</div>` : ""}</div>`;
+  const tasks = [...t.tasks.values()].sort((a, b) => a.id - b.id);
+  for (const x of tasks) {
+    const d = t.decisions.get(x.id) || {};
+    let inner = "";
+    if (d.tier) inner += `<h4>Model tier</h4><div class="prob ${d.tier.tier === "strong" ? "pick" : ""}"><span class="name">P(strong) - ${esc(d.tier.tier)}</span><span class="meter"><b style="width:${pct(d.tier.p_strong)}"></b><span class="thr" style="left:${pct(th.tier_strong)}"></span></span><span class="v">${d.tier.p_strong == null ? "-" : d.tier.p_strong.toFixed(2)}</span></div><div class="kv">${esc(d.tier.reason)}</div>`;
+    if (d.skills) inner += `<h4>Skills - loaded: ${d.skills.skills.length ? d.skills.skills.map(esc).join(", ") : "none"}</h4>
+      ${d.skills.none != null ? `<div class="kv">P(no skill needed) ${d.skills.none.toFixed(2)} (veto at ${th.skill_none_veto})</div>` : ""}
+      ${probRows(d.skills.probs, d.skills.skills, {top: 5})}
+      ${Object.keys(d.skills.fits || {}).length ? `<div class="kv" style="margin-top:4px">fits check (floor ${th.skill_fits}):</div>${probRows(d.skills.fits, d.skills.skills, {thr: th.skill_fits})}` : ""}`;
+    if (d.memory) {
+      const scored = (d.memory.scores || []).map((v, i) => [i, v]).filter(([, v]) => v > 0);
+      inner += `<h4>Memory - ${d.memory.kept.length}/${d.memory.candidates} snippets passed (threshold ${th.memory})</h4>
+        ${d.memory.kept.map((k) => `<div class="kv">&#10003; ${esc(k.slice(0, 160))}</div>`).join("")}
+        ${scored.length ? `<div class="kv">checked: ${scored.map(([i, v]) => `#${i} ${v.toFixed(2)}`).join(", ")}</div>` : ""}`;
+    }
+    if (d.collab) inner += `<h4>Collaborators - suggested: ${d.collab.suggested.length ? d.collab.suggested.map(esc).join(", ") : "none"} (complexity ${(d.collab.complexity ?? 0).toFixed(2)})</h4>${probRows(d.collab.scores, d.collab.suggested, {thr: th.collab})}`;
+    if (x.approval && Object.keys(x.approval).length) inner += `<h4>Hand-off approval</h4>${probRows(x.approval, null, {thr: th.approve})}`;
+    if (x.status === "rejected") inner += `<div class="kv" style="color:var(--bad)">refused: ${esc(x.answer || x.reason)}</div>`;
+    html += `<div class="card"><h3>#${x.id} ${esc(x.to)} <span class="badge ${x.status}">${x.status}</span>
+      ${x.requester !== "user" ? `<span class="kv">asked by ${esc(x.requester)}</span>` : ""}${x.model ? `<span class="kv">on ${esc(String(x.model).split("@http")[0].replace(/^\(primary\)->/, ""))}</span>` : ""}</h3>
+      <div class="kv" title="${esc(x.text)}">${esc((x.text || "").slice(0, 220))}</div>${inner || '<div class="kv">no decisions recorded</div>'}</div>`;
+  }
+  el.innerHTML = html || `<div class="empty">Waiting for Jev...</div>`;
+}
+
+// ---- artifacts ----
+async function refreshArtifacts() {
+  try { S.arts = await api("/api/artifacts"); } catch { S.arts = []; }
+  if (S.tab === "artifacts") renderArtifacts();
+}
+function renderArtifacts() {
+  const el = $("p-artifacts");
+  if (!S.arts.length) { el.innerHTML = `<div class="empty">Files the assistants produce in this session show up here, with live previews.</div>`; return; }
+  const sel = S.arts.find((a) => a.path === S.artSel) || S.arts[0];
+  S.artSel = sel.path;
+  const list = S.arts.map((a) => `<div class="art ${a.path === sel.path ? "on" : ""}" data-path="${esc(a.path)}"><div class="n">${esc(a.name)}</div>
+    <div class="m">${(a.bytes / 1024).toFixed(1)} KB | ${new Date(a.mtime * 1000).toLocaleTimeString()}</div></div>`).join("");
+  el.innerHTML = `<div class="arts"><div class="artlist">${list}</div><div class="preview" id="preview"><div class="bar2"><span>${esc(sel.name)}</span>
+    <a href="${fileUrl(sel.path)}" target="_blank" rel="noopener">open in new tab</a></div><div id="pv" style="flex:1;display:flex;flex-direction:column"></div></div></div>`;
+  const pv = $("pv"), type = sel.type || "", url = fileUrl(sel.path);
+  const textLike = /^text\/|json|javascript|xml|markdown/.test(type) || /\.(py|md|txt|csv|log|yaml|yml|js|css|json)$/i.test(sel.name);
+  if (type === "text/html") pv.innerHTML = `<iframe sandbox="allow-scripts allow-forms" src="${url}"></iframe>`;
+  else if (type.startsWith("image/")) pv.innerHTML = `<img src="${url}" alt="${esc(sel.name)}">`;
+  else if (type.startsWith("video/")) pv.innerHTML = `<video src="${url}" controls></video>`;
+  else if (textLike || !/\./.test(sel.name)) fetch(url).then((r) => r.text()).then((txt) => { pv.innerHTML = `<pre>${esc(txt.slice(0, 200000))}</pre>`; });
+  else pv.innerHTML = `<div class="empty">No preview for ${esc(type)} - use "open in new tab".</div>`;
+}
+
+// ---- status ----
+async function refreshStatus() {
+  let st;
+  try { st = await api("/api/status"); } catch (e) { return; }
+  const pill = (id, up, txt) => { const p = $(id); p.className = `pill ${up ? "up" : "down"}`; p.textContent = txt; };
+  pill("pill-lm", st.lmstudio?.up, `LM Studio: ${st.lmstudio?.up ? (st.lmstudio.loaded.join(", ") || "nothing loaded") : "down"}`);
+  pill("pill-jev", st.jev_adapter?.up && st.jev_backend?.up !== false, `Jev: ${st.jev_adapter?.up ? (st.jev_backend ? `${st.jev_backend.name} ${st.jev_backend.up ? "up" : "down"}` : "up") : "down"}`);
+  pill("pill-comfy", st.comfyui?.up, `ComfyUI: ${st.comfyui?.up ? "up" : "down"}`);
+  if (S.tab !== "status") return;
+  const svc = (name, s, extra = "") => `<div class="card"><h3>${name} <span class="badge ${s?.up ? "done" : "failed"}">${s?.up ? "up" : "down"}</span>${s?.ms != null ? `<span class="kv">${s.ms} ms</span>` : ""}</h3>${extra}${!s?.up && s?.error ? `<div class="kv">${esc(s.error)}</div>` : ""}</div>`;
+  const gpus = (st.gpus || []).map((g) => `<div class="card gpu"><h3>GPU ${g.index} <span class="kv">${esc(g.name)}</span></h3>
+    <div class="meter2"><b style="width:${pct(g.used_mb / g.total_mb)}"></b></div><div class="kv">${(g.used_mb / 1024).toFixed(1)} / ${(g.total_mb / 1024).toFixed(1)} GB | ${g.util}% busy</div></div>`).join("");
+  const swaps = (st.swaps || []).slice().reverse().map((s) => `<tr><td>${new Date(s.ts * 1000).toLocaleTimeString()}</td><td>${esc((s.unloaded || []).join(", ") || "-")}</td><td>${esc(s.loaded)}</td><td>${secs(s.seconds)}</td></tr>`).join("");
+  $("p-status").innerHTML = `<div class="grid2">
+    ${svc("LM Studio", st.lmstudio, st.lmstudio?.up ? `<div class="kv">loaded: <b>${esc(st.lmstudio.loaded.join(", ") || "nothing")}</b></div><div class="kv">gate: ${esc(st.lmstudio.gate.current || "-")}, ${st.lmstudio.gate.inflight} in flight</div>` : "")}
+    ${svc("Jev adapter", st.jev_adapter)}
+    ${st.jev_backend ? svc(`Jev backend (${esc(st.jev_backend.name)})`, st.jev_backend, st.jev_backend.info?.model ? `<div class="kv">${esc(st.jev_backend.info.model)}</div>` : "") : ""}
+    ${st.comfyui ? svc("ComfyUI", st.comfyui) : ""}
+    ${gpus}</div>
+    <div class="card"><h3>LM Studio swaps</h3>${swaps ? `<table><tr><th>time</th><th>unloaded</th><th>loaded</th><th>took</th></tr>${swaps}</table>` : '<div class="kv">none yet</div>'}</div>`;
+}
+
+// ---- wiring ----
+$("tabs").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-tab]"); if (!b) return;
+  S.tab = b.dataset.tab;
+  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("on", p.id === `p-${S.tab}`));
+  if (S.tab === "artifacts") refreshArtifacts();
+  if (S.tab === "status") refreshStatus();
+  render();
+});
+$("log").addEventListener("click", (ev) => {
+  const a = ev.target.closest("a[data-art]");
+  if (a) { ev.preventDefault(); S.artSel = a.dataset.art; document.querySelector('#tabs button[data-tab="artifacts"]').click(); return; }
+  const m = ev.target.closest(".msg.assistant");
+  if (m && !ev.target.closest("details")) { S.selected = Number(m.dataset.turn); render(); }
+});
+$("p-artifacts").addEventListener("click", (ev) => {
+  const a = ev.target.closest(".art"); if (a) { S.artSel = a.dataset.path; renderArtifacts(); }
+});
+$("form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const message = $("input").value.trim(); if (!message) return;
+  $("input").value = "";
+  try { await api("/api/chat", {method: "POST", body: JSON.stringify({message})}); }
+  catch (e) { alert(e.message); $("input").value = message; }
+});
+$("input").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); $("form").requestSubmit(); } });
+$("tier").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({tier_mode: $("tier").value})}));
+$("pin").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({pin: $("pin").value || null})}));
+$("reset").addEventListener("click", async () => { try { await api("/api/reset", {method: "POST"}); } catch (e) { alert(e.message); } });
+
+function connect() {
+  const es = new EventSource(`/api/events?token=${encodeURIComponent(TOKEN)}&since=${S.lastSeq}`);
+  es.onmessage = (m) => handle(JSON.parse(m.data));
+  es.onerror = () => { es.close(); setTimeout(connect, 2000); };
+}
+
+(async function boot() {
+  const st = await api("/api/state");
+  S.personas = st.personas; S.thresholds = st.thresholds || {};
+  $("sess").textContent = `session ${st.session}`;
+  $("tier").value = st.tier_mode;
+  for (const [n, p] of Object.entries(st.personas)) {
+    const o = document.createElement("option"); o.value = n; o.textContent = n; o.title = p.description; $("pin").appendChild(o);
+  }
+  $("pin").value = st.pin || "";
+  connect();
+  refreshStatus(); setInterval(refreshStatus, 5000);
+  setInterval(() => { if (S.order.some((id) => S.turns.get(id).status === "running")) schedule(); }, 1000);
+  render();
+})();
+</script>
+</body>
+</html>

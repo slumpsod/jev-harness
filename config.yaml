@@ -4,13 +4,14 @@ jev:
   url: http://127.0.0.1:33001     # openjev/systemone.py adapter
   backend: semif                  # semif (4B, ~10GB on the 4080) | laya (1.7GB) | openjev
   timeout: 300
+  backend_health: http://127.0.0.1:33003/health   # semif bridge; shown in the dashboard's Status tab
 
 thresholds:
   route: 0.45          # persona choice confidence needed to switch persona
   stick: 0.55          # "continues the conversation" noul needed to stay with the current persona
   skill_none_veto: 0.90  # P("none of these") in the skill Choice at/above which no skill loads
   skill_override: 0.90   # Choice leader this sure loads without the fits check
-  skill_fits: 0.10       # else: best Choice*fits leader needs fits >= this (fits noul runs low)
+  skill_fits: 0.08       # else: best Choice*fits leader needs fits >= this (fits noul runs low; 0.08 > 0.10 on 63 cases)
   memory: 0.20         # "depends on this snippet" noul on the Choice leaders (0.15-0.20 plateau; 0.10 leaks)
   collab: 0.60         # per-persona "needs this expertise" noul
   approve: 0.50        # in_scope and necessary nouls for persona->persona requests
