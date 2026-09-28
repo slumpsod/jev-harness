@@ -83,12 +83,26 @@ def chunk_text(text: str, size: int = 700) -> list[str]:
     return parts
 
 
+MAX_PASSAGES = 48   # per page: at most 3 Choice rounds + a final (local semif), whatever the page size
+
+
+def prefilter(question: str, passages: list[str], n: int = MAX_PASSAGES) -> list[str]:
+    """Keep the n passages sharing the most words with the question, in page order. Cheap and
+    local: Jev's cost has to stay bounded, and semif's memory grows with every long input
+    (a 359k-char page once meant 608 passages and a VRAM spill on the 4080)."""
+    if len(passages) <= n:
+        return passages
+    words = {w for w in re.findall(r"[a-z0-9]{3,}", question.lower())}
+    scored = sorted(range(len(passages)), key=lambda i: -sum(w in passages[i].lower() for w in words))
+    return [passages[i] for i in sorted(scored[:n])]
+
+
 def pick_passages(client: SystemOneClient, cap: int, question: str, text: str, k: int = 3,
                   keep_at: float = 0.3, size: int = 700) -> list[str]:
-    """The passages of `text` that help answer `question`: a Choice ranks them all, then a
-    yes/no check on the top k keeps the ones that actually help (same two-stage design as
-    skill and memory picking)."""
-    passages = chunk_text(text, size)
+    """The passages of `text` that help answer `question`: a Choice ranks them, then a yes/no
+    check on the top k keeps the ones that actually help (same two-stage design as skill and
+    memory picking). Long pages are keyword-prefiltered to MAX_PASSAGES first."""
+    passages = prefilter(question, chunk_text(text[:200_000], size))
     if len(passages) <= 1:
         return passages
     opts = {f"p{i}": p[:400] for i, p in enumerate(passages)}

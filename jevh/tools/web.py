@@ -94,9 +94,14 @@ def fetch(url: str, timeout: float = 25) -> dict:
     """{url, title, text} for a page (HTML converted to plain text)."""
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "text/html,text/plain,*/*"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        ctype = r.headers.get("Content-Type", "")
+        ctype = r.headers.get("Content-Type", "").lower()
         raw = r.read(MAX_BYTES)
         final = r.geturl()
+    if raw[:5] == b"%PDF-" or "application/pdf" in ctype:
+        return {"url": final, "title": "", "text": _pdf_text(raw)}
+    if raw[:2048].count(b"\x00") or re.match(r"(image|audio|video|font)/|application/(octet-stream|zip|x-)", ctype):
+        # seen live: a PDF decoded as text became 359k chars of junk -> 608 "passages" for Jev to rank
+        raise ValueError(f"not a text page ({ctype or 'binary content'})")
     charset = re.search(r"charset=([\w-]+)", ctype)
     body = raw.decode(charset.group(1) if charset else "utf-8", "replace")
     if "html" not in ctype and not body.lstrip().lower().startswith(("<!doctype", "<html")):
@@ -106,6 +111,17 @@ def fetch(url: str, timeout: float = 25) -> dict:
     text = re.sub(r"[ \t\r\f\v]+", " ", "".join(p.out))
     text = re.sub(r"\n\s*\n+", "\n", text).strip()
     return {"url": final, "title": p.title.strip(), "text": text}
+
+
+def _pdf_text(raw: bytes) -> str:
+    try:
+        import io
+
+        from pypdf import PdfReader
+    except ImportError:
+        raise ValueError("a PDF, and no PDF reader is installed (pip install pypdf)") from None
+    reader = PdfReader(io.BytesIO(raw))
+    return "\n".join((page.extract_text() or "") for page in reader.pages[:40])
 
 
 def read(url: str, question: str | None = None, max_chars: int = 4000) -> str:

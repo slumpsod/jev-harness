@@ -126,3 +126,39 @@ def test_project_is_visible_to_dev_only_when_open(cfg, tmp_path):
     r = h.turn("what's in my repo?", force="high_end_dev")
     assert r.answer == f"{tmp_path / 'repo'}|{tmp_path / 'repo'}"
     assert "project.find(question)" in llm.seen[1][0]["content"]
+
+
+def test_pages_jev_ranks_are_bounded():
+    passages = [f"filler paragraph number {i} about nothing" for i in range(600)]
+    passages[437] = "To cancel a gym membership after moving, send written notice with your new address."
+    kept = _pick.prefilter("cancel gym membership new address", passages)
+    assert len(kept) == _pick.MAX_PASSAGES and passages[437] in kept
+
+
+def test_binary_downloads_are_refused_and_pdfs_read(tmp_path, monkeypatch):
+    import io
+    import urllib.request
+
+    class Resp(io.BytesIO):
+        def __init__(self, body, ctype):
+            super().__init__(body)
+            self.headers = {"Content-Type": ctype}
+
+        def geturl(self):
+            return "http://x/"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    bodies = {"img": (b"\x89PNG\r\n\x1a\n\x00\x00\x00" + b"\x00" * 100, "image/png"),
+              "zip": (b"PK\x03\x04" + b"\x00" * 50, "application/zip"),
+              "pdf-nolib": (b"%PDF-1.7 not really a pdf", "application/octet-stream")}
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=0: Resp(*bodies[req.full_url.rsplit("/", 1)[-1]]))
+    for name in ("img", "zip"):
+        with pytest.raises(ValueError, match="not a text page"):
+            web.fetch(f"http://x/{name}")
+    with pytest.raises(Exception):  # a broken PDF must fail loudly, never turn into junk text
+        web.fetch("http://x/pdf-nolib")
