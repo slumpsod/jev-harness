@@ -17,14 +17,17 @@ LM Studio's one-model rule, a different model would cost a 12-23s swap.
 """
 from __future__ import annotations
 
+import inspect
 import json
 import re
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
 from .decide import noul
+from .errors import Cancelled
 from .memory import Memory
 from .skills import Skill, parse_skill
 
@@ -41,7 +44,8 @@ SKILL_Q = "Did `work_log` involve figuring out non-obvious steps, fixes or setti
 FACT_PROMPT = """From the exchange below, write the lasting facts about the user worth remembering in \
 future conversations: preferences, people, pets, home, work, projects, equipment, goals, schedule. \
 Each fact is one short standalone sentence in third person ("Jed's gym is closed on Sundays."). \
-Skip anything only relevant to this request. Reply with a JSON list of 0-3 strings and nothing else.
+Skip anything only relevant to this request. Reply with a JSON list of 0-3 strings and nothing else.\
+{direct}
 
 User: {user}
 Assistant: {assistant}"""
@@ -64,13 +68,13 @@ description: <one sentence: when to use this skill>
 <numbered steps with the exact commands, functions, settings or URLs that worked>
 ## Pitfalls
 <what went wrong this time and how to avoid it>
-Keep it under 60 lines."""
+Keep it under 60 lines.{direct}"""
 
 LESSON_PROMPT = """You just finished the task below with the skill guide "{name}" loaded. If the guide \
 wasn't really about this kind of task, reply NONE. Otherwise: what should the next person following \
 this guide do differently, based on what happened in this run (exact commands, settings, pitfalls)? \
 Write 1-4 short bullet points starting with "- ", each an instruction for next time ("Check X before \
-Y"), not a critique of the guide. Reply NONE if the guide already covered everything.
+Y"), not a critique of the guide. Reply NONE if the guide already covered everything.{direct}
 
 Task: {task}
 
@@ -79,6 +83,10 @@ Work log:
 
 The guide:
 {body}"""
+
+
+# Qwen3.8 thought ~1400 hidden tokens (59s) before writing a skill; this line cut it to ~1090 (45s).
+DIRECT = "\n\nReply right away: no long deliberation first."
 
 
 @dataclass
@@ -111,6 +119,8 @@ def slug(text: str) -> str:
 class Learner:
     def __init__(self, jev, memory: Memory, skills_root: Path, thresholds: Callable[[str], float],
                  on_event: Callable[[str, dict], None] | None = None):
+        self.cancel = threading.Event()   # the harness sets it when the user starts a new turn
+        self._run = threading.local()     # each learning run keeps the flag it started with
         self.jev, self.memory, self.root = jev, memory, Path(skills_root)
         self.t = thresholds
         self.on_event = on_event or (lambda kind, data: None)
@@ -121,7 +131,7 @@ class Learner:
         p = self.jev._ask("learn_fact", state, {"fact": noul(FACT_Q)})["fact"].noul
         if p < self.t("fact"):
             return [], [], p
-        raw = llm.chat([{"role": "user", "content": FACT_PROMPT.format(user=user[:3000], assistant=assistant[:1500])}]).text
+        raw = self._chat(llm, FACT_PROMPT.format(user=user[:3000], assistant=assistant[:1500], direct=DIRECT))
         new = [f.strip() for f in _json_list(raw) if isinstance(f, str) and 8 <= len(f.strip()) <= 300][:3]
         return new, self._store_facts(new, source), p
 
@@ -157,7 +167,7 @@ class Learner:
         return self._create(task, log, llm), "created", p
 
     def _create(self, task: str, log: str, llm) -> str | None:
-        text = llm.chat([{"role": "user", "content": SKILL_PROMPT.format(task=task[:2000], log=log)}]).text
+        text = self._chat(llm, SKILL_PROMPT.format(task=task[:2000], log=log, direct=DIRECT))
         text = re.sub(r"^```(?:markdown|md)?\s*\n|\n```\s*$", "", text.strip())
         m = re.search(r"^---\s*\n(.*?)\n---", text, re.S | re.M)
         if not m:
@@ -180,8 +190,8 @@ class Learner:
         return str(dest)
 
     def _lessons(self, task: str, log: str, skill: Skill, llm) -> str | None:
-        text = llm.chat([{"role": "user", "content": LESSON_PROMPT.format(
-            name=skill.name, task=task[:1500], log=log, body=skill.body[:4000])}]).text.strip()
+        text = self._chat(llm, LESSON_PROMPT.format(
+            name=skill.name, task=task[:1500], log=log, body=skill.body[:4000], direct=DIRECT)).strip()
         bullets = [l for l in text.splitlines() if l.strip().startswith("- ")][:4]
         if not bullets or text.upper().startswith("NONE"):
             return None
@@ -199,16 +209,32 @@ class Learner:
             f.write(entry)
         return str(note)
 
+    def _chat(self, llm, prompt: str) -> str:
+        """The learning model call; dropped (Cancelled) when the user starts a new turn."""
+        cancel = getattr(self._run, "cancel", self.cancel)
+        if cancel.is_set():
+            raise Cancelled("a new turn started")
+        messages = [{"role": "user", "content": prompt}]
+        try:
+            takes_cancel = "cancel" in inspect.signature(llm.chat).parameters
+        except (TypeError, ValueError):
+            takes_cancel = False
+        return (llm.chat(messages, cancel=cancel) if takes_cancel else llm.chat(messages)).text
+
     # -- one turn ----------------------------------------------------------------
     def after_turn(self, persona: str, user: str, answer: str, transcript: list[dict[str, str]], steps: int,
                    used: list[Skill], llm, session: str) -> Learned:
         out = Learned()
+        self._run.cancel = self.cancel
         try:
             out.facts, out.retired, out.scores["fact"] = self.facts(user, answer, llm, source=f"{session}/{persona}")
             if steps >= 3:
                 out.skill, out.skill_action, out.scores["skill"] = self.skill(user, transcript, used, llm)
             if not out.skill:
                 out.skill_action = None
+        except Cancelled:  # the user moved on: their turn gets the model, this learning is dropped
+            self.on_event("learn_error", {"error": "skipped: a new turn started"})
+            return out
         except Exception as e:  # noqa: BLE001 - learning is best effort; never break a turn
             self.on_event("learn_error", {"error": f"{type(e).__name__}: {e}"})
         self.on_event("learned", {"persona": persona, "learned": out})

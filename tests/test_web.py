@@ -156,3 +156,24 @@ def test_project_setting_validates_the_folder(cfg, tmp_path):
     assert client.post("/api/settings", json={"project": str(tmp_path / "nope")}, headers=auth()).status_code == 400
     r = client.post("/api/settings", json={"project": str(tmp_path)}, headers=auth()).json()
     assert r["project"] == str(tmp_path) and client.get("/api/state", headers=auth()).json()["project"] == str(tmp_path)
+
+
+def test_stop_and_answer_through_the_api(cfg):
+    replies = [py("a = ask_user('Which size?', ['S', 'L'])\nfinal('size ' + a)")]
+    client, app = make_client(cfg, replies)
+    client.post("/api/chat", json={"message": "order a mug"}, headers=auth())
+    deadline = time.time() + 20
+    while time.time() < deadline and not client.get("/api/state", headers=auth()).json()["questions"]:
+        time.sleep(0.05)
+    q = client.get("/api/state", headers=auth()).json()["questions"][0]
+    assert q["question"] == "Which size?" and q["options"] == ["S", "L"]
+    assert client.post("/api/answer", json={"id": "nope", "answer": "L"}, headers=auth()).status_code == 404
+    assert client.post("/api/answer", json={"id": q["id"], "answer": "L"}, headers=auth()).json() == {"ok": True}
+    assert wait_done(client)["answer"] == "size L"
+
+    client2, _ = make_client(cfg, [py("import time\ntime.sleep(60)\nfinal('never')")])
+    client2.post("/api/chat", json={"message": "long job"}, headers=auth())
+    time.sleep(1.5)
+    assert client2.post("/api/cancel", headers=auth()).json() == {"stopped": True}
+    assert wait_done(client2)["status"] == "cancelled"
+    assert client2.post("/api/cancel", headers=auth()).json() == {"stopped": False}

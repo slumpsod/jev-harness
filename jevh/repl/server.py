@@ -94,6 +94,12 @@ def remember(fact: str) -> str:
     return _call("remember", fact)
 
 
+def ask_user(question: str, options: list | None = None) -> str:
+    """Ask the user something only they can answer and wait for the reply, keeping all your
+    state (variables, an open browser page). options: short choices shown as buttons."""
+    return _call("ask_user", question, options)
+
+
 def request(persona: str, task: str, inputs: list | None = None) -> dict:
     """Hand a sub-task to another assistant and wait. Returns {status, answer, artifacts}."""
     return _call("request", persona, task, inputs or [])
@@ -158,7 +164,7 @@ G: dict = {"__name__": "__main__", "ctx": {}, "peek": peek, "llm_query": llm_que
            "request": request, "request_async": request_async, "wait": wait, "request_all": request_all,
            "save_artifact": save_artifact, "load_artifact": load_artifact,
            "list_artifacts": list_artifacts, "final": final, "mcp": mcp, "recall": recall,
-           "remember": remember}
+           "remember": remember, "ask_user": ask_user}
 
 
 def _exec(code: str) -> tuple[str, bool]:

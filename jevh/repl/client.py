@@ -34,6 +34,16 @@ def truncate(text: str, cap: int) -> str:
     return f"{text[:head]}\n... [{len(text) - cap} chars omitted; use peek() or slice] ...\n{text[-tail:]}"
 
 
+def _kill_tree(proc: subprocess.Popen) -> None:
+    """Kill the REPL and everything it started (the browser tool's Playwright driver and
+    Chromium would otherwise outlive it on Windows)."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    if proc.poll() is None:
+        proc.kill()
+
+
 class Repl:
     def __init__(self, cwd: Path, artifacts: Path, handlers: dict[str, Handler] | None = None,
                  tools: dict[str, str] | None = None, timeout: float = 120.0, output_cap: int = 4000,
@@ -72,14 +82,15 @@ class Repl:
                 self.stderr_tail.append(res.output)
 
     def close(self, kill: bool = False) -> None:
-        if self.proc and self.proc.poll() is None:
+        proc = self.proc
+        if proc and proc.poll() is None:
             try:
                 if kill:
                     raise TimeoutError
-                self.proc.stdin.close()
-                self.proc.wait(timeout=3)
+                proc.stdin.close()
+                proc.wait(timeout=3)
             except Exception:  # noqa: BLE001
-                self.proc.kill()
+                _kill_tree(proc)
         self.proc = None
 
     def __enter__(self) -> "Repl":
@@ -100,6 +111,8 @@ class Repl:
 
     # -- internals -------------------------------------------------------------------
     def _write(self, msg: dict) -> None:
+        if self.proc is None:
+            raise RuntimeError("the REPL was stopped")
         self.proc.stdin.write((json.dumps(msg, ensure_ascii=False, default=str) + "\n").encode("utf-8"))
         self.proc.stdin.flush()
 

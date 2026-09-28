@@ -25,7 +25,7 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
 python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 96 offline tests (fake Jev + scripted LLMs, a fake MCP server)
+python -m pytest -q                  # 106 offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
@@ -190,6 +190,25 @@ Safeguards added after watching a weaker model (ornith) work:
 - `import comfy` works inside the REPL.
 - `final()` without artifacts still ships the files the worker wrote.
 - `save_artifact` keeps the source file's extension.
+
+## Stop and ask
+
+- **Stop** (dashboard button, or Ctrl-C in the CLI) ends the turn everywhere at once:
+  - A model reply in progress is cut off mid-stream, so LM Studio stops generating (measured live:
+    261 ms after the click, 100 tokens into a long essay).
+  - Running REPL code is killed along with everything it started (e.g. the browser's Chromium).
+  - Hand-offs stop, and new ones are refused.
+
+  The stopped message stays in the chat history, so the next one can redirect it: live, "actually,
+  just give me one short paragraph instead" after stopping a 3000-word essay was recognised as a
+  follow-up and answered with the paragraph.
+- **ask_user(question, options=None)** lets a worker ask something mid-task and wait, keeping its
+  variables and an open browser page. In the dashboard the question appears in the chat with option
+  buttons, and the message box answers it. The CLI prompts in the terminal. The browser tool's guide
+  uses it to confirm orders, payments, sending and deleting before `allow_irreversible=True`.
+  Unanswered questions time out after `limits.ask_timeout` (30 min) and the worker carries on.
+- Background learning yields to you: starting a new turn drops a learning call still in progress
+  (on Qwen, writing a skill thought ~1100-1400 hidden tokens, 45-60s, while you'd be waiting).
 
 ## Tools: web, browser, project, MCP
 

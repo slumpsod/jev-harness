@@ -32,6 +32,7 @@ limits:
   memory_search: 10             # + turns from ANY time that share words with the request (full-text index)
   memory_facts: 6               # + remembered facts that share words with the request
   follow_turns: 2               # a follow-up carries this session's last N turns as real conversation
+  ask_timeout: 1800             # seconds a worker's ask_user() waits for the user before carrying on
   max_depth: 3                  # nested persona requests
   max_tasks_per_turn: 8
   repl_timeout: 120             # seconds per code block (time spent in callbacks excluded)

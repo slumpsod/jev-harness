@@ -2,6 +2,9 @@
 
     python -m jevh.cli [--as persona] [--project path] [--verbose] [--config path]
 
+Ctrl-C during a turn stops it (model, running code, hand-offs); a worker's question is
+asked right here in the terminal.
+
 Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
 /project <path> (open a project folder; "/project off" closes it), /facts, /forget <id>,
 /personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
@@ -161,9 +164,38 @@ def main(argv: list[str] | None = None) -> None:
     last = None
 
     def run(msg: str) -> None:
+        """The turn runs on a thread so this one can answer ask_user() questions, and Ctrl-C
+        stops the turn instead of abandoning it."""
         nonlocal last
-        last = h.turn(msg, force=pin)
-        console.print(Panel(Markdown(last.answer or "(empty)"), title=f"{last.persona}",
+        box: dict = {}
+
+        def go() -> None:
+            try:
+                box["r"] = h.turn(msg, force=pin)
+            except BaseException as e:  # noqa: BLE001 - re-raised below in the main thread
+                box["e"] = e
+
+        worker = threading.Thread(target=go, daemon=True)
+        worker.start()
+        asked: set[str] = set()
+        while worker.is_alive():
+            try:
+                worker.join(0.2)
+                for q in h.pending_questions():
+                    if q["id"] in asked:
+                        continue
+                    asked.add(q["id"])
+                    opts = f"  [{' / '.join(q['options'])}]" if q["options"] else ""
+                    console.print(f"\n[bold magenta]{esc(q['persona'])} asks:[/] {esc(q['question'])}{esc(opts)}")
+                    h.answer(q["id"], input("answer › ").strip() or "(no answer)")
+            except KeyboardInterrupt:
+                if h.cancel():
+                    console.print("[yellow]stopping... (the model, running code and hand-offs)[/]")
+        if "e" in box:
+            raise box["e"]
+        last = box["r"]
+        console.print(Panel(Markdown(last.answer or "(empty)"),
+                            title=f"{last.persona}" + (" (stopped)" if last.cancelled else ""),
                             subtitle=f"{last.seconds:.1f}s · jev calls {len(last.trace)}",
                             border_style="cyan"))
         for art in last.artifacts:
@@ -242,10 +274,7 @@ def main(argv: list[str] | None = None) -> None:
             else:
                 console.print(__doc__)
             continue
-        try:
-            run(msg)
-        except KeyboardInterrupt:
-            console.print("[yellow]interrupted[/]")
+        run(msg)
 
 
 if __name__ == "__main__":

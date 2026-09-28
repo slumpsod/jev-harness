@@ -6,12 +6,15 @@ sits in the REPL as `ctx[...]` and is only listed by name and size.
 """
 from __future__ import annotations
 
+import inspect
 import re
 import shutil
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+from .errors import Cancelled
 from .llm import LLM
 from .personas import Persona
 from .repl.client import Repl
@@ -21,9 +24,9 @@ from .skills import Skill
 # reasoning before replying - measured 16k+ thinking tokens and zero code on a web-app task,
 # vs 127 thinking tokens with this nudge. enable_thinking / reasoning_effort / /no_think
 # had no effect through LM Studio's API.
-FIRST_STEP_NUDGE = ("\n\nReply now with a short plan (at most 5 bullets) and a first python block "
-                    "for step one. Build incrementally across replies - do not design the whole "
-                    "solution before replying.")
+FIRST_STEP_NUDGE = ("\n\nIf this needs code: reply now with a short plan (at most 5 bullets) and a first "
+                    "python block for step one, and build incrementally across replies - do not design "
+                    "the whole solution before replying. If it needs no code, reply with just the answer.")
 HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-up
 SKILL_PROMPT_CHARS = 6000   # longer skills: head in the prompt, full text in ctx['skills']
 CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
@@ -48,6 +51,10 @@ Available in the REPL:
 - jev(state, questions) -> dict: fast typed decisions; questions like
   {"is_x": {"type": "noul", "instructions": "Is ...?"}}.
 - save_artifact(name, data=None, path=None) -> path; load_artifact(ref); list_artifacts().
+- ask_user(question, options=None) -> str: ask the user mid-task and wait, keeping all your work
+  (variables, an open browser page). Use it for details only they know, and to confirm before
+  anything hard to undo (an order, a payment, sending, deleting). In a simple chat, just ask
+  in your reply instead.
 - final(answer, artifacts=None).
 Your working directory is private scratch space. Keep printed output short, and keep
 each reply short: write large files across several blocks (open(path, 'a'))."""
@@ -138,7 +145,8 @@ class Worker:
     def __init__(self, persona: Persona, llm: LLM, workdir: Path, artifacts: Path,
                  handlers: dict[str, Callable[..., Any]], tools: dict[str, str] | None = None,
                  repl_timeout: float = 120.0, output_cap: int = 4000,
-                 on_step: Callable[[str, dict], None] | None = None, env: dict[str, str] | None = None):
+                 on_step: Callable[[str, dict], None] | None = None, env: dict[str, str] | None = None,
+                 cancel: threading.Event | None = None):
         self.persona = persona
         self.llm = llm
         self.workdir = workdir
@@ -149,6 +157,12 @@ class Worker:
         self.output_cap = output_cap
         self.on_step = on_step or (lambda kind, data: None)
         self.env = env or {}
+        self.cancel = cancel or threading.Event()
+        self.repl: Repl | None = None      # the orchestrator kills it when the user stops the turn
+        try:
+            self._llm_cancel = "cancel" in inspect.signature(llm.chat).parameters
+        except (TypeError, ValueError):
+            self._llm_cancel = False
 
     def run(self, task: str, ctx: dict[str, Any], system: str,
             history: list[tuple[str, str]] | None = None) -> WorkerResult:
@@ -165,9 +179,11 @@ class Worker:
         self._last_err, self._err_streak = None, 0
         with Repl(self.workdir, self.artifacts, self.handlers, self.tools,
                   self.repl_timeout, self.output_cap, self.env) as repl:
+            self.repl = repl
             repl.set("ctx", ctx)
             for step in range(1, self.persona.max_steps + 1):
-                out = self.llm.chat(messages)
+                self._check()
+                out = self._llm(messages)
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 messages.append({"role": "assistant", "content": out.text})
@@ -188,6 +204,7 @@ class Worker:
                 code = "\n\n".join(blocks)
                 self.on_step("code", {"persona": self.persona.name, "step": step, "code": code})
                 ex = repl.run(code)
+                self._check()  # a stop kills the REPL mid-run: don't read that as the code failing
                 self.on_step("output", {"persona": self.persona.name, "step": step,
                                         "output": ex.output, "error": ex.error})
                 if ex.final is not None:
@@ -208,6 +225,13 @@ class Worker:
                 res.stopped = "max_steps"
         res.transcript = messages
         return res
+
+    def _check(self) -> None:
+        if self.cancel.is_set():
+            raise Cancelled("stopped by the user")
+
+    def _llm(self, messages):
+        return self.llm.chat(messages, cancel=self.cancel) if self._llm_cancel else self.llm.chat(messages)
 
     def _steps_left_note(self, step: int) -> str:
         left = self.persona.max_steps - step
@@ -253,7 +277,8 @@ class Worker:
             extra += "\n\nInputs: " + ", ".join(map(str, ctx["inputs"]))
         messages = [{"role": "system", "content": system}, *(prior or []),
                     {"role": "user", "content": task + extra}]
-        out = self.llm.chat(messages)
+        self._check()
+        out = self._llm(messages)
         messages.append({"role": "assistant", "content": out.text})
         return WorkerResult(answer=out.text, steps=1, input_tokens=out.input_tokens,
                             output_tokens=out.output_tokens, stopped="plain", transcript=messages)

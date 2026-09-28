@@ -27,8 +27,9 @@ TOOLS: dict[str, ToolInfo] = {
 - browser.goto(url); r = browser.do("one observable outcome", values={"email": ...}) -> {status, page, actions, note}
   status: done | likely_done | needs_confirmation | needs_value | needs_login | ambiguous | error | stuck | ...
   One outcome per do() ("open the pricing page", "add the blue mug in size L to the cart"). If it is not
-  done, read `note`/`page`, then rephrase or split the step. Never pass allow_irreversible=True
-  (orders, payments, sending, deleting) unless the user explicitly asked for that action.
+  done, read `note`/`page`, then rephrase or split the step. On needs_confirmation (an order, payment,
+  sending, deleting) confirm first: ask_user("Place the order for $51.25?", ["Yes", "No"]), and pass
+  allow_irreversible=True only after a yes. needs_value / needs_login: ask_user for the details.
 - browser.read(question=None) -> text (only the passages that answer `question`);
   browser.screenshot(name) -> artifact path; browser.elements() -> list; browser.url().
 - Local files: browser.goto("file:///C:/path/page.html") to check a page you built."""),

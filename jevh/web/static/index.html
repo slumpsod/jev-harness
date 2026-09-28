@@ -50,6 +50,14 @@ details.activity pre { max-height: 220px; overflow: auto; margin: 4px 0 8px; }
 .live { font-size: 12px; color: var(--muted); }
 .composer { border-top: 1px solid var(--line); padding: 10px 12px; display: flex; gap: 8px; background: var(--panel); }
 .composer textarea { flex: 1; resize: none; height: 64px; padding: 8px; }
+.composer .btns { display: flex; flex-direction: column; gap: 6px; }
+button.stop { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+.ask { margin-top: 8px; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+       border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.ask .q { font-weight: 600; margin-bottom: 6px; }
+.ask .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.qa { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.badge.cancelled { color: var(--warn); }
 .side { display: flex; flex-direction: column; min-height: 0; }
 .tabs { display: flex; gap: 2px; padding: 6px 12px 0; border-bottom: 1px solid var(--line); background: var(--panel); }
 .tabs button { border: none; background: transparent; border-radius: 8px 8px 0 0; padding: 8px 14px; color: var(--muted); }
@@ -125,7 +133,8 @@ a { color: var(--accent); }
     <div class="log" id="log"><div class="empty" id="hello">Ask anything. Jev picks the persona, skills, memory and model tier, and you can watch every decision on the right.</div></div>
     <form class="composer" id="form">
       <textarea id="input" placeholder="Message (Enter to send, Shift+Enter for a new line)"></textarea>
-      <button class="primary" id="send" type="submit">Send</button>
+      <div class="btns"><button class="primary" id="send" type="submit">Send</button>
+        <button class="stop" id="stop" type="button" hidden title="Stop this turn: the model, running code and hand-offs">Stop</button></div>
     </form>
   </section>
   <section class="side">
@@ -183,7 +192,7 @@ function md(src) {
 // ---- state ----
 const S = { turns: new Map(), order: [], selected: null, lastSeq: 0, personas: {}, thresholds: {}, live: {}, tab: "timeline", arts: [], artSel: null };
 function turn(id) {
-  if (!S.turns.has(id)) { S.turns.set(id, {id, tasks: new Map(), decisions: new Map(), activity: [], swaps: [], status: "running"}); S.order.push(id); }
+  if (!S.turns.has(id)) { S.turns.set(id, {id, tasks: new Map(), decisions: new Map(), activity: [], swaps: [], questions: new Map(), status: "running"}); S.order.push(id); }
   return S.turns.get(id);
 }
 function upsertTask(t, task) {
@@ -222,6 +231,10 @@ function handle(e) {
       if (S.tab === "memory") refreshMemory();
       break;
     }
+    case "question": t.questions.set(d.question.id, {...d.question, state: "waiting"}); focusAnswer(); break;
+    case "answered": { const q = t.questions.get(d.question.id); if (q) { q.state = "answered"; q.answer = d.answer; } break; }
+    case "question_timeout": { const q = t.questions.get(d.question.id); if (q) q.state = "timed out"; break; }
+    case "cancel": t.activity.push({ts: e.ts, kind: "warn", text: "stop requested"}); t.questions.forEach((q) => { if (q.state === "waiting") q.state = "stopped"; }); break;
     case "learn_error": t.activity.push({ts: e.ts, kind: "warn", text: `learning skipped: ${d.error}`}); break;
     case "skills": case "memory": case "collab": case "tier": case "tools":
       dec(t, d.task.id)[e.kind] = e.kind === "memory" ? {...d.decision, candidates: d.candidates} : d.decision; break;
@@ -241,12 +254,21 @@ function handle(e) {
 // ---- rendering (batched per animation frame) ----
 let pending = false;
 function schedule() { if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; render(); }); } }
+function waitingQuestion() {
+  for (const id of S.order) for (const q of S.turns.get(id).questions.values()) if (q.state === "waiting") return q;
+  return null;
+}
+function focusAnswer() { setTimeout(() => $("input").focus(), 0); }
 function render() {
   renderChat();
   if (S.tab === "timeline") renderTimeline();
   if (S.tab === "inspector") renderInspector();
   const busy = S.order.some((id) => S.turns.get(id).status === "running");
-  $("send").disabled = busy; $("send").textContent = busy ? "Working..." : "Send";
+  const q = waitingQuestion();
+  $("send").disabled = busy && !q;
+  $("send").textContent = q ? "Answer" : busy ? "Working..." : "Send";
+  $("stop").hidden = !busy;
+  $("input").placeholder = q ? `Answer ${q.persona}: ${q.question}` : "Message (Enter to send, Shift+Enter for a new line)";
 }
 
 function tierOf(t, taskId) { const x = t.decisions.get(taskId); return x && x.tier ? x.tier.tier : null; }
@@ -262,9 +284,15 @@ function renderChat() {
     const persona = t.persona || root?.to || (t.route && t.route.persona) || "";
     const tier = root ? tierOf(t, root.id) : null;
     const liveTxt = Object.entries(S.live).map(([p, v]) => `${esc(p)} ${v.chunks} tok (${v.thinking} think)`).join(" | ");
+    const qs = [...t.questions.values()];
+    const asks = qs.filter((q) => q.state === "waiting").map((q) => `<div class="ask"><div class="q">${esc(q.persona)} asks: ${esc(q.question)}</div>
+        ${q.options.length ? `<div class="opts">${q.options.map((o) => `<button data-q="${esc(q.id)}" data-a="${esc(o)}">${esc(o)}</button>`).join("")}</div>` : ""}
+        <div class="kv">${q.options.length ? "or type" : "Type"} your answer below.</div></div>`).join("");
+    const qa = qs.filter((q) => q.state !== "waiting").map((q) => `<div class="qa">${esc(q.persona)} asked: ${esc(q.question)} -
+        ${q.state === "answered" ? `you said: <b>${esc(q.answer)}</b>` : esc(q.state)}</div>`).join("");
     const body = t.status === "running"
-      ? `<div class="live">working${persona ? ` as <b>${esc(persona)}</b>` : ""}... ${liveTxt}</div>`
-      : md(t.answer || "(empty)");
+      ? `${qa}<div class="live">${asks ? "waiting for you" : `working${persona ? ` as <b>${esc(persona)}</b>` : ""}... ${liveTxt}`}</div>${asks}`
+      : qa + md(t.answer || "(empty)");
     const arts = (t.artifacts || []).map((a) => `<a href="#" data-art="${esc(a)}">${esc(baseName(a))}</a>`).join(" | ");
     const steps = t.activity.map((a) => {
       if (a.kind === "code") return `<div class="step"><b>${esc(a.persona)}</b> step ${a.step}<pre>${esc(a.text)}</pre></div>`;
@@ -276,7 +304,8 @@ function renderChat() {
         <div class="who">${esc(persona || "assistant")}
           ${tier ? `<span class="badge ${tier}">${tier}</span>` : ""}
           ${t.status !== "running" ? `<span>${secs(t.seconds)}</span>` : ""}
-          ${t.status === "error" ? '<span class="badge failed">error</span>' : ""}</div>
+          ${t.status === "error" ? '<span class="badge failed">error</span>' : ""}
+          ${t.status === "cancelled" ? '<span class="badge cancelled">stopped</span>' : ""}</div>
         ${body}
         ${arts ? `<div class="kv" style="margin-top:6px">artifacts: ${arts}</div>` : ""}
         ${steps ? `<details class="activity"><summary>${t.activity.filter((a) => a.kind === "code").length} code steps</summary>${steps}</details>` : ""}
@@ -456,7 +485,9 @@ $("project").addEventListener("change", async () => {
   try { const r = await api("/api/settings", {method: "POST", body: JSON.stringify({project: $("project").value.trim() || null})}); $("project").value = r.project || ""; }
   catch (e) { alert(e.message); }
 });
-$("log").addEventListener("click", (ev) => {
+$("log").addEventListener("click", async (ev) => {
+  const opt = ev.target.closest("button[data-q]");
+  if (opt) { try { await api("/api/answer", {method: "POST", body: JSON.stringify({id: opt.dataset.q, answer: opt.dataset.a})}); } catch (e) { alert(e.message); } return; }
   const a = ev.target.closest("a[data-art]");
   if (a) { ev.preventDefault(); S.artSel = a.dataset.art; document.querySelector('#tabs button[data-tab="artifacts"]').click(); return; }
   const m = ev.target.closest(".msg.assistant");
@@ -469,12 +500,16 @@ $("form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const message = $("input").value.trim(); if (!message) return;
   $("input").value = "";
-  try { await api("/api/chat", {method: "POST", body: JSON.stringify({message})}); }
-  catch (e) { alert(e.message); $("input").value = message; }
+  const q = waitingQuestion();
+  try {
+    if (q) await api("/api/answer", {method: "POST", body: JSON.stringify({id: q.id, answer: message})});
+    else await api("/api/chat", {method: "POST", body: JSON.stringify({message})});
+  } catch (e) { alert(e.message); $("input").value = message; }
 });
 $("input").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); $("form").requestSubmit(); } });
 $("tier").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({tier_mode: $("tier").value})}));
 $("pin").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({pin: $("pin").value || null})}));
+$("stop").addEventListener("click", async () => { $("stop").disabled = true; try { await api("/api/cancel", {method: "POST"}); } finally { $("stop").disabled = false; } });
 $("reset").addEventListener("click", async () => { try { await api("/api/reset", {method: "POST"}); } catch (e) { alert(e.message); } });
 
 function connect() {

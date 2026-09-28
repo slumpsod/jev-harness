@@ -123,7 +123,7 @@ class Hub:
         def run() -> None:
             try:
                 r = self.harness.turn(message, force=self.pin)
-                turn.update(status="done", persona=r.persona, answer=r.answer, artifacts=r.artifacts,
+                turn.update(status="cancelled" if r.cancelled else "done", persona=r.persona, answer=r.answer, artifacts=r.artifacts,
                             seconds=r.seconds, trace=jsonable(r.trace), tasks=[task_json(t) for t in r.tasks])
                 self.publish("turn_done", {"turn": dict(turn)})
             except Exception as e:  # noqa: BLE001 - report, never kill the server
@@ -224,6 +224,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                 "personas": {n: {"description": p.description, "model": p.model.get("model"),
                                  "fast_ok": p.fast_ok} for n, p in h.personas.items()},
                 "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq, "project": h.project,
+                "questions": h.pending_questions(),
                 "thresholds": h.cfg.thresholds}
 
     @app.post("/api/chat")
@@ -233,6 +234,20 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         if not message:
             raise HTTPException(400, "empty message")
         return {"turn": hub.start_turn(message)}
+
+    @app.post("/api/cancel")
+    def cancel() -> dict:
+        return {"stopped": hub.harness.cancel()}
+
+    @app.post("/api/answer")
+    async def answer(request: Request) -> dict:
+        body = await request.json()
+        text = str(body.get("answer", "")).strip()
+        if not text:
+            raise HTTPException(400, "empty answer")
+        if not hub.harness.answer(str(body.get("id", "")), text):
+            raise HTTPException(404, "that question is no longer waiting")
+        return {"ok": True}
 
     @app.post("/api/settings")
     async def settings(request: Request) -> dict:

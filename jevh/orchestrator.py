@@ -19,6 +19,7 @@ from typing import Any, Callable
 from .bus import Board, LimitError, Task
 from .config import Config, load_config
 from .decide import SystemOneError
+from .errors import Cancelled
 from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision
 from .learn import Learner
 from .llm import LLM, make_llm
@@ -31,6 +32,7 @@ from .tools import TOOLS
 from .worker import Worker, WorkerResult, build_system
 
 Event = Callable[[str, dict], None]
+STOPPED_NOTE = "[stopped by the user before finishing]"
 
 
 class Handles:
@@ -77,6 +79,24 @@ class TurnResult:
     tasks: list[Task]
     trace: list[dict[str, Any]] = field(default_factory=list)
     seconds: float = 0.0
+    cancelled: bool = False
+
+
+@dataclass
+class PendingQuestion:
+    """A worker waiting in ask_user() for the user's reply."""
+    id: str
+    task_id: int
+    persona: str
+    question: str
+    options: list[str]
+    asked: float
+    answer: str | None = None
+    event: threading.Event = field(default_factory=threading.Event, repr=False)
+
+    def public(self) -> dict[str, Any]:
+        return {"id": self.id, "task_id": self.task_id, "persona": self.persona, "question": self.question,
+                "options": self.options, "asked": self.asked}
 
 
 class Harness:
@@ -120,9 +140,24 @@ class Harness:
         self.learner = Learner(self.jev, self.memory, self.skills_home, self.cfg.t,
                                lambda kind, data: self.on_event(kind, data))
         self._learn_threads: list[threading.Thread] = []
+        self._cancel = threading.Event()             # set by cancel(); every worker of the turn checks it
+        self._running = False
+        self._workers: set[Worker] = set()           # running workers (their REPLs are killed on cancel)
+        self._questions: dict[str, PendingQuestion] = {}
+        self._qlock = threading.Lock()
+        self._qids = itertools.count(1)
 
     # -- public ----------------------------------------------------------------------
     def turn(self, message: str, force: str | None = None) -> TurnResult:
+        self.learner.cancel.set()               # background learning yields the model to this turn
+        self._cancel = threading.Event()
+        self._running = True
+        try:
+            return self._turn(message, force)
+        finally:
+            self._running = False
+
+    def _turn(self, message: str, force: str | None) -> TurnResult:
         started = time.time()
         self.jev.trace = []
         self.board = Board(self.cfg.lim("max_depth"), self.cfg.lim("max_tasks_per_turn"))
@@ -145,13 +180,70 @@ class Harness:
             root.history = [(t.user, t.assistant) for t in self.memory.session_turns(
                 self.session, self.cfg.lim("follow_turns"))]
         result = self.run_task(root, goal=message, allow_collab=True)
+        cancelled = root.status == "cancelled"
         if root.status == "done":  # a crashed turn's error text must not become "memory"
             self.memory.append(route.persona, message, result.answer, self.session)
             if self.learning and result.stopped in ("final", "plain"):
                 self._learn(route.persona, message, result)
+        elif cancelled:  # kept, so a redirect ("no, just the USPS part") has the request as context
+            self.memory.append(route.persona, message, STOPPED_NOTE, self.session)
         self.current = route.persona
         return TurnResult(route.persona, result.answer, result.artifacts, self.board.tasks,
-                          list(self.jev.trace), time.time() - started)
+                          list(self.jev.trace), time.time() - started, cancelled)
+
+    # -- stop / ask ------------------------------------------------------------------
+    def cancel(self) -> bool:
+        """Stop the running turn: every worker (hand-offs too) stops at its next check, a model
+        reply in progress is cut off, running REPL code (and a browser it opened) is killed, and
+        anyone waiting in ask_user() is released. Returns False when nothing was running."""
+        if self._cancel.is_set() or not self._running:
+            return False
+        self._cancel.set()
+        self.on_event("cancel", {"workers": len(self._workers)})  # first: the stop is often done before the kills return
+        for w in list(self._workers):
+            if w.repl is not None:
+                w.repl.close(kill=True)
+        with self._qlock:
+            waiting = list(self._questions.values())
+        for q in waiting:
+            q.event.set()
+        return True
+
+    def pending_questions(self) -> list[dict[str, Any]]:
+        with self._qlock:
+            return [q.public() for q in self._questions.values()]
+
+    def answer(self, qid: str, text: str) -> bool:
+        with self._qlock:
+            q = self._questions.get(qid)
+        if q is None:
+            return False
+        q.answer = str(text)
+        q.event.set()
+        return True
+
+    def _ask_user(self, task: Task, persona: Persona, question: str, options: list | None) -> str:
+        q = PendingQuestion(f"q{next(self._qids)}", task.id, persona.name, str(question).strip(),
+                            [str(o) for o in (options or [])][:8], time.time())
+        with self._qlock:
+            self._questions[q.id] = q
+        self.on_event("question", {"task": task, "question": q.public()})
+        deadline = time.monotonic() + self.cfg.lim("ask_timeout")
+        try:
+            while not q.event.wait(0.5):
+                if time.monotonic() > deadline:
+                    break
+        finally:
+            with self._qlock:
+                self._questions.pop(q.id, None)
+        if self._cancel.is_set():
+            raise Cancelled("stopped by the user")
+        if q.answer is None:
+            self.on_event("question_timeout", {"task": task, "question": q.public()})
+            return (f"(no answer from the user within {self.cfg.lim('ask_timeout') // 60} minutes: continue with "
+                    f"your best judgement, or finish and say what you need)")
+        self.on_event("answered", {"task": task, "question": q.public(), "answer": q.answer})
+        return q.answer
 
     def set_project(self, path: str | None) -> str | None:
         """Open a project folder for personas with the `project` tool (None closes it)."""
@@ -172,6 +264,8 @@ class Harness:
         if result.llm is None:
             return
         used = [self.roster[n] for n in result.skills if n in self.roster]
+
+        self.learner.cancel = threading.Event()  # a fresh flag for this learning run
 
         def run() -> None:
             out = self.learner.after_turn(persona, message, result.answer, result.transcript, result.steps,
@@ -234,21 +328,35 @@ class Harness:
             "mcp": lambda key, arguments: self._mcp_call(persona, key, arguments),
             "recall": lambda query, k=5: self._recall(query, k),
             "remember": lambda fact: self.learner.remember(str(fact), f"{self.session}/{persona.name}"),
+            "ask_user": lambda question, options=None: self._ask_user(task, persona, question, options),
         }
         worker = Worker(persona, llm, self.session_dir / f"t{task.id}-{persona.name}", self.artifacts,
                         handlers, {t: f"jevh.tools.{t}" for t in persona.tools},
                         self.cfg.lim("repl_timeout"), self.cfg.lim("output_cap"),
-                        lambda kind, data: self.on_event(kind, {**data, "task_id": task.id}), env)
+                        lambda kind, data: self.on_event(kind, {**data, "task_id": task.id}), env,
+                        self._cancel)
         task.started = time.time()
         self.on_event("start", {"task": task, "model": getattr(llm, "name", "?")})
+        self._workers.add(worker)
         try:
+            if self._cancel.is_set():
+                raise Cancelled("stopped by the user")
             result = worker.run(task.text, ctx, system, task.history)
             result.skills, result.llm = list(skills.skills), llm
             task.status = "done"
+        except Cancelled:
+            result = WorkerResult(answer=STOPPED_NOTE, stopped="cancelled")
+            task.status = "cancelled"
         except Exception as e:  # noqa: BLE001 - a dead model server must not kill the harness
-            result = WorkerResult(answer=f"[{persona.name} failed: {type(e).__name__}: {e}]",
-                                  stopped="error")
-            task.status = "failed"
+            if self._cancel.is_set():  # the stop killed the REPL under it mid-call: that's the stop, not a failure
+                result = WorkerResult(answer=STOPPED_NOTE, stopped="cancelled")
+                task.status = "cancelled"
+            else:
+                result = WorkerResult(answer=f"[{persona.name} failed: {type(e).__name__}: {e}]",
+                                      stopped="error")
+                task.status = "failed"
+        finally:
+            self._workers.discard(worker)
         # hand-offs the worker started but never waited for: finish them and keep their files
         for res in handles.collect_unwaited():
             result.artifacts = list(result.artifacts) + [a for a in res["artifacts"] if a not in result.artifacts]
@@ -271,6 +379,8 @@ class Harness:
             f.set_result({"status": "rejected", "answer": reason, "artifacts": []})
             return f
 
+        if self._cancel.is_set():
+            return rejected("the user stopped this turn")
         if to not in self.personas:
             return rejected(f"unknown assistant '{to}'. Available: {', '.join(requestable)}")
         if to not in requestable:

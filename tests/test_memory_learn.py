@@ -161,3 +161,38 @@ def test_recall_and_remember_from_the_repl(cfg):
     r = h.turn("when is the radon appointment?", force="daily_assistant")
     assert "Cleveland" in r.answer
     assert [f.text for f in h.memory.facts(None)] == ["Dave Miller is a radon client."]
+
+
+def test_a_new_turn_drops_background_learning(cfg):
+    import threading as _t
+    import time as _time
+
+    class SlowLearnLLM(ScriptedLLM):
+        def chat(self, messages, cancel=None):
+            if "lasting facts" in messages[-1]["content"]:  # the learning call: slow unless stopped
+                for _ in range(100):
+                    if cancel is not None and cancel.is_set():
+                        from jevh.errors import Cancelled
+                        raise Cancelled("dropped")
+                    _time.sleep(0.05)
+                return super().chat(messages)
+            return super().chat(messages)
+
+    def rules(k, q, s):
+        if k == "persona":
+            return choice_ans("daily_assistant", 0.9, q["criteria"])
+        return learn_rules(skill=0.0)(k, q, s)
+
+    events = []
+    llm = SlowLearnLLM(["Noted.", '["Jed trains at 6am."]', "Sure, here's a joke."])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: llm,
+                on_event=lambda k, d: events.append((k, d)))
+    h.turn("I always train at 6am")                   # learning starts on a thread (slow)
+    _time.sleep(0.3)
+    started = _time.time()
+    h.learning = False                                # (so only the first turn's learning is in play)
+    h.turn("tell me a joke")                          # the new turn drops it
+    h.wait_learning(10)
+    assert _time.time() - started < 4
+    assert any(k == "learn_error" and "new turn" in d["error"] for k, d in events)
+    assert h.memory.facts(None) == []

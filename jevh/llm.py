@@ -10,6 +10,7 @@ Messages are plain [{"role": "system"|"user"|"assistant", "content": str}].
 from __future__ import annotations
 
 import json
+import threading
 import os
 import re
 import urllib.error
@@ -17,6 +18,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from .errors import Cancelled
 from .lmstudio import gate_for
 
 THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
@@ -40,6 +42,18 @@ class LLMError(RuntimeError):
     pass
 
 
+def _close_on_cancel(response, cancel: threading.Event, done: threading.Event) -> None:
+    """Close a streaming response from outside when the user stops the turn: the read in the
+    worker's thread fails at once (even while the server is still processing the prompt)."""
+    while not done.wait(0.2):
+        if cancel.is_set():
+            try:
+                response.close()
+            except Exception:  # noqa: BLE001
+                pass
+            return
+
+
 class OpenAICompat:
     """Streams, so `idle_timeout` bounds the gap between tokens, not the whole reply
     (a local 27B at ~27 tok/s legitimately takes minutes on a long answer)."""
@@ -59,13 +73,13 @@ class OpenAICompat:
         self.on_progress = None  # callable(tokens_so_far) set by the UI, optional
         self.gate = gate         # lmstudio.ExclusiveModels: one model resident at a time
 
-    def chat(self, messages: list[dict[str, str]]) -> LLMResult:
+    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
         if self.gate is None:
-            return self._chat(messages)
+            return self._chat(messages, cancel)
         with self.gate.use(self.model):
-            return self._chat(messages)
+            return self._chat(messages, cancel)
 
-    def _chat(self, messages: list[dict[str, str]]) -> LLMResult:
+    def _chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
         body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True,
                                 "stream_options": {"include_usage": True}, **self.extra}
         if self.temperature is not None:
@@ -81,8 +95,11 @@ class OpenAICompat:
         usage: dict[str, Any] = {}
         finish = None
         chunks = thinking = 0
+        done = threading.Event()
         try:
             with urllib.request.urlopen(req, timeout=self.idle_timeout) as r:
+                if cancel is not None:  # a stop mid-generation closes the stream: the server stops too
+                    threading.Thread(target=_close_on_cancel, args=(r, cancel, done), daemon=True).start()
                 for raw in r:
                     line = raw.decode("utf-8", "replace").strip()
                     if not line.startswith("data:"):
@@ -101,12 +118,20 @@ class OpenAICompat:
                     chunks += 1
                     if self.on_progress and chunks % 50 == 0:
                         self.on_progress(chunks, thinking)
-        except urllib.error.HTTPError as e:
-            raise LLMError(f"{self.name}: HTTP {e.code} {e.read().decode('utf-8', 'replace')[:300]}") from e
-        except urllib.error.URLError as e:
-            raise LLMError(f"{self.name}: unreachable ({e.reason})") from e
-        except TimeoutError as e:
-            raise LLMError(f"{self.name}: no tokens for {self.idle_timeout:.0f}s") from e
+        except Exception as e:
+            if cancel is not None and cancel.is_set():
+                raise Cancelled("stopped by the user while the model was replying") from None
+            if isinstance(e, urllib.error.HTTPError):
+                raise LLMError(f"{self.name}: HTTP {e.code} {e.read().decode('utf-8', 'replace')[:300]}") from e
+            if isinstance(e, urllib.error.URLError):
+                raise LLMError(f"{self.name}: unreachable ({e.reason})") from e
+            if isinstance(e, TimeoutError):
+                raise LLMError(f"{self.name}: no tokens for {self.idle_timeout:.0f}s") from e
+            raise
+        finally:
+            done.set()
+        if cancel is not None and cancel.is_set():
+            raise Cancelled("stopped by the user while the model was replying")
         text = THINK_RE.sub("", "".join(parts)).strip()
         if finish == "length":
             text += (f"\n[output cut off at max_tokens: ~{thinking} thinking + "
@@ -128,7 +153,9 @@ class AnthropicLLM:
         self.fallbacks = fallbacks
         self.name = model
 
-    def chat(self, messages: list[dict[str, str]]) -> LLMResult:
+    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
+        if cancel is not None and cancel.is_set():
+            raise Cancelled("stopped by the user")
         system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
         convo = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
         kwargs: dict[str, Any] = {"model": self.model, "max_tokens": self.max_tokens, "messages": convo}
@@ -159,7 +186,7 @@ class WithFallback:
         self.fallback = fallback
         self.name = f"(primary)->{fallback.name}"
 
-    def chat(self, messages: list[dict[str, str]]) -> LLMResult:
+    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
         if self._primary is None and self._primary_factory is not None:
             try:
                 self._primary = self._primary_factory()
@@ -168,12 +195,14 @@ class WithFallback:
                 self._primary_factory = None
                 self.name = f"{self.fallback.name} (fallback: {type(e).__name__}: {e})"[:160]
         if self._primary is None:
-            return self.fallback.chat(messages)
+            return self.fallback.chat(messages, cancel)
         try:
-            return self._primary.chat(messages)
+            return self._primary.chat(messages, cancel)
+        except Cancelled:
+            raise
         except Exception as e:  # noqa: BLE001 - provider down/refused this call: fall through
             self.name = f"{self.fallback.name} (fallback: {type(e).__name__})"
-            return self.fallback.chat(messages)
+            return self.fallback.chat(messages, cancel)
 
 
 def make_llm(model_cfg: dict[str, Any], providers: dict[str, dict[str, Any]]) -> LLM:
