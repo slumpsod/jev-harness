@@ -21,7 +21,7 @@ from .config import Config, load_config
 from .decide import SystemOneError
 from .errors import Cancelled
 from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision
-from .learn import Learner
+from .learn import Learner, work_log
 from .llm import LLM, make_llm
 from .lmstudio import gate_for
 from .mcp import McpHub
@@ -29,6 +29,7 @@ from .memory import Memory
 from .personas import Persona, load_personas
 from .skills import load_roster
 from .tools import TOOLS
+from .verify import Verifier
 from .worker import Worker, WorkerResult, build_system
 
 Event = Callable[[str, dict], None]
@@ -137,6 +138,7 @@ class Harness:
                 os.environ.setdefault(env, str(self.cfg.tools[key]))
         os.environ.setdefault("JEVH_JEV_URL", str(self.cfg.jev.get("url", "http://127.0.0.1:33001")))
         os.environ.setdefault("JEVH_JEV_BACKEND", str(self.cfg.jev.get("backend", "semif")))
+        self.verifier = Verifier(self.jev, self.cfg)
         self.learner = Learner(self.jev, self.memory, self.skills_home, self.cfg.t,
                                lambda kind, data: self.on_event(kind, data))
         self._learn_threads: list[threading.Thread] = []
@@ -334,7 +336,8 @@ class Harness:
                         handlers, {t: f"jevh.tools.{t}" for t in persona.tools},
                         self.cfg.lim("repl_timeout"), self.cfg.lim("output_cap"),
                         lambda kind, data: self.on_event(kind, {**data, "task_id": task.id}), env,
-                        self._cancel)
+                        self._cancel, self._verify_fn(task) if persona.code and self.verifier.enabled else None,
+                        int(self.verifier.settings.get("max_bounces", 2)))
         task.started = time.time()
         self.on_event("start", {"task": task, "model": getattr(llm, "name", "?")})
         self._workers.add(worker)
@@ -427,6 +430,13 @@ class Harness:
         fallback = ToolDecision(list(own))  # Jev down: all guides (capability beats a lean prompt)
         return self._safe("tools", lambda: self.jev.pick_tools(task.jev_text, own, mcp), fallback)
 
+    def _verify_fn(self, task: Task):
+        project = self.project
+
+        def check(answer: str, artifacts: list[str], transcript: list[dict], changed: list[str]):
+            return self.verifier.check(task.text, answer, artifacts, work_log(transcript), project, changed)
+        return check
+
     def _mcp_call(self, persona: Persona, key: str, arguments: dict) -> str:
         if not persona.allows_mcp(key):
             raise PermissionError(f"{persona.name} may not use MCP tool {key}")
@@ -473,7 +483,8 @@ class Harness:
             swap = dict(self.cfg.models["fast"])
         else:
             return persona.model
-        cfg = {k: v for k, v in persona.model.items() if k not in ("fallback", "effort", "thinking")}
+        cfg = {k: v for k, v in persona.model.items() if k not in ("fallback", "effort", "thinking", "think",
+                                                                   "max_tokens")}
         cfg.update(swap)
         return cfg
 

@@ -22,6 +22,10 @@ thresholds:
   mcp_fits: 0.50       # "needs this tool" noul on the MCP Choice leaders
   fact: 0.88           # learning: "the user states a lasting fact" noul (12/12, 0 false at 0.85-0.9; learn_cases.py)
   same_fact: 0.50      # learning: "old fact made redundant or outdated by the new one" (5/5, 0 false)
+  verify_claims: 0.80  # final() gate: "claims things the work log doesn't show" noul (evals/verify_cases.py:
+  verify_delivers: 0.80  # 12/12 bad answers caught, 0/10 false alarms with the plain rules), "delivers what
+  verify_honest: 0.80  # was asked", "says plainly what is not done"
+  verify_accurate: 0.40  # final() gate: "accurate report of the work log" noul (flags only if also not honest)
   learn_skill: 0.50    # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
 
 limits:
@@ -40,6 +44,14 @@ limits:
   max_mcp_tools: 3              # MCP tool descriptions per task, after Jev's pick
 
 learning: true                  # remember facts and learn skills after successful turns (jevh/learn.py)
+
+# The final() gate (jevh/verify.py): the harness checks work before accepting it.
+verify:
+  enabled: true
+  max_bounces: 2           # times a worker is sent back to fix problems; after that, accepted with a warning
+  render_html: true        # open HTML artifacts in a headless browser (script errors, blank page)
+  check_answer: true       # Jev: does the answer hold up against the work log?
+  # project_command: python -m pytest -q   # tests to run when a worker changed project files (default: detected)
 default_persona: daily_assistant
 personas_dir: personas
 skills_dirs:                    # first root wins on name clashes; hidden dirs (.archive) skipped

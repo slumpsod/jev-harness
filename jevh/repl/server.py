@@ -153,10 +153,27 @@ def list_artifacts() -> list[str]:
 _FINAL: dict | None = None
 
 
+def _resolve_artifact(a) -> str:
+    """Workers often list a deliverable by the bare name they saved it under ("page.html"):
+    point that at the artifact store, or copy a file from the working dir into it. (Seen live:
+    the final() gate sent correct work back twice because "page.html" wasn't found as given.)"""
+    p = Path(str(a))
+    if p.is_absolute():
+        return str(p)
+    if (ARTIFACTS / p).exists():
+        return str((ARTIFACTS / p).resolve())
+    if p.exists():
+        return save_artifact(p.name, path=str(p))
+    return str(p)
+
+
 def final(answer: str, artifacts: list | None = None) -> str:
     """Finish the task. `answer` goes back to whoever asked (user or another assistant)."""
     global _FINAL
-    _FINAL = {"answer": str(answer), "artifacts": [str(a) for a in (artifacts or [])]}
+    proj = sys.modules.get("jevh.tools.project")
+    changed = proj.changed() if proj is not None and getattr(proj, "root", None) else []
+    _FINAL = {"answer": str(answer), "artifacts": [_resolve_artifact(a) for a in (artifacts or [])],
+              "changed": changed}
     return "[final answer recorded]"
 
 

@@ -72,6 +72,7 @@ class OpenAICompat:
         self.name = f"{model}@{self.base_url}"
         self.on_progress = None  # callable(tokens_so_far) set by the UI, optional
         self.gate = gate         # lmstudio.ExclusiveModels: one model resident at a time
+        self.unlimited_thinking = False  # think: unlimited -> no cap, and workers skip the first-step nudge
 
     def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
         if self.gate is None:
@@ -213,11 +214,15 @@ def make_llm(model_cfg: dict[str, Any], providers: dict[str, dict[str, Any]]) ->
             raise LLMError(f"unknown provider '{pname}'")
         if prov["type"] == "openai":
             key_env = prov.get("api_key_env")
-            return OpenAICompat(base_url=prov["base_url"], model=cfg["model"],
-                                api_key=os.environ.get(key_env) if key_env else None,
-                                temperature=cfg.get("temperature"), max_tokens=cfg.get("max_tokens", 8192),
-                                extra=cfg.get("extra"),
-                                gate=gate_for(prov["base_url"]) if prov.get("exclusive") else None)
+            unlimited = cfg.get("think") == "unlimited"  # let a thinking model think as long as it needs
+            llm = OpenAICompat(base_url=prov["base_url"], model=cfg["model"],
+                               api_key=os.environ.get(key_env) if key_env else None,
+                               temperature=cfg.get("temperature"),
+                               max_tokens=None if unlimited else cfg.get("max_tokens", 8192),
+                               extra=cfg.get("extra"),
+                               gate=gate_for(prov["base_url"]) if prov.get("exclusive") else None)
+            llm.unlimited_thinking = unlimited
+            return llm
         if prov["type"] == "anthropic":
             return AnthropicLLM(model=cfg.get("model", "claude-opus-5"),
                                 max_tokens=cfg.get("max_tokens", 16000), effort=cfg.get("effort"),

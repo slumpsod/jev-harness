@@ -80,6 +80,14 @@ class Printer:
             if d.tools or d.mcp or self.verbose:
                 shown = ", ".join(d.tools + d.mcp) or "none"
                 console.print(f"[dim]{_indent(t)}tools: {esc(shown)}[/]")
+        elif kind == "verify":
+            if data["ok"]:
+                console.print(f"[dim]    {esc(data['persona'])}: final() verified "
+                              f"({', '.join(k for k in data['checks']) or 'answer'})[/]")
+            else:
+                verb = "sent back" if data["bounced"] else "accepted with warnings"
+                console.print(f"[yellow]    {esc(data['persona'])}: final() {verb}: "
+                              + esc(" | ".join(p.splitlines()[0][:140] for p in data["problems"])) + "[/]")
         elif kind == "learned":
             out = data["learned"]
             for f in out.facts:

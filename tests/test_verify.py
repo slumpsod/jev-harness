@@ -1,0 +1,151 @@
+"""The final() gate: files, pages, project tests and the answer check."""
+from pathlib import Path
+
+import pytest
+
+from jevh.jev import Jev
+from jevh.orchestrator import Harness
+from jevh.verify import Verifier, answer_rules, detect_test_command
+
+from conftest import FakeSystemOne, ScriptedLLM, choice_ans, noul_ans, py
+
+
+def answer_scores(claims=0.05, delivers=0.95, honest=0.1, accurate=0.95):
+    def rules(k, q, s):
+        if k == "persona":
+            return choice_ans("daily_assistant", 0.9, q["criteria"])
+        if k == "claims":
+            return noul_ans(claims)
+        if k == "delivers":
+            return noul_ans(delivers)
+        if k == "honest":
+            return noul_ans(honest)
+        if k == "accurate":
+            return noul_ans(accurate)
+    return rules
+
+
+def gate_on(cfg, render=False):
+    cfg.raw = {**cfg.raw, "verify": {"enabled": True, "max_bounces": 2, "render_html": render}}
+    return cfg
+
+
+def verifier(cfg, **scores):
+    return Verifier(Jev(gate_on(cfg), FakeSystemOne(answer_scores(**scores))), cfg)
+
+
+def test_files_are_checked(cfg, tmp_path):
+    v = verifier(cfg)
+    (tmp_path / "page.html").write_text("<html><body><h1>[Your Company]</h1><p>Lorem ipsum dolor</p>"
+                                        "<img src='hero.png'><input placeholder='Email'></body></html>", encoding="utf-8")
+    (tmp_path / "bad.py").write_text("def f(:\n  pass\n", encoding="utf-8")
+    (tmp_path / "data.json").write_text("{broken", encoding="utf-8")
+    (tmp_path / "empty.txt").write_text("", encoding="utf-8")
+    (tmp_path / "fake.png").write_text("not a png", encoding="utf-8")
+    arts = [str(tmp_path / n) for n in ("page.html", "bad.py", "data.json", "empty.txt", "fake.png", "missing.md")]
+    problems = " | ".join(v.check("build it", "Built it.", arts, "CODE:\nsave_artifact(...)").problems)
+    for expected in ("[Your Company]", "Lorem ipsum", "hero.png", "syntax error on line 1", "isn't valid JSON",
+                     "empty.txt is empty", "fake.png isn't a valid png", "missing.md is listed"):
+        assert expected in problems, expected
+    assert "Email" not in problems  # a placeholder= attribute on an input is fine
+
+
+def test_clean_files_and_a_good_answer_pass(cfg, tmp_path):
+    (tmp_path / "app.py").write_text("print('hi')\n", encoding="utf-8")
+    v = verifier(cfg).check("write a script", "Here's app.py; it prints hi.", [str(tmp_path / "app.py")],
+                            "CODE:\nsave_artifact('app.py', ...)")
+    assert v.ok, v.problems
+
+
+def test_answer_rules():
+    t = {"verify_claims": 0.8, "verify_delivers": 0.8, "verify_honest": 0.8, "verify_accurate": 0.4}.__getitem__
+    ok = {"claims": 0.05, "delivers": 0.95, "honest": 0.1}
+    assert answer_rules("fix it", "Fixed; tests pass.", [], "", {**ok, "claims": 0.9}, t)
+    assert answer_rules("build it", "Here's my plan...", [], "", {**ok, "delivers": 0.1}, t)
+    assert not answer_rules("build it", "Couldn't: ComfyUI is down.", [], "", {**ok, "delivers": 0.1, "honest": 0.95}, t)
+    assert answer_rules("Make three logo variations", "Here they are.", ["a.png"], "", ok, t)
+    assert not answer_rules("Make three logo variations", "Here they are.", ["a.png", "b.png", "c.png"], "", ok, t)
+    assert answer_rules("check the page", "I checked it in the browser: it renders.", [], "CODE:\nprint(1)", ok, t)
+    assert not answer_rules("check the page", "I checked it in the browser.", [], "browser.goto('file:///x')", ok, t)
+    assert answer_rules("build the site", "Header done. Next I'll add the footer.", [], "", ok, t)
+    assert answer_rules("total the invoice", "It's $1,012.", [], "OUTPUT: 912.0", {**ok, "accurate": 0.01}, t)
+    assert not answer_rules("sign in", "Sign-in failed: check the password?", [], "error", {**ok, "accurate": 0.1,
+                                                                                         "honest": 0.97}, t)
+    assert not answer_rules("build the site", "Header done. Want me to add the footer?", [], "", ok, t)
+
+
+def test_project_tests_gate(cfg, tmp_path):
+    proj = tmp_path / "proj"
+    (proj / "tests").mkdir(parents=True)
+    (proj / "tests" / "test_x.py").write_text("def test_x():\n    assert 1 + 1 == 3\n", encoding="utf-8")
+    assert detect_test_command(proj) == "python -m pytest -q -x"
+    v = verifier(cfg).check("fix the tests", "Fixed.", [], "CODE:\nproject.edit(...)", str(proj), ["tests/test_x.py"])
+    assert not v.ok and any("tests fail after your changes" in p for p in v.problems)
+    (proj / "tests" / "test_x.py").write_text("def test_x():\n    assert 1 + 1 == 2\n", encoding="utf-8")
+    assert verifier(cfg).check("fix", "Fixed.", [], "log", str(proj), ["tests/test_x.py"]).ok
+
+
+def test_render_catches_script_errors_and_blank_pages(cfg, tmp_path):
+    pytest.importorskip("playwright.sync_api")
+    (tmp_path / "broken.html").write_text("<html><body><h1>Tracker</h1><script>undefinedFn()</script></body></html>",
+                                          encoding="utf-8")
+    (tmp_path / "blank.html").write_text("<html><body><div></div></body></html>", encoding="utf-8")
+    v = Verifier(Jev(gate_on(cfg, render=True), FakeSystemOne(answer_scores())), cfg)
+    probs = " | ".join(v.check("build", "Built.", [str(tmp_path / "broken.html"), str(tmp_path / "blank.html")],
+                               "log").problems)
+    if "throws errors" not in probs and "skipped" in str(v.checks):
+        pytest.skip("no chromium here")
+    assert "broken.html throws errors" in probs and "undefinedFn" in probs and "blank.html renders as a blank" in probs
+
+
+def test_worker_is_sent_back_then_fixes_it(cfg):
+    events = []
+    llm = ScriptedLLM([py("p = save_artifact('page.html', '<h1>[Your Company]</h1>')\nfinal('Built it.', [p])"),
+                       py("p = save_artifact('page.html', '<h1>Kettle and Co</h1><p>Warm mugs.</p>')\n"
+                          "final('Built it.', [p])")])
+    h = Harness(gate_on(cfg), jev=Jev(cfg, FakeSystemOne(answer_scores())), llm_factory=lambda p: llm,
+                on_event=lambda k, d: events.append((k, d)))
+    h.learning = False
+    r = h.turn("build a landing page")
+    assert r.answer == "Built it." and Path(r.artifacts[0]).read_text(encoding="utf-8").startswith("<h1>Kettle")
+    verdicts = [d for k, d in events if k == "verify"]
+    assert [v["ok"] for v in verdicts] == [False, True] and verdicts[0]["bounced"]
+    assert "[Your Company]" in llm.seen[1][-1]["content"] and "Not accepted yet" in llm.seen[1][-1]["content"]
+
+
+def test_unfixed_problems_are_stated_not_hidden(cfg):
+    bad = py("p = save_artifact('page.html', '<h1>Lorem ipsum</h1>')\nfinal('Built it.', [p])")
+    llm = ScriptedLLM([bad, bad, bad])
+    h = Harness(gate_on(cfg), jev=Jev(cfg, FakeSystemOne(answer_scores())), llm_factory=lambda p: llm)
+    h.learning = False
+    r = h.turn("build a landing page")
+    assert r.answer.startswith("Built it.") and "Not verified" in r.answer and "Lorem ipsum" in r.answer
+    assert len(llm.seen) == 3  # two bounces, then accepted with the warning
+
+
+def test_hallucinated_plain_answer_is_sent_back(cfg):
+    llm = ScriptedLLM(["I searched and the population is 38 million.",
+                       py("r = 41_800_000\nfinal('About 41.8 million.')")])
+    rules = answer_scores()
+
+    def seq(k, q, s):  # first answer claims a search the log doesn't show; the second is fine
+        if k == "claims":
+            return noul_ans(0.9 if "38 million" in str(s) else 0.05)
+        return rules(k, q, s)
+    h = Harness(gate_on(cfg), jev=Jev(cfg, FakeSystemOne(seq)), llm_factory=lambda p: llm)
+    h.learning = False
+    assert h.turn("what's the population of Canada?").answer == "About 41.8 million."
+
+
+def test_bare_artifact_names_resolve_before_the_gate(cfg):
+    events = []
+    llm = ScriptedLLM([py("save_artifact('page.html', '<h1>Rise and Crumb</h1><p>Fresh bread daily.</p>')\n"
+                          "open('notes.md', 'w').write('# Notes')\n"
+                          "final('Built it.', ['page.html', 'notes.md'])")])
+    h = Harness(gate_on(cfg), jev=Jev(cfg, FakeSystemOne(answer_scores())), llm_factory=lambda p: llm,
+                on_event=lambda k, d: events.append((k, d)))
+    h.learning = False
+    r = h.turn("build a page")
+    assert [d["ok"] for k, d in events if k == "verify"] == [True]
+    assert all(Path(a).is_absolute() and Path(a).exists() for a in r.artifacts)
+    assert {Path(a).name for a in r.artifacts} == {"page.html", "notes.md"}

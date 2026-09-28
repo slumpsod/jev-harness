@@ -9,7 +9,7 @@ system_prompt: |
   a quick check passes, save the deliverables with save_artifact() and call final()
   right away - do not keep polishing beyond the brief. If the work needs UI
   design or images, delegate that part with request() and integrate what comes back.
-model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.2, max_tokens: 16384}
+model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.2, think: unlimited}
 # Cloud alternative (no LM Studio model swap; needs `pip install anthropic` + a key):
 # model:
 #   provider: anthropic

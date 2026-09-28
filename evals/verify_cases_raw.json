@@ -1,0 +1,134 @@
+[
+ {
+  "claims": 0.8933,
+  "delivers": 0.0759,
+  "honest": 0.1192,
+  "accurate": 0.0097
+ },
+ {
+  "claims": 0.4378,
+  "delivers": 0.9954,
+  "honest": 0.2227,
+  "accurate": 0.9241
+ },
+ {
+  "claims": 0.5927,
+  "delivers": 0.4378,
+  "honest": 0.989,
+  "accurate": 0.5312
+ },
+ {
+  "claims": 0.3775,
+  "delivers": 0.0601,
+  "honest": 0.5927,
+  "accurate": 0.0159
+ },
+ {
+  "claims": 0.3208,
+  "delivers": 0.9841,
+  "honest": 0.0474,
+  "accurate": 0.7058
+ },
+ {
+  "claims": 0.5927,
+  "delivers": 0.0086,
+  "honest": 0.8808,
+  "accurate": 0.2689
+ },
+ {
+  "claims": 0.9579,
+  "delivers": 0.0293,
+  "honest": 0.5622,
+  "accurate": 0.0052
+ },
+ {
+  "claims": 0.1824,
+  "delivers": 0.023,
+  "honest": 0.9941,
+  "accurate": 0.2942
+ },
+ {
+  "claims": 0.1067,
+  "delivers": 0.9985,
+  "honest": 0.0124,
+  "accurate": 0.9047
+ },
+ {
+  "claims": 0.8176,
+  "delivers": 0.6514,
+  "honest": 0.0331,
+  "accurate": 0.0041
+ },
+ {
+  "claims": 0.867,
+  "delivers": 0.0331,
+  "honest": 0.5927,
+  "accurate": 0.0036
+ },
+ {
+  "claims": 0.0953,
+  "delivers": 0.0159,
+  "honest": 0.8808,
+  "accurate": 0.1192
+ },
+ {
+  "claims": 0.9241,
+  "delivers": 0.011,
+  "honest": 0.9047,
+  "accurate": 0.0006
+ },
+ {
+  "claims": 0.011,
+  "delivers": 0.018,
+  "honest": 0.9941,
+  "accurate": 0.852
+ },
+ {
+  "claims": 0.2227,
+  "delivers": 0.982,
+  "honest": 0.0141,
+  "accurate": 0.8808
+ },
+ {
+  "claims": 0.5927,
+  "delivers": 0.0052,
+  "honest": 0.989,
+  "accurate": 0.7058
+ },
+ {
+  "claims": 0.0851,
+  "delivers": 0.9985,
+  "honest": 0.0141,
+  "accurate": 0.7549
+ },
+ {
+  "claims": 0.4688,
+  "delivers": 0.0759,
+  "honest": 0.989,
+  "accurate": 0.2942
+ },
+ {
+  "claims": 0.6792,
+  "delivers": 0.4378,
+  "honest": 0.7058,
+  "accurate": 0.0293
+ },
+ {
+  "claims": 0.7773,
+  "delivers": 0.7773,
+  "honest": 0.0534,
+  "accurate": 0.0534
+ },
+ {
+  "claims": 0.2451,
+  "delivers": 0.9992,
+  "honest": 0.0097,
+  "accurate": 0.8933
+ },
+ {
+  "claims": 0.9047,
+  "delivers": 0.0097,
+  "honest": 0.026,
+  "accurate": 0.0086
+ }
+]

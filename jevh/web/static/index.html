@@ -235,6 +235,12 @@ function handle(e) {
     case "answered": { const q = t.questions.get(d.question.id); if (q) { q.state = "answered"; q.answer = d.answer; } break; }
     case "question_timeout": { const q = t.questions.get(d.question.id); if (q) q.state = "timed out"; break; }
     case "cancel": t.activity.push({ts: e.ts, kind: "warn", text: "stop requested"}); t.questions.forEach((q) => { if (q.state === "waiting") q.state = "stopped"; }); break;
+    case "verify": {
+      const x = dec(t, d.task_id); (x.verify = x.verify || []).push(d);
+      t.activity.push({ts: e.ts, kind: d.ok ? "learn" : "warn", text: d.ok ? `${d.persona}: final() verified`
+        : `${d.persona}: final() ${d.bounced ? "sent back" : "accepted with warnings"}: ${d.problems.map((p) => p.split("\n")[0]).join(" | ")}`});
+      break;
+    }
     case "learn_error": t.activity.push({ts: e.ts, kind: "warn", text: `learning skipped: ${d.error}`}); break;
     case "skills": case "memory": case "collab": case "tier": case "tools":
       dec(t, d.task.id)[e.kind] = e.kind === "memory" ? {...d.decision, candidates: d.candidates} : d.decision; break;
@@ -380,6 +386,14 @@ function renderInspector() {
       if (Object.keys(d.tools.mcp_probs || {}).length) inner += `<div class="kv" style="margin-top:4px">MCP - picked: ${(d.tools.mcp || []).map(esc).join(", ") || "none"}</div>${probRows(d.tools.mcp_fits, d.tools.mcp, {thr: th.mcp_fits})}`;
     }
     if (d.collab) inner += `<h4>Collaborators - suggested: ${d.collab.suggested.length ? d.collab.suggested.map(esc).join(", ") : "none"} (complexity ${(d.collab.complexity ?? 0).toFixed(2)})</h4>${probRows(d.collab.scores, d.collab.suggested, {thr: th.collab})}`;
+    for (const [i, vd] of (d.verify || []).entries()) {
+      inner += `<h4>final() check ${i + 1}: ${vd.ok ? "passed" : vd.bounced ? "sent back to fix" : "accepted with warnings"}</h4>
+        ${Object.entries(vd.checks || {}).map(([k, s]) => `<div class="kv">${String(s).startsWith("pass") ? "&#10003;" : String(s).startsWith("skip") ? "-" : "&#10007;"} ${esc(k)}: ${esc(s)}</div>`).join("")}
+        ${Object.keys(vd.scores || {}).length ? probRows({"claims unsupported things": vd.scores.claims}, null, {thr: th.verify_claims}) +
+          probRows({"delivers what was asked": vd.scores.delivers}, null, {thr: th.verify_delivers}) +
+          probRows({"says what isn't done": vd.scores.honest}, null, {thr: th.verify_honest}) : ""}
+        ${(vd.problems || []).map((p) => `<div class="kv" style="color:var(--bad)">${esc(p.split("\n")[0])}</div>`).join("")}`;
+    }
     if (x.approval && Object.keys(x.approval).length) inner += `<h4>Hand-off approval</h4>${probRows(x.approval, null, {thr: th.approve})}`;
     if (x.status === "rejected") inner += `<div class="kv" style="color:var(--bad)">refused: ${esc(x.answer || x.reason)}</div>`;
     html += `<div class="card"><h3>#${x.id} ${esc(x.to)} <span class="badge ${x.status}">${x.status}</span>

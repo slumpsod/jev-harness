@@ -146,7 +146,7 @@ class Worker:
                  handlers: dict[str, Callable[..., Any]], tools: dict[str, str] | None = None,
                  repl_timeout: float = 120.0, output_cap: int = 4000,
                  on_step: Callable[[str, dict], None] | None = None, env: dict[str, str] | None = None,
-                 cancel: threading.Event | None = None):
+                 cancel: threading.Event | None = None, verify: Callable | None = None, max_bounces: int = 2):
         self.persona = persona
         self.llm = llm
         self.workdir = workdir
@@ -158,6 +158,10 @@ class Worker:
         self.on_step = on_step or (lambda kind, data: None)
         self.env = env or {}
         self.cancel = cancel or threading.Event()
+        self.verify = verify            # (answer, artifacts, transcript, changed) -> Verdict; None = trust final()
+        self.max_bounces = max_bounces
+        self._bounces = 0
+        self._verdict = None
         self.repl: Repl | None = None      # the orchestrator kills it when the user stops the turn
         try:
             self._llm_cancel = "cancel" in inspect.signature(llm.chat).parameters
@@ -174,7 +178,8 @@ class Worker:
             return self._chat(task, ctx, system, prior)
         messages = [{"role": "system", "content": system}, *prior,
                     {"role": "user", "content": f"{task}\n\n(In your REPL:\n{describe_ctx(ctx)})"
-                                                + FIRST_STEP_NUDGE}]
+                                                + ("" if getattr(self.llm, "unlimited_thinking", False)
+                                                   else FIRST_STEP_NUDGE)}]
         res = WorkerResult(answer="")
         self._last_err, self._err_streak = None, 0
         with Repl(self.workdir, self.artifacts, self.handlers, self.tools,
@@ -199,7 +204,9 @@ class Worker:
                         "several python blocks, and keep each reply short." + self._steps_left_note(step))})
                     continue
                 if not blocks:
-                    res.answer, res.stopped = out.text, "plain"
+                    if self._bounce(out.text, [], [], messages, step, "(no code was run)"):
+                        continue
+                    res.answer, res.stopped = self._with_unresolved(out.text), "plain"
                     break
                 code = "\n\n".join(blocks)
                 self.on_step("code", {"persona": self.persona.name, "step": step, "code": code})
@@ -208,11 +215,14 @@ class Worker:
                 self.on_step("output", {"persona": self.persona.name, "step": step,
                                         "output": ex.output, "error": ex.error})
                 if ex.final is not None:
-                    res.answer, res.artifacts, res.stopped = ex.final["answer"], ex.final["artifacts"], "final"
-                    if not res.artifacts:
-                        # final() without artifacts but files written in private scratch: ship them,
-                        # or whoever asked never sees the deliverable (seen live: a designer's index.html)
-                        res.artifacts = self._harvest()
+                    artifacts = ex.final["artifacts"] or self._harvest()
+                    # (no artifacts but files written in private scratch: ship them, or whoever asked
+                    # never sees the deliverable - seen live: a designer's index.html)
+                    if self._bounce(ex.final["answer"], artifacts, ex.final.get("changed") or [], messages, step,
+                                    f"Output:\n{ex.output or '(no output)'}\n\n"):
+                        continue
+                    res.answer, res.artifacts, res.stopped = (self._with_unresolved(ex.final["answer"]),
+                                                              artifacts, "final")
                     break
                 messages.append({"role": "user", "content": f"Output:\n{ex.output or '(no output)'}"
                                                             + self._stuck_note(ex.output, ex.error)
@@ -225,6 +235,35 @@ class Worker:
                 res.stopped = "max_steps"
         res.transcript = messages
         return res
+
+    def _bounce(self, answer: str, artifacts: list[str], changed: list[str], messages: list[dict],
+                step: int, prefix: str) -> bool:
+        """The final() gate. True = problems found and sent back to the worker (keep going)."""
+        self._verdict = None
+        if self.verify is None:
+            return False
+        verdict = self.verify(answer, artifacts, messages, changed)
+        self._verdict = verdict
+        can_retry = self._bounces < self.max_bounces and step < self.persona.max_steps
+        self.on_step("verify", {"persona": self.persona.name, "step": step, "ok": verdict.ok,
+                                "problems": verdict.problems, "checks": verdict.checks, "scores": verdict.scores,
+                                "bounced": (not verdict.ok) and can_retry})
+        if verdict.ok or not can_retry:
+            return False
+        self._bounces += 1
+        listed = "\n".join(f"- {p}" for p in verdict.problems)
+        messages.append({"role": "user", "content": (
+            f"{prefix}[Not accepted yet: the harness checked your work before handing it over and found:\n"
+            f"{listed}\nFix these and call final() again. If something can't be fixed, call final() and "
+            f"say plainly what is not done.]" + self._steps_left_note(step))})
+        return True
+
+    def _with_unresolved(self, answer: str) -> str:
+        v = getattr(self, "_verdict", None)
+        if v is None or v.ok:
+            return answer
+        return answer + "\n\n---\nNot verified - the harness's checks still found:\n" + "\n".join(
+            f"- {p.splitlines()[0]}" for p in v.problems)
 
     def _check(self) -> None:
         if self.cancel.is_set():

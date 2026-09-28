@@ -36,7 +36,9 @@ class Config:
 
 # Settings added after the first config.yaml: an older config keeps working with the tuned values.
 DEFAULT_THRESHOLDS = {"tool": 0.65, "mcp_fits": 0.5, "fact": 0.88, "same_fact": 0.5, "learn_skill": 0.5,
-                      "follow_topic": 0.25, "follow_reply": 0.4}
+                      "follow_topic": 0.25, "follow_reply": 0.4,
+                      "verify_claims": 0.8, "verify_delivers": 0.8, "verify_honest": 0.8,
+                      "verify_accurate": 0.4}
 DEFAULT_LIMITS = {"max_mcp_tools": 3, "memory_search": 10, "memory_facts": 6, "follow_turns": 2,
                   "ask_timeout": 1800}
 

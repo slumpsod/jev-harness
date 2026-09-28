@@ -6,7 +6,7 @@ system_prompt: |
   You are Jed's daily assistant. Be brief, practical and friendly. Answer simple
   questions directly in plain text; use your Python REPL only when you need to
   compute, read files, or run a tool from a skill.
-model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.4}
+model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.4, think: unlimited}
 skills_allowed: [daily-*, appointment-*, email-*, gmail-*, google-workspace*, gws-cli, maps,
                  document-tools, eco-insulation-quotes, "*payroll*", openhue, roku-ecp,
                  web-research-workflow, radon-mitigation-study, journalist, serpapi-image-search,

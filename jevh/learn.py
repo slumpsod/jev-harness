@@ -85,8 +85,9 @@ The guide:
 {body}"""
 
 
-# Qwen3.8 thought ~1400 hidden tokens (59s) before writing a skill; this line cut it to ~1090 (45s).
-DIRECT = "\n\nReply right away: no long deliberation first."
+# No "reply right away" line: it cut Qwen's thinking ~25% (1400 -> 1090 tokens) on skill writing, but
+# quality comes first here, and a new turn drops a learning call still in progress anyway.
+DIRECT = ""
 
 
 @dataclass

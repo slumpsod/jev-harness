@@ -75,4 +75,7 @@ def cfg(tmp_path):
     c.workspace = tmp_path / "ws"
     c.skills_dirs = [ROOT / "skills"]  # deterministic: local skills only
     c.limits["repl_timeout"] = 20
+    # the final() gate asks Jev about every answer; tests about other things use scripted workers
+    # and a fake Jev, so it is off here and switched on in tests/test_verify.py
+    c.raw = {**c.raw, "verify": {**(c.raw.get("verify") or {}), "enabled": False}}
     return c

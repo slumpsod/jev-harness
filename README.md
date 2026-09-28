@@ -25,7 +25,7 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
 python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 106 offline tests (fake Jev + scripted LLMs, a fake MCP server)
+python -m pytest -q                  # 115 offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
@@ -84,6 +84,7 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
 | Memory gating | `memory_cases.py`, 18 requests over an 18-turn history | 95% of needed turns passed, 0 leaks | ~1.5s |
 | Model tier (fast/strong) | `tier_cases.py`, 39 tasks + 15 held out | 100% and 15/15, 0 hard tasks sent fast | ~0.2s |
 | Tool guides | `tool_cases.py`, 42 requests x 4 tools | 40/42 exact, 0 needless | ~0.6s |
+| final() answer check | `verify_cases.py`, 22 tuning + 2 held-out sets of 12 | 12/12 tuning; fresh held-out 4/6 bad caught, 0 false alarms | ~0.3s |
 | Browser agent | `browser_cases.py`, 16 tuning + 12 held-out + 2 Wikipedia goals | 29-30/30, 0 false "done" | ~2.3s per goal |
 | Learning gates | `learn_cases.py`, 25 + 10 + 7 cases | 12/12 facts, 5/5 replacements, 3/3 skills; 0 false positives | ~0.2s each |
 | Memory reach | `recall_cases.py 4`, history under 160 newer turns | 14/19 needed turns reached (recent-window design: 1/19) | ~1.3s |
@@ -190,6 +191,44 @@ Safeguards added after watching a weaker model (ornith) work:
 - `import comfy` works inside the REPL.
 - `final()` without artifacts still ships the files the worker wrote.
 - `save_artifact` keeps the source file's extension.
+
+## The final() gate: work is checked before it's accepted
+
+`final()` used to be taken on trust. Now `jevh/verify.py` checks every worker's work (hand-offs
+too) before it's handed over:
+- **Files:** each artifact exists and isn't empty; pages have no placeholder text (lorem ipsum,
+  `[Your Company]`, TODO) and no links to files that don't exist; pages load in a headless browser
+  without script errors or a blank body; Python compiles; JSON parses; images are images.
+- **Project:** if the worker changed files in the open project, the project's tests run
+  (pytest / npm test, detected; or `verify.project_command`), and they must pass.
+- **The answer:** Jev compares it with the work log. Does it claim things the log doesn't show
+  happening? Does it deliver what was asked, or only a plan? Is it an accurate report? And does it
+  say plainly what isn't done? Plain rules add what Jev can't judge: counting deliverables
+  ("three logos", one file), "checked it in the browser" with no browser use, and "next I'll…" stops.
+
+Problems go back to the worker, whose REPL state is intact, as "not accepted yet: …". After
+`verify.max_bounces` (2) the answer is accepted with the unresolved problems listed under it,
+never silently. The Inspector shows every check and score.
+
+Measured (`evals/verify_cases.py`, answer check):
+- Tuning set: 12/12 bad answers caught, 0/10 false alarms.
+- First held-out set: only 1/5 caught before I added the "accurate report" question.
+- Second, fresh held-out set, run once: 4/6 caught, 0/6 false alarms.
+
+It catches loud false claims reliably and about two-thirds of subtle ones (a number or item that
+differs from the log). It hasn't flagged an honest partial answer yet. The file, page and test
+checks are exact.
+
+Live on uncapped Qwen: fixing the tip-calculator project, the gate ran the project's tests itself
+before accepting. Building a bakery landing page (30 KB, real copy, no placeholders), the page was
+opened in a headless browser and passed. (Both runs also showed the gate sending back correct work
+listed by a bare file name; `final()` now resolves those.)
+
+## Qwen thinks as long as it needs
+
+Personas on Qwen use `think: unlimited`: no `max_tokens` cap and no "reply with a short plan
+first" nudge. Quality over speed. The fast tier (ornith) keeps its cap and nudge. Learning prompts
+don't ask for brevity either (a new turn still drops a learning call in progress).
 
 ## Stop and ask
 
