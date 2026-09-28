@@ -142,21 +142,18 @@ def report() -> None:
     for f in sorted(RUNS.glob("*.jsonl")):
         for line in f.read_text(encoding="utf-8").splitlines():
             r = json.loads(line)
-            rows.setdefault(r["mode"], {})[r["id"]] = r
-    both = sorted(set(rows.get("base", {})) & set(rows.get("harness", {})))
+            rows.setdefault(f.stem.replace("arc1_", ""), {})[r["id"]] = r   # one row per result file
+    both = sorted(set.intersection(*(set(v) for v in rows.values()))) if rows else []
     for mode, rs in rows.items():
         n = len(rs)
         ok = sum(r["correct"] for r in rs.values())
         secs = sum(r["seconds"] for r in rs.values())
-        print(f"{mode:8} {ok}/{n} = {ok / max(n, 1):.0%}  avg {secs / max(n, 1) / 60:.1f} min/task, "
+        print(f"{mode:14} {ok}/{n} = {ok / max(n, 1):.0%}  avg {secs / max(n, 1) / 60:.1f} min/task, "
               f"{sum(r['output'] for r in rs.values()) / max(n, 1):,.0f} out tokens/task, "
               f"no grid {sum(r['grid'] is None for r in rs.values())}, timeouts {sum(r['timed_out'] for r in rs.values())}")
     if both:
-        b = sum(rows["base"][i]["correct"] for i in both)
-        hh = sum(rows["harness"][i]["correct"] for i in both)
-        only_h = [i for i in both if rows["harness"][i]["correct"] and not rows["base"][i]["correct"]]
-        only_b = [i for i in both if rows["base"][i]["correct"] and not rows["harness"][i]["correct"]]
-        print(f"\nsame {len(both)} tasks: base {b}, harness {hh}; only harness: {only_h}; only base: {only_b}")
+        print(f"\non the {len(both)} tasks every run did: " + ", ".join(
+            f"{name} {sum(rs[i]['correct'] for i in both)}" for name, rs in rows.items()))
 
 
 def main() -> None:
@@ -167,6 +164,7 @@ def main() -> None:
     ap.add_argument("--ids", nargs="*")
     ap.add_argument("--limit", type=float, default=45 * 60, help="seconds per task")
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--tag", default="", help="suffix for the results file (a harness version)")
     a = ap.parse_args()
     if a.report:
         return report()
@@ -175,7 +173,7 @@ def main() -> None:
     if a.ids:
         tasks = [t for t in tasks if t[0] in a.ids]
     RUNS.mkdir(parents=True, exist_ok=True)
-    out = RUNS / f"arc1_{a.mode}.jsonl"
+    out = RUNS / f"arc1_{a.mode}{'_' + a.tag if a.tag else ''}.jsonl"
     done = {json.loads(line)["id"] for line in out.read_text(encoding="utf-8").splitlines()} if out.exists() else set()
     for k, (tid, task) in enumerate(tasks, 1):
         if tid in done:
