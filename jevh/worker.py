@@ -31,12 +31,15 @@ FIRST_STEP_NUDGE = ("\n\nIf this needs code: reply now with a short plan (at mos
                     "python block for step one, and build incrementally across replies - do not design "
                     "the whole solution before replying. If it needs no code, reply with just the answer.")
 HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-up
-REASONING_CHARS = 2500     # end of each step's hidden reasoning kept in the conversation (0 = none)
-REASONING_HEADER = "(end of my reasoning at this step, kept so the next step can build on it:)"
+REASONING_CHARS = 40000    # of each step's hidden reasoning sent back with it (its end if longer; 0 = none)
 NOTES_CHARS = 2500         # plus that turn's work notes (the code it ran and what came back)
 NOTES_HEADER = ("[Harness note, not part of the reply the user saw: the work this reply was based on - "
                 "the code you ran and what came back. Use it to answer questions about sources or steps.]")
 CHARS_PER_TOKEN = 3.2      # conservative for code-heavy transcripts (context-size estimate)
+
+
+def _msg_chars(m: dict) -> int:
+    return len(str(m.get("content", ""))) + len(str(m.get("reasoning_content", "")))
 PROGRESS_CHARS = 12000     # condensed progress log above this gets summarized by the model
 SUMMARY_PROMPT = """You are partway through a long task. Below is a condensed log of your earlier steps. \
 Write a compact progress summary for yourself to continue from: what is done (files, results, \
@@ -107,7 +110,10 @@ def translate_tool_calls(text: str, tools: dict[str, str]) -> tuple[list[str], l
 REPL_GUIDE = """\
 ## How you work
 You have a persistent Python REPL. To act, reply with ONE ```python block; it runs and
-you see its output. Variables persist between blocks. When you are done, call
+you see its output. Variables persist between blocks. Work in it one step at a time: break
+the problem down, write and run code, look at the result, iterate. Use code to think - keep
+what you learn in named variables and test a hypothesis by running it on the data, rather
+than working through data by hand in your head. When you are done, call
 final(answer, artifacts=[...]) in a python block - `answer` is what the user (or the
 assistant who asked you) receives. If the request needs no code, just reply in plain text.
 
@@ -253,16 +259,19 @@ class Worker:
         self.keep_reasoning = REASONING_CHARS
         self._use(llm)
 
-    def _with_reasoning(self, out) -> str:
-        """The reply as it stays in the conversation. A thinking model's reasoning is dropped
-        between turns, so each step used to re-derive everything: ARC bench, one task took 56k
-        thinking tokens over 5 harness steps vs 25k in a single call, and a reply that was all
-        thinking lost its progress entirely. The end of the reasoning (where it concludes) goes
-        along; fences are defused so the log never mistakes it for code that ran."""
-        tail = (getattr(out, "reasoning", "") or "").strip()[-self.keep_reasoning:] if self.keep_reasoning else ""
-        if not tail:
-            return out.text
-        return (f"{REASONING_HEADER}\n...{tail.replace('```', '` ` `')}\n\n" + out.text).strip()
+    def _assistant(self, out) -> dict:
+        """The reply as it stays in the conversation, with its hidden reasoning in
+        `reasoning_content` (as Prime Agent does). Without it each step re-derived everything:
+        ARC bench, one task took 56k thinking tokens over 5 harness steps vs 25k in a single call,
+        and a reply that was all thinking lost its progress entirely. LM Studio's Qwen template
+        shows it back to the model (measured: a word that existed only in an earlier step's
+        reasoning was recalled; without it the model invented one). Kept out of `content`, so
+        the gate's work log never counts reasoning as work done."""
+        msg = {"role": "assistant", "content": out.text}
+        thought = (getattr(out, "reasoning", "") or "").strip()
+        if thought and self.keep_reasoning:
+            msg["reasoning_content"] = thought[-self.keep_reasoning:]
+        return msg
 
     def _use(self, llm: LLM) -> None:
         self.llm = llm
@@ -308,7 +317,7 @@ class Worker:
                 out = self._llm(messages)
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
-                messages.append({"role": "assistant", "content": self._with_reasoning(out)})
+                messages.append(self._assistant(out))
                 blocks = CODE_RE.findall(out.text) or TOOL_CALL_RE.findall(out.text)
                 xml_note = ""
                 if not blocks and "<function=" in out.text:
@@ -337,7 +346,7 @@ class Worker:
                     # answer to check, just a turn to continue
                     self.on_step("output", {"persona": self.persona.name, "step": step,
                                             "output": "(empty reply - asked to continue)", "error": True})
-                    messages[-1]["content"] = self._with_reasoning(out) or "(empty reply)"
+                    messages[-1]["content"] = "(no reply text)"
                     messages.append({"role": "user", "content": (
                         "Your last reply was empty (only thinking, no text). Continue from where your "
                         "reasoning got to: reply with the next ```python block, or call final() if you are "
@@ -393,7 +402,7 @@ class Worker:
         """Keep the conversation inside the model's context: past `compact_tokens`, older steps
         become a condensed progress log in the task message (code heads + output snippets); the
         last `keep_steps` steps stay verbatim. A log that grows too big is summarized by the model."""
-        size = sum(len(str(m.get("content", ""))) for m in messages) / CHARS_PER_TOKEN
+        size = sum(_msg_chars(m) for m in messages) / CHARS_PER_TOKEN
         if size <= self.compact_tokens:
             return
         body = messages[self._task_idx + 1:]
@@ -423,7 +432,7 @@ class Worker:
                     "save context; your REPL variables and files are intact:\n" + log + "]"}
         before = int(size)
         messages[:] = messages[:self._task_idx] + [task_msg] + recent
-        after = int(sum(len(str(m.get("content", ""))) for m in messages) / CHARS_PER_TOKEN)
+        after = int(sum(_msg_chars(m) for m in messages) / CHARS_PER_TOKEN)
         self.on_step("compact", {"persona": self.persona.name, "step": step, "tokens_before": before,
                                  "tokens_after": after, "summarized": summarized})
 

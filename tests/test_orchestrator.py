@@ -484,5 +484,5 @@ def test_reasoning_tail_carries_to_the_next_step(cfg):
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: llm)
     h.learning = False
     assert h.turn("solve the puzzle", force="high_end_dev").answer == "mirrored"
-    carried = llm.seen[1][-2]["content"]
-    assert carried.startswith("(end of my reasoning") and "mirror each row" in carried
+    carried = llm.seen[1][-2]
+    assert "mirror each row" in carried["reasoning_content"] and "mirror" not in carried["content"]
