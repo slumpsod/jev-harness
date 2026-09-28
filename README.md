@@ -25,7 +25,7 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
 python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 115 offline tests (fake Jev + scripted LLMs, a fake MCP server)
+python -m pytest -q                  # 119 offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
@@ -223,6 +223,28 @@ Live on uncapped Qwen: fixing the tip-calculator project, the gate ran the proje
 before accepting. Building a bakery landing page (30 KB, real copy, no placeholders), the page was
 opened in a headless browser and passed. (Both runs also showed the gate sending back correct work
 listed by a bare file name; `final()` now resolves those.)
+
+## Usage tracking
+
+Every model call, Jev call and LM Studio swap is recorded in `workspace/usage.db` (`jevh/usage.py`),
+tagged with session, turn, task, persona, model and tier:
+- **Model calls:** prompt, answer and hidden-thinking tokens (LM Studio reports
+  `reasoning_tokens`), plus time. Background learning calls are recorded separately as `learn`.
+- **Jev calls:** the harness's own decisions (`jev`), and the Jev calls made inside a worker's
+  browser and web tools (`jev_tools`), reported by the REPL after each code block. The semif
+  bridge now returns how many tokens each request processed.
+- **Swaps:** LM Studio model swaps (seconds).
+- **Cost:** only for models you price in config (`prices: {model: {input: $/M, output: $/M}}`).
+  Local models cost nothing here.
+
+Where you see it:
+- Each answer shows a line like `12.1k in / 597 out (308 thinking) · model 24s · Jev 19.0s, 33 calls`,
+  in both the CLI footer and the dashboard.
+- `/usage` in the CLI covers this session, the last 24h and the last 7 days.
+- The dashboard's Usage tab has totals, breakdowns by kind, model and persona, and per-turn history.
+
+It showed right away that on a web lookup, 16 of the 19s of Jev time is the web tool's
+passage picking, not the harness's decisions (3.1s for 14).
 
 ## Qwen thinks as long as it needs
 

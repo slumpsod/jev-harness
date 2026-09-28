@@ -143,12 +143,14 @@ a { color: var(--accent); }
       <button data-tab="inspector">Inspector</button>
       <button data-tab="artifacts">Artifacts</button>
       <button data-tab="memory">Memory</button>
+      <button data-tab="usage">Usage</button>
       <button data-tab="status">Status</button>
     </nav>
     <div class="panel on" id="p-timeline"></div>
     <div class="panel" id="p-inspector"></div>
     <div class="panel" id="p-artifacts"></div>
     <div class="panel" id="p-memory"></div>
+    <div class="panel" id="p-usage"></div>
     <div class="panel" id="p-status"></div>
   </section>
 </main>
@@ -218,7 +220,7 @@ function handle(e) {
       const {tasks, trace, ...rest} = d.turn;  // keep our own Map of tasks; merge the final snapshot into it
       Object.assign(t, rest);
       (tasks || []).forEach((x) => upsertTask(t, x));
-      if (e.kind === "turn_start") S.selected = t.id; else { S.live = {}; refreshArtifacts(); }
+      if (e.kind === "turn_start") S.selected = t.id; else { S.live = {}; refreshArtifacts(); if (S.tab === "usage") refreshUsage(); }
       break;
     }
     case "route": t.route = d.decision; break;
@@ -314,6 +316,7 @@ function renderChat() {
           ${t.status === "cancelled" ? '<span class="badge cancelled">stopped</span>' : ""}</div>
         ${body}
         ${arts ? `<div class="kv" style="margin-top:6px">artifacts: ${arts}</div>` : ""}
+        ${t.usage && t.usage.total ? `<div class="kv" style="margin-top:4px" title="tokens and time for this turn">${esc(usageBrief(t.usage))}</div>` : ""}
         ${steps ? `<details class="activity"><summary>${t.activity.filter((a) => a.kind === "code").length} code steps</summary>${steps}</details>` : ""}
       </div>`;
   }).join("");
@@ -412,6 +415,37 @@ function renderInspector() {
   el.innerHTML = html || `<div class="empty">Waiting for Jev...</div>`;
 }
 
+// ---- usage ----
+const kfmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n || 0));
+function usageBrief(u) {
+  const k = u.by_kind || {}, llm = [k.llm, k.learn].filter(Boolean), jev = [k.jev, k.jev_tools].filter(Boolean);
+  const sum = (xs, f) => xs.reduce((a, x) => a + (x[f] || 0), 0);
+  const parts = [`${kfmt(sum(llm, "input"))} in / ${kfmt(sum(llm, "output"))} out` + (sum(llm, "thinking") ? ` (${kfmt(sum(llm, "thinking"))} thinking)` : "")];
+  if (sum(llm, "seconds")) parts.push(`model ${secs(sum(llm, "seconds"))}`);
+  if (sum(jev, "calls")) parts.push(`Jev ${sum(jev, "seconds").toFixed(1)}s, ${sum(jev, "calls")} calls`);
+  if (k.swap) parts.push(`swaps ${secs(k.swap.seconds)}`);
+  if (u.total && u.total.cost) parts.push(`$${u.total.cost.toFixed(4)}`);
+  return parts.join(" · ");
+}
+S.usageRange = "session";
+async function refreshUsage() {
+  let u; try { u = await api(`/api/usage?range=${S.usageRange}`); } catch { return; }
+  if (S.tab !== "usage") return;
+  const row = (name, v) => `<tr><td>${esc(name)}</td><td>${v.calls}</td><td>${kfmt(v.input)}</td><td>${kfmt(v.output)}</td><td>${kfmt(v.thinking)}</td><td>${secs(v.seconds)}</td>${v.cost ? `<td>$${v.cost.toFixed(4)}</td>` : "<td></td>"}</tr>`;
+  const table = (title, obj) => `<div class="card"><h3>${title}</h3><table><tr><th></th><th>calls</th><th>in</th><th>out</th><th>thinking</th><th>time</th><th>cost</th></tr>
+    ${Object.entries(obj || {}).map(([k, v]) => row(k, v)).join("") || '<tr><td colspan="7" class="kv">nothing yet</td></tr>'}</table></div>`;
+  const s = u.summary, tt = s.total;
+  const turns = u.turns.map((t) => `<tr><td>${new Date(t.ts * 1000).toLocaleString()}</td><td>${t.turn}</td><td>${kfmt(t.input)}</td><td>${kfmt(t.output)}</td>
+    <td>${kfmt(t.thinking)}</td><td>${secs(t.model_seconds)}</td><td>${t.jev_calls} / ${secs(t.jev_seconds)}</td><td>${t.cost ? "$" + t.cost.toFixed(4) : ""}</td></tr>`).join("");
+  $("p-usage").innerHTML = `<div class="card"><h3>Usage <span class="kv">
+      ${["session", "today", "week", "all"].map((r) => `<button data-range="${r}" ${r === S.usageRange ? 'class="primary"' : ""}>${r === "today" ? "last 24h" : r === "week" ? "7 days" : r}</button>`).join(" ")}</span></h3>
+      <div class="kv">${s.turns} turns · ${kfmt(tt.input)} tokens in / ${kfmt(tt.output)} out (${kfmt(tt.thinking)} thinking) · ${secs(tt.seconds)} in calls${tt.cost ? ` · $${tt.cost.toFixed(4)}` : ""}</div>
+      <div class="kv">${esc(usageBrief(s))}</div></div>
+    ${table("By kind (llm = workers, learn = after-turn learning, jev = harness decisions, jev_tools = browser/web inside workers, swap = LM Studio model swaps)", s.by_kind)}
+    ${table("By model", s.by_model)}${table("By persona", s.by_persona)}
+    <div class="card"><h3>Turns</h3><table><tr><th>when</th><th>turn</th><th>in</th><th>out</th><th>thinking</th><th>model time</th><th>Jev calls / time</th><th>cost</th></tr>${turns}</table></div>`;
+}
+
 // ---- memory ----
 async function refreshMemory() {
   let m;
@@ -484,7 +518,12 @@ $("tabs").addEventListener("click", (ev) => {
   if (S.tab === "artifacts") refreshArtifacts();
   if (S.tab === "status") refreshStatus();
   if (S.tab === "memory") refreshMemory();
+  if (S.tab === "usage") refreshUsage();
   render();
+});
+$("p-usage").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-range]"); if (!b) return;
+  S.usageRange = b.dataset.range; refreshUsage();
 });
 $("p-memory").addEventListener("click", async (ev) => {
   const f = ev.target.closest("button[data-forget]"), k = ev.target.closest("button[data-skill]");

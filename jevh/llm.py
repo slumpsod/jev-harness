@@ -30,6 +30,7 @@ class LLMResult:
     input_tokens: int = 0
     output_tokens: int = 0
     model: str = ""
+    thinking_tokens: int = 0   # part of output_tokens spent in hidden reasoning
 
 
 class LLM(Protocol):
@@ -137,8 +138,10 @@ class OpenAICompat:
         if finish == "length":
             text += (f"\n[output cut off at max_tokens: ~{thinking} thinking + "
                      f"~{chunks - thinking} answer tokens]")
+        reasoning = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
         return LLMResult(text=text, input_tokens=int(usage.get("prompt_tokens") or 0),
-                         output_tokens=int(usage.get("completion_tokens") or 0), model=self.model)
+                         output_tokens=int(usage.get("completion_tokens") or 0), model=self.model,
+                         thinking_tokens=int(reasoning if reasoning is not None else thinking))
 
 
 class AnthropicLLM:

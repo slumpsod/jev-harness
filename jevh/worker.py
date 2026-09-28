@@ -211,6 +211,8 @@ class Worker:
                 code = "\n\n".join(blocks)
                 self.on_step("code", {"persona": self.persona.name, "step": step, "code": code})
                 ex = repl.run(code)
+                if ex.usage:
+                    self.on_step("tool_usage", {"persona": self.persona.name, **ex.usage})
                 self._check()  # a stop kills the REPL mid-run: don't read that as the code failing
                 self.on_step("output", {"persona": self.persona.name, "step": step,
                                         "output": ex.output, "error": ex.error})

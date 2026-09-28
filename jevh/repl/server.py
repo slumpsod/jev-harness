@@ -230,8 +230,13 @@ def main() -> None:
             _send({"type": "result", "output": "", "error": False, "final": None})
         elif op == "exec":
             _FINAL = None
+            dec = sys.modules.get("jevh.decide")
+            before = dict(dec.TOTALS) if dec else None
             output, error = _exec(msg.get("code", ""))
-            _send({"type": "result", "output": output, "error": error, "final": _FINAL})
+            usage = None
+            if dec and before is not None and dec.TOTALS["calls"] > before["calls"]:
+                usage = {k: dec.TOTALS[k] - before[k] for k in before}  # tools' own Jev calls (browser, web, ...)
+            _send({"type": "result", "output": output, "error": error, "final": _FINAL, "usage": usage})
         else:
             _send({"type": "result", "output": f"unknown op {op!r}", "error": True, "final": None})
 

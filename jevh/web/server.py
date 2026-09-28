@@ -123,6 +123,7 @@ class Hub:
         def run() -> None:
             try:
                 r = self.harness.turn(message, force=self.pin)
+                turn.update(usage=r.usage)
                 turn.update(status="cancelled" if r.cancelled else "done", persona=r.persona, answer=r.answer, artifacts=r.artifacts,
                             seconds=r.seconds, trace=jsonable(r.trace), tasks=[task_json(t) for t in r.tasks])
                 self.publish("turn_done", {"turn": dict(turn)})
@@ -234,6 +235,14 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         if not message:
             raise HTTPException(400, "empty message")
         return {"turn": hub.start_turn(message)}
+
+    @app.get("/api/usage")
+    def usage(range: str = "session") -> dict:
+        h = hub.harness
+        since = {"today": time.time() - 86400, "week": time.time() - 7 * 86400}.get(range)
+        session = h.session if range == "session" else None
+        return {"range": range, "summary": h.usage.summary(session=session, since=since),
+                "turns": h.usage.turns(session=session, limit=60)}
 
     @app.post("/api/cancel")
     def cancel() -> dict:

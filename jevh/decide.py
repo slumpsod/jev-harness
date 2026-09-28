@@ -16,6 +16,7 @@ from typing import Any, Mapping, Sequence
 
 Question = dict
 RETRY_STATUSES = {408, 429, 500, 502, 503, 504}
+TOTALS = {"calls": 0, "seconds": 0.0, "tokens": 0}   # every ask() in this process
 
 
 def noul(instructions) -> Question:
@@ -74,6 +75,7 @@ class Response:
     model: str
     answers: dict[str, Answer]
     latency_s: float = 0.0
+    input_tokens: int = 0      # tokens the backend processed (semif bridge reports it)
 
     def __getitem__(self, key: str) -> Answer:
         return self.answers[key]
@@ -107,8 +109,13 @@ class SystemOneClient:
         missing = set(questions) - set(answers)
         if missing:
             raise SystemOneError(f"adapter omitted answers for: {sorted(missing)}")
-        return Response(model=str(raw.get("model", self.backend)), answers=answers,
-                        latency_s=time.perf_counter() - started)
+        resp = Response(model=str(raw.get("model", self.backend)), answers=answers,
+                        latency_s=time.perf_counter() - started,
+                        input_tokens=int((raw.get("usage") or {}).get("input_tokens") or 0))
+        TOTALS["calls"] += 1   # read by the worker REPL to report its tools' Jev use
+        TOTALS["seconds"] += resp.latency_s
+        TOTALS["tokens"] += resp.input_tokens
+        return resp
 
     def health(self) -> dict[str, Any]:
         with urllib.request.urlopen(f"{self.base_url}/health", timeout=10) as r:

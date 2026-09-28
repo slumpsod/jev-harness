@@ -24,6 +24,7 @@ class ExecResult:
     error: bool = False
     final: dict | None = None
     timed_out: bool = False
+    usage: dict | None = None      # Jev calls the worker's tools made during this exec
 
 
 def truncate(text: str, cap: int) -> str:
@@ -138,7 +139,8 @@ class Repl:
             if reply.get("type") == "call":
                 self._write(self._dispatch(reply))  # callback time is not charged to the budget
                 continue
-            return ExecResult(reply.get("output", ""), bool(reply.get("error")), reply.get("final"))
+            return ExecResult(reply.get("output", ""), bool(reply.get("error")), reply.get("final"),
+                              usage=reply.get("usage"))
 
     def _dispatch(self, call: dict) -> dict:
         fn = self.handlers.get(call.get("name", ""))

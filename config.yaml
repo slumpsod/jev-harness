@@ -52,6 +52,10 @@ verify:
   render_html: true        # open HTML artifacts in a headless browser (script errors, blank page)
   check_answer: true       # Jev: does the answer hold up against the work log?
   # project_command: python -m pytest -q   # tests to run when a worker changed project files (default: detected)
+
+# Cost per million tokens for paid models (usage tracking); local models cost nothing.
+prices: {}
+#  claude-opus-5: {input: 5.0, output: 25.0}
 default_persona: daily_assistant
 personas_dir: personas
 skills_dirs:                    # first root wins on name clashes; hidden dirs (.archive) skipped

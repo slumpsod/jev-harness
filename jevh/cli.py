@@ -6,7 +6,7 @@ Ctrl-C during a turn stops it (model, running code, hand-offs); a worker's quest
 asked right here in the terminal.
 
 Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
-/project <path> (open a project folder; "/project off" closes it), /facts, /forget <id>,
+/project <path> (open a project folder; "/project off" closes it), /facts, /forget <id>, /usage,
 /personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
 """
 from __future__ import annotations
@@ -15,6 +15,7 @@ import argparse
 import json
 import sys
 import threading
+import time
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -23,6 +24,7 @@ from rich.panel import Panel
 
 from .config import load_config
 from .orchestrator import Harness
+from .usage import brief
 
 console = Console()
 
@@ -204,7 +206,8 @@ def main(argv: list[str] | None = None) -> None:
         last = box["r"]
         console.print(Panel(Markdown(last.answer or "(empty)"),
                             title=f"{last.persona}" + (" (stopped)" if last.cancelled else ""),
-                            subtitle=f"{last.seconds:.1f}s · jev calls {len(last.trace)}",
+                            subtitle=f"{last.seconds:.1f}s · {brief(last.usage)}" if last.usage
+                            else f"{last.seconds:.1f}s · jev calls {len(last.trace)}",
                             border_style="cyan"))
         for art in last.artifacts:
             console.print(f"  [green]artifact:[/] {esc(art)}")
@@ -247,6 +250,16 @@ def main(argv: list[str] | None = None) -> None:
                     console.print(f"project: {h.project or 'none'}")
                 except NotADirectoryError as e:
                     console.print(f"[red]not a folder: {esc(str(e))}[/]")
+            elif cmd == "usage":
+                day = time.time() - 86400
+                for label, s in (("this session", h.usage.summary(h.session)),
+                                 ("last 24h", h.usage.summary(since=day)),
+                                 ("last 7 days", h.usage.summary(since=time.time() - 7 * 86400))):
+                    console.print(f"[bold]{label}[/] ({s['turns']} turns): {esc(brief(s))}")
+                s = h.usage.summary(since=time.time() - 7 * 86400)
+                for m, v in s["by_model"].items():
+                    console.print(f"  [dim]{esc(m)}: {v['calls']} calls, {v['input']:,} in / {v['output']:,} out "
+                                  f"({v['thinking']:,} thinking), {v['seconds']:.0f}s[/]")
             elif cmd == "facts":
                 for f in h.memory.facts(None, 50):
                     console.print(f"[bold]{f.id}[/] {esc(f.chunk())}")

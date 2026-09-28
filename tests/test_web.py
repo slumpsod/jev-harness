@@ -177,3 +177,13 @@ def test_stop_and_answer_through_the_api(cfg):
     assert client2.post("/api/cancel", headers=auth()).json() == {"stopped": True}
     assert wait_done(client2)["status"] == "cancelled"
     assert client2.post("/api/cancel", headers=auth()).json() == {"stopped": False}
+
+
+def test_usage_api(cfg):
+    client, app = make_client(cfg)
+    client.post("/api/chat", json={"message": "build a page"}, headers=auth())
+    done = wait_done(client)
+    assert done["usage"]["by_kind"]["llm"]["calls"] == 1
+    u = client.get("/api/usage?range=session", headers=auth()).json()
+    assert u["summary"]["turns"] == 1 and u["turns"][0]["turn"] == 1
+    assert client.get("/api/usage?range=week", headers=auth()).json()["summary"]["total"]["calls"] >= 1

@@ -29,6 +29,7 @@ from .memory import Memory
 from .personas import Persona, load_personas
 from .skills import load_roster
 from .tools import TOOLS
+from .usage import Metered, Usage
 from .verify import Verifier
 from .worker import Worker, WorkerResult, build_system
 
@@ -81,6 +82,7 @@ class TurnResult:
     trace: list[dict[str, Any]] = field(default_factory=list)
     seconds: float = 0.0
     cancelled: bool = False
+    usage: dict[str, Any] = field(default_factory=dict)   # Usage.summary() for this turn
 
 
 @dataclass
@@ -130,8 +132,9 @@ class Harness:
             if prov.get("exclusive") and prov.get("base_url"):
                 gate = gate_for(prov["base_url"])
                 gate.linger = float(prov.get("swap_linger", gate.linger))
-                gate.on_swap = lambda dropped, model, secs: self.on_event(
-                    "swap", {"unloaded": dropped, "loaded": model, "seconds": secs})
+                gate.on_swap = lambda dropped, model, secs: (
+                    self.on_event("swap", {"unloaded": dropped, "loaded": model, "seconds": secs}),
+                    self._record(kind="swap", model=model, seconds=secs, calls=1))
         for key, env in (("comfy_url", "JEVH_COMFY_URL"), ("comfy_workflows", "JEVH_COMFY_WORKFLOWS"),
                          ("tools_jev", "JEVH_TOOLS_JEV")):
             if self.cfg.tools.get(key):  # REPL children inherit these
@@ -139,6 +142,12 @@ class Harness:
         os.environ.setdefault("JEVH_JEV_URL", str(self.cfg.jev.get("url", "http://127.0.0.1:33001")))
         os.environ.setdefault("JEVH_JEV_BACKEND", str(self.cfg.jev.get("backend", "semif")))
         self.verifier = Verifier(self.jev, self.cfg)
+        self.usage = Usage(self.cfg.workspace / "usage.db", self.cfg.raw.get("prices"))
+        self.turn_no = 0
+        self._tl = threading.local()                 # which turn/task/persona this thread works for
+        self.jev.on_call = lambda step, resp, n: self._record(
+            kind="jev", model=resp.model, input_tokens=resp.input_tokens, seconds=resp.latency_s,
+            persona=getattr(self._tl, "persona", ""), task=getattr(self._tl, "task", None))
         self.learner = Learner(self.jev, self.memory, self.skills_home, self.cfg.t,
                                lambda kind, data: self.on_event(kind, data))
         self._learn_threads: list[threading.Thread] = []
@@ -152,6 +161,8 @@ class Harness:
     # -- public ----------------------------------------------------------------------
     def turn(self, message: str, force: str | None = None) -> TurnResult:
         self.learner.cancel.set()               # background learning yields the model to this turn
+        self.turn_no += 1
+        self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = self.turn_no, "", None, "llm"
         self._cancel = threading.Event()
         self._running = True
         try:
@@ -191,7 +202,8 @@ class Harness:
             self.memory.append(route.persona, message, STOPPED_NOTE, self.session)
         self.current = route.persona
         return TurnResult(route.persona, result.answer, result.artifacts, self.board.tasks,
-                          list(self.jev.trace), time.time() - started, cancelled)
+                          list(self.jev.trace), time.time() - started, cancelled,
+                          self.usage.summary(self.session, self.turn_no))
 
     # -- stop / ask ------------------------------------------------------------------
     def cancel(self) -> bool:
@@ -268,8 +280,10 @@ class Harness:
         used = [self.roster[n] for n in result.skills if n in self.roster]
 
         self.learner.cancel = threading.Event()  # a fresh flag for this learning run
+        turn_no = self.turn_no
 
         def run() -> None:
+            self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = turn_no, persona, None, "learn"
             out = self.learner.after_turn(persona, message, result.answer, result.transcript, result.steps,
                                           used, result.llm, self.session)
             if out.skill:  # a new or improved skill is picked up from the next turn on
@@ -285,6 +299,8 @@ class Harness:
     # -- tasks -----------------------------------------------------------------------
     def run_task(self, task: Task, goal: str, allow_collab: bool) -> WorkerResult:
         persona = self.personas[task.to]
+        turn_no = getattr(self._tl, "turn", self.turn_no)
+        self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = turn_no, persona.name, task.id, "llm"
         skills = self._safe("skills", lambda: self.jev.pick_skills(task.jev_text, persona, self.roster),
                             SkillDecision([]))
         self.on_event("skills", {"task": task, "decision": skills})
@@ -323,7 +339,7 @@ class Harness:
         handlers = {
             "llm_query": lambda prompt, data=None: llm.chat([{"role": "user", "content": (
                 prompt if data is None else f"{prompt}\n\n---\n{data}")}]).text,
-            "jev": lambda state, questions: self.jev.client.ask(state, questions).as_dict(),
+            "jev": lambda state, questions: self.jev._ask("worker_jev", state, questions).as_dict(),
             "request": lambda to, text, inputs=None: handles.wait(handles.start(to, text, inputs)),
             "request_async": lambda to, text, inputs=None: handles.start(to, text, inputs),
             "wait": lambda h, timeout=None: handles.wait(h, timeout),
@@ -335,7 +351,7 @@ class Harness:
         worker = Worker(persona, llm, self.session_dir / f"t{task.id}-{persona.name}", self.artifacts,
                         handlers, {t: f"jevh.tools.{t}" for t in persona.tools},
                         self.cfg.lim("repl_timeout"), self.cfg.lim("output_cap"),
-                        lambda kind, data: self.on_event(kind, {**data, "task_id": task.id}), env,
+                        lambda kind, data: self._on_worker(kind, data, task), env,
                         self._cancel, self._verify_fn(task) if persona.code and self.verifier.enabled else None,
                         int(self.verifier.settings.get("max_bounces", 2)))
         task.started = time.time()
@@ -416,6 +432,26 @@ class Harness:
         return fut
 
     # -- helpers ---------------------------------------------------------------------
+    def _where(self) -> dict[str, Any]:
+        return {"turn": getattr(self._tl, "turn", self.turn_no), "persona": getattr(self._tl, "persona", ""),
+                "task": getattr(self._tl, "task", None), "kind": getattr(self._tl, "kind", "llm")}
+
+    def _record(self, **kw) -> None:
+        w = self._where()
+        kw.setdefault("persona", w["persona"])
+        kw.setdefault("task", w["task"])
+        try:
+            self.usage.record(session=self.session, turn=w["turn"], **kw)
+        except Exception:  # noqa: BLE001 - accounting must never break a turn
+            pass
+
+    def _on_worker(self, kind: str, data: dict, task: Task) -> None:
+        if kind == "tool_usage":
+            self._record(kind="jev_tools", model=str(self.cfg.jev.get("backend", "")), calls=data.get("calls", 0),
+                         input_tokens=data.get("tokens", 0), seconds=data.get("seconds", 0.0))
+            return
+        self.on_event(kind, {**data, "task_id": task.id})
+
     def _pick_tools(self, task: Task, persona: Persona) -> ToolDecision:
         """Which tool guides (and MCP tools) this task's prompt carries."""
         if not persona.code:
@@ -469,7 +505,8 @@ class Harness:
                     if target is not None and hasattr(target, "on_progress"):
                         target.on_progress = lambda n, thinking=0, name=persona.name: self.on_event(
                             "progress", {"persona": name, "chunks": n, "thinking": thinking})
-                self._llms[key] = llm
+                self._llms[key] = Metered(llm, self._record, self._where, tier,
+                                          str(self._model_cfg(persona, tier).get("model", "")))
             return self._llms[key]
 
     def _model_cfg(self, persona: Persona, tier: str = "strong") -> dict[str, Any]:

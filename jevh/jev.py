@@ -144,9 +144,12 @@ class Jev:
                                                 backend=cfg.jev.get("backend", "laya"),
                                                 timeout=float(cfg.jev.get("timeout", 300)))
         self.trace: list[dict[str, Any]] = []
+        self.on_call = None   # (step, response, n_questions): usage tracking
 
     def _ask(self, step: str, state: Any, questions: dict) -> Any:
         resp = self.client.ask(state, questions)
+        if self.on_call is not None:
+            self.on_call(step, resp, len(questions))
         self.trace.append({"step": step, "model": resp.model, "latency_s": round(resp.latency_s, 3),
                            "answers": {k: a.raw for k, a in resp.answers.items()}})
         return resp
