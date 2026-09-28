@@ -62,6 +62,8 @@ class ScriptedLLM:
     def chat(self, messages):
         self.seen.append([dict(m) for m in messages])
         text = self.replies.pop(0) if self.replies else "done"
+        if isinstance(text, LLMResult):   # a scripted reply that also carries reasoning
+            return text
         return LLMResult(text=text, input_tokens=10, output_tokens=5, model=self.name)
 
 

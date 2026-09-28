@@ -40,7 +40,8 @@ DEFAULT_THRESHOLDS = {"tool": 0.65, "mcp_fits": 0.5, "fact": 0.88, "same_fact": 
                       "verify_claims": 0.8, "verify_delivers": 0.8, "verify_honest": 0.8,
                       "verify_accurate": 0.4, "stall": 0.6}
 DEFAULT_LIMITS = {"max_mcp_tools": 3, "memory_search": 10, "memory_facts": 6, "follow_turns": 2,
-                  "ask_timeout": 1800, "progress_every": 8, "compact_tokens": 60000, "keep_steps": 3}
+                  "ask_timeout": 1800, "progress_every": 8, "compact_tokens": 60000, "keep_steps": 3,
+                  "keep_reasoning": 2500}
 
 
 def load_config(path: str | os.PathLike | None = None) -> Config:

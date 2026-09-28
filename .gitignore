@@ -2,3 +2,5 @@ workspace/
 __pycache__/
 *.pyc
 .pytest_cache/
+evals/bench/data/
+evals/bench/runs/

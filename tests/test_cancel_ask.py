@@ -143,3 +143,30 @@ def test_stop_cuts_a_streaming_reply():
         llm.chat([{"role": "user", "content": "hi"}], cancel=stop)
     assert time.time() - t < 2
     srv.shutdown()
+
+
+def test_reasoning_text_is_captured_from_the_stream():
+    import http.server
+    import json as _json
+
+    from jevh.llm import OpenAICompat
+
+    class Thinker(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            for delta in ({"reasoning_content": "The rule mirrors "}, {"reasoning_content": "each row."},
+                          {"content": "Here is the code."}):
+                self.wfile.write(f"data: {_json.dumps({'choices': [{'delta': delta}]})}\n\n".encode())
+            self.wfile.write(b"data: [DONE]\n\n")
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Thinker)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    r = OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "t").chat([{"role": "user", "content": "hi"}])
+    srv.shutdown()
+    assert r.text == "Here is the code." and r.reasoning == "The rule mirrors each row." and r.thinking_tokens == 2

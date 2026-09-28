@@ -31,6 +31,8 @@ FIRST_STEP_NUDGE = ("\n\nIf this needs code: reply now with a short plan (at mos
                     "python block for step one, and build incrementally across replies - do not design "
                     "the whole solution before replying. If it needs no code, reply with just the answer.")
 HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-up
+REASONING_CHARS = 2500     # end of each step's hidden reasoning kept in the conversation (0 = none)
+REASONING_HEADER = "(end of my reasoning at this step, kept so the next step can build on it:)"
 NOTES_CHARS = 2500         # plus that turn's work notes (the code it ran and what came back)
 NOTES_HEADER = ("[Harness note, not part of the reply the user saw: the work this reply was based on - "
                 "the code you ran and what came back. Use it to answer questions about sources or steps.]")
@@ -248,7 +250,19 @@ class Worker:
         # fast tier only: () -> the persona's strong model, swapped in when the gate sends work back
         self.escalate: Callable[[], LLM] | None = None
         self.escalated = False
+        self.keep_reasoning = REASONING_CHARS
         self._use(llm)
+
+    def _with_reasoning(self, out) -> str:
+        """The reply as it stays in the conversation. A thinking model's reasoning is dropped
+        between turns, so each step used to re-derive everything: ARC bench, one task took 56k
+        thinking tokens over 5 harness steps vs 25k in a single call, and a reply that was all
+        thinking lost its progress entirely. The end of the reasoning (where it concludes) goes
+        along; fences are defused so the log never mistakes it for code that ran."""
+        tail = (getattr(out, "reasoning", "") or "").strip()[-self.keep_reasoning:] if self.keep_reasoning else ""
+        if not tail:
+            return out.text
+        return (f"{REASONING_HEADER}\n...{tail.replace('```', '` ` `')}\n\n" + out.text).strip()
 
     def _use(self, llm: LLM) -> None:
         self.llm = llm
@@ -294,7 +308,7 @@ class Worker:
                 out = self._llm(messages)
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
-                messages.append({"role": "assistant", "content": out.text})
+                messages.append({"role": "assistant", "content": self._with_reasoning(out)})
                 blocks = CODE_RE.findall(out.text) or TOOL_CALL_RE.findall(out.text)
                 xml_note = ""
                 if not blocks and "<function=" in out.text:
@@ -317,6 +331,17 @@ class Worker:
                         "Your reply was cut off before the code block closed, so nothing ran. "
                         "Work in smaller steps: write big files in parts (open(..., 'a')) across "
                         "several python blocks, and keep each reply short." + self._steps_left_note(step))})
+                    continue
+                if not blocks and not out.text.strip():
+                    # all thinking, no reply (Qwen, ARC bench: ~10 min of reasoning then nothing): not an
+                    # answer to check, just a turn to continue
+                    self.on_step("output", {"persona": self.persona.name, "step": step,
+                                            "output": "(empty reply - asked to continue)", "error": True})
+                    messages[-1]["content"] = self._with_reasoning(out) or "(empty reply)"
+                    messages.append({"role": "user", "content": (
+                        "Your last reply was empty (only thinking, no text). Continue from where your "
+                        "reasoning got to: reply with the next ```python block, or call final() if you are "
+                        "done." + self._steps_left_note(step))})
                     continue
                 if not blocks:
                     if self._bounce(out.text, [], [], messages, step, "(no code was run)\n\n"):

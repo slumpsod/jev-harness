@@ -437,6 +437,7 @@ class Harness:
                         int(self.verifier.settings.get("max_bounces", 2)),
                         self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
+        worker.keep_reasoning = self.cfg.lim("keep_reasoning")
         if tier.tier == "fast" and self.tier_mode != "fast":   # quality first: a bounced fast answer escalates
             worker.escalate = lambda: self._llm(persona, "strong")
         task.started = time.time()

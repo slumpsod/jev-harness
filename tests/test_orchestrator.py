@@ -464,3 +464,25 @@ def test_a_broken_event_handler_cannot_stop_the_work(cfg):
                 on_event=explode)
     h.learning = False
     assert h.turn("do it").answer == "done anyway"
+
+
+def test_empty_reply_is_continued_not_judged(cfg):
+    """ARC bench: Qwen once thought for 10 minutes and replied with nothing; it went to the
+    answer check as a 'plain answer' and was bounced as undelivered."""
+    llm = ScriptedLLM([py("print(6 * 7)"), "", py("final('42')")])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: llm)
+    h.learning = False
+    assert h.turn("what is 6 times 7? use code", force="high_end_dev").answer == "42"
+    assert "reply was empty" in llm.seen[2][-1]["content"]
+
+
+def test_reasoning_tail_carries_to_the_next_step(cfg):
+    """ARC bench: the next step never saw what the last one worked out, so it re-derived it."""
+    from jevh.llm import LLMResult
+    llm = ScriptedLLM([LLMResult(text="", reasoning="... so the rule is: mirror each row left to right."),
+                       py("final('mirrored')")])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: llm)
+    h.learning = False
+    assert h.turn("solve the puzzle", force="high_end_dev").answer == "mirrored"
+    carried = llm.seen[1][-2]["content"]
+    assert carried.startswith("(end of my reasoning") and "mirror each row" in carried

@@ -31,6 +31,7 @@ class LLMResult:
     output_tokens: int = 0
     model: str = ""
     thinking_tokens: int = 0   # part of output_tokens spent in hidden reasoning
+    reasoning: str = ""        # that hidden reasoning's text, where the server returns it
 
 
 class LLM(Protocol):
@@ -94,6 +95,7 @@ class OpenAICompat:
         req = urllib.request.Request(f"{self.base_url}/chat/completions", method="POST",
                                      data=json.dumps(body).encode("utf-8"), headers=headers)
         parts: list[str] = []
+        thought: list[str] = []
         usage: dict[str, Any] = {}
         finish = None
         chunks = thinking = 0
@@ -114,8 +116,10 @@ class OpenAICompat:
                     for ch in evt.get("choices") or []:
                         delta = ch.get("delta") or {}
                         parts.append(delta.get("content") or "")
-                        if delta.get("reasoning_content") or delta.get("reasoning"):
+                        piece = delta.get("reasoning_content") or delta.get("reasoning")
+                        if piece:
                             thinking += 1
+                            thought.append(piece if isinstance(piece, str) else "")
                         finish = ch.get("finish_reason") or finish
                     chunks += 1
                     if self.on_progress and chunks % 50 == 0:
@@ -134,14 +138,17 @@ class OpenAICompat:
             done.set()
         if cancel is not None and cancel.is_set():
             raise Cancelled("stopped by the user while the model was replying")
-        text = THINK_RE.sub("", "".join(parts)).strip()
+        raw = "".join(parts)
+        inline = "".join(m.group(0) for m in THINK_RE.finditer(raw))   # models that think inside <think>
+        text = THINK_RE.sub("", raw).strip()
+        reasoning = "".join(thought) or inline.replace("<think>", "").replace("</think>", "").strip()
         if finish == "length":
             text += (f"\n[output cut off at max_tokens: ~{thinking} thinking + "
                      f"~{chunks - thinking} answer tokens]")
-        reasoning = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+        counted = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
         return LLMResult(text=text, input_tokens=int(usage.get("prompt_tokens") or 0),
                          output_tokens=int(usage.get("completion_tokens") or 0), model=self.model,
-                         thinking_tokens=int(reasoning if reasoning is not None else thinking))
+                         thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning)
 
 
 class AnthropicLLM:
