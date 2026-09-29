@@ -21,9 +21,11 @@ import importlib
 import io
 import json
 import os
+import pickle
 import shutil
 import sys
 import traceback
+import types
 from pathlib import Path
 
 _PROTO_OUT = os.fdopen(os.dup(1), "w", encoding="utf-8", buffering=1)
@@ -225,6 +227,98 @@ G: dict = {"__name__": "__main__", "ctx": {}, "peek": peek, "llm_query": llm_que
            "list_artifacts": list_artifacts, "final": final, "mcp": mcp, "recall": recall,
            "remember": remember, "ask_user": ask_user, "start_job": start_job, "job_status": job_status,
            "job_wait": job_wait}
+_BUILTINS = set(G)   # the harness's own helpers: never snapshotted (they come back with the REPL)
+
+
+# Source of every top-level import / def / class the worker ran: functions and modules can't be
+# pickled without dill, so a snapshot re-creates them from source instead (Prime Agent keeps REPL
+# state across a resume with dill; this does the same with only the standard library).
+IMPORTS: dict[str, None] = {}
+DEFS: dict[str, str] = {}
+MAX_VAR_BYTES = 16 * 1024 * 1024
+
+
+def _remember_defs(code: str, tree: ast.Module) -> None:
+    for node in tree.body:
+        src = ast.get_source_segment(code, node)
+        if not src:
+            continue
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            IMPORTS[src] = None
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            DEFS[node.name] = src
+
+
+def _serializer():
+    try:
+        import dill  # saves functions and lambdas too, when installed
+        return dill, "dill"
+    except ImportError:
+        return pickle, "pickle"
+
+
+def _user_names() -> list[str]:
+    return [n for n, v in G.items() if not n.startswith("_") and n not in _BUILTINS and n != "ctx"
+            and not isinstance(v, types.ModuleType)]
+
+
+def snapshot(path: str) -> dict:
+    """Write the worker's variables (plus import/def sources) to `path`, atomically."""
+    ser, kind = _serializer()
+    values, skipped = {}, []
+    for name in _user_names():
+        v = G[name]
+        if name in DEFS and (callable(v) or isinstance(v, type)) and kind == "pickle":
+            continue   # re-created from source
+        try:
+            blob = ser.dumps(v)
+        except Exception:  # noqa: BLE001 - open files, generators, sockets...
+            skipped.append(name)
+            continue
+        if len(blob) > MAX_VAR_BYTES:
+            skipped.append(name)
+            continue
+        values[name] = blob
+    defs = {n: s for n, s in DEFS.items() if n in G}
+    data = {"version": 1, "serializer": kind, "imports": list(IMPORTS), "defs": defs, "values": values,
+            "skipped": skipped}
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as f:
+        pickle.dump(data, f)
+    os.replace(tmp, path)
+    return {"saved": sorted(values), "defs": sorted(defs), "skipped": skipped}
+
+
+def restore(path: str) -> dict:
+    """Bring back a snapshot: imports, then defs, then values. Each part independently."""
+    if not os.path.exists(path):
+        return {"restored": [], "defs": [], "failed": [], "reason": "no snapshot"}
+    with open(path, "rb") as f:
+        data = pickle.load(f)
+    ser, kind = _serializer()
+    for src in data.get("imports", []):
+        try:
+            exec(src, G)
+            IMPORTS[src] = None
+        except Exception:  # noqa: BLE001
+            pass
+    defs, failed = [], []
+    for name, src in data.get("defs", {}).items():
+        try:
+            exec(src, G)
+            DEFS[name] = src
+            defs.append(name)
+        except Exception:  # noqa: BLE001
+            failed.append(name)
+    restored = []
+    loader = ser if data.get("serializer") == kind or kind == "dill" else pickle
+    for name, blob in data.get("values", {}).items():
+        try:
+            G[name] = loader.loads(blob)
+            restored.append(name)
+        except Exception:  # noqa: BLE001
+            failed.append(name)
+    return {"restored": sorted(restored), "defs": sorted(defs), "failed": failed + data.get("skipped", [])}
 
 
 def _exec(code: str) -> tuple[str, bool]:
@@ -233,6 +327,7 @@ def _exec(code: str) -> tuple[str, bool]:
     with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
         try:
             tree = ast.parse(code, "<cell>", "exec")
+            _remember_defs(code, tree)
             last = tree.body[-1] if tree.body and isinstance(tree.body[-1], ast.Expr) else None
             if last is not None:
                 tree.body = tree.body[:-1]
@@ -271,6 +366,13 @@ def main() -> None:
         elif op == "set":
             G[msg["name"]] = msg.get("value")
             _send({"type": "result", "output": "", "error": False, "final": None})
+        elif op in ("snapshot", "restore"):
+            try:
+                info = (snapshot if op == "snapshot" else restore)(msg["path"])
+                _send({"type": "result", "output": json.dumps(info), "error": False, "final": None})
+            except Exception as e:  # noqa: BLE001 - a snapshot is a convenience
+                _send({"type": "result", "output": json.dumps({"error": f"{type(e).__name__}: {e}"}),
+                       "error": True, "final": None})
         elif op == "exec":
             _FINAL = None
             dec = sys.modules.get("jevh.decide")

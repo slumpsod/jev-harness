@@ -10,7 +10,7 @@ system_prompt: |
   size and seed, run it, and return the artifact paths in final(). Check
   comfy.status() for free VRAM before heavy video jobs. If comfy raises ComfyDown
   (server not running), call final() at once saying images are unavailable - never retry.
-model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.3, think: unlimited}
+model: {provider: lmstudio, model: qwen3.8-27b@q6_k, think: unlimited}
 tools: [comfy, web]
 skills_allowed: ["comfyui*", video-analysis, learned-*]
 can_request: []

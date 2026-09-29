@@ -244,6 +244,25 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         return {"range": range, "summary": h.usage.summary(session=session, since=since),
                 "turns": h.usage.turns(session=session, limit=60)}
 
+    @app.get("/api/thinking")
+    def thinking() -> dict:
+        """The running turn's newest live thinking file (its end): workers stream each step's
+        reasoning and reply to <task folder>/thinking/step-NN.txt as they are generated."""
+        h = hub.harness
+        try:
+            files = sorted(Path(h.session_dir).glob("*/thinking/step-*.txt"), key=lambda f: f.stat().st_mtime)
+        except OSError:
+            files = []
+        if not files or not hub.busy.locked():
+            return {"file": None}
+        f = files[-1]
+        size = f.stat().st_size
+        with open(f, "rb") as fh:
+            fh.seek(max(0, size - 4000))
+            text = fh.read().decode("utf-8", "replace")
+        return {"file": f"{f.parent.parent.name}/{f.name}", "bytes": size, "text": text,
+                "idle": round(time.time() - f.stat().st_mtime, 1)}
+
     @app.get("/api/resumable")
     def resumable() -> list:
         return hub.harness.resumable(10)

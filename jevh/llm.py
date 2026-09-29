@@ -12,11 +12,13 @@ from __future__ import annotations
 import json
 import threading
 import os
+import time
+from pathlib import Path
 import re
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
-from typing import Any, Protocol
+from dataclasses import dataclass, field
+from typing import Any, Callable, Protocol
 
 from .errors import Cancelled
 from .lmstudio import gate_for
@@ -32,6 +34,8 @@ class LLMResult:
     model: str = ""
     thinking_tokens: int = 0   # part of output_tokens spent in hidden reasoning
     reasoning: str = ""        # that hidden reasoning's text, where the server returns it
+    tool_calls: list = field(default_factory=list)   # native calls: [{"id", "name", "arguments" (JSON text)}]
+    interrupted: bool = False   # a `watch` callback stopped it mid-thinking (see OpenAICompat.chat)
 
 
 class LLM(Protocol):
@@ -56,6 +60,62 @@ def _close_on_cancel(response, cancel: threading.Event, done: threading.Event) -
             return
 
 
+def _watch_thinking(response, watch, thought, parts, calls, stop, done, every: int, after: int) -> None:
+    """Side thread: while the reply is pure thinking, show `watch` the reasoning every `every` new
+    chars (from `after` on); if it says stop, close the stream (the server stops generating)."""
+    checked = 0
+    while not done.wait(1.0):
+        if calls or "".join(parts).strip():
+            return   # the model is already acting or answering: nothing to interrupt
+        text = "".join(thought)
+        if len(text) < after or len(text) - checked < every:
+            continue
+        checked = len(text)
+        try:
+            hit = watch(text)
+        except Exception:  # noqa: BLE001 - a failed check never stops the model
+            hit = False
+        if hit and not done.is_set():
+            stop.set()
+            try:
+                response.close()
+            except Exception:  # noqa: BLE001
+                pass
+            return
+
+
+class _LiveFeed:
+    """Streams a reply into a text file as it is generated, section by section, so a long think
+    can be read (and judged) while it is still going."""
+
+    def __init__(self, path, model: str):
+        self.fh, self.section, self.n = None, None, 0
+        if path:
+            try:
+                Path(path).parent.mkdir(parents=True, exist_ok=True)
+                self.fh = open(path, "w", encoding="utf-8")
+                self.fh.write(f"# {model} - started {time.strftime('%H:%M:%S')}\n")
+            except OSError:
+                self.fh = None
+
+    def write(self, section: str, text: str) -> None:
+        if self.fh is None or not text:
+            return
+        if section != self.section:
+            self.fh.write(f"\n\n=== {section} ===\n")
+            self.section = section
+        self.fh.write(text)
+        self.n += 1
+        if self.n % 20 == 0:
+            self.fh.flush()
+
+    def close(self, note: str) -> None:
+        if self.fh is not None:
+            self.fh.write(f"\n\n# done {time.strftime('%H:%M:%S')}: {note}\n")
+            self.fh.close()
+            self.fh = None
+
+
 class OpenAICompat:
     """Streams, so `idle_timeout` bounds the gap between tokens, not the whole reply
     (a local 27B at ~27 tok/s legitimately takes minutes on a long answer)."""
@@ -75,16 +135,29 @@ class OpenAICompat:
         self.on_progress = None  # callable(tokens_so_far) set by the UI, optional
         self.gate = gate         # lmstudio.ExclusiveModels: one model resident at a time
         self.unlimited_thinking = False  # think: unlimited -> no cap, and workers skip the first-step nudge
+        self.native_tools = False        # provider/persona native_tools: true -> tools= in chat()
 
-    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
+    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
+             tools: list[dict] | None = None, live: str | os.PathLike | None = None,
+             watch: Callable[[str], bool] | None = None, watch_every: int = 4000,
+             watch_after: int = 6000) -> LLMResult:
+        """`live`: a file the reasoning and reply stream into as they are generated (read it any time).
+        `watch(reasoning_so_far) -> stop?`: while the reply is still pure thinking, called from a
+        side thread every `watch_every` new chars once there are `watch_after`; True closes the
+        stream and returns what was thought so far (interrupted=True)."""
         if self.gate is None:
-            return self._chat(messages, cancel)
+            return self._chat(messages, cancel, tools, live, watch, watch_every, watch_after)
         with self.gate.use(self.model):
-            return self._chat(messages, cancel)
+            return self._chat(messages, cancel, tools, live, watch, watch_every, watch_after)
 
-    def _chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
+    def _chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
+              tools: list[dict] | None = None, live: str | os.PathLike | None = None,
+              watch: Callable[[str], bool] | None = None, watch_every: int = 4000,
+              watch_after: int = 6000) -> LLMResult:
         body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True,
                                 "stream_options": {"include_usage": True}, **self.extra}
+        if tools:
+            body["tools"] = tools
         if self.temperature is not None:
             body["temperature"] = self.temperature
         if self.max_tokens:
@@ -96,14 +169,20 @@ class OpenAICompat:
                                      data=json.dumps(body).encode("utf-8"), headers=headers)
         parts: list[str] = []
         thought: list[str] = []
+        calls: dict[int, dict[str, str]] = {}   # streamed tool calls, assembled by index
         usage: dict[str, Any] = {}
         finish = None
         chunks = thinking = 0
         done = threading.Event()
+        stop_watch = threading.Event()   # set by the watcher: close the stream, keep what we have
+        feed = _LiveFeed(live, self.model)
         try:
             with urllib.request.urlopen(req, timeout=self.idle_timeout) as r:
                 if cancel is not None:  # a stop mid-generation closes the stream: the server stops too
                     threading.Thread(target=_close_on_cancel, args=(r, cancel, done), daemon=True).start()
+                if watch is not None:
+                    threading.Thread(target=_watch_thinking, daemon=True, args=(
+                        r, watch, thought, parts, calls, stop_watch, done, watch_every, watch_after)).start()
                 for raw in r:
                     line = raw.decode("utf-8", "replace").strip()
                     if not line.startswith("data:"):
@@ -120,6 +199,16 @@ class OpenAICompat:
                         if piece:
                             thinking += 1
                             thought.append(piece if isinstance(piece, str) else "")
+                            feed.write("thinking", thought[-1])
+                        if delta.get("content"):
+                            feed.write("reply", delta["content"])
+                        for tc in delta.get("tool_calls") or []:
+                            slot = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": ""})
+                            slot["id"] = tc.get("id") or slot["id"]
+                            fn = tc.get("function") or {}
+                            slot["name"] += fn.get("name") or ""
+                            slot["arguments"] += fn.get("arguments") or ""
+                            feed.write("tool call", (fn.get("name") or "") + (fn.get("arguments") or ""))
                         finish = ch.get("finish_reason") or finish
                     chunks += 1
                     if self.on_progress and chunks % 50 == 0:
@@ -127,15 +216,19 @@ class OpenAICompat:
         except Exception as e:
             if cancel is not None and cancel.is_set():
                 raise Cancelled("stopped by the user while the model was replying") from None
-            if isinstance(e, urllib.error.HTTPError):
+            if stop_watch.is_set():   # the watcher closed it on purpose: return the thinking so far
+                pass
+            elif isinstance(e, urllib.error.HTTPError):
                 raise LLMError(f"{self.name}: HTTP {e.code} {e.read().decode('utf-8', 'replace')[:300]}") from e
-            if isinstance(e, urllib.error.URLError):
+            elif isinstance(e, urllib.error.URLError):
                 raise LLMError(f"{self.name}: unreachable ({e.reason})") from e
-            if isinstance(e, TimeoutError):
+            elif isinstance(e, TimeoutError):
                 raise LLMError(f"{self.name}: no tokens for {self.idle_timeout:.0f}s") from e
-            raise
+            else:
+                raise
         finally:
             done.set()
+            feed.close(f"{thinking} thinking chunks")
         if cancel is not None and cancel.is_set():
             raise Cancelled("stopped by the user while the model was replying")
         raw = "".join(parts)
@@ -148,7 +241,9 @@ class OpenAICompat:
         counted = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
         return LLMResult(text=text, input_tokens=int(usage.get("prompt_tokens") or 0),
                          output_tokens=int(usage.get("completion_tokens") or 0), model=self.model,
-                         thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning)
+                         thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning,
+                         tool_calls=[{**c, "id": c["id"] or f"call_{i}"} for i, c in sorted(calls.items())],
+                         interrupted=stop_watch.is_set())
 
 
 class AnthropicLLM:
@@ -232,6 +327,8 @@ def make_llm(model_cfg: dict[str, Any], providers: dict[str, dict[str, Any]]) ->
                                extra=cfg.get("extra"),
                                gate=gate_for(prov["base_url"]) if prov.get("exclusive") else None)
             llm.unlimited_thinking = unlimited
+            # workers get a real `python` tool (the model's own tool-call format) instead of fenced blocks
+            llm.native_tools = bool(cfg.get("native_tools", prov.get("native_tools", False)))
             return llm
         if prov["type"] == "anthropic":
             return AnthropicLLM(model=cfg.get("model", "claude-opus-5"),

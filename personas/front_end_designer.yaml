@@ -8,7 +8,7 @@ system_prompt: |
   save_artifact(). Design mobile-first, accessible (contrast, focus states), with a
   small coherent palette and type scale. If you need generated imagery (hero art,
   illustrations, icons), request it from comfyui_manager with a precise visual brief.
-model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.6, think: unlimited}
+model: {provider: lmstudio, model: qwen3.8-27b@q6_k, think: unlimited}
 skills_allowed: [frontend-design, hermes-local-web-apps, simple-web-app-build, pretext,
                  pixel-art, "baoyu-*", ideation, harness-artifacts, learned-*]
 tools: [browser, project, web]

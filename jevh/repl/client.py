@@ -105,6 +105,20 @@ class Repl:
     def set(self, name: str, value: Any) -> None:
         self._roundtrip({"op": "set", "name": name, "value": value}, self.timeout)
 
+    def snapshot(self, path: Path) -> dict:
+        """Save the worker's variables, imports and defs (for resume). {} if it failed."""
+        return self._state_op("snapshot", path)
+
+    def restore(self, path: Path) -> dict:
+        return self._state_op("restore", path)
+
+    def _state_op(self, op: str, path: Path) -> dict:
+        res = self._roundtrip({"op": op, "path": str(path)}, min(self.timeout, 120))
+        try:
+            return json.loads(res.output) if not res.timed_out else {}
+        except ValueError:
+            return {}
+
     def run(self, code: str) -> ExecResult:
         res = self._roundtrip({"op": "exec", "code": code}, self.timeout)
         res.output = truncate(res.output, self.output_cap)

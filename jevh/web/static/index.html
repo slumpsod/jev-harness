@@ -48,6 +48,9 @@ details.activity pre { max-height: 220px; overflow: auto; margin: 4px 0 8px; }
 .step { margin: 4px 0; }
 .step .err { color: var(--bad); }
 .live { font-size: 12px; color: var(--muted); }
+.thinking { margin-top: 6px; font-size: 12px; }
+.thinking summary { color: var(--muted); cursor: pointer; }
+.thinking pre { max-height: 240px; overflow: auto; white-space: pre-wrap; margin: 4px 0 0; }
 .composer { border-top: 1px solid var(--line); padding: 10px 12px; display: flex; gap: 8px; background: var(--panel); }
 .composer textarea { flex: 1; resize: none; height: 64px; padding: 8px; }
 .composer .btns { display: flex; flex-direction: column; gap: 6px; }
@@ -302,8 +305,11 @@ function renderChat() {
         <div class="kv">${q.options.length ? "or type" : "Type"} your answer below.</div></div>`).join("");
     const qa = qs.filter((q) => q.state !== "waiting").map((q) => `<div class="qa">${esc(q.persona)} asked: ${esc(q.question)} -
         ${q.state === "answered" ? `you said: <b>${esc(q.answer)}</b>` : esc(q.state)}</div>`).join("");
+    const th = S.thinking && S.thinking.file ? S.thinking : null;
+    const thinking = th ? `<details class="thinking" open><summary>live thinking - ${esc(th.file)}
+        (${Math.round(th.bytes / 1024)} KB${th.idle > 5 ? `, quiet ${Math.round(th.idle)}s` : ""})</summary><pre>${esc(th.text)}</pre></details>` : "";
     const body = t.status === "running"
-      ? `${qa}<div class="live">${asks ? "waiting for you" : `working${persona ? ` as <b>${esc(persona)}</b>` : ""}... ${liveTxt}`}</div>${asks}`
+      ? `${qa}<div class="live">${asks ? "waiting for you" : `working${persona ? ` as <b>${esc(persona)}</b>` : ""}... ${liveTxt}`}</div>${asks}${thinking}`
       : qa + md(t.answer || "(empty)");
     const arts = (t.artifacts || []).map((a) => `<a href="#" data-art="${esc(a)}">${esc(baseName(a))}</a>`).join(" | ");
     const steps = t.activity.map((a) => {
@@ -326,6 +332,12 @@ function renderChat() {
       </div>`;
   }).join("");
   if (stick) log.scrollTop = log.scrollHeight;
+  for (const p of log.querySelectorAll(".thinking pre")) p.scrollTop = p.scrollHeight;   // follow the end
+}
+
+async function pollThinking() {   // while a turn runs: the newest step's reasoning, as it streams
+  if (!S.order.some((id) => S.turns.get(id).status === "running")) { if (S.thinking) { S.thinking = null; schedule(); } return; }
+  try { S.thinking = await api("/api/thinking"); schedule(); } catch (e) { /* next tick */ }
 }
 
 function selTurn() { return S.selected != null ? S.turns.get(S.selected) : S.turns.get(S.order[S.order.length - 1]); }
@@ -593,6 +605,7 @@ function connect() {
   connect();
   refreshStatus(); setInterval(refreshStatus, 5000);
   setInterval(() => { if (S.order.some((id) => S.turns.get(id).status === "running")) schedule(); }, 1000);
+  setInterval(pollThinking, 2000);
   render();
 })();
 </script>

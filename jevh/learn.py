@@ -134,27 +134,33 @@ def evidence_lines(text: str, terms: tuple[set[str], set[str]], budget: int = 60
     return " / ".join(line for _, line in sorted(keep))
 
 
-def seen_text(transcript: list[dict[str, str]]) -> str:
+def seen_text(transcript: list[dict[str, str]], task_idx: int | None = None) -> str:
     """Everything the worker was shown, uncut: prior turns (both sides), the task, every tool
-    output. Not its own replies during the task, where a made-up detail would come from."""
-    start = next((i for i, m in enumerate(transcript)
-                  if m.get("role") == "user" and "(In your REPL:" in m.get("content", "")), len(transcript))
+    output. Not its own replies during the task, where a made-up detail would come from.
+    `task_idx`: where the task message is (the worker knows it); without it the first user message
+    is taken as the task, so earlier turns' replies don't count as evidence."""
+    if task_idx is None:
+        task_idx = next((i for i, m in enumerate(transcript)
+                         if m.get("role") == "user" and "(In your REPL:" in m.get("content", "")), None)
+    start = task_idx if task_idx is not None else next(
+        (i for i, m in enumerate(transcript) if m.get("role") == "user"), len(transcript))
     return "\n".join(m.get("content", "") for i, m in enumerate(transcript)
-                     if m.get("role") == "user" or (m.get("role") == "assistant" and i < start))
+                     if m.get("role") in ("user", "tool") or (m.get("role") == "assistant" and i < start))
 
 
 def work_log(transcript: list[dict[str, str]], cap: int = 5000, answer: str | None = None) -> str:
     """The code a worker ran and what came back, compact, most recent last. With `answer`,
     each long output also keeps its lines that mention the answer's numbers and words."""
+    from .worker import is_output, msg_code   # (worker imports nothing from here; kept lazy anyway)
     parts = []
     terms = evidence_terms(answer) if answer else None
     for m in transcript[2:]:
-        text = m.get("content", "")
+        text = m.get("content", "") or ""
         if m.get("role") == "assistant":
-            for code in re.findall(r"```(?:python|py)?[ \t]*\n(.*?)```", text, re.S):
+            for code in msg_code(m):   # fenced blocks, or native python tool calls
                 parts.append("CODE:\n" + code.strip()[:700])
-        elif text.startswith("Output:"):
-            out = text[7:].strip()
+        elif is_output(m):
+            out = (text[7:] if text.startswith("Output:") else text).strip()
             entry = "OUTPUT: " + out[:350]
             if terms and len(out) > 350:
                 extra = evidence_lines(out[350:], terms)

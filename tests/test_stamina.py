@@ -94,3 +94,31 @@ def test_background_jobs(tmp_path):
                     "res = job_wait(j, timeout=20)\n"
                     "print(res['running'], res['code'], res['out'].strip())")
     assert "True" in out.output.splitlines()[0] and out.output.splitlines()[-1] == "False 0 42"
+
+
+def test_resume_brings_back_repl_variables_functions_and_imports(cfg):
+    h, llm = harness(cfg, [py("import statistics as st\nrows = [3, 1, 4, 1, 5]\ndef double(x):\n    return 2 * x\n"
+                              "print(len(rows))"),
+                           py("fh = open('scratch.txt', 'w')\nprint('still going')")])
+    h.personas["daily_assistant"].max_steps = 2
+    r = h.turn("crunch the numbers")
+    assert "step limit" in r.answer
+
+    h.personas["daily_assistant"].max_steps = 5
+    llm.replies = [py("final(str(double(st.mean(rows))))")]
+    r2 = h.resume()
+    assert r2.answer == "5.6"                         # data, the def and the import all came back
+    note = llm.seen[-1][-1]["content"]
+    assert "variables: rows" in note and "functions/classes: double" in note
+    assert "fh" in note                               # an open file can't be saved: named as lost
+
+
+def test_snapshot_skips_what_cannot_be_saved(tmp_path):
+    with Repl(tmp_path / "wd", tmp_path / "arts") as r:
+        r.run("import json\ndata = {'a': [1, 2]}\ngen = (i for i in range(3))\nclass P:\n    z = 7")
+        info = r.snapshot(tmp_path / "s.pkl")
+    assert "data" in info["saved"] and "gen" in info["skipped"] and "P" in info["defs"]
+    with Repl(tmp_path / "wd2", tmp_path / "arts") as r:
+        back = r.restore(tmp_path / "s.pkl")
+        out = r.run("print(data['a'], P.z, json.dumps(1))")
+    assert back["restored"] == ["data"] and out.output.strip() == "[1, 2] 7 1"

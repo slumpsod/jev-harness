@@ -144,12 +144,22 @@ class Metered:
         except (TypeError, ValueError):
             takes = False
         object.__setattr__(self, "_takes_cancel", takes)
+        try:   # extras (live=) only reach a model client that takes them
+            params = inspect.signature(inner.chat).parameters
+            accepts = None if any(p.kind == p.VAR_KEYWORD for p in params.values()) else set(params)
+        except (TypeError, ValueError):
+            accepts = set()
+        object.__setattr__(self, "_accepts", accepts)
 
-    def chat(self, messages, cancel=None):
+    def chat(self, messages, cancel=None, tools=None, **extra):   # extra: live=
         started = time.monotonic()
         res = None
         try:
-            res = self._inner.chat(messages, cancel=cancel) if self._takes_cancel else self._inner.chat(messages)
+            kw = {**({"tools": tools} if tools else {}), **extra}
+            if self._accepts is not None:
+                kw = {k: v for k, v in kw.items() if k in self._accepts}
+            res = (self._inner.chat(messages, cancel=cancel, **kw) if self._takes_cancel
+                   else self._inner.chat(messages, **kw))
             return res
         finally:
             w = self._where()

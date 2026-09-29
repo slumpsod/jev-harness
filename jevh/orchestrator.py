@@ -40,6 +40,17 @@ Event = Callable[[str, dict], None]
 RESUMABLE = {"max_steps", "stalled", "error", "cancelled"}
 # Progress check (tuned on evals/progress_cases.py, semif): 6/6 stalls caught with 0/8 healthy runs
 # interrupted at any threshold 0.3-0.8; "is it stuck?" interrupted a healthy test-fixing run.
+# Thinking watch (limits.thinking_watch): while a worker's step is still pure thinking, Jev reads
+# the end of it; once it holds an idea code could check, the step is paused and the model is asked
+# to test it (its reasoning is kept). ARC bench: a model reasoned 80-100 KB in its head about a rule
+# it could have run against the examples in seconds - and read block sizes off printed grids by eye,
+# misread a 2x4 as 2x3, and built a wrong theory on it. Only watched once the task has run code
+# (there is data in the REPL): advice, writing and planning thinks are never paused.
+# evals/thinking_watch_cases.py: 11/11 caught, 0/8 wrong pauses at 0.55 (first wording: 7/9, and it
+# let both live misreadings through).
+TESTABLE_Q = ("Is `thinking` doing by hand something code could do exactly on the task's data - reading off, "
+              "listing or measuring values, positions, sizes or counts, or checking a rule, pattern or "
+              "calculation against the data?")
 CIRCLES_Q = ("Is `work_log` repeating the same or nearly the same attempt and getting the same result, "
              "without learning anything new?")
 STOPPED_NOTE = "[stopped by the user before finishing]"
@@ -413,6 +424,9 @@ class Harness:
         tier = self._pick_tier(task, persona)
         self.on_event("tier", {"task": task, "decision": tier})
         llm = self._llm(persona, tier.tier)
+        if getattr(llm, "native_tools", False):   # acting is a `python` tool call, not a fenced block
+            system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
+                                  [catalog[k] for k in tools.mcp if k in catalog], native=True)
         handles = Handles(self._start_request, task, goal, requestable)
         handlers = {
             "llm_query": lambda prompt, data=None: llm.chat([{"role": "user", "content": (
@@ -438,6 +452,9 @@ class Harness:
                         self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
         worker.keep_reasoning = self.cfg.lim("keep_reasoning")
+        if self.cfg.lim("thinking_watch"):
+            worker.thinking_watch = self._watch_fn(task)
+            worker.watch_every, worker.watch_after = self.cfg.lim("watch_every"), self.cfg.lim("watch_after")
         if tier.tier == "fast" and self.tier_mode != "fast":   # quality first: a bounced fast answer escalates
             worker.escalate = lambda: self._llm(persona, "strong")
         task.started = time.time()
@@ -561,12 +578,23 @@ class Harness:
             return r["circles"].noul
         return circles
 
+    def _watch_fn(self, task: Task):
+        """-> (reasoning so far) -> pause? Jev on the end of a long think (see TESTABLE_Q)."""
+        def testable(thinking: str) -> bool:
+            r = self.jev._ask("thinking_watch", {"task": task.text[:1500], "thinking": thinking[-2500:]},
+                              {"testable": noul(TESTABLE_Q)})
+            self.on_event("thinking_watch", {"task": task, "p": round(r["testable"].noul, 3),
+                                             "chars": len(thinking)})
+            return r["testable"].noul >= self.cfg.t("testable")
+        return testable
+
     def _verify_fn(self, task: Task):
         project = self.project
 
-        def check(answer: str, artifacts: list[str], transcript: list[dict], changed: list[str]):
+        def check(answer: str, artifacts: list[str], transcript: list[dict], changed: list[str],
+                  task_idx: int | None = None):
             return self.verifier.check(task.text, answer, artifacts, work_log(transcript, answer=answer),
-                                       project, changed, evidence=seen_text(transcript))
+                                       project, changed, evidence=seen_text(transcript, task_idx))
         return check
 
     def _mcp_call(self, persona: Persona, key: str, arguments: dict) -> str:

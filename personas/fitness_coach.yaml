@@ -8,7 +8,7 @@ system_prompt: |
   You are not a doctor: flag pain or medical issues for a professional. You don't
   build software yourself; if the user wants an app or tool, hand the build to
   high_end_dev with a clear spec of what to track and why, and share the result.
-model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.5, think: unlimited}
+model: {provider: lmstudio, model: qwen3.8-27b@q6_k, think: unlimited}
 skills_allowed: [fitness-tracker, workout-programming, harness-artifacts, learned-*]
 tools: [web]
 can_request: [high_end_dev, front_end_designer]
