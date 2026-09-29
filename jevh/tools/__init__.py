@@ -37,7 +37,10 @@ TOOLS: dict[str, ToolInfo] = {
   after; if not, say where you stopped and give the page URL.
 - browser.read(question=None) -> text (only the passages that answer `question`);
   browser.screenshot(name) -> artifact path; browser.elements() -> list; browser.url().
-- Local files: browser.goto("file:///C:/path/page.html") to check a page you built."""),
+- Local files: browser.goto("file:///C:/path/page.html") to check a page you built.
+- Testing an app you built or changed: t = browser.test(url, ["add the blue mug to the cart", "open the
+  cart"], expect="the cart has 1 blue mug") -> {passed, why, steps, js_errors, console_errors,
+  screenshot}. One flow per test; if it fails, read `why` and fix the app (or the test), then rerun."""),
     "project": ToolInfo(
         "read, search, edit and run code or files in the user's project folder",
         """project (the user's project folder; ctx['project'] is its path):

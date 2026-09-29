@@ -48,6 +48,17 @@ REVERSIBLE = re.compile(r"\s*(add\s+(it\s+|this\s+|all\s+\d+\s+)?to\s+(the\s+|yo
 FIELDS = {"text field", "search box", "password"}
 TOGGLES = {"checkbox", "radio", "dropdown"}
 WANTED_MIN = float(os.environ.get("JEVH_BROWSER_WANTED", "0.4"))
+# browser.test's final check: both must hold (evals/expect_cases.py: 21/22 true results passed,
+# 0/16 false ones; either question alone passed 1-2 false ones - "the message was sent" next to
+# "Email is required", "the page shows the order history" on an order confirmation)
+EXPECT_SHOWS_Q = "Does `page` show that `expect` is true?"
+EXPECT_HOLDS_Q = ("Going only by what `page` shows, is `expect` true - with every detail in `expect` (numbers, "
+                  "names, states) matching the page, and nothing on the page saying otherwise?")
+EXPECT_SHOWS, EXPECT_HOLDS = 0.55, 0.6
+EXPECT_PAGE_CHARS = 4000   # page text the check reads; longer pages: the passages about `expect`
+# the user's own app: a test may submit, order or delete there without asking (that is what's tested)
+LOCAL_URL = re.compile(r"^(?:file:|https?://(?:localhost|127\.0\.0\.1|\[::1\]|[^/:]+\.localhost|[^/:]+\.test)"
+                       r"(?::\d+)?(?:[/?#]|$))", re.I)
 SUBMIT_WORDS = re.compile(r"\b(save|submit|continue|apply|confirm|send|proceed|update|place)\b", re.I)
 SEARCH_KEYS = {"query", "q", "search", "term", "terms", "keywords", "keyword"}
 
@@ -265,6 +276,12 @@ class Session:
             self._browser = self._pw.chromium.launch(headless=not headed)
             self.context = self._browser.new_context(viewport=viewport)
         self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+        # script errors on every page (test() reports them): uncaught exceptions and console.error
+        self.js_errors: list[str] = []
+        self.console_errors: list[str] = []
+        self.context.on("page", self._listen)
+        for p in self.context.pages:
+            self._listen(p)
         # watching: outline what Jev picked and hold it on screen before acting
         self.headed = headed
         self.pause = float(os.environ.get("JEVH_BROWSER_PAUSE", "0.8" if headed else "0"))
@@ -273,6 +290,11 @@ class Session:
         self.jev_secs = 0.0
 
     # ------------------------------------------------------------------ plumbing
+    def _listen(self, page) -> None:
+        page.on("pageerror", lambda e: self.js_errors.append(str(e).splitlines()[0][:300]))
+        page.on("console", lambda m: self.console_errors.append(m.text[:300])
+                if m.type == "error" and "favicon" not in m.text.lower() else None)
+
     def ask(self, state, questions):
         """Every Jev request goes through here (also from choose()/pick_passages(), which get
         the session as their client), so calls and time are counted per do()."""
@@ -366,9 +388,55 @@ class Session:
         finally:
             self._pw.stop()
 
+    def test(self, url: str, steps: str | list[str], expect: str, values: dict | None = None,
+             max_actions: int = 8, allow_irreversible: bool | None = None) -> dict:
+        """Test a flow in a web app: open `url`, reach each step with do(), then check the page
+        shows `expect`. -> {passed, why, steps, expect, js_errors, console_errors, url, page,
+        screenshot (on failure)}. Uncaught script errors fail the test; console errors are reported.
+        On the user's own local app (localhost, *.test, file://) steps may submit, order or delete
+        without asking - that's what a test exercises; elsewhere as allow_irreversible says."""
+        started, calls0 = time.monotonic(), self.jev_calls
+        steps = [steps] if isinstance(steps, str) else list(steps)
+        js0, con0 = len(self.js_errors), len(self.console_errors)
+        self.goto(url)
+        allow = bool(LOCAL_URL.match(self.page.url)) if allow_irreversible is None else allow_irreversible
+        done, why = [], ""
+        for goal in steps:
+            r = self.do(goal, values, max_actions, allow, act_first=True)
+            done.append({"goal": goal, "status": r["status"], "actions": r["actions"], "note": r["note"]})
+            if r["status"] not in ("done", "likely_done"):
+                why = f"step {goal!r} ended {r['status']}" + (f" ({r['note']})" if r["note"] else "")
+                break
+        obs = self.observe()
+        check = {"text": expect}
+        if not why:
+            text = obs["text"]
+            if len(text) > EXPECT_PAGE_CHARS:
+                text = "\n---\n".join(pick_passages(self, self.cap, expect, text))[:EXPECT_PAGE_CHARS]
+            a = self.ask({"expect": expect, "page": text},
+                         {"shows": noul(EXPECT_SHOWS_Q), "holds": noul(EXPECT_HOLDS_Q)})
+            check.update(shows=round(a["shows"].noul, 2), holds=round(a["holds"].noul, 2))
+            if not (check["shows"] >= EXPECT_SHOWS and check["holds"] >= EXPECT_HOLDS):
+                why = f"the page doesn't show that {expect}"
+        js, console = self.js_errors[js0:], self.console_errors[con0:]
+        if js and not why:
+            why = f"the page threw {len(js)} script error(s): {js[0]}"
+        shot = None
+        if why:
+            slug = re.sub(r"[^a-z0-9]+", "-", expect.lower()).strip("-")[:40] or "test"
+            try:
+                shot = self.screenshot(f"test-failed-{slug}.png")
+            except Exception:  # noqa: BLE001 - the report matters more than the picture
+                pass
+        return {"passed": not why, "why": why, "steps": done, "expect": check, "js_errors": js[:10],
+                "console_errors": console[:10], "url": obs["url"], "page": self._view(obs, 1200),
+                "screenshot": shot, "jev_calls": self.jev_calls - calls0,
+                "seconds": round(time.monotonic() - started, 1)}
+
     def do(self, goal: str, values: dict | None = None, max_actions: int = 8,
-           allow_irreversible: bool = False) -> dict:
-        """Reach one observable outcome on the current page. See the module docstring."""
+           allow_irreversible: bool = False, act_first: bool = False) -> dict:
+        """Reach one observable outcome on the current page. See the module docstring.
+        `act_first`: don't accept "already done" before taking an action (test() steps)."""
         started, calls0, secs0 = time.monotonic(), self.jev_calls, self.jev_secs
         values = {str(k): str(v) for k, v in (values or {}).items()}
         used: set[str] = set()
@@ -419,6 +487,11 @@ class Session:
             # "... and save/continue": setting the control isn't the end; semif's done check misses that
             if SUBMIT_WORDS.search(goal) and not any(re.match(r"clicked (button|link)|.*pressed Enter", h)
                                                      for h in history):
+                probs["done"] = min(probs["done"], 0.29)
+            # a test's step is something to do: "already done" before any action isn't a pass (live:
+            # "open the cart" was judged done on the product page's "Added ... to your cart" note, so
+            # the test never saw the broken cart page)
+            if act_first and not history:
                 probs["done"] = min(probs["done"], 0.29)
             if probs["done"] >= 0.9:
                 return result("done", obs, probs=probs)
@@ -650,6 +723,11 @@ def goto(url: str) -> dict:
 
 def do(goal: str, values: dict | None = None, max_actions: int = 8, allow_irreversible: bool = False) -> dict:
     return session().do(goal, values, max_actions, allow_irreversible)
+
+
+def test(url: str, steps: str | list[str], expect: str, values: dict | None = None, max_actions: int = 8,
+         allow_irreversible: bool | None = None) -> dict:
+    return session().test(url, steps, expect, values, max_actions, allow_irreversible)
 
 
 def read(question: str | None = None, max_chars: int = 4000) -> str:

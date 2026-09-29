@@ -1,0 +1,72 @@
+[
+ {
+  "shows": 0.9968,
+  "holds": 0.9859,
+  "contradicts": 0.3208
+ },
+ {
+  "shows": 0.0124,
+  "holds": 0.0159,
+  "contradicts": 0.9707
+ },
+ {
+  "shows": 0.0293,
+  "holds": 0.2227,
+  "contradicts": 0.7982
+ },
+ {
+  "shows": 0.9627,
+  "holds": 0.7058,
+  "contradicts": 0.5312
+ },
+ {
+  "shows": 0.9985,
+  "holds": 0.9941,
+  "contradicts": 0.0851
+ },
+ {
+  "shows": 0.5,
+  "holds": 0.5,
+  "contradicts": 0.5
+ },
+ {
+  "shows": 0.0293,
+  "holds": 0.1645,
+  "contradicts": 0.9047
+ },
+ {
+  "shows": 0.9627,
+  "holds": 0.9241,
+  "contradicts": 0.3775
+ },
+ {
+  "shows": 0.9903,
+  "holds": 0.9241,
+  "contradicts": 0.8355
+ },
+ {
+  "shows": 0.023,
+  "holds": 0.0373,
+  "contradicts": 0.9859
+ },
+ {
+  "shows": 0.9707,
+  "holds": 0.7058,
+  "contradicts": 0.3486
+ },
+ {
+  "shows": 0.9992,
+  "holds": 0.9959,
+  "contradicts": 0.133
+ },
+ {
+  "shows": 0.9954,
+  "holds": 0.9707,
+  "contradicts": 0.1192
+ },
+ {
+  "shows": 0.0141,
+  "holds": 0.0601,
+  "contradicts": 0.7058
+ }
+]

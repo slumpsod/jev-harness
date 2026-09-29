@@ -1,0 +1,122 @@
+[
+ {
+  "shows": 0.977,
+  "holds": 0.9241,
+  "contradicts": 0.5312
+ },
+ {
+  "shows": 0.1192,
+  "holds": 0.1067,
+  "contradicts": 0.9047
+ },
+ {
+  "shows": 0.9968,
+  "holds": 0.9914,
+  "contradicts": 0.1645
+ },
+ {
+  "shows": 0.0203,
+  "holds": 0.026,
+  "contradicts": 0.867
+ },
+ {
+  "shows": 0.9954,
+  "holds": 0.9627,
+  "contradicts": 0.7773
+ },
+ {
+  "shows": 0.0373,
+  "holds": 0.1824,
+  "contradicts": 0.9399
+ },
+ {
+  "shows": 0.9959,
+  "holds": 0.8933,
+  "contradicts": 0.4073
+ },
+ {
+  "shows": 0.0421,
+  "holds": 0.1067,
+  "contradicts": 0.9466
+ },
+ {
+  "shows": 0.9047,
+  "holds": 0.6792,
+  "contradicts": 0.4688
+ },
+ {
+  "shows": 0.9964,
+  "holds": 0.9914,
+  "contradicts": 0.3208
+ },
+ {
+  "shows": 0.9978,
+  "holds": 0.7311,
+  "contradicts": 0.1824
+ },
+ {
+  "shows": 0.6514,
+  "holds": 0.5622,
+  "contradicts": 0.6792
+ },
+ {
+  "shows": 0.9876,
+  "holds": 0.852,
+  "contradicts": 0.4688
+ },
+ {
+  "shows": 0.8176,
+  "holds": 0.5927,
+  "contradicts": 0.5312
+ },
+ {
+  "shows": 0.4073,
+  "holds": 0.8176,
+  "contradicts": 0.6792
+ },
+ {
+  "shows": 0.9399,
+  "holds": 0.852,
+  "contradicts": 0.5
+ },
+ {
+  "shows": 0.9985,
+  "holds": 0.9149,
+  "contradicts": 0.1824
+ },
+ {
+  "shows": 0.0421,
+  "holds": 0.0331,
+  "contradicts": 0.974
+ },
+ {
+  "shows": 0.982,
+  "holds": 0.9579,
+  "contradicts": 0.3775
+ },
+ {
+  "shows": 0.0052,
+  "holds": 0.0052,
+  "contradicts": 0.9981
+ },
+ {
+  "shows": 0.6514,
+  "holds": 0.7982,
+  "contradicts": 0.5622
+ },
+ {
+  "shows": 0.9933,
+  "holds": 0.9797,
+  "contradicts": 0.0601
+ },
+ {
+  "shows": 0.0373,
+  "holds": 0.1067,
+  "contradicts": 0.9241
+ },
+ {
+  "shows": 0.9047,
+  "holds": 0.3486,
+  "contradicts": 0.4378
+ }
+]
