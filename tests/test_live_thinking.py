@@ -135,14 +135,17 @@ def test_the_watch_starts_only_after_the_task_has_run_code(cfg):
     assert watched == [False, True]
 
 
-def test_after_two_pauses_without_code_the_watch_waits_for_code(cfg):
-    """Live: a model answered each pause with more thinking; pausing again only chopped it up."""
+def test_ignored_pauses_make_the_watch_back_off_but_never_stop(cfg):
+    """Live: a model answered two pauses with more hand-work; the watch then switched off and the
+    next step thought 30 KB unwatched. Now each ignored pause doubles the thinking allowed before a
+    check, and running code resets it."""
     from jevh.jev import Jev
     from jevh.llm import LLMResult
     from jevh.orchestrator import Harness
 
     from conftest import FakeSystemOne, py
-    watched = []
+    after = []   # watch_after per step; None = not watched
+    seen = []
 
     class Recorder:
         name = "rec"
@@ -151,14 +154,16 @@ def test_after_two_pauses_without_code_the_watch_waits_for_code(cfg):
             self.replies = list(replies)
 
         def chat(self, messages, watch=None, live=None, watch_every=0, watch_after=0):
-            watched.append(watch is not None)
+            after.append(watch_after if watch is not None else None)
+            seen.append([dict(m) for m in messages])
             return self.replies.pop(0)
     paused = LLMResult(text="", reasoning="reading sizes by hand", interrupted=True)
-    cfg.limits["thinking_watch"] = 1
-    llm = Recorder([LLMResult(text=py("g = [1, 2]")), paused, paused, LLMResult(text="thinking more..." + py("print(g)")),
+    cfg.limits.update(thinking_watch=1, watch_after=6000)
+    llm = Recorder([LLMResult(text=py("g = [1, 2]")), paused, paused, paused, LLMResult(text=py("print(g)")),
                     LLMResult(text=py("final('ok')"))])
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: llm)
     h.learning = False
     assert h.turn("go", force="high_end_dev").answer == "ok"
-    # step 1: no code yet; 2-3: watched and paused; 4: two pauses in a row -> not watched; 5: code ran -> watched
-    assert watched == [False, True, True, False, True]
+    # 1: no code yet; 2: watched; 3: one pause ignored -> same; 4: two -> 12k; 5: three -> 24k; 6: code ran -> 6k
+    assert after == [None, 6000, 6000, 12000, 24000, 6000]
+    assert "pause 2 in a row" in seen[3][-1]["content"] and "pause 2" not in seen[2][-1]["content"]

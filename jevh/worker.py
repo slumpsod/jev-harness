@@ -33,7 +33,6 @@ FIRST_STEP_NUDGE = ("\n\nIf this needs code: reply now with a short plan (at mos
                     "python block for step one, and build incrementally across replies - do not design "
                     "the whole solution before replying. If it needs no code, reply with just the answer.")
 HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-up
-MAX_PAUSES = 2             # thinking-watch pauses in a row without code before it waits for code
 REASONING_CHARS = 40000    # of each step's hidden reasoning sent back with it (its end if longer; 0 = none)
 NOTES_CHARS = 2500         # plus that turn's work notes (the code it ran and what came back)
 NOTES_HEADER = ("[Harness note, not part of the reply the user saw: the work this reply was based on - "
@@ -380,7 +379,7 @@ class Worker:
         self.thinking_watch: Callable[[str], bool] | None = None   # (reasoning so far) -> pause the step?
         self.watch_every, self.watch_after = 4000, 6000
         self._ran_code = False
-        self._pauses = 0   # watch pauses since code last ran: after MAX_PAUSES the watch waits for code
+        self._pauses = 0   # watch pauses since code last ran: each doubles the thinking allowed before a check
         self._step = 0
         self._use(llm)
 
@@ -457,9 +456,11 @@ class Worker:
                                             "output": "(paused a long think: it had an idea to test - asked to run it)"})
                     messages[-1]["content"] = "(paused to test an idea)"
                     tail = (getattr(out, "reasoning", "") or "").strip()[-600:].replace("```", "")
+                    again = (f" This is pause {self._pauses} in a row: after the last one you went back to "
+                             "working it out by hand instead of running code." if self._pauses > 1 else "")
                     messages.append({"role": "user", "content": (
                         "[The harness paused your thinking: you were working out by hand something code does exactly "
-                        f"on the data. Your reasoning so far is kept. It ended with:\n...{tail}\n\n"
+                        f"on the data.{again} Your reasoning so far is kept. It ended with:\n...{tail}\n\n"
                         f"Your next reply should {self._act.replace('reply with', 'be')} that computes this - the "
                         "values, positions, sizes, counts or rule you were working out - and prints the result, so you "
                         "can read it exactly. Keep your thinking short: decide what to compute, then run it.]"
@@ -818,11 +819,13 @@ class Worker:
             params, takes_all = {}, False
         if takes_all or "live" in params:   # the reply streams to thinking/step-NN.txt as it is generated
             kw["live"] = self.workdir / "thinking" / f"step-{self._step:02d}.txt"
-        # only once this task has run code (there is data in the REPL that code could read exactly), and not
-        # after MAX_PAUSES pauses in a row that the model answered with more thinking instead of code
-        if (self.thinking_watch is not None and self._ran_code and self._pauses < MAX_PAUSES
-                and (takes_all or "watch" in params)):
-            kw.update(watch=self.thinking_watch, watch_every=self.watch_every, watch_after=self.watch_after)
+        # only once this task has run code (there is data in the REPL that code could read exactly). Pauses the
+        # model answered with more thinking instead of code make the watch back off - each one doubles the
+        # thinking it allows before checking - but never switch it off (live: switched off after two
+        # ignored pauses, the next step read block positions by hand for 30 KB and 5+ minutes, unwatched)
+        if self.thinking_watch is not None and self._ran_code and (takes_all or "watch" in params):
+            kw.update(watch=self.thinking_watch, watch_every=self.watch_every,
+                      watch_after=self.watch_after * 2 ** max(0, self._pauses - 1))
         return self.llm.chat(messages, **kw)
 
     @staticmethod
