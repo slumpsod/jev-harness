@@ -48,7 +48,20 @@ class LLMError(RuntimeError):
     pass
 
 
-FIRST_CHUNK_BASE = 30.0   # seconds a reply may take to start streaming, plus the prompt at PREFILL_TPS
+# A chat template's own control tokens leaking into a tool call's arguments: live (Gemma 4 in LM Studio),
+# after its final call it wrote "<tool_call|>" and then "<|channel>thought\n<channel|>" for 437 KB / 17 min.
+TEMPLATE_TOKEN_RE = re.compile(r"<\|[A-Za-z_]{2,24}\|?>|<[A-Za-z_]{2,24}\|>")
+RUNAWAY_TOKENS = 20        # this many template tokens in a call's arguments: stop the stream
+MAX_CALL_CHARS = 200_000   # ...or arguments this long
+
+
+def clean_call_args(arguments: str) -> str:
+    """A tool call's arguments up to the first leaked template token (what follows is the runaway)."""
+    m = TEMPLATE_TOKEN_RE.search(arguments or "")
+    return arguments[:m.start()] if m else arguments
+
+
+FIRST_CHUNK_BASE = 30.0  # seconds a reply may take to start streaming, plus the prompt at PREFILL_TPS
 PREFILL_TPS = 400.0       # conservative prompt-reading speed (tokens/s) for a local model
 
 
@@ -81,7 +94,17 @@ def _watch_thinking(response, watch, thought, parts, calls, stop, done, every: i
     checked = 0
     while not done.wait(1.0):
         reply, reasoning = "".join(parts), "".join(thought)
-        if calls or "```" in reply:
+        if calls:   # acting - unless the call itself runs away (template tokens looping inside it)
+            args = "".join(c["arguments"] for c in list(calls.values()))
+            if len(TEMPLATE_TOKEN_RE.findall(args)) >= RUNAWAY_TOKENS or len(args) > MAX_CALL_CHARS:
+                stop.set()
+                try:
+                    response.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                return
+            continue
+        if "```" in reply:
             return   # the model is acting: nothing to interrupt
         text = reasoning + ("\n" + reply if reply.strip() else "")
         if len(text) < after or len(text) - checked < every:
@@ -276,7 +299,8 @@ class OpenAICompat:
         return LLMResult(text=text, input_tokens=int(usage.get("prompt_tokens") or 0),
                          output_tokens=int(usage.get("completion_tokens") or 0), model=self.model,
                          thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning,
-                         tool_calls=[{**c, "id": c["id"] or f"call_{i}"} for i, c in sorted(calls.items())],
+                         tool_calls=[{**c, "id": c["id"] or f"call_{i}", "arguments": clean_call_args(c["arguments"])}
+                                     for i, c in sorted(calls.items())],
                          interrupted=stop_watch.is_set())
 
 

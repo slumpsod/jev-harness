@@ -139,3 +139,22 @@ def test_a_silent_server_is_retried_twice(cfg):
     assert harness(cfg, twice).turn("go", force="high_end_dev").answer == "done"
     thrice = Stalls([call(name="final", answer="done")], stalls=3)
     assert "no tokens for 180s" in harness(cfg, thrice).turn("go", force="high_end_dev").answer
+
+
+def test_a_malformed_final_call_is_read_leniently():
+    """Live (Gemma 4 in LM Studio): arguments packed into a key, or left as raw text."""
+    from jevh.worker import final_params
+    assert final_params({"answer_var='test_output',artifacts=[],answer": "[[8, 8, 9]]"}) == {"answer_var": "test_output"}
+    assert final_params({"code": "answer='[[8, 8, 9], [8, 2, 9]]',artifacts=[]"}) == {"answer": "[[8, 8, 9], [8, 2, 9]]"}
+    assert final_params({"answer": "ok", "artifacts": []}) == {"answer": "ok", "artifacts": []}
+
+
+def test_template_tokens_are_cut_from_a_call_and_a_runaway_call_still_runs(cfg):
+    """Live: '<tool_call|><|channel>thought\n<channel|>' repeated for 437 KB inside a final call."""
+    from jevh.llm import LLMResult, clean_call_args
+    junk = "<tool_call|>" + "<|channel>thought\n<channel|>" * 30
+    assert clean_call_args('{"answer": "[[1, 2]]"}' + junk) == '{"answer": "[[1, 2]]"}'
+    stopped = LLMResult(text="", interrupted=True,
+                        tool_calls=[{"id": "c", "name": "final", "arguments": '{"answer": "[[1, 2]]"}'}])
+    llm = NativeLLM([stopped])
+    assert harness(cfg, llm).turn("go", force="high_end_dev").answer == "[[1, 2]]"

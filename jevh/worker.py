@@ -112,6 +112,30 @@ PRIMARY = {"web": "ask", "browser": "do", "project": "find", "comfy": "run"}   #
 REPL_CALLS = {"final", "ask_user", "recall", "remember", "request", "save_artifact", "load_artifact", "peek"}
 
 
+FINAL_KEYS = {"answer", "answer_var", "artifacts"}
+
+
+def final_params(params: dict[str, Any]) -> dict[str, Any]:
+    """The final tool's arguments, read leniently. Live (Gemma 4 in LM Studio), the answer arrived packed
+    into a key - {"answer_var='test_output',artifacts=[],answer": "[[8, 8, 9, 8], ...]"} - or as
+    raw text "answer='[[...]]',artifacts=[]"; final(**params) then failed on a solved task."""
+    if not params or set(params) <= FINAL_KEYS:
+        return params
+    blob = " ".join(f"{k} = {v}" for k, v in params.items())
+    m = re.search(r"answer_var\W{0,4}([A-Za-z_]\w*)", blob)
+    if m:
+        return {"answer_var": m.group(1)}
+    m = re.search(r"answer\W{0,4}?(?=[\[{])", blob)
+    if m:   # the JSON value right after "answer": decoded, so a trailing ",artifacts=[]" isn't swallowed
+        try:
+            value, end = json.JSONDecoder().raw_decode(blob[m.end():])
+            return {"answer": blob[m.end():m.end() + end]}
+        except ValueError:
+            pass
+    values = [v for v in params.values() if isinstance(v, str)]
+    return {"answer": max(values, key=len)} if values else params
+
+
 def call_to_code(name: str, params: dict[str, Any], tools: dict[str, str]) -> str | None:
     """The Python a tool call means, or None. python(code=...) -> the code; web(search=q) ->
     web.search(q); web(question=q) -> web.ask(question=q); final(answer=...) -> final(...)."""
@@ -121,6 +145,8 @@ def call_to_code(name: str, params: dict[str, Any], tools: dict[str, str]) -> st
         if not isinstance(code, str):
             code = next((v for v in params.values() if isinstance(v, str)), None)
         return code
+    if name == "final":
+        params = final_params(params)
     if name == "final" and isinstance(params.get("answer_var"), str) and params["answer_var"].strip().isidentifier():
         rest = {k: v for k, v in params.items() if k not in ("answer_var", "answer")}
         return f"print(final({params['answer_var'].strip()}{', **' + repr(rest) if rest else ''}))"
@@ -485,7 +511,8 @@ class Worker:
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 messages.append(self._assistant(out))
-                if getattr(out, "interrupted", False):
+                # (a stream stopped inside a runaway tool call still carries the call: it is acted on below)
+                if getattr(out, "interrupted", False) and not getattr(out, "tool_calls", None):
                     # the thinking watch paused a long think: hand-work code does exactly, or theory after theory.
                     # Either way the way forward is code (reasoning kept). Live: a bare "test it now" was answered
                     # with more thinking, so the message quotes what it was doing; and when searching, "compute
