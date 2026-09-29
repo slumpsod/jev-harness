@@ -9,8 +9,10 @@ from __future__ import annotations
 import inspect
 import json
 import os
+import platform
 import re
 import shutil
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -257,6 +259,10 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
     parts = [persona.system_prompt.strip() + f"\n\nToday is {today}. Work out relative dates "
              "(\"next Tuesday\", \"in two weeks\") from it."]
     if persona.code:
+        # (ARC bench, native tool: step 1 assumed Linux and walked '/' looking for a Windows path)
+        parts.append(f"Your REPL runs Python {sys.version.split()[0]} on {platform.system()} "
+                     f"{platform.release()}; it starts in your private working folder, and paths you are "
+                     f"given are {'Windows' if os.name == 'nt' else 'POSIX'} paths you can open as-is.")
         guide = REPL_GUIDE
         if native:   # the same guide, but acting is a `python` tool call, as in Prime Agent
             guide = "## How you work\n" + NATIVE_INTRO + REPL_GUIDE[REPL_GUIDE.index("\n\nAvailable in the REPL:"):]
