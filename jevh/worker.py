@@ -325,7 +325,6 @@ class Worker:
         self.escalate: Callable[[], LLM] | None = None
         self.escalated = False
         self.keep_reasoning = REASONING_CHARS
-        self.think_cap = 0     # limits.think_cap: stop one step's thinking after ~this many tokens (0 = never)
         self._step = 0
         self._use(llm)
 
@@ -388,18 +387,6 @@ class Worker:
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 messages.append(self._assistant(out))
-                if getattr(out, "thinking_capped", False):
-                    # a runaway think (ARC bench: 70k tokens in one step, never acting): cut, keep the
-                    # reasoning (it goes back in reasoning_content) and have it test its idea with code
-                    self.on_step("output", {"persona": self.persona.name, "step": step, "error": True,
-                                            "output": f"(thinking cut at ~{out.thinking_tokens} tokens - asked to act)"})
-                    messages[-1]["content"] = "(no reply text)"
-                    messages.append({"role": "user", "content": (
-                        f"You have thought for ~{out.thinking_tokens} tokens in this step without acting. Your "
-                        f"reasoning so far is kept. Act on it now: {self._act} that tests your current best "
-                        "hypothesis on the data, instead of reasoning further in your head."
-                        + self._steps_left_note(step))})
-                    continue
                 calls = [c for c in (getattr(out, "tool_calls", None) or []) if c.get("name")]
                 call_ids: list[str] = []
                 note = ""
@@ -686,8 +673,6 @@ class Worker:
             params, takes_all = {}, False
         if takes_all or "live" in params:   # the reply streams to thinking/step-NN.txt as it is generated
             kw["live"] = self.workdir / "thinking" / f"step-{self._step:02d}.txt"
-        if self.think_cap and (takes_all or "think_cap" in params):
-            kw["think_cap"] = self.think_cap
         return self.llm.chat(messages, **kw)
 
     @staticmethod

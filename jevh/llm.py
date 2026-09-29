@@ -35,7 +35,6 @@ class LLMResult:
     thinking_tokens: int = 0   # part of output_tokens spent in hidden reasoning
     reasoning: str = ""        # that hidden reasoning's text, where the server returns it
     tool_calls: list = field(default_factory=list)   # native calls: [{"id", "name", "arguments" (JSON text)}]
-    thinking_capped: bool = False   # cut off by think_cap before any reply text or tool call
 
 
 class LLM(Protocol):
@@ -114,18 +113,15 @@ class OpenAICompat:
         self.native_tools = False        # provider/persona native_tools: true -> tools= in chat()
 
     def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
-             tools: list[dict] | None = None, live: str | os.PathLike | None = None,
-             think_cap: int = 0) -> LLMResult:
-        """`live`: a file the reasoning and reply stream into as they are generated (read it any
-        time). `think_cap`: stop after that many reasoning chunks (~tokens) with no reply yet."""
+             tools: list[dict] | None = None, live: str | os.PathLike | None = None) -> LLMResult:
+        """`live`: a file the reasoning and reply stream into as they are generated (read it any time)."""
         if self.gate is None:
-            return self._chat(messages, cancel, tools, live, think_cap)
+            return self._chat(messages, cancel, tools, live)
         with self.gate.use(self.model):
-            return self._chat(messages, cancel, tools, live, think_cap)
+            return self._chat(messages, cancel, tools, live)
 
     def _chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
-              tools: list[dict] | None = None, live: str | os.PathLike | None = None,
-              think_cap: int = 0) -> LLMResult:
+              tools: list[dict] | None = None, live: str | os.PathLike | None = None) -> LLMResult:
         body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True,
                                 "stream_options": {"include_usage": True}, **self.extra}
         if tools:
@@ -145,7 +141,6 @@ class OpenAICompat:
         usage: dict[str, Any] = {}
         finish = None
         chunks = thinking = 0
-        capped = False
         done = threading.Event()
         feed = _LiveFeed(live, self.model)
         try:
@@ -180,9 +175,6 @@ class OpenAICompat:
                             feed.write("tool call", (fn.get("name") or "") + (fn.get("arguments") or ""))
                         finish = ch.get("finish_reason") or finish
                     chunks += 1
-                    if think_cap and thinking >= think_cap and not calls and not "".join(parts).strip():
-                        capped = True   # leaving the with-block closes the stream: the server stops
-                        break
                     if self.on_progress and chunks % 50 == 0:
                         self.on_progress(chunks, thinking)
         except Exception as e:
@@ -197,7 +189,7 @@ class OpenAICompat:
             raise
         finally:
             done.set()
-            feed.close(f"{thinking} thinking chunks" + (" - stopped at the thinking cap" if capped else ""))
+            feed.close(f"{thinking} thinking chunks")
         if cancel is not None and cancel.is_set():
             raise Cancelled("stopped by the user while the model was replying")
         raw = "".join(parts)
@@ -211,8 +203,7 @@ class OpenAICompat:
         return LLMResult(text=text, input_tokens=int(usage.get("prompt_tokens") or 0),
                          output_tokens=int(usage.get("completion_tokens") or 0), model=self.model,
                          thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning,
-                         tool_calls=[{**c, "id": c["id"] or f"call_{i}"} for i, c in sorted(calls.items())],
-                         thinking_capped=capped)
+                         tool_calls=[{**c, "id": c["id"] or f"call_{i}"} for i, c in sorted(calls.items())])
 
 
 class AnthropicLLM:
