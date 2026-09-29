@@ -59,6 +59,20 @@ other code or users rely on. For each: the file, what is wrong, and what to do i
 comment on style, naming or missing features. If there are no such problems, reply with exactly: \
 NO PROBLEMS"""
 REVIEW_CHARS = 14000        # diffs shown to the reviewer
+# Who reviews: a risky change whose mistakes could be severe (someone gets in, secrets or user data
+# leak, stored data is lost, money goes wrong) -> the strong model; one that could only break
+# something -> the fast one (live: ~7 s vs ~5 min, and the fast one caught a planted data-loss bug).
+# evals/severity_cases.py: SEVERE_Q scored every moderate change <= 0.13 but some severe ones as low
+# as 0.04 (dropping a column), so it counts from 0.1 and plain code backs it up on the diff's lines.
+SEVERE_Q = ("Could a mistake in `change` let someone in who shouldn't be, expose secrets or users' data, "
+            "delete or corrupt stored data, or charge or pay the wrong amount?")
+SEVERE_RE = re.compile(
+    r"\bDELETE\s+FROM\b|\bDROP\s+(?:TABLE|COLUMN)\b|drop_(?:column|table)|\btruncate\b|rmtree|\.unlink\(|"
+    r"os\.remove|\brm\s+-rf\b|"                                                     # deleting data
+    r"require_auth|login_required|permission|is_admin|passw|secret|api[_-]?key|token|\bauth|"   # access
+    r"stripe|\bcharge|refund|payment|invoice|\bprice|\bamount|\bcents\b|"            # money
+    r"shell\s*=\s*True|\|\s*safe\b|innerHTML|dangerouslySetInnerHTML|\beval\(|execute\(\s*f[\"']|"
+    r"redirect\(\s*request", re.I)                                                   # injection
 
 PLACEHOLDER = re.compile(r"lorem ipsum|\bTODO\b|\bFIXME\b|\bTBD\b|\[(?:your|insert|add|placeholder|company|name)"
                          r"[^\]\n]{0,40}\]|\{\{\s*\w[^}]{0,40}\}\}|placeholder (?:text|image|content)"
@@ -168,9 +182,9 @@ class Verifier:
 
     def check(self, request: str, answer: str, artifacts: list[str], log: str,
               project: str | None = None, changed: list[str] | None = None, evidence: str | None = None,
-              backups: Path | None = None, review: Callable[[str], str] | None = None) -> Verdict:
+              backups: Path | None = None, review: Callable[[str, str], str] | None = None) -> Verdict:
         """`backups`: the worker's copies of the project files as they were before it touched them
-        (the diffs come from these); `review(prompt) -> text`: the strong model, for risky changes."""
+        (the diffs come from these); `review(prompt, tier) -> text`: a model reviews risky changes."""
         v = Verdict(ok=True)
         for a in artifacts:
             for p in self._file(Path(a)):
@@ -293,7 +307,7 @@ class Verifier:
 
     # -- the cheap first pass, then a full review of risky changes ------------------------------
     def _review(self, request: str, project: str, changed: list[str], backups: Path | None,
-                review: Callable[[str], str]) -> tuple[list[str], str]:
+                review: Callable[[str, str], str]) -> tuple[list[str], str]:
         from .tools.rules import change_text
         diffs = {}
         for rel in changed:
@@ -320,19 +334,38 @@ class Verifier:
         top = max(risk.values())
         if not risky:
             return [], f"skipped: no risky changes (highest risk {top:.2f})"
+        tier = self._review_tier(request, {rel: diffs[rel] for rel in risky})
         body = "\n\n".join(f"=== {rel}{' (flagged risky)' if rel in risky else ''}\n{d}" for rel, d in diffs.items())
         prompt = REVIEW_PROMPT.format(request=request[:2000], diffs=body[:REVIEW_CHARS],
                                       risky=f"; flagged risky: {', '.join(risky)}")
         try:
-            text = (review(prompt) or "").strip()
+            text = (review(prompt, tier) or "").strip()
         except Exception as e:  # noqa: BLE001 - reviewer down: the tests stand, say so
             return [], f"skipped: review failed ({type(e).__name__}); risky: {', '.join(risky)}"
         self._reviewed.add(key)
         if not text or re.fullmatch(r"\W*no problems\W*", text, re.I):
-            return [], f"pass: reviewed {', '.join(risky)}"
+            return [], f"pass: reviewed {', '.join(risky)} ({tier} model)"
         return ([f"A review of your changes to {', '.join(risky)} (flagged risky) found problems. Fix them, or "
                  f"if one is wrong, say why in your final answer:\n{text[:2500]}"],
-                f"fail: review of {', '.join(risky)}")
+                f"fail: review of {', '.join(risky)} ({tier} model)")
+
+    def _review_tier(self, request: str, risky: dict[str, str]) -> str:
+        """strong if a mistake in any risky file could be severe, else fast (verify.review_tier:
+        auto; strong / fast force one)."""
+        forced = str(self.settings.get("review_tier", "auto"))
+        if forced in ("strong", "fast"):
+            return forced
+        for rel, d in risky.items():
+            if SEVERE_RE.search("\n".join(ln for ln in d.splitlines() if ln[:1] in "+-")):
+                return "strong"
+            try:
+                r = self.jev._ask("severity", {"request": request[:1500], "file": rel, "change": d},
+                                  {"severe": noul(SEVERE_Q)})
+                if r["severe"].noul >= self.cfg.t("review_severe"):
+                    return "strong"
+            except Exception:  # noqa: BLE001 - Jev down: the careful choice
+                return "strong"
+        return "fast"
 
 
 def detect_test_command(root: Path) -> str | None:

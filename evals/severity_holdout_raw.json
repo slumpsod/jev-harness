@@ -1,0 +1,47 @@
+[
+ {
+  "severe": 0.4378,
+  "harm": 0.8808,
+  "breaks_only": 0.2451
+ },
+ {
+  "severe": 0.5,
+  "harm": 0.6792,
+  "breaks_only": 0.5622
+ },
+ {
+  "severe": 0.9707,
+  "harm": 0.9994,
+  "breaks_only": 0.8176
+ },
+ {
+  "severe": 0.148,
+  "harm": 0.6225,
+  "breaks_only": 0.3486
+ },
+ {
+  "severe": 0.0331,
+  "harm": 0.1645,
+  "breaks_only": 0.3486
+ },
+ {
+  "severe": 0.1067,
+  "harm": 0.5312,
+  "breaks_only": 0.3486
+ },
+ {
+  "severe": 0.018,
+  "harm": 0.2451,
+  "breaks_only": 0.3775
+ },
+ {
+  "severe": 0.011,
+  "harm": 0.3775,
+  "breaks_only": 0.7311
+ },
+ {
+  "severe": 0.0046,
+  "harm": 0.1067,
+  "breaks_only": 0.2451
+ }
+]

@@ -213,7 +213,7 @@ def test_safe_changes_are_not_reviewed(cfg, tmp_path):
     v, proj, backups = review_setup(cfg, tmp_path, risky_files=set())
     reviews = []
     verdict = v.check("tidy up", "done", [], "ran code", str(proj), ["auth.py", "README.md"],
-                      backups=backups, review=lambda p: reviews.append(p) or "NO PROBLEMS")
+                      backups=backups, review=lambda p, tier: reviews.append(p) or "NO PROBLEMS")
     assert verdict.ok and not reviews and verdict.checks["review"].startswith("skipped: no risky changes")
 
 
@@ -222,22 +222,22 @@ def test_a_risky_change_is_reviewed_and_problems_go_back(cfg, tmp_path):
     reviews = []
     found = "auth.py: login() now returns True for any password - restore the check."
     verdict = v.check("speed up login", "done", [], "ran code", str(proj), ["auth.py", "README.md"],
-                      backups=backups, review=lambda p: reviews.append(p) or found)
+                      backups=backups, review=lambda p, tier: reviews.append(p) or found)
     assert not verdict.ok and found in verdict.problems[0] and "auth.py" in verdict.checks["review"]
     prompt = reviews[0]
     assert "-    return check(u, pw)" in prompt and "+    return True" in prompt   # the real diff
     assert "=== auth.py (flagged risky)" in prompt and "=== README.md\n" in prompt
     # the same diff again (the worker disputes the finding): not reviewed twice
     again = v.check("speed up login", "done", [], "ran code", str(proj), ["auth.py", "README.md"],
-                    backups=backups, review=lambda p: reviews.append(p) or found)
+                    backups=backups, review=lambda p, tier: reviews.append(p) or found)
     assert again.ok and len(reviews) == 1
 
 
 def test_a_clean_review_passes(cfg, tmp_path):
     v, proj, backups = review_setup(cfg, tmp_path, risky_files={"auth.py"})
     verdict = v.check("speed up login", "done", [], "ran code", str(proj), ["auth.py"],
-                      backups=backups, review=lambda p: "NO PROBLEMS")
-    assert verdict.ok and verdict.checks["review"] == "pass: reviewed auth.py"
+                      backups=backups, review=lambda p, tier: "NO PROBLEMS")
+    assert verdict.ok and verdict.checks["review"] == "pass: reviewed auth.py (fast model)"
 
 
 def test_a_new_file_is_reviewed_as_all_added_lines(cfg, tmp_path):
@@ -245,7 +245,7 @@ def test_a_new_file_is_reviewed_as_all_added_lines(cfg, tmp_path):
     (proj / "jobs.py").write_text("db.execute('DELETE FROM orders')\n", encoding="utf-8")
     reviews = []
     v.check("cleanup job", "done", [], "ran code", str(proj), ["jobs.py"], backups=backups,
-            review=lambda p: reviews.append(p) or "NO PROBLEMS")
+            review=lambda p, tier: reviews.append(p) or "NO PROBLEMS")
     assert "+db.execute('DELETE FROM orders')" in reviews[0]
 
 
@@ -274,3 +274,24 @@ def test_first_pass_end_to_end_through_the_harness(cfg, tmp_path):
     bounced = llm.seen[-1][-1]["content"]
     assert "A review of your changes to auth.py" in bounced and "accepts any password" in bounced
     assert r.answer.startswith("reverted") and "check(u, pw)" in (proj / "auth.py").read_text(encoding="utf-8")
+
+
+def test_the_reviewer_is_picked_by_how_severe_a_mistake_could_be(cfg, tmp_path):
+    def run(files, severe=0.05, forced=None):
+        v, proj, backups = review_setup(cfg, tmp_path, risky_files=set(files))
+        if forced:
+            v.settings["review_tier"] = forced
+        base = v.jev.client.rules
+        v.jev.client.rules = lambda k, q, s: noul_ans(severe) if k == "severe" else base(k, q, s)
+        for rel, text in files.items():
+            (proj / rel).write_text(text, encoding="utf-8")
+        tiers = []
+        v.check("change it", "done", [], "ran code", str(proj), list(files), backups=backups,
+                review=lambda p, tier: tiers.append(tier) or "NO PROBLEMS")
+        return tiers[0]
+    assert run({"api.py": "def get_user(user_id):\n"}) == "fast"                  # could only break callers
+    assert run({"api.py": "def get_user(user_id):\n"}, severe=0.9) == "strong"    # Jev: could be severe
+    assert run({"jobs.py": "db.execute('DELETE FROM orders')\n"}) == "strong"      # plain code: deletes data
+    assert run({"pay.py": "stripe.Refund.create(amount=amount)\n"}) == "strong"    # plain code: money
+    assert run({"jobs.py": "db.execute('DELETE FROM orders')\n"}, forced="fast") == "fast"
+    assert run({"api.py": "def get_user(user_id):\n"}, forced="strong") == "strong"

@@ -611,8 +611,7 @@ class Harness:
         # the worker's REPL runs in its workdir, where project.py keeps the originals of files it touches
         backups = task.checkpoint.parent / ".project_backups" if task.checkpoint else None
 
-        def review(prompt: str) -> str:   # a risky change's full review: the persona's strong model
-            tier = str(self.verifier.settings.get("review_tier", "strong"))
+        def review(prompt: str, tier: str) -> str:   # a risky change's full review (tier: the gate's pick)
             self.on_event("review", {"task": task, "persona": persona.name, "tier": tier})
             return self._llm(persona, tier).chat([{"role": "user", "content": prompt}], cancel=self._cancel).text
 
