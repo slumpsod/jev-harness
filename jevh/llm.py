@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 import threading
 import os
+import time
+from pathlib import Path
 import re
 import urllib.error
 import urllib.request
@@ -33,6 +35,7 @@ class LLMResult:
     thinking_tokens: int = 0   # part of output_tokens spent in hidden reasoning
     reasoning: str = ""        # that hidden reasoning's text, where the server returns it
     tool_calls: list = field(default_factory=list)   # native calls: [{"id", "name", "arguments" (JSON text)}]
+    thinking_capped: bool = False   # cut off by think_cap before any reply text or tool call
 
 
 class LLM(Protocol):
@@ -57,6 +60,38 @@ def _close_on_cancel(response, cancel: threading.Event, done: threading.Event) -
             return
 
 
+class _LiveFeed:
+    """Streams a reply into a text file as it is generated, section by section, so a long think
+    can be read (and judged) while it is still going."""
+
+    def __init__(self, path, model: str):
+        self.fh, self.section, self.n = None, None, 0
+        if path:
+            try:
+                Path(path).parent.mkdir(parents=True, exist_ok=True)
+                self.fh = open(path, "w", encoding="utf-8")
+                self.fh.write(f"# {model} - started {time.strftime('%H:%M:%S')}\n")
+            except OSError:
+                self.fh = None
+
+    def write(self, section: str, text: str) -> None:
+        if self.fh is None or not text:
+            return
+        if section != self.section:
+            self.fh.write(f"\n\n=== {section} ===\n")
+            self.section = section
+        self.fh.write(text)
+        self.n += 1
+        if self.n % 20 == 0:
+            self.fh.flush()
+
+    def close(self, note: str) -> None:
+        if self.fh is not None:
+            self.fh.write(f"\n\n# done {time.strftime('%H:%M:%S')}: {note}\n")
+            self.fh.close()
+            self.fh = None
+
+
 class OpenAICompat:
     """Streams, so `idle_timeout` bounds the gap between tokens, not the whole reply
     (a local 27B at ~27 tok/s legitimately takes minutes on a long answer)."""
@@ -79,14 +114,18 @@ class OpenAICompat:
         self.native_tools = False        # provider/persona native_tools: true -> tools= in chat()
 
     def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
-             tools: list[dict] | None = None) -> LLMResult:
+             tools: list[dict] | None = None, live: str | os.PathLike | None = None,
+             think_cap: int = 0) -> LLMResult:
+        """`live`: a file the reasoning and reply stream into as they are generated (read it any
+        time). `think_cap`: stop after that many reasoning chunks (~tokens) with no reply yet."""
         if self.gate is None:
-            return self._chat(messages, cancel, tools)
+            return self._chat(messages, cancel, tools, live, think_cap)
         with self.gate.use(self.model):
-            return self._chat(messages, cancel, tools)
+            return self._chat(messages, cancel, tools, live, think_cap)
 
     def _chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
-              tools: list[dict] | None = None) -> LLMResult:
+              tools: list[dict] | None = None, live: str | os.PathLike | None = None,
+              think_cap: int = 0) -> LLMResult:
         body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True,
                                 "stream_options": {"include_usage": True}, **self.extra}
         if tools:
@@ -106,7 +145,9 @@ class OpenAICompat:
         usage: dict[str, Any] = {}
         finish = None
         chunks = thinking = 0
+        capped = False
         done = threading.Event()
+        feed = _LiveFeed(live, self.model)
         try:
             with urllib.request.urlopen(req, timeout=self.idle_timeout) as r:
                 if cancel is not None:  # a stop mid-generation closes the stream: the server stops too
@@ -127,14 +168,21 @@ class OpenAICompat:
                         if piece:
                             thinking += 1
                             thought.append(piece if isinstance(piece, str) else "")
+                            feed.write("thinking", thought[-1])
+                        if delta.get("content"):
+                            feed.write("reply", delta["content"])
                         for tc in delta.get("tool_calls") or []:
                             slot = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": ""})
                             slot["id"] = tc.get("id") or slot["id"]
                             fn = tc.get("function") or {}
                             slot["name"] += fn.get("name") or ""
                             slot["arguments"] += fn.get("arguments") or ""
+                            feed.write("tool call", (fn.get("name") or "") + (fn.get("arguments") or ""))
                         finish = ch.get("finish_reason") or finish
                     chunks += 1
+                    if think_cap and thinking >= think_cap and not calls and not "".join(parts).strip():
+                        capped = True   # leaving the with-block closes the stream: the server stops
+                        break
                     if self.on_progress and chunks % 50 == 0:
                         self.on_progress(chunks, thinking)
         except Exception as e:
@@ -149,6 +197,7 @@ class OpenAICompat:
             raise
         finally:
             done.set()
+            feed.close(f"{thinking} thinking chunks" + (" - stopped at the thinking cap" if capped else ""))
         if cancel is not None and cancel.is_set():
             raise Cancelled("stopped by the user while the model was replying")
         raw = "".join(parts)
@@ -162,7 +211,8 @@ class OpenAICompat:
         return LLMResult(text=text, input_tokens=int(usage.get("prompt_tokens") or 0),
                          output_tokens=int(usage.get("completion_tokens") or 0), model=self.model,
                          thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning,
-                         tool_calls=[{**c, "id": c["id"] or f"call_{i}"} for i, c in sorted(calls.items())])
+                         tool_calls=[{**c, "id": c["id"] or f"call_{i}"} for i, c in sorted(calls.items())],
+                         thinking_capped=capped)
 
 
 class AnthropicLLM:
