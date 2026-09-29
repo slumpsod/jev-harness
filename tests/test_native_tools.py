@@ -167,3 +167,17 @@ def test_a_call_that_degenerates_into_one_repeated_unit_counts_as_runaway():
     code = "\n".join(f"row_{i} = [{', '.join(str((i * j) % 10) for j in range(30))}]" for i in range(200))
     assert len(runaway) > RUNAWAY_MIN_CHARS and _packs(runaway[-6000:]) < RUNAWAY_RATIO
     assert len(code) > RUNAWAY_MIN_CHARS and _packs(code[-6000:]) > RUNAWAY_RATIO
+
+
+def test_a_broken_call_is_stored_as_valid_json(cfg):
+    """Live (Gemma 4 in LM Studio): a call cut off mid-string was sent back as is and every later
+    request got HTTP 500."""
+    from jevh.worker import valid_args
+    broken = '{"code":"print(\\"hi\\")\n# Let\'s check the 3s at (3,2), (9,'
+    fixed = valid_args(broken)
+    assert json.loads(fixed)["code"].startswith('print("hi")')
+    assert valid_args('{"code": "x = 1"}') == '{"code": "x = 1"}'
+    llm = NativeLLM([LLMResult(text="", tool_calls=[{"id": "c1", "name": "python", "arguments": '{"code":"x = 2\nprint(x)'}]),
+                     call(name="final", answer="done", cid="c2")])
+    assert harness(cfg, llm).turn("go", force="high_end_dev").answer == "done"
+    json.loads(llm.seen[1][-2]["tool_calls"][0]["function"]["arguments"])     # what went back is valid

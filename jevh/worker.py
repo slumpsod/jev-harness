@@ -227,16 +227,30 @@ def call_args(arguments: str) -> dict[str, Any]:
         args = json.loads(arguments or "{}")
         return args if isinstance(args, dict) else {"code": str(args)}
     except ValueError:
-        m = re.search(r'"code"\s*:\s*"(.*)"\s*}\s*$', arguments or "", re.DOTALL)
+        m = (re.search(r'"code"\s*:\s*"(.*)"\s*}\s*$', arguments or "", re.DOTALL)
+             # cut off mid-string (a stopped runaway call): what came before the cut
+             or re.search(r'^\s*\{\s*"code"\s*:\s*"(.*?)(?:"\s*\}?\s*)?$', arguments or "", re.DOTALL))
         if m:
+            s = m.group(1).rstrip("\\")
             try:
-                return {"code": json.loads('"' + m.group(1) + '"')}
+                return {"code": json.loads('"' + s + '"')}
             except ValueError:
                 import warnings
                 with warnings.catch_warnings():   # bad escapes are the reason we're here
                     warnings.simplefilter("ignore")
-                    return {"code": m.group(1).encode().decode("unicode_escape", "ignore")}
+                    return {"code": s.encode().decode("unicode_escape", "ignore")}
         return {"code": arguments}
+
+
+def valid_args(arguments: str) -> str:
+    """A tool call's arguments as valid JSON, for sending the conversation back. Live (Gemma 4 in LM
+    Studio): a call cut off mid-string was kept as is, and the server then answered every later request
+    with HTTP 500 (it renders past calls through the model's chat template). Invalid: what was run."""
+    try:
+        json.loads(arguments or "{}")
+        return arguments or "{}"
+    except ValueError:
+        return json.dumps(call_args(arguments))
 
 
 def msg_code(m: dict) -> list[str]:
@@ -583,7 +597,7 @@ class Worker:
                 note = ""
                 if calls:   # native tool calls: the python tool (or a REPL module called by name)
                     messages[-1]["tool_calls"] = [{"id": c["id"], "type": "function",
-                                                   "function": {"name": c["name"], "arguments": c["arguments"]}}
+                                                   "function": {"name": c["name"], "arguments": valid_args(c["arguments"])}}
                                                   for c in calls]
                     call_ids = [c["id"] for c in calls]
                     blocks, failed = [], []
