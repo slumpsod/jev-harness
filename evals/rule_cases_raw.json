@@ -1,0 +1,194 @@
+[
+ {
+  "breaks": 0.9995,
+  "forbids": 0.9526,
+  "applies": 0.133,
+  "breaks_a": 0.9996
+ },
+ {
+  "breaks": 0.0851,
+  "forbids": 0.5,
+  "applies": 0.9975,
+  "breaks_a": 0.0124
+ },
+ {
+  "breaks": 0.9876,
+  "forbids": 0.6514,
+  "applies": 0.6514,
+  "breaks_a": 0.9903
+ },
+ {
+  "breaks": 0.0046,
+  "forbids": 0.0373,
+  "applies": 0.4688,
+  "breaks_a": 0.0097
+ },
+ {
+  "breaks": 0.9972,
+  "forbids": 0.982,
+  "applies": 0.0421,
+  "breaks_a": 0.9981
+ },
+ {
+  "breaks": 0.0124,
+  "forbids": 0.5,
+  "applies": 0.9993,
+  "breaks_a": 0.0067
+ },
+ {
+  "breaks": 0.0032,
+  "forbids": 0.0032,
+  "applies": 0.0534,
+  "breaks_a": 0.0052
+ },
+ {
+  "breaks": 0.9992,
+  "forbids": 0.9859,
+  "applies": 0.0159,
+  "breaks_a": 0.999
+ },
+ {
+  "breaks": 0.5622,
+  "forbids": 0.6225,
+  "applies": 0.4688,
+  "breaks_a": 0.5
+ },
+ {
+  "breaks": 0.0022,
+  "forbids": 0.0097,
+  "applies": 0.8355,
+  "breaks_a": 0.0041
+ },
+ {
+  "breaks": 0.5622,
+  "forbids": 0.5927,
+  "applies": 0.7549,
+  "breaks_a": 0.4073
+ },
+ {
+  "breaks": 0.6792,
+  "forbids": 0.7058,
+  "applies": 0.7549,
+  "breaks_a": 0.5312
+ },
+ {
+  "breaks": 0.1192,
+  "forbids": 0.148,
+  "applies": 0.2689,
+  "breaks_a": 0.3775
+ },
+ {
+  "breaks": 0.9975,
+  "forbids": 0.977,
+  "applies": 0.0203,
+  "breaks_a": 0.9975
+ },
+ {
+  "breaks": 0.3208,
+  "forbids": 0.6225,
+  "applies": 0.9959,
+  "breaks_a": 0.3486
+ },
+ {
+  "breaks": 0.9526,
+  "forbids": 0.8355,
+  "applies": 0.4073,
+  "breaks_a": 0.9399
+ },
+ {
+  "breaks": 0.9978,
+  "forbids": 0.9526,
+  "applies": 0.0601,
+  "breaks_a": 0.9978
+ },
+ {
+  "breaks": 0.1067,
+  "forbids": 0.2942,
+  "applies": 0.3486,
+  "breaks_a": 0.1645
+ },
+ {
+  "breaks": 0.8808,
+  "forbids": 0.7549,
+  "applies": 0.982,
+  "breaks_a": 0.5622
+ },
+ {
+  "breaks": 0.3208,
+  "forbids": 0.6225,
+  "applies": 0.9933,
+  "breaks_a": 0.1067
+ },
+ {
+  "breaks": 0.5312,
+  "forbids": 0.6225,
+  "applies": 0.7058,
+  "breaks_a": 0.4688
+ },
+ {
+  "breaks": 0.9526,
+  "forbids": 0.5622,
+  "applies": 0.5312,
+  "breaks_a": 0.9526
+ },
+ {
+  "breaks": 0.1192,
+  "forbids": 0.2689,
+  "applies": 0.9841,
+  "breaks_a": 0.0373
+ },
+ {
+  "breaks": 0.026,
+  "forbids": 0.0759,
+  "applies": 0.3208,
+  "breaks_a": 0.0421
+ },
+ {
+  "breaks": 0.2689,
+  "forbids": 0.3486,
+  "applies": 0.3486,
+  "breaks_a": 0.4073
+ },
+ {
+  "breaks": 0.1824,
+  "forbids": 0.2942,
+  "applies": 0.9707,
+  "breaks_a": 0.133
+ },
+ {
+  "breaks": 0.2942,
+  "forbids": 0.4073,
+  "applies": 0.5622,
+  "breaks_a": 0.3486
+ },
+ {
+  "breaks": 0.8355,
+  "forbids": 0.4688,
+  "applies": 0.1824,
+  "breaks_a": 0.6225
+ },
+ {
+  "breaks": 0.0534,
+  "forbids": 0.0851,
+  "applies": 0.974,
+  "breaks_a": 0.0675
+ },
+ {
+  "breaks": 0.867,
+  "forbids": 0.3775,
+  "applies": 0.0953,
+  "breaks_a": 0.7549
+ },
+ {
+  "breaks": 0.0067,
+  "forbids": 0.0097,
+  "applies": 0.0675,
+  "breaks_a": 0.026
+ },
+ {
+  "breaks": 0.0293,
+  "forbids": 0.1067,
+  "applies": 0.0601,
+  "breaks_a": 0.0759
+ }
+]

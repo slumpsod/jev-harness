@@ -11,9 +11,12 @@
     project.sh("pytest -q", timeout=300)     # run a shell command in the project -> {code, out}
     project.changed()                        # files you changed in this task
     project.undo("src/app.py")               # restore a file (or all changed files) as it was
+    project.overrides()                      # project rules you overrode with rule_ok=
 
 Edits and writes stay inside the project folder; the original of every file you touch is
-kept so undo() works. Read before you edit, and run the tests after.
+kept so undo() works. Read before you edit, and run the tests after. Edits that break the
+project's own rules (RULES.md / AGENTS.md / CLAUDE.md) are blocked with the rule quoted
+(jevh/tools/rules.py); rule_ok="why" lets one through when the rule doesn't fit the case.
 """
 from __future__ import annotations
 
@@ -132,7 +135,32 @@ def _backup(rel: str) -> None:
         shutil.copy2(p, dest)
 
 
-def edit(path: str, old: str, new: str, count: int | None = None) -> str:
+class RuleViolation(PermissionError):
+    """An edit the project's rules forbid (see jevh.tools.rules)."""
+
+
+_overrides: list[dict] = []
+
+
+def _enforce(rel: str, old: str, new: str, existed: bool, rule_ok: str | None) -> None:
+    from jevh.tools import rules
+    rel = _path(rel).relative_to(_root()).as_posix()
+    v = rules.check(_root(), rel, old, new, existed)
+    if v is None:
+        return
+    if rule_ok:
+        _overrides.append({"file": rel, "rule": v.rule.text, "why": rule_ok})
+        print(f"[rule override - {rel}: \"{v.rule.text}\" - {rule_ok}]")
+        return
+    raise RuleViolation(v.message(rel))
+
+
+def overrides() -> list[dict]:
+    """Rules you overrode with rule_ok= in this task (say so in your final answer)."""
+    return list(_overrides)
+
+
+def edit(path: str, old: str, new: str, count: int | None = None, rule_ok: str | None = None) -> str:
     p = _path(path)
     text = p.read_text(encoding="utf-8")
     n = text.count(old)
@@ -140,13 +168,17 @@ def edit(path: str, old: str, new: str, count: int | None = None) -> str:
         raise ValueError(f"`old` text not found in {path}; read() the file and copy the text exactly")
     if count is None and n > 1:
         raise ValueError(f"`old` appears {n} times in {path}; include more surrounding lines, or pass count=")
+    _enforce(path, old, new, True, rule_ok)
     _backup(path)
     p.write_text(text.replace(old, new, count or 1), encoding="utf-8", newline="")
     return f"edited {path} ({min(n, count or 1)} replacement{'s' if (count or 1) > 1 else ''})"
 
 
-def write(path: str, text: str) -> str:
+def write(path: str, text: str, rule_ok: str | None = None) -> str:
     p = _path(path)
+    existed = p.exists()
+    before = p.read_text(encoding="utf-8", errors="replace") if existed else ""
+    _enforce(path, before, text, existed, rule_ok)
     _backup(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(text, encoding="utf-8", newline="")

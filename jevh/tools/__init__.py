@@ -44,7 +44,10 @@ TOOLS: dict[str, ToolInfo] = {
 - project.tree(".", depth=2); project.find(question) -> likely files; project.grep(regex, glob)
 - project.read(path, start, end) -> numbered lines; project.edit(path, old, new) (exact, unique text);
   project.write(path, text); project.sh(cmd, timeout=120) -> {code, out}
-- project.changed() / project.undo(path=None). Read before editing; run the tests after."""),
+- project.changed() / project.undo(path=None). Read before editing; run the tests after.
+- An edit that breaks the project's own rules (RULES.md / AGENTS.md / CLAUDE.md) raises RuleViolation
+  quoting the rule: fix the edit. Only if the rule truly doesn't fit, pass rule_ok="why" and say so
+  in your final answer."""),
     "comfy": ToolInfo(
         "generate or edit images and video with ComfyUI workflows",
         """comfy (ComfyUI): wf = comfy.load(name); comfy.find(wf, class_type); comfy.set(wf, {"node.input": v});

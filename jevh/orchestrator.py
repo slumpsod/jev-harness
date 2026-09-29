@@ -427,6 +427,7 @@ class Harness:
         if self.project and "project" in persona.tools:
             ctx["project"] = self.project
             env["JEVH_PROJECT"] = self.project
+            env["JEVH_RULE_BLOCK"] = str(self.cfg.t("rule_block"))
         tier = self._pick_tier(task, persona)
         self.on_event("tier", {"task": task, "decision": tier})
         llm = self._llm(persona, tier.tier)
