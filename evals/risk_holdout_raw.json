@@ -1,0 +1,86 @@
+[
+ {
+  "access": 0.5312,
+  "data": 0.0025,
+  "unsafe": 0.0331,
+  "interface": 0.9933,
+  "risky": 0.9964
+ },
+ {
+  "access": 0.011,
+  "data": 0.867,
+  "unsafe": 0.0331,
+  "interface": 0.5312,
+  "risky": 0.9948
+ },
+ {
+  "access": 0.5927,
+  "data": 0.0067,
+  "unsafe": 0.4688,
+  "interface": 0.9579,
+  "risky": 0.9987
+ },
+ {
+  "access": 0.2018,
+  "data": 0.0008,
+  "unsafe": 0.4073,
+  "interface": 0.5312,
+  "risky": 0.9914
+ },
+ {
+  "access": 0.001,
+  "data": 0.0052,
+  "unsafe": 0.0086,
+  "interface": 0.9526,
+  "risky": 0.9047
+ },
+ {
+  "access": 0.001,
+  "data": 0.0059,
+  "unsafe": 0.5312,
+  "interface": 0.9241,
+  "risky": 0.8176
+ },
+ {
+  "access": 0.001,
+  "data": 0.0004,
+  "unsafe": 0.0012,
+  "interface": 0.0421,
+  "risky": 0.023
+ },
+ {
+  "access": 0.0019,
+  "data": 0.0008,
+  "unsafe": 0.1067,
+  "interface": 0.1192,
+  "risky": 0.0759
+ },
+ {
+  "access": 0.0006,
+  "data": 0.0003,
+  "unsafe": 0.0041,
+  "interface": 0.148,
+  "risky": 0.0373
+ },
+ {
+  "access": 0.0009,
+  "data": 0.0002,
+  "unsafe": 0.011,
+  "interface": 0.1645,
+  "risky": 0.0675
+ },
+ {
+  "access": 0.0032,
+  "data": 0.0006,
+  "unsafe": 0.0124,
+  "interface": 0.0331,
+  "risky": 0.2451
+ },
+ {
+  "access": 0.0032,
+  "data": 0.0015,
+  "unsafe": 0.023,
+  "interface": 0.0474,
+  "risky": 0.0059
+ }
+]

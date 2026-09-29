@@ -189,3 +189,88 @@ def test_follow_up_to_an_escalated_turn_starts_strong(cfg):
     task.history = [("price?", "$2,999.99", "")]
     h._escalated = True
     assert h._pick_tier(task, p).tier == "strong"
+
+
+# -- the cheap first pass: Jev's risk check, then a full review of risky changes -----------------
+def review_setup(cfg, tmp_path, risky_files):
+    """A project with auth.py and README.md changed by a worker (originals in `backups`)."""
+    base = answer_scores()
+
+    def rules(k, q, s):
+        if k == "risky":
+            return noul_ans(0.95 if s["file"] in risky_files else 0.05)
+        return base(k, q, s)
+    proj, backups = tmp_path / "proj", tmp_path / "work" / ".project_backups"
+    for root, auth, readme in ((backups, "def login(u, pw):\n    return check(u, pw)\n", "# App\n"),
+                               (proj, "def login(u, pw):\n    return True\n", "# App\n\nRun it.\n")):
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "auth.py").write_text(auth, encoding="utf-8")
+        (root / "README.md").write_text(readme, encoding="utf-8")
+    return Verifier(Jev(gate_on(cfg), FakeSystemOne(rules)), cfg), proj, backups
+
+
+def test_safe_changes_are_not_reviewed(cfg, tmp_path):
+    v, proj, backups = review_setup(cfg, tmp_path, risky_files=set())
+    reviews = []
+    verdict = v.check("tidy up", "done", [], "ran code", str(proj), ["auth.py", "README.md"],
+                      backups=backups, review=lambda p: reviews.append(p) or "NO PROBLEMS")
+    assert verdict.ok and not reviews and verdict.checks["review"].startswith("skipped: no risky changes")
+
+
+def test_a_risky_change_is_reviewed_and_problems_go_back(cfg, tmp_path):
+    v, proj, backups = review_setup(cfg, tmp_path, risky_files={"auth.py"})
+    reviews = []
+    found = "auth.py: login() now returns True for any password - restore the check."
+    verdict = v.check("speed up login", "done", [], "ran code", str(proj), ["auth.py", "README.md"],
+                      backups=backups, review=lambda p: reviews.append(p) or found)
+    assert not verdict.ok and found in verdict.problems[0] and "auth.py" in verdict.checks["review"]
+    prompt = reviews[0]
+    assert "-    return check(u, pw)" in prompt and "+    return True" in prompt   # the real diff
+    assert "=== auth.py (flagged risky)" in prompt and "=== README.md\n" in prompt
+    # the same diff again (the worker disputes the finding): not reviewed twice
+    again = v.check("speed up login", "done", [], "ran code", str(proj), ["auth.py", "README.md"],
+                    backups=backups, review=lambda p: reviews.append(p) or found)
+    assert again.ok and len(reviews) == 1
+
+
+def test_a_clean_review_passes(cfg, tmp_path):
+    v, proj, backups = review_setup(cfg, tmp_path, risky_files={"auth.py"})
+    verdict = v.check("speed up login", "done", [], "ran code", str(proj), ["auth.py"],
+                      backups=backups, review=lambda p: "NO PROBLEMS")
+    assert verdict.ok and verdict.checks["review"] == "pass: reviewed auth.py"
+
+
+def test_a_new_file_is_reviewed_as_all_added_lines(cfg, tmp_path):
+    v, proj, backups = review_setup(cfg, tmp_path, risky_files={"jobs.py"})
+    (proj / "jobs.py").write_text("db.execute('DELETE FROM orders')\n", encoding="utf-8")
+    reviews = []
+    v.check("cleanup job", "done", [], "ran code", str(proj), ["jobs.py"], backups=backups,
+            review=lambda p: reviews.append(p) or "NO PROBLEMS")
+    assert "+db.execute('DELETE FROM orders')" in reviews[0]
+
+
+def test_first_pass_end_to_end_through_the_harness(cfg, tmp_path):
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "auth.py").write_text("def login(u, pw):\n    return check(u, pw)\n", encoding="utf-8")
+    base = answer_scores()
+
+    def rules(k, q, s):
+        if k == "persona":
+            return choice_ans("high_end_dev", 0.9, q["criteria"])
+        if k == "risky":
+            return noul_ans(0.95)
+        return base(k, q, s)
+    llm = ScriptedLLM([py("print(project.edit('auth.py', 'return check(u, pw)', 'return True'))"),
+                       py("final('login is faster now')"),
+                       "auth.py: login() accepts any password now - restore check(u, pw).",   # the review
+                       py("print(project.undo('auth.py')); final('reverted: that change skipped the password check')")])
+    h = Harness(gate_on(cfg), jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: llm)
+    h.learning = False
+    h.set_project(str(proj))
+    r = h.turn("speed up login", force="high_end_dev")
+    review = next(m for m in llm.seen if "reviewing a code change" in m[-1]["content"])[-1]["content"]
+    assert "-    return check(u, pw)" in review and "+    return True" in review
+    bounced = llm.seen[-1][-1]["content"]
+    assert "A review of your changes to auth.py" in bounced and "accepts any password" in bounced
+    assert r.answer.startswith("reverted") and "check(u, pw)" in (proj / "auth.py").read_text(encoding="utf-8")

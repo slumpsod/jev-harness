@@ -89,6 +89,8 @@ class Printer:
                           f"(~{data['tokens_before']:,} -> ~{data['tokens_after']:,} tokens"
                           f"; {data.get('full', 0)} steps kept in full, {data.get('notes', 0)} as notes"
                           f"{', %d left out' % data['dropped'] if data.get('dropped') else ''})[/]")
+        elif kind == "review":
+            console.print(f"[dim]    {esc(data['persona'])}: risky project changes - full review ({data.get('tier', 'strong')} model)[/]")
         elif kind == "escalate":
             console.print(f"[yellow]    {esc(data['persona'])}: the fast model's answer was sent back; "
                           f"continuing on {esc(str(data['model']))}[/]")

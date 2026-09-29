@@ -39,6 +39,26 @@ DELIVERS_Q = ("Does `answer` deliver what `request` asked for, instead of only a
               "work presented as done?")
 HONEST_Q = "Does `answer` clearly tell the user what is not done, failed, or needs their input?"
 ACCURATE_Q = "Is `answer` an accurate report of what `work_log` actually accomplished for `request`?"
+# The cheap first pass: one Jev question per changed file; a risky change gets a full review by the
+# strong model, a safe one is accepted on the tests alone. evals/risk_cases.py at 0.65: 18/19 risky
+# changes caught, 0/18 safe ones flagged (tuning + held-out); four narrower questions (access, data,
+# unsafe input, interface) did worse - "interface" flagged a harmless form check at 0.93.
+RISK_Q = ("Could `change` cause a security problem, data loss or a breaking change if it has a mistake - "
+          "rather than being a small safe change like docs, styling, logging, tests or a local rename?")
+REVIEW_PROMPT = """You are reviewing a code change before it is accepted into the user's project.
+
+The request was: {request}
+
+The changes (lines starting "-" were removed, "+" added){risky}:
+
+{diffs}
+
+Report only real problems this change introduces: bugs, security holes (auth or permission gaps, \
+injection, secrets in code, unsafe redirects or HTML), data loss, or breaking changes to things \
+other code or users rely on. For each: the file, what is wrong, and what to do instead. Do not \
+comment on style, naming or missing features. If there are no such problems, reply with exactly: \
+NO PROBLEMS"""
+REVIEW_CHARS = 14000        # diffs shown to the reviewer
 
 PLACEHOLDER = re.compile(r"lorem ipsum|\bTODO\b|\bFIXME\b|\bTBD\b|\[(?:your|insert|add|placeholder|company|name)"
                          r"[^\]\n]{0,40}\]|\{\{\s*\w[^}]{0,40}\}\}|placeholder (?:text|image|content)"
@@ -140,13 +160,17 @@ class Verifier:
         self.jev, self.cfg = jev, cfg
         self.settings = dict(cfg.raw.get("verify") or {})
         self.on_event = on_event or (lambda kind, data: None)
+        self._reviewed: set[int] = set()   # diffs already reviewed (a gate serves parallel tasks)
 
     @property
     def enabled(self) -> bool:
         return bool(self.settings.get("enabled", True))
 
     def check(self, request: str, answer: str, artifacts: list[str], log: str,
-              project: str | None = None, changed: list[str] | None = None, evidence: str | None = None) -> Verdict:
+              project: str | None = None, changed: list[str] | None = None, evidence: str | None = None,
+              backups: Path | None = None, review: Callable[[str], str] | None = None) -> Verdict:
+        """`backups`: the worker's copies of the project files as they were before it touched them
+        (the diffs come from these); `review(prompt) -> text`: the strong model, for risky changes."""
         v = Verdict(ok=True)
         for a in artifacts:
             for p in self._file(Path(a)):
@@ -162,6 +186,10 @@ class Verifier:
             probs, note = self._project_gate(project)
             v.problems += probs
             v.checks["project tests"] = note
+            if not probs and review is not None and self.settings.get("review", True):
+                probs, note = self._review(request, project, changed, backups, review)
+                v.problems += probs
+                v.checks["review"] = note
         if self.settings.get("check_answer", True):
             try:
                 r = self.jev._ask("verify", {"request": request[:1500], "answer": answer[:1500],
@@ -261,6 +289,50 @@ class Verifier:
             return [], f"pass: {cmd}"
         out = ((r.stdout or "") + (r.stderr or "")).strip()
         return [f"The project's tests fail after your changes ({cmd}):\n{out[-1500:]}"], f"fail: {cmd}"
+
+
+    # -- the cheap first pass, then a full review of risky changes ------------------------------
+    def _review(self, request: str, project: str, changed: list[str], backups: Path | None,
+                review: Callable[[str], str]) -> tuple[list[str], str]:
+        from .tools.rules import change_text
+        diffs = {}
+        for rel in changed:
+            new_p, old_p = Path(project) / rel, (backups / rel) if backups else None
+            new = new_p.read_text(encoding="utf-8", errors="replace") if new_p.is_file() else ""
+            old = old_p.read_text(encoding="utf-8", errors="replace") if old_p and old_p.is_file() else ""
+            if new != old:
+                diffs[rel] = change_text(old, new)
+        if not diffs:
+            return [], "skipped: no changes"
+        key = hash(tuple(sorted(diffs.items())))
+        if key in self._reviewed:   # the same diff again: the worker disputed the findings, or nothing changed
+            return [], "pass: reviewed already"
+        risk = {}
+        try:
+            for rel, d in diffs.items():
+                r = self.jev._ask("risk", {"request": request[:1500], "file": rel, "change": d},
+                                  {"risky": noul(RISK_Q)})
+                risk[rel] = r["risky"].noul
+        except Exception as e:  # noqa: BLE001 - Jev down: review everything (quality first)
+            risk = {rel: 1.0 for rel in diffs}
+            self.on_event("review", {"note": f"risk check skipped: {type(e).__name__}"})
+        risky = [rel for rel, p in risk.items() if p >= self.cfg.t("review_risk")]
+        top = max(risk.values())
+        if not risky:
+            return [], f"skipped: no risky changes (highest risk {top:.2f})"
+        body = "\n\n".join(f"=== {rel}{' (flagged risky)' if rel in risky else ''}\n{d}" for rel, d in diffs.items())
+        prompt = REVIEW_PROMPT.format(request=request[:2000], diffs=body[:REVIEW_CHARS],
+                                      risky=f"; flagged risky: {', '.join(risky)}")
+        try:
+            text = (review(prompt) or "").strip()
+        except Exception as e:  # noqa: BLE001 - reviewer down: the tests stand, say so
+            return [], f"skipped: review failed ({type(e).__name__}); risky: {', '.join(risky)}"
+        self._reviewed.add(key)
+        if not text or re.fullmatch(r"\W*no problems\W*", text, re.I):
+            return [], f"pass: reviewed {', '.join(risky)}"
+        return ([f"A review of your changes to {', '.join(risky)} (flagged risky) found problems. Fix them, or "
+                 f"if one is wrong, say why in your final answer:\n{text[:2500]}"],
+                f"fail: review of {', '.join(risky)}")
 
 
 def detect_test_command(root: Path) -> str | None:

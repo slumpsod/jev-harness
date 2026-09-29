@@ -454,7 +454,7 @@ class Harness:
                         handlers, {t: f"jevh.tools.{t}" for t in persona.tools},
                         self.cfg.lim("repl_timeout"), self.cfg.lim("output_cap"),
                         lambda kind, data: self._on_worker(kind, data, task), env,
-                        self._cancel, self._verify_fn(task) if persona.code and self.verifier.enabled else None,
+                        self._cancel, self._verify_fn(task, persona) if persona.code and self.verifier.enabled else None,
                         int(self.verifier.settings.get("max_bounces", 2)),
                         self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
@@ -606,13 +606,21 @@ class Harness:
             return r["testable"].noul >= self.cfg.t("testable")
         return testable
 
-    def _verify_fn(self, task: Task):
+    def _verify_fn(self, task: Task, persona: Persona):
         project = self.project
+        # the worker's REPL runs in its workdir, where project.py keeps the originals of files it touches
+        backups = task.checkpoint.parent / ".project_backups" if task.checkpoint else None
+
+        def review(prompt: str) -> str:   # a risky change's full review: the persona's strong model
+            tier = str(self.verifier.settings.get("review_tier", "strong"))
+            self.on_event("review", {"task": task, "persona": persona.name, "tier": tier})
+            return self._llm(persona, tier).chat([{"role": "user", "content": prompt}], cancel=self._cancel).text
 
         def check(answer: str, artifacts: list[str], transcript: list[dict], changed: list[str],
                   task_idx: int | None = None):
             return self.verifier.check(task.text, answer, artifacts, work_log(transcript, answer=answer),
-                                       project, changed, evidence=seen_text(transcript, task_idx))
+                                       project, changed, evidence=seen_text(transcript, task_idx),
+                                       backups=backups, review=review)
         return check
 
     def _mcp_call(self, persona: Persona, key: str, arguments: dict) -> str:

@@ -30,6 +30,7 @@ thresholds:
   testable: 0.55       # thinking watch: "doing by hand what code does exactly on the data" (11/11, 0/8 wrong; thinking_watch_cases.py)
   compact_keep: 0.80   # compaction: "step holds information finishing the task uses again" -> kept in full (16/18, 3/22; compact_cases.py)
   rule_block: 0.80     # rule enforcer: "change breaks rule" blocks the edit (14/18 blocked, 0/30 good edits; rule_cases.py)
+  review_risk: 0.65    # cheap first pass: a changed file this risky gets a full review by the strong model (18/19, 0/18; risk_cases.py)
   learn_skill: 0.50   # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
 
 limits:
@@ -64,6 +65,9 @@ verify:
   max_bounces: 2           # times a worker is sent back to fix problems; after that, accepted with a warning
   render_html: true        # open HTML artifacts in a headless browser (script errors, blank page)
   check_answer: true       # Jev: does the answer hold up against the work log?
+  review: true             # risky project changes (Jev's first pass) get a full review by the strong model
+  review_tier: strong      # the reviewer: strong (the persona's own model) | fast. Live: Qwen took ~5 min
+                           # (8k thinking) to review a 10-line risky change; safe changes skip review
   # project_command: python -m pytest -q   # tests to run when a worker changed project files (default: detected)
 
 # Cost per million tokens for paid models (usage tracking); local models cost nothing.
