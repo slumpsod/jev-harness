@@ -210,7 +210,13 @@ class Verifier:
                 probs, note = self._review(request, project, changed, backups, review)
                 v.problems += probs
                 v.checks["review"] = note
-        if self.settings.get("check_answer", True):
+        if _json_data(answer):
+            # a bare JSON value (a grid, a list, a record) makes no claims for Jev to check; and its digits
+            # can't be grounded (single digits are skipped), so the unreliable "accurate" question decided
+            # alone. Live (Gemma 4, ARC): a correct grid - printed by its verified solve() - was bounced
+            # twice as "doesn't match the work log", and the task failed.
+            v.checks["answer"] = "skipped: the answer is JSON data"
+        elif self.settings.get("check_answer", True):
             try:
                 r = self.jev._ask("verify", {"request": request[:1500], "answer": answer[:1500],
                                              "artifacts": [Path(a).name for a in artifacts] or "(none)",
@@ -372,6 +378,17 @@ class Verifier:
             except Exception:  # noqa: BLE001 - Jev down: the careful choice
                 return "strong"
         return "fast"
+
+
+def _json_data(answer: str) -> bool:
+    """Is the whole answer one JSON list or object (data, not prose)?"""
+    text = answer.strip()
+    if not text or text[0] not in "[{":
+        return False
+    try:
+        return isinstance(json.loads(text), (list, dict))
+    except ValueError:
+        return False
 
 
 def detect_test_command(root: Path) -> str | None:

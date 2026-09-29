@@ -1,4 +1,5 @@
 """The final() gate: files, pages, project tests and the answer check."""
+import json
 from pathlib import Path
 
 import pytest
@@ -304,3 +305,13 @@ def test_a_json_grid_is_not_read_as_one_big_number():
     assert grounding(answer, "ran predict(test_in)") == (set(), set())
     assert grounding("It costs $1,999.", "price: $1,999")[0] == {"1,999"}      # thousands still one number
     assert grounding("It costs $1,999.", "price: $2,499")[1] == {"1,999"}
+
+
+def test_a_json_data_answer_is_not_judged_as_prose(cfg):
+    """Live (Gemma 4, ARC): a correct grid was bounced twice by the 'accurate' question; data makes no claims."""
+    v = verifier(cfg, accurate=0.05, claims=0.95)     # Jev would call it inaccurate and making claims
+    grid = json.dumps([[0, 2, 0], [3, 3, 0]])
+    verdict = v.check("solve the puzzle", grid, [], "CODE: print(json.dumps(pred))\nOUTPUT: " + grid)
+    assert verdict.ok and verdict.checks["answer"] == "skipped: the answer is JSON data"
+    prose = v.check("solve the puzzle", "Done - all tests pass.", [], "CODE: print(1)\nOUTPUT: 1")
+    assert not prose.ok                                 # prose is still checked
