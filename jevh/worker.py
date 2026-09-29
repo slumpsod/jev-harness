@@ -341,6 +341,8 @@ class Worker:
         self.escalate: Callable[[], LLM] | None = None
         self.escalated = False
         self.keep_reasoning = REASONING_CHARS
+        self.thinking_watch: Callable[[str], bool] | None = None   # (reasoning so far) -> pause the step?
+        self.watch_every, self.watch_after = 4000, 6000
         self._step = 0
         self._use(llm)
 
@@ -405,6 +407,16 @@ class Worker:
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 messages.append(self._assistant(out))
+                if getattr(out, "interrupted", False):
+                    # the thinking watch saw a testable idea in a long think: test it now (reasoning kept)
+                    self.on_step("output", {"persona": self.persona.name, "step": step, "error": False,
+                                            "output": "(paused a long think: it had an idea to test - asked to run it)"})
+                    messages[-1]["content"] = "(paused to test an idea)"
+                    messages.append({"role": "user", "content": (
+                        "[The harness paused your thinking: it has reached a concrete idea you can test on the data. "
+                        f"Your reasoning so far is kept. Test that idea now - {self._act} that checks it against the "
+                        "data, and look at the result. Then continue from there.]" + self._steps_left_note(step))})
+                    continue
                 calls = [c for c in (getattr(out, "tool_calls", None) or []) if c.get("name")]
                 call_ids: list[str] = []
                 note = ""
@@ -694,6 +706,8 @@ class Worker:
             params, takes_all = {}, False
         if takes_all or "live" in params:   # the reply streams to thinking/step-NN.txt as it is generated
             kw["live"] = self.workdir / "thinking" / f"step-{self._step:02d}.txt"
+        if self.thinking_watch is not None and (takes_all or "watch" in params):
+            kw.update(watch=self.thinking_watch, watch_every=self.watch_every, watch_after=self.watch_after)
         return self.llm.chat(messages, **kw)
 
     @staticmethod

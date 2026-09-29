@@ -40,6 +40,13 @@ Event = Callable[[str, dict], None]
 RESUMABLE = {"max_steps", "stalled", "error", "cancelled"}
 # Progress check (tuned on evals/progress_cases.py, semif): 6/6 stalls caught with 0/8 healthy runs
 # interrupted at any threshold 0.3-0.8; "is it stuck?" interrupted a healthy test-fixing run.
+# Thinking watch (limits.thinking_watch): while a worker's step is still pure thinking, Jev reads
+# the end of it; once it holds an idea code could check, the step is paused and the model is asked
+# to test it (its reasoning is kept). ARC bench: a model reasoned 80-100 KB in its head about a rule
+# it could have run against the examples in seconds.
+TESTABLE_Q = ("Does `thinking` contain a specific idea about the task's data - a rule, formula, pattern or "
+              "calculation - that could be checked right now by running code on that data, instead of "
+              "continuing to reason about it by hand?")
 CIRCLES_Q = ("Is `work_log` repeating the same or nearly the same attempt and getting the same result, "
              "without learning anything new?")
 STOPPED_NOTE = "[stopped by the user before finishing]"
@@ -441,6 +448,9 @@ class Harness:
                         self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
         worker.keep_reasoning = self.cfg.lim("keep_reasoning")
+        if self.cfg.lim("thinking_watch"):
+            worker.thinking_watch = self._watch_fn(task)
+            worker.watch_every, worker.watch_after = self.cfg.lim("watch_every"), self.cfg.lim("watch_after")
         if tier.tier == "fast" and self.tier_mode != "fast":   # quality first: a bounced fast answer escalates
             worker.escalate = lambda: self._llm(persona, "strong")
         task.started = time.time()
@@ -563,6 +573,16 @@ class Harness:
                               {"circles": noul(CIRCLES_Q)})
             return r["circles"].noul
         return circles
+
+    def _watch_fn(self, task: Task):
+        """-> (reasoning so far) -> pause? Jev on the end of a long think (see TESTABLE_Q)."""
+        def testable(thinking: str) -> bool:
+            r = self.jev._ask("thinking_watch", {"task": task.text[:1500], "thinking": thinking[-2500:]},
+                              {"testable": noul(TESTABLE_Q)})
+            self.on_event("thinking_watch", {"task": task, "p": round(r["testable"].noul, 3),
+                                             "chars": len(thinking)})
+            return r["testable"].noul >= self.cfg.t("testable")
+        return testable
 
     def _verify_fn(self, task: Task):
         project = self.project

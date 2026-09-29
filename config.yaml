@@ -27,6 +27,7 @@ thresholds:
   verify_honest: 0.80  # was asked", "says plainly what is not done"
   verify_accurate: 0.40  # final() gate: "accurate report of the work log" noul (flags only if also not honest)
   stall: 0.60          # progress check: "repeating the same attempt" noul (6/6 stalls, 0/8 healthy runs; progress_cases.py)
+  testable: 0.30       # thinking watch: "a checkable idea being worked by hand" (7/9 + 0/8 wrong; held out 4/4 + 0/4; thinking_watch_cases.py)
   learn_skill: 0.50    # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
 
 limits:
@@ -43,6 +44,9 @@ limits:
                                 # (Qwen has 100k of context loaded in LM Studio)
   keep_steps: 3                 # recent steps kept verbatim when compacting
   keep_reasoning: 40000         # chars of each step's hidden reasoning sent back to the model (reasoning_content); 0 = none
+  thinking_watch: 0             # 1: Jev reads long thinks as they stream; a checkable idea pauses the step to test it in code
+  watch_every: 4000             #   ...checked every this many new chars of thinking,
+  watch_after: 6000             #   ...once a step has thought this much
   max_depth: 3                  # nested persona requests
   max_tasks_per_turn: 8
   repl_timeout: 1800            # seconds per code block (callbacks excluded); Stop ends it sooner
