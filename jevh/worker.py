@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .errors import Cancelled
-from .llm import LLM
+from .llm import LLM, LLMError
 from .personas import Persona
 from .repl.client import Repl
 from .skills import Skill
@@ -882,7 +882,16 @@ class Worker:
                 return bool(self._watch_reason)
             kw.update(watch=watch, watch_every=self.watch_every,
                       watch_after=self.watch_after * (2 if self._pauses >= 2 else 1))
-        return self.llm.chat(messages, **kw)
+        try:
+            return self.llm.chat(messages, **kw)
+        except LLMError as e:
+            # the server went silent (live: LM Studio sent nothing for 180 s on Gemma's next step, after it had
+            # computed the right answer, and the whole task failed). Sampling differs on a retry; once.
+            if "no tokens for" not in str(e):
+                raise
+            self.on_step("output", {"persona": self.persona.name, "step": self._step, "error": True,
+                                    "output": f"({e} - retrying the step once)"})
+            return self.llm.chat(messages, **kw)
 
     @staticmethod
     def _replies(call_ids: list[str], text: str) -> list[dict]:
