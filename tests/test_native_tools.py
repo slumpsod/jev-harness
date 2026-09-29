@@ -158,3 +158,12 @@ def test_template_tokens_are_cut_from_a_call_and_a_runaway_call_still_runs(cfg):
                         tool_calls=[{"id": "c", "name": "final", "arguments": '{"answer": "[[1, 2]]"}'}])
     llm = NativeLLM([stopped])
     assert harness(cfg, llm).turn("go", force="high_end_dev").answer == "[[1, 2]]"
+
+
+def test_a_call_that_degenerates_into_one_repeated_unit_counts_as_runaway():
+    """Live (Gemma 4): '..._thought_content_content_content' for 200 KB inside a final call."""
+    from jevh.llm import RUNAWAY_MIN_CHARS, RUNAWAY_RATIO, _packs
+    runaway = '{"answer": "[[7, 6, 5]]" songwriter=True_thought' + "_content" * 3000
+    code = "\n".join(f"row_{i} = [{', '.join(str((i * j) % 10) for j in range(30))}]" for i in range(200))
+    assert len(runaway) > RUNAWAY_MIN_CHARS and _packs(runaway[-6000:]) < RUNAWAY_RATIO
+    assert len(code) > RUNAWAY_MIN_CHARS and _packs(code[-6000:]) > RUNAWAY_RATIO

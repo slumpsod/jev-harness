@@ -15,6 +15,7 @@ import os
 import time
 from pathlib import Path
 import re
+import zlib
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -53,6 +54,17 @@ class LLMError(RuntimeError):
 TEMPLATE_TOKEN_RE = re.compile(r"<\|[A-Za-z_]{2,24}\|?>|<[A-Za-z_]{2,24}\|>")
 RUNAWAY_TOKENS = 20        # this many template tokens in a call's arguments: stop the stream
 MAX_CALL_CHARS = 200_000   # ...or arguments this long
+# ...or a long call whose end is one short unit repeated (live, Gemma 4: "..._content_content_content" for
+# 200 KB / 13 min). zlib ratio of the last 6000 chars: real calls from the ARC runs >= 0.109 (a grid pasted in
+# code), the runaways 0.013-0.022; a pasted 30x30 all-zero grid is 0.019 but only ~2700 chars, hence the length.
+RUNAWAY_MIN_CHARS = 12_000
+RUNAWAY_RATIO = 0.035      # (a deliberately periodic 20 KB table of code: 0.05)
+
+
+def _packs(text: str) -> float:
+    """Compressed size / size: near 0 for one short unit repeated."""
+    data = text.encode("utf-8", "replace")
+    return len(zlib.compress(data, 6)) / max(1, len(data))
 
 
 def clean_call_args(arguments: str) -> str:
@@ -96,7 +108,8 @@ def _watch_thinking(response, watch, thought, parts, calls, stop, done, every: i
         reply, reasoning = "".join(parts), "".join(thought)
         if calls:   # acting - unless the call itself runs away (template tokens looping inside it)
             args = "".join(c["arguments"] for c in list(calls.values()))
-            if len(TEMPLATE_TOKEN_RE.findall(args)) >= RUNAWAY_TOKENS or len(args) > MAX_CALL_CHARS:
+            if (len(TEMPLATE_TOKEN_RE.findall(args)) >= RUNAWAY_TOKENS or len(args) > MAX_CALL_CHARS
+                    or (len(args) > RUNAWAY_MIN_CHARS and _packs(args[-6000:]) < RUNAWAY_RATIO)):
                 stop.set()
                 try:
                     response.close()
