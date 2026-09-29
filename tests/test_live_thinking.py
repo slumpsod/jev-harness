@@ -74,7 +74,7 @@ def test_watch_pauses_a_long_think_and_keeps_it():
     srv = thinker_srv = slow_thinker(3000)
     seen = []
 
-    def watch(text):
+    def watch(text, answering=False):
         seen.append(len(text))
         return len(text) > 5000
     r = OpenAICompat(f"http://127.0.0.1:{thinker_srv.server_address[1]}/v1", "m").chat(
@@ -87,7 +87,7 @@ def test_watch_pauses_a_long_think_and_keeps_it():
 def test_watch_never_interrupts_a_reply():
     srv = slow_thinker(400, reply_after=150)
     r = OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "m").chat(
-        [{"role": "user", "content": "hi"}], watch=lambda t: True, watch_every=10 ** 9, watch_after=10 ** 9)
+        [{"role": "user", "content": "hi"}], watch=lambda t, answering=False: True, watch_every=10 ** 9, watch_after=10 ** 9)
     srv.shutdown()
     assert not r.interrupted and "print(1)" in r.text
 
@@ -109,8 +109,9 @@ def test_a_paused_step_is_asked_to_test_its_idea(cfg):
     assert "compute exactly that" in before[-1]["content"] and "print where its output differs" in before[-1]["content"]
 
 
-def test_the_watch_starts_only_after_the_task_has_run_code(cfg):
-    """Advice, writing and planning never get watched: no code has run, so there is no data in the REPL."""
+def test_jev_watches_only_after_the_task_has_run_code(cfg):
+    """Advice, writing and planning never get Jev's thinking watch: no code has run, so there is no data
+    in the REPL. (The plain-code loop check watches every step.)"""
     from jevh.jev import Jev
     from jevh.llm import LLMResult
     from jevh.orchestrator import Harness
@@ -125,11 +126,14 @@ def test_the_watch_starts_only_after_the_task_has_run_code(cfg):
             self.replies = list(replies)
 
         def chat(self, messages, watch=None, live=None, watch_every=0, watch_after=0):
-            watched.append(watch is not None)
+            asked = len(jev.calls)
+            watch("counting the rows by hand: row 1, row 2, row 3")
+            watched.append(len(jev.calls) > asked)   # did the watch ask Jev?
             return LLMResult(text=self.replies.pop(0))
     cfg.limits["thinking_watch"] = 1
     llm = Recorder([py("rows = [1, 2, 3]\nprint(len(rows))"), py("final(str(sum(rows)))")])
-    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: llm)
+    jev = FakeSystemOne()
+    h = Harness(cfg, jev=Jev(cfg, jev), llm_factory=lambda p: llm)
     h.learning = False
     assert h.turn("add up the rows", force="high_end_dev").answer == "6"
     assert watched == [False, True]
@@ -144,7 +148,7 @@ def test_ignored_pauses_make_the_watch_back_off_but_never_stop(cfg):
     from jevh.orchestrator import Harness
 
     from conftest import FakeSystemOne, py
-    after = []   # watch_after per step; None = not watched
+    after = []   # watch_after per step
     seen = []
 
     class Recorder:
@@ -164,8 +168,8 @@ def test_ignored_pauses_make_the_watch_back_off_but_never_stop(cfg):
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: llm)
     h.learning = False
     assert h.turn("go", force="high_end_dev").answer == "ok"
-    # 1: no code yet; 2: watched; 3: one pause ignored -> same; 4-5: two or more -> 12k, never more; 6: code ran -> 6k
-    assert after == [None, 6000, 6000, 12000, 12000, 6000]
+    # 1-3: 6k (one ignored pause changes nothing); 4-5: two or more -> 12k, never more; 6: code ran -> 6k
+    assert after == [6000, 6000, 6000, 12000, 12000, 6000]
     assert "pause 2 in a row" in seen[3][-1]["content"] and "pause 2" not in seen[2][-1]["content"]
 
 
@@ -201,7 +205,7 @@ def test_a_searching_think_is_paused_and_told_to_test_its_best_guess(cfg):
                 on_event=lambda k, d: events.append((k, d)))
     h.learning = False
     assert h.turn("go", force="high_end_dev").answer == "ok"
-    assert reasons[0] is True
+    assert reasons[:2] == [False, True]   # 1: no code has run yet, Jev not asked; 2: searching -> pause
     msg = seen[2][-1]["content"]
     assert "trying one theory after another" in msg and "write your best current guess as a function" in msg
     check = next(d for k, d in events if k == "thinking_watch")
@@ -219,3 +223,40 @@ def test_checking_is_not_mistaken_for_searching(cfg):
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: None)
     watch = h._watch_fn(Task(1, None, "user", "high_end_dev", "solve it"))
     assert watch("(3, 4): center (3.5, 9.5): from the seed, -3, +3 ✓") is None
+
+
+def test_a_looping_reply_is_stopped_and_told_to_act(cfg):
+    """Live (Gemma 4, ARC): with the answer computed, it wrote "I'll call final(test_output)" in its reply
+    for 108 KB and never called it. The loop check is plain code, runs every step, and reads replies."""
+    from jevh.jev import Jev
+    from jevh.llm import LLMResult
+    from jevh.orchestrator import Harness
+    from jevh.worker import repeating
+
+    from conftest import FakeSystemOne, py
+    loop = "Wait, let me check the grid once more.\nFinal call.\nI'll call `final(test_output)` now.\n" * 12
+    assert repeating(loop) in ("Wait, let me check the grid once more.", "I'll call `final(test_output)` now.")
+    assert repeating("0 0 6 0 0 0 0 6\n" * 40) is None                       # printed grids aren't a loop
+    assert repeating("Let me check row 3.\nRow 3 has a 6 at column 2.\n" + "The rule holds.\n" * 5) is None
+
+    seen = []
+
+    class Looper:
+        name = "g"
+
+        def __init__(self):
+            self.n = 0
+
+        def chat(self, messages, watch=None, live=None, watch_every=0, watch_after=0):
+            seen.append([dict(m) for m in messages])
+            self.n += 1
+            if self.n == 1:
+                assert watch(loop) is True           # reply text, no reasoning channel, no code yet
+                return LLMResult(text=loop, interrupted=True)
+            return LLMResult(text=py("test_output = [[1]]\nfinal(test_output)"))
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: Looper())
+    h.learning = False
+    assert h.turn("solve it", force="high_end_dev").answer == "[[1]]"
+    stopped, told = seen[1][-2]["content"], seen[1][-1]["content"]
+    assert stopped.endswith("[... stopped here by the harness]") and len(stopped) < 3100
+    assert "you were repeating yourself" in told and "do it now" in told

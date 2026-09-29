@@ -61,18 +61,22 @@ def _close_on_cancel(response, cancel: threading.Event, done: threading.Event) -
 
 
 def _watch_thinking(response, watch, thought, parts, calls, stop, done, every: int, after: int) -> None:
-    """Side thread: while the reply is pure thinking, show `watch` the reasoning every `every` new
-    chars (from `after` on); if it says stop, close the stream (the server stops generating)."""
+    """Side thread: until the model starts acting (a tool call or a code block), show `watch` what it
+    has written every `every` new chars (from `after` on) - its reasoning, and its reply text too
+    (some models, e.g. Gemma 4 in LM Studio, reason in the reply: live, a 108 KB reply looped on
+    "I'll call final(test_output)"). `watch(text, answering)` -> stop? closes the stream; `answering`:
+    the model reasoned separately and is now writing its reply."""
     checked = 0
     while not done.wait(1.0):
-        if calls or "".join(parts).strip():
-            return   # the model is already acting or answering: nothing to interrupt
-        text = "".join(thought)
+        reply, reasoning = "".join(parts), "".join(thought)
+        if calls or "```" in reply:
+            return   # the model is acting: nothing to interrupt
+        text = reasoning + ("\n" + reply if reply.strip() else "")
         if len(text) < after or len(text) - checked < every:
             continue
         checked = len(text)
         try:
-            hit = watch(text)
+            hit = watch(text, bool(reply.strip() and reasoning.strip()))
         except Exception:  # noqa: BLE001 - a failed check never stops the model
             hit = False
         if hit and not done.is_set():

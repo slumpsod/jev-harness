@@ -11,6 +11,7 @@ import json
 import os
 import platform
 import re
+from collections import Counter
 import shutil
 import sys
 import threading
@@ -34,7 +35,23 @@ FIRST_STEP_NUDGE = ("\n\nIf this needs code: reply now with a short plan (at mos
                     "the whole solution before replying. If it needs no code, reply with just the answer.")
 HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-up
 WATCH_WHY = {"testable": "you were working out by hand something code does exactly on the data",
-             "searching": "you have been trying one theory after another in your head"}
+             "searching": "you have been trying one theory after another in your head",
+             "repeating": "you were repeating yourself"}
+REPLY_KEPT = 3000          # chars of a stopped reply kept in the conversation (a model that reasons in its reply)
+WORDS_RE = re.compile(r"[A-Za-z][A-Za-z'_]+")
+
+
+def repeating(text: str, window: int = 4000, times: int = 8) -> str | None:
+    """The line or sentence a model keeps writing, or None. Plain code, any model: in the last `window`
+    chars, a prose line (3+ words: printed grids and tables don't count) written `times`+ times. Tuned on
+    380 real thinking/reply files from the ARC runs: it flags exactly the two real loops (Gemma 4 writing
+    "I'll call final(test_output)" for 108 KB, Qwen "Let me do that." for 37 KB) and nothing else."""
+    units = [u.strip() for u in re.split(r"\n|(?<=[.!?])\s+", text[-window:])]
+    units = [u for u in units if len(WORDS_RE.findall(u)) >= 3]
+    if not units:
+        return None
+    line, n = Counter(units).most_common(1)[0]
+    return line if n >= times else None
 REASONING_CHARS = 40000    # of each step's hidden reasoning sent back with it (its end if longer; 0 = none)
 NOTES_CHARS = 2500         # plus that turn's work notes (the code it ran and what came back)
 NOTES_HEADER = ("[Harness note, not part of the reply the user saw: the work this reply was based on - "
@@ -394,6 +411,7 @@ class Worker:
         self.keep_reasoning = REASONING_CHARS
         self.thinking_watch: Callable[[str], str | None] | None = None   # (reasoning so far) -> why pause, or None
         self._watch_reason: str | None = None
+        self._loop_line = ""
         self.watch_every, self.watch_after = 4000, 6000
         self._ran_code = False
         self._pauses = 0   # watch pauses since code last ran: from the 2nd, checks come at 2x watch_after
@@ -472,13 +490,25 @@ class Worker:
                     # with more thinking, so the message quotes what it was doing; and when searching, "compute
                     # this" had nothing to compute (ignored 4 in a row) - so it also says what to do when unsure.
                     self._pauses += 1
-                    why = WATCH_WHY.get(self._watch_reason or "", WATCH_WHY["testable"])
+                    reason = self._watch_reason or "testable"
+                    why = WATCH_WHY.get(reason, WATCH_WHY["testable"])
                     self.on_step("output", {"persona": self.persona.name, "step": step, "error": False,
                                             "output": f"(paused a long think: {why} - asked to test it in code)"})
-                    messages[-1]["content"] = "(paused to test an idea)"
-                    tail = (getattr(out, "reasoning", "") or "").strip()[-600:].replace("```", "")
+                    reasoning = (getattr(out, "reasoning", "") or "").strip()
+                    # a model that reasons in its reply keeps what it wrote (its reasoning); a loop, only its start
+                    messages[-1]["content"] = (out.text[:REPLY_KEPT] + "\n[... stopped here by the harness]"
+                                               if out.text.strip() and not reasoning else "(paused to test an idea)")
+                    tail = (reasoning or out.text).strip()[-600:].replace("```", "")
                     again = (f" This is pause {self._pauses} in a row: after the last one you went back to "
                              "reasoning in your head instead of running code." if self._pauses > 1 else "")
+                    if reason == "repeating":
+                        messages.append({"role": "user", "content": (
+                            f"[The harness stopped your reply: you were repeating yourself - \"{self._loop_line[:160]}"
+                            f"\" came up again and again. Whatever you keep saying you will do next, do it now: your "
+                            f"next reply should {self._act.replace('reply with', 'be')} that does it (or the final call, "
+                            "if you already have the answer). No more checking in your head.]"
+                            + self._steps_left_note(step))})
+                        continue
                     messages.append({"role": "user", "content": (
                         f"[The harness paused your thinking: {why}.{again} Your reasoning so far is kept. It ended "
                         f"with:\n...{tail}\n\nYour next reply should {self._act.replace('reply with', 'be')}:\n"
@@ -870,15 +900,23 @@ class Worker:
             params, takes_all = {}, False
         if takes_all or "live" in params:   # the reply streams to thinking/step-NN.txt as it is generated
             kw["live"] = self.workdir / "thinking" / f"step-{self._step:02d}.txt"
-        # only once this task has run code (there is data in the REPL that code could read exactly). Pauses the
-        # model answered with more thinking instead of code make the watch back off - each one doubles the
-        # thinking it allows before checking - but never switch it off (live: switched off after two
-        # ignored pauses, the next step read block positions by hand for 30 KB and 5+ minutes, unwatched)
-        if self.thinking_watch is not None and self._ran_code and (takes_all or "watch" in params):
-            # after an ignored pause the next check comes later (2x), but never later than that: doubling
-            # on every ignored pause let a step think 40 KB / 10 minutes unchecked (ARC, 4 ignored pauses)
-            def watch(thinking: str) -> bool:
-                self._watch_reason = self.thinking_watch(thinking)
+        # A long reply is watched until the model acts. Always, in plain code: is it repeating itself (see
+        # repeating())? And the thinking watch (Jev), only once this task has run code - there is data in the
+        # REPL that code could read exactly - and only on reasoning, or on the reply of a model that reasons
+        # in its reply (no separate reasoning in this step): a long final answer is never paused.
+        # After an ignored pause the next check comes later (2x), never later than that: switching off let
+        # a step read by hand for 30 KB, doubling each time let one think 40 KB / 10 minutes unchecked.
+        if takes_all or "watch" in params:
+            jev = self.thinking_watch if self._ran_code else None
+
+            def watch(text: str, answering: bool = False) -> bool:
+                loop = repeating(text)
+                if loop:
+                    self._watch_reason, self._loop_line = "repeating", loop
+                    return True
+                if jev is None or answering:
+                    return False
+                self._watch_reason = jev(text)
                 return bool(self._watch_reason)
             kw.update(watch=watch, watch_every=self.watch_every,
                       watch_after=self.watch_after * (2 if self._pauses >= 2 else 1))
