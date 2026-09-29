@@ -216,3 +216,16 @@ def test_each_step_reports_what_the_context_is_made_of(cfg):
     assert set(first) == {"instructions", "skills", "tools", "task", "work", "output"}
     assert first["instructions"] > 0 and first["task"] > 0 and first["work"] == first["output"] == 0
     assert last["work"] > 0 and last["output"] > 500      # two steps printed ~3000 chars each
+
+
+def test_a_worker_repeating_the_same_result_is_told_to_hand_it_over(cfg):
+    """Live (Gemma 4, ARC): a correct grid printed 3 steps in a row, never handed over; the progress
+    check said 'try a different approach' and then stopped it, and the grid was lost."""
+    same = "print([[8, 8, 9], [8, 2, 9]])"
+    events = []
+    h, llm = harness(cfg, [py(same)] * 6, circles=0.95, events=events, progress_every=3)
+    r = h.turn("solve the puzzle")
+    told = llm.seen[3][-1]["content"]
+    assert "printed the same result each time" in told and "hand it over now" in told
+    assert "genuinely different approach" not in told
+    assert r.answer.startswith("[daily_assistant stopped") and "[[8, 8, 9], [8, 2, 9]]" in r.answer

@@ -42,6 +42,37 @@ REPLY_KEPT = 3000          # chars of a stopped reply kept in the conversation (
 WORDS_RE = re.compile(r"[A-Za-z][A-Za-z'_]+")
 
 
+def _step_outputs(messages: list[dict]) -> list[str]:
+    """What each step's code printed (tool results / result messages), oldest first, harness notes cut."""
+    outs, current = [], None
+    for m in messages:
+        if m["role"] == "assistant":
+            if current is not None:
+                outs.append(current)
+            current = "" if (m.get("tool_calls") or CODE_RE.search(str(m.get("content", "")))) else None
+        elif current is not None and m["role"] in ("tool", "user"):
+            text = str(m.get("content", "")).split("\n\n[", 1)[0].replace("Output:\n", "", 1).strip()
+            current += ("\n" if current else "") + text
+    if current is not None:
+        outs.append(current)
+    return outs
+
+
+def repeated_result(messages: list[dict], n: int = 3) -> str | None:
+    """The result the last `n` code steps all printed, if identical and not an error - a worker that
+    has its answer and keeps re-checking it instead of handing it over."""
+    outs = [o for o in _step_outputs(messages) if o][-n:]
+    if len(outs) < n or len(set(outs)) != 1:
+        return None
+    out = outs[0]
+    return None if re.search(r"Traceback|Error\b|^\(no output\)$", out) or len(out) < 2 else out
+
+
+def _last_output(messages: list[dict]) -> str:
+    outs = [o for o in _step_outputs(messages) if o]
+    return outs[-1] if outs else ""
+
+
 def repeating(text: str, window: int = 4000, times: int = 8) -> str | None:
     """The line or sentence a model keeps writing, or None. Plain code, any model: in the last `window`
     chars, a prose line (3+ words: printed grids and tables don't count) written `times`+ times. Tuned on
@@ -632,9 +663,13 @@ class Worker:
                 self._save(messages, step, False)
                 if self._stalled(messages, step):
                     res.artifacts = self._harvest()
+                    same = repeated_result(messages)
                     res.answer = (f"[{self.persona.name} stopped: its recent steps kept repeating the same attempt "
                                   f"with the same result, even after being told. Files it wrote were collected; "
-                                  f"you can resume it with more guidance.]\n" + messages[-2]["content"][-2000:])
+                                  f"you can resume it with more guidance.]\n"
+                                  + (f"Its last result, printed in each of its last steps (not handed over as its "
+                                     f"answer):\n{same[:2000]}" if same else
+                                     _last_output(messages)[-2000:]))
                     res.stopped = "stalled"
                     break
             else:
@@ -818,11 +853,18 @@ class Worker:
         self._stalls += 1
         if self._stalls >= 2:
             return True
-        messages[-1] = {**messages[-1], "content": messages[-1]["content"] + (
-            "\n\n[The harness's progress check: your recent steps look like the same attempt repeating with the "
-            "same result. Step back: find the root cause (read the error, inspect the data or the docs), try a "
-            "genuinely different approach, or ask_user() for what you need. If it can't be done, call final() and "
-            "say what blocks it.]")}
+        same = repeated_result(messages)
+        if same:   # done but not handing it over (live, Gemma 4: a correct grid printed 3 times, then stopped)
+            note = (f"\n\n[The harness's progress check: your last steps printed the same result each time:\n"
+                    f"{same[:600]}\nIf that is your answer, stop checking and hand it over now - "
+                    f"final(...) with it (the final tool's answer_var, or final(result) in code). If it is not, "
+                    "change the approach.]")
+        else:
+            note = ("\n\n[The harness's progress check: your recent steps look like the same attempt repeating with "
+                    "the same result. Step back: find the root cause (read the error, inspect the data or the docs), "
+                    "try a genuinely different approach, or ask_user() for what you need. If it can't be done, call "
+                    "final() and say what blocks it.]")
+        messages[-1] = {**messages[-1], "content": messages[-1]["content"] + note}
         return False
 
     @property
