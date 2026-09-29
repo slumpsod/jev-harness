@@ -180,7 +180,8 @@ def run_harness(cfg, task_id: str, task: dict, limit: float, run_dir: Path) -> d
     def on_event(k, d):
         events.append((k, d))
         if k == "thinking_watch":   # live: each Jev check of a long think
-            print(f"    watch: {d['chars'] // 1000} KB thought, testable {d['p']:.2f}", flush=True)
+            print(f"    watch: {d['chars'] // 1000} KB thought, testable {d['p']:.2f}, searching {d.get('search', 0):.2f}",
+                  flush=True)
         elif k == "code":
             first = next((ln for ln in str(d.get("code", "")).splitlines() if ln.strip()), "")
             print(f"    code: step {d.get('step')}: {first[:90]}", flush=True)
@@ -211,7 +212,7 @@ def run_harness(cfg, task_id: str, task: dict, limit: float, run_dir: Path) -> d
             "skipped": skipped.is_set(), "steps": max(steps or [0]),
             "bounces": sum(1 for k, d in events if k == "verify" and d.get("bounced")),
             "escalated": any(k == "escalate" for k, _ in events),
-            "watch_checks": [(d["chars"], d["p"]) for k, d in events if k == "thinking_watch"],
+            "watch_checks": [(d["chars"], d["p"], d.get("search")) for k, d in events if k == "thinking_watch"],
             "pauses": sum(1 for k, d in events if k == "output" and "paused a long think" in str(d.get("output")))}
 
 

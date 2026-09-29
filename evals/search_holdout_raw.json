@@ -1,0 +1,152 @@
+[
+ {
+  "searching": 0.9149,
+  "stuck": 0.8355,
+  "checking": 0.5312,
+  "testable": 0.9399
+ },
+ {
+  "searching": 0.5927,
+  "stuck": 0.867,
+  "checking": 0.9241,
+  "testable": 0.9627
+ },
+ {
+  "searching": 0.974,
+  "stuck": 0.9669,
+  "checking": 0.3486,
+  "testable": 0.5
+ },
+ {
+  "searching": 0.8355,
+  "stuck": 0.9241,
+  "checking": 0.5622,
+  "testable": 0.8176
+ },
+ {
+  "searching": 0.7058,
+  "stuck": 0.852,
+  "checking": 0.7549,
+  "testable": 0.9047
+ },
+ {
+  "searching": 0.9987,
+  "stuck": 0.9859,
+  "checking": 0.1192,
+  "testable": 0.3775
+ },
+ {
+  "searching": 0.9924,
+  "stuck": 0.9325,
+  "checking": 0.5312,
+  "testable": 0.6792
+ },
+ {
+  "searching": 0.2689,
+  "stuck": 0.6225,
+  "checking": 0.5622,
+  "testable": 0.867
+ },
+ {
+  "searching": 0.9876,
+  "stuck": 0.9859,
+  "checking": 0.4073,
+  "testable": 0.6225
+ },
+ {
+  "searching": 0.982,
+  "stuck": 0.9669,
+  "checking": 0.2018,
+  "testable": 0.5312
+ },
+ {
+  "searching": 0.6792,
+  "stuck": 0.7982,
+  "checking": 0.8176,
+  "testable": 0.7311
+ },
+ {
+  "searching": 0.9707,
+  "stuck": 0.7773,
+  "checking": 0.9241,
+  "testable": 0.9579
+ },
+ {
+  "searching": 0.9987,
+  "stuck": 0.9859,
+  "checking": 0.3208,
+  "testable": 0.6225
+ },
+ {
+  "searching": 0.9579,
+  "stuck": 0.852,
+  "checking": 0.7549,
+  "testable": 0.9047
+ },
+ {
+  "searching": 0.3775,
+  "stuck": 0.852,
+  "checking": 0.5622,
+  "testable": 0.8355
+ },
+ {
+  "searching": 0.5927,
+  "stuck": 0.7982,
+  "checking": 0.5927,
+  "testable": 0.9241
+ },
+ {
+  "searching": 0.9466,
+  "stuck": 0.9627,
+  "checking": 0.5622,
+  "testable": 0.867
+ },
+ {
+  "searching": 0.9047,
+  "stuck": 0.9399,
+  "checking": 0.4688,
+  "testable": 0.7773
+ },
+ {
+  "searching": 0.9975,
+  "stuck": 0.974,
+  "checking": 0.4073,
+  "testable": 0.6514
+ },
+ {
+  "searching": 0.9985,
+  "stuck": 0.9876,
+  "checking": 0.2227,
+  "testable": 0.3208
+ },
+ {
+  "searching": 0.6225,
+  "stuck": 0.8355,
+  "checking": 0.5622,
+  "testable": 0.8933
+ },
+ {
+  "searching": 0.9914,
+  "stuck": 0.9707,
+  "checking": 0.6792,
+  "testable": 0.5927
+ },
+ {
+  "searching": 0.2689,
+  "stuck": 0.5,
+  "checking": 0.852,
+  "testable": 0.9399
+ },
+ {
+  "searching": 0.8808,
+  "stuck": 0.7773,
+  "checking": 0.7549,
+  "testable": 0.9669
+ },
+ {
+  "searching": 0.0759,
+  "stuck": 0.1824,
+  "checking": 0.9047,
+  "testable": 0.9797
+ }
+]

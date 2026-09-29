@@ -106,7 +106,7 @@ def test_a_paused_step_is_asked_to_test_its_idea(cfg):
     before = llm.seen[1]
     assert before[-2]["reasoning_content"] == "so the rule is: mirror each row"
     assert "paused your thinking" in before[-1]["content"] and "mirror each row" in before[-1]["content"]
-    assert "computes this" in before[-1]["content"]
+    assert "compute exactly that" in before[-1]["content"] and "print where its output differs" in before[-1]["content"]
 
 
 def test_the_watch_starts_only_after_the_task_has_run_code(cfg):
@@ -137,8 +137,8 @@ def test_the_watch_starts_only_after_the_task_has_run_code(cfg):
 
 def test_ignored_pauses_make_the_watch_back_off_but_never_stop(cfg):
     """Live: a model answered two pauses with more hand-work; the watch then switched off and the
-    next step thought 30 KB unwatched. Now each ignored pause doubles the thinking allowed before a
-    check, and running code resets it."""
+    next step thought 30 KB unwatched. Doubling on every ignored pause then let one think 40 KB.
+    Now ignored pauses move the check to 2x once, and running code resets it."""
     from jevh.jev import Jev
     from jevh.llm import LLMResult
     from jevh.orchestrator import Harness
@@ -164,6 +164,58 @@ def test_ignored_pauses_make_the_watch_back_off_but_never_stop(cfg):
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: llm)
     h.learning = False
     assert h.turn("go", force="high_end_dev").answer == "ok"
-    # 1: no code yet; 2: watched; 3: one pause ignored -> same; 4: two -> 12k; 5: three -> 24k; 6: code ran -> 6k
-    assert after == [None, 6000, 6000, 12000, 24000, 6000]
+    # 1: no code yet; 2: watched; 3: one pause ignored -> same; 4-5: two or more -> 12k, never more; 6: code ran -> 6k
+    assert after == [None, 6000, 6000, 12000, 12000, 6000]
     assert "pause 2 in a row" in seen[3][-1]["content"] and "pause 2" not in seen[2][-1]["content"]
+
+
+def test_a_searching_think_is_paused_and_told_to_test_its_best_guess(cfg):
+    """Theory after theory (stuck well above checking) pauses even when nothing is 'testable'."""
+    from jevh.jev import Jev
+    from jevh.llm import LLMResult
+    from jevh.orchestrator import Harness
+
+    from conftest import FakeSystemOne, noul_ans, py
+    seen, reasons = [], []
+
+    def rules(k, q, s):
+        return {"testable": noul_ans(0.1), "stuck": noul_ans(0.95), "checking": noul_ans(0.2)}.get(k)
+
+    class Watching:
+        name = "w"
+
+        def __init__(self, replies):
+            self.replies = list(replies)
+
+        def chat(self, messages, watch=None, live=None, watch_every=0, watch_after=0):
+            seen.append([dict(m) for m in messages])
+            if watch is not None:
+                reasons.append(watch("maybe it's a spiral... no. Let me try yet another idea: a recursive tree"))
+            return self.replies.pop(0)
+    cfg.limits["thinking_watch"] = 1
+    llm = Watching([LLMResult(text=py("g = [1, 2]")),
+                    LLMResult(text="", reasoning="maybe recursion... or a lattice?", interrupted=True),
+                    LLMResult(text=py("final('ok')"))])
+    events = []
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: llm,
+                on_event=lambda k, d: events.append((k, d)))
+    h.learning = False
+    assert h.turn("go", force="high_end_dev").answer == "ok"
+    assert reasons[0] is True
+    msg = seen[2][-1]["content"]
+    assert "trying one theory after another" in msg and "write your best current guess as a function" in msg
+    check = next(d for k, d in events if k == "thinking_watch")
+    assert check["search"] == 0.75 and check["p"] == 0.1
+
+
+def test_checking_is_not_mistaken_for_searching(cfg):
+    from jevh.jev import Jev
+    from jevh.orchestrator import Harness, Task
+
+    from conftest import FakeSystemOne, noul_ans
+
+    def rules(k, q, s):   # the 8.3-min run's pauses: testable high, stuck barely above checking
+        return {"testable": noul_ans(0.2), "stuck": noul_ans(0.7), "checking": noul_ans(0.68)}.get(k)
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: None)
+    watch = h._watch_fn(Task(1, None, "user", "high_end_dev", "solve it"))
+    assert watch("(3, 4): center (3.5, 9.5): from the seed, -3, +3 ✓") is None

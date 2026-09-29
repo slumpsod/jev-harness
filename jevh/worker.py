@@ -33,6 +33,8 @@ FIRST_STEP_NUDGE = ("\n\nIf this needs code: reply now with a short plan (at mos
                     "python block for step one, and build incrementally across replies - do not design "
                     "the whole solution before replying. If it needs no code, reply with just the answer.")
 HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-up
+WATCH_WHY = {"testable": "you were working out by hand something code does exactly on the data",
+             "searching": "you have been trying one theory after another in your head"}
 REASONING_CHARS = 40000    # of each step's hidden reasoning sent back with it (its end if longer; 0 = none)
 NOTES_CHARS = 2500         # plus that turn's work notes (the code it ran and what came back)
 NOTES_HEADER = ("[Harness note, not part of the reply the user saw: the work this reply was based on - "
@@ -223,6 +225,10 @@ value of a last expression. Everything you define - variables, functions, import
   functions, and test each idea by running it on the data. Don't work through data by hand in
   your head: a line of code is faster, and it doesn't misread.
 - Assign what you read or compute to named variables, so you can come back to it without re-reading.
+- Print what reveals the pattern, not raw dumps: differences between inputs and outputs, positions
+  or values relative to each other, counts per group, a short summary table.
+- When you have a candidate rule, answer or fix, write it as a function and run it on every example
+  you have, printing only where it's wrong - before thinking further. The mismatches show what to fix.
 - To see how a module or function works: help(x), dir(x), inspect.signature(f).
 - When you are done, call final(answer, artifacts=[...]) {final_where}: `answer` is what the user
   (or the assistant who asked you) receives. If the request needs no code, just reply in plain text{plain}.
@@ -376,10 +382,11 @@ class Worker:
         self.escalate: Callable[[], LLM] | None = None
         self.escalated = False
         self.keep_reasoning = REASONING_CHARS
-        self.thinking_watch: Callable[[str], bool] | None = None   # (reasoning so far) -> pause the step?
+        self.thinking_watch: Callable[[str], str | None] | None = None   # (reasoning so far) -> why pause, or None
+        self._watch_reason: str | None = None
         self.watch_every, self.watch_after = 4000, 6000
         self._ran_code = False
-        self._pauses = 0   # watch pauses since code last ran: each doubles the thinking allowed before a check
+        self._pauses = 0   # watch pauses since code last ran: from the 2nd, checks come at 2x watch_after
         self._step = 0
         self._use(llm)
 
@@ -450,21 +457,26 @@ class Worker:
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 messages.append(self._assistant(out))
                 if getattr(out, "interrupted", False):
-                    # the thinking watch saw hand-work code would do exactly: do it with code now (reasoning kept).
-                    # Live: a bare "test it now" was answered with more thinking, so quote what it was doing.
+                    # the thinking watch paused a long think: hand-work code does exactly, or theory after theory.
+                    # Either way the way forward is code (reasoning kept). Live: a bare "test it now" was answered
+                    # with more thinking, so the message quotes what it was doing; and when searching, "compute
+                    # this" had nothing to compute (ignored 4 in a row) - so it also says what to do when unsure.
                     self._pauses += 1
+                    why = WATCH_WHY.get(self._watch_reason or "", WATCH_WHY["testable"])
                     self.on_step("output", {"persona": self.persona.name, "step": step, "error": False,
-                                            "output": "(paused a long think: it had an idea to test - asked to run it)"})
+                                            "output": f"(paused a long think: {why} - asked to test it in code)"})
                     messages[-1]["content"] = "(paused to test an idea)"
                     tail = (getattr(out, "reasoning", "") or "").strip()[-600:].replace("```", "")
                     again = (f" This is pause {self._pauses} in a row: after the last one you went back to "
-                             "working it out by hand instead of running code." if self._pauses > 1 else "")
+                             "reasoning in your head instead of running code." if self._pauses > 1 else "")
                     messages.append({"role": "user", "content": (
-                        "[The harness paused your thinking: you were working out by hand something code does exactly "
-                        f"on the data.{again} Your reasoning so far is kept. It ended with:\n...{tail}\n\n"
-                        f"Your next reply should {self._act.replace('reply with', 'be')} that computes this - the "
-                        "values, positions, sizes, counts or rule you were working out - and prints the result, so you "
-                        "can read it exactly. Keep your thinking short: decide what to compute, then run it.]"
+                        f"[The harness paused your thinking: {why}.{again} Your reasoning so far is kept. It ended "
+                        f"with:\n...{tail}\n\nYour next reply should {self._act.replace('reply with', 'be')}:\n"
+                        "- if you were checking one idea against the data, compute exactly that - the values, "
+                        "positions, sizes, counts or rule - and print the result;\n"
+                        "- if you are not sure what the rule is, write your best current guess as a function, run "
+                        "it on the examples and print where its output differs from the expected one - the "
+                        "mismatches show what to fix.\nKeep your thinking short: decide what to run, then run it.]"
                         + self._steps_left_note(step))})
                     continue
                 calls = [c for c in (getattr(out, "tool_calls", None) or []) if c.get("name")]
@@ -480,8 +492,8 @@ class Worker:
                         code = call_to_code(c["name"], call_args(c["arguments"]), self.tools)
                         (blocks.append(code) if code else failed.append(c["name"]))
                     if failed:
-                        note = (f"\n(Not run: there is no `{'`, `'.join(failed)}` tool. The only tool is `python`; "
-                                "the REPL's modules and helpers are pre-imported inside it.)")
+                        note = (f"\n(Not run: there is no `{'`, `'.join(failed)}` tool. The tools are `python` and "
+                                "`final`; the REPL's modules and helpers are pre-imported inside `python`.)")
                     if not blocks:
                         messages += self._replies(call_ids, note.strip("\n()") + self._steps_left_note(step))
                         continue
@@ -853,8 +865,13 @@ class Worker:
         # thinking it allows before checking - but never switch it off (live: switched off after two
         # ignored pauses, the next step read block positions by hand for 30 KB and 5+ minutes, unwatched)
         if self.thinking_watch is not None and self._ran_code and (takes_all or "watch" in params):
-            kw.update(watch=self.thinking_watch, watch_every=self.watch_every,
-                      watch_after=self.watch_after * 2 ** max(0, self._pauses - 1))
+            # after an ignored pause the next check comes later (2x), but never later than that: doubling
+            # on every ignored pause let a step think 40 KB / 10 minutes unchecked (ARC, 4 ignored pauses)
+            def watch(thinking: str) -> bool:
+                self._watch_reason = self.thinking_watch(thinking)
+                return bool(self._watch_reason)
+            kw.update(watch=watch, watch_every=self.watch_every,
+                      watch_after=self.watch_after * (2 if self._pauses >= 2 else 1))
         return self.llm.chat(messages, **kw)
 
     @staticmethod

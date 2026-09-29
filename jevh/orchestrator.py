@@ -51,6 +51,15 @@ RESUMABLE = {"max_steps", "stalled", "error", "cancelled"}
 TESTABLE_Q = ("Is `thinking` doing by hand something code could do exactly on the task's data - reading off, "
               "listing or measuring values, positions, sizes or counts, or checking a rule, pattern or "
               "calculation against the data?")
+# ...and a think that is searching - theory after theory - rather than checking one idea. When checking,
+# "compute this" was answered with code every time (the 8.3-min ARC run: 3/3); when searching, pauses
+# were ignored 4 in a row and TESTABLE_Q mostly didn't fire (0.04-0.22 on 28 KB of theorising, and on a
+# verbatim loop). Neither question separates the two alone - Qwen's checking is full of "hmm, wait" too
+# - but "stuck" minus "checking" > 0.25 pauses the searching the watch let through: tuning 8/8 (1 extra
+# pause while checking), held out 2/2 (2 extra); evals/search_cases.py (real thinking, 8 runs).
+STUCK_Q = ("Is `thinking` stuck searching for a rule - trying idea after idea - rather than carefully checking "
+           "one specific idea against the data?")
+CHECKING_Q = "Is `thinking` checking one specific idea step by step against the data?"
 # Compaction: which old steps the rest of the task still needs in full (the rest become one-line notes).
 # evals/compact_cases.py at 0.8: 11/11 needed kept, 2/15 needless (both superseded test runs); held out
 # 5/7 and 1/7 - the two misses were 1-3 line steps whose note already holds all of their code. A
@@ -600,14 +609,19 @@ class Harness:
         return value
 
     def _watch_fn(self, task: Task):
-        """-> (reasoning so far) -> pause? Jev on the end of a long think (see TESTABLE_Q)."""
-        def testable(thinking: str) -> bool:
+        """-> (reasoning so far) -> why to pause it ("testable" / "searching") or None. Jev on the end
+        of a long think: hand-work code does exactly (TESTABLE_Q), or theory after theory (STUCK_Q
+        well above CHECKING_Q)."""
+        def watch(thinking: str) -> str | None:
             r = self.jev._ask("thinking_watch", {"task": task.text[:1500], "thinking": thinking[-2500:]},
-                              {"testable": noul(TESTABLE_Q)})
-            self.on_event("thinking_watch", {"task": task, "p": round(r["testable"].noul, 3),
+                              {"testable": noul(TESTABLE_Q), "stuck": noul(STUCK_Q), "checking": noul(CHECKING_Q)})
+            p, search = r["testable"].noul, r["stuck"].noul - r["checking"].noul
+            self.on_event("thinking_watch", {"task": task, "p": round(p, 3), "search": round(search, 3),
                                              "chars": len(thinking)})
-            return r["testable"].noul >= self.cfg.t("testable")
-        return testable
+            if p >= self.cfg.t("testable"):
+                return "testable"
+            return "searching" if search > self.cfg.t("searching") else None
+        return watch
 
     def _verify_fn(self, task: Task, persona: Persona):
         project = self.project

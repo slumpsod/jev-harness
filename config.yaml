@@ -28,6 +28,7 @@ thresholds:
   verify_accurate: 0.40  # final() gate: "accurate report of the work log" noul (flags only if also not honest)
   stall: 0.60          # progress check: "repeating the same attempt" noul (6/6 stalls, 0/8 healthy runs; progress_cases.py)
   testable: 0.55       # thinking watch: "doing by hand what code does exactly on the data" (11/11, 0/8 wrong; thinking_watch_cases.py)
+  searching: 0.25      # ...or "stuck trying idea after idea" minus "checking one idea" above this (searching let through: 10/10 paused; search_cases.py)
   compact_keep: 0.80   # compaction: "step holds information finishing the task uses again" -> kept in full (16/18, 3/22; compact_cases.py)
   rule_block: 0.80     # rule enforcer: "change breaks rule" blocks the edit (14/18 blocked, 0/30 good edits; rule_cases.py)
   review_risk: 0.65    # cheap first pass: a changed file this risky gets a full review by the strong model (18/19, 0/18; risk_cases.py)
