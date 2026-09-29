@@ -105,7 +105,8 @@ def test_a_paused_step_is_asked_to_test_its_idea(cfg):
     assert h.turn("solve it", force="high_end_dev").answer == "mirrored"
     before = llm.seen[1]
     assert before[-2]["reasoning_content"] == "so the rule is: mirror each row"
-    assert "paused your thinking" in before[-1]["content"] and "Test that idea now" in before[-1]["content"]
+    assert "paused your thinking" in before[-1]["content"] and "mirror each row" in before[-1]["content"]
+    assert "computes this" in before[-1]["content"]
 
 
 def test_the_watch_starts_only_after_the_task_has_run_code(cfg):
@@ -132,3 +133,32 @@ def test_the_watch_starts_only_after_the_task_has_run_code(cfg):
     h.learning = False
     assert h.turn("add up the rows", force="high_end_dev").answer == "6"
     assert watched == [False, True]
+
+
+def test_after_two_pauses_without_code_the_watch_waits_for_code(cfg):
+    """Live: a model answered each pause with more thinking; pausing again only chopped it up."""
+    from jevh.jev import Jev
+    from jevh.llm import LLMResult
+    from jevh.orchestrator import Harness
+
+    from conftest import FakeSystemOne, py
+    watched = []
+
+    class Recorder:
+        name = "rec"
+
+        def __init__(self, replies):
+            self.replies = list(replies)
+
+        def chat(self, messages, watch=None, live=None, watch_every=0, watch_after=0):
+            watched.append(watch is not None)
+            return self.replies.pop(0)
+    paused = LLMResult(text="", reasoning="reading sizes by hand", interrupted=True)
+    cfg.limits["thinking_watch"] = 1
+    llm = Recorder([LLMResult(text=py("g = [1, 2]")), paused, paused, LLMResult(text="thinking more..." + py("print(g)")),
+                    LLMResult(text=py("final('ok')"))])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: llm)
+    h.learning = False
+    assert h.turn("go", force="high_end_dev").answer == "ok"
+    # step 1: no code yet; 2-3: watched and paused; 4: two pauses in a row -> not watched; 5: code ran -> watched
+    assert watched == [False, True, True, False, True]
