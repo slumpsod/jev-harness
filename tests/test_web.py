@@ -201,3 +201,17 @@ def test_resume_through_the_api(cfg):
     app.state.hub.harness.personas["daily_assistant"].max_steps = 5
     client.post("/api/resume", json={"path": first["checkpoint"]}, headers=auth())
     assert wait_done(client, 2)["answer"] == "finished"
+
+
+def test_live_thinking_of_the_running_turn(cfg):
+    from pathlib import Path
+    client, app = make_client(cfg)
+    hub = app.state.hub
+    assert client.get("/api/thinking", headers=auth()).json() == {"file": None}      # nothing running
+    step = Path(hub.harness.session_dir) / "u1t1-daily_assistant" / "thinking" / "step-03.txt"
+    step.parent.mkdir(parents=True)
+    step.write_text("=== thinking ===\n" + "x" * 5000 + "so the rule mirrors rows", encoding="utf-8")
+    with hub.busy:
+        r = client.get("/api/thinking", headers=auth()).json()
+    assert r["file"] == "u1t1-daily_assistant/step-03.txt" and r["text"].endswith("mirrors rows")
+    assert len(r["text"]) <= 4000 and r["bytes"] > 5000

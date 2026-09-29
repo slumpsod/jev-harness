@@ -12,6 +12,10 @@ exact-match scoring (the whole test output grid, one attempt: pass@1).
     python evals/bench/arc.py --mode base --n 20
     python evals/bench/arc.py --mode harness --n 20
     python evals/bench/arc.py --report                   # both result files side by side
+    python evals/bench/arc.py --watch                    # follow the running task's thinking live
+
+While a run is going: create evals/bench/runs/SKIP to end the current task early (recorded as
+skipped; its thinking files stay), or runs/STOP to end the run after the current task.
 
 Data: git clone https://github.com/fchollet/ARC-AGI evals/bench/data/arc1 (not committed).
 Tasks with more than one test input are skipped (about 1 in 10) to keep one grid per answer.
@@ -34,6 +38,51 @@ from jevh.llm import make_llm  # noqa: E402
 
 DATA = HERE / "data" / "arc1" / "data" / "evaluation"
 RUNS = HERE / "runs"
+SKIP = RUNS / "SKIP"   # touch to end the current task early
+STOP = RUNS / "STOP"   # touch to end the run after the current task
+
+
+def watch_skip(stop) -> tuple[threading.Event, threading.Event]:
+    """Poll for the SKIP file; on it, call stop() (cancels the model call). -> (skipped, done)."""
+    skipped, done = threading.Event(), threading.Event()
+
+    def loop():
+        while not done.wait(1.0):
+            if SKIP.exists():
+                try:
+                    SKIP.unlink()
+                except OSError:
+                    pass
+                skipped.set()
+                stop()
+                return
+    threading.Thread(target=loop, daemon=True).start()
+    return skipped, done
+
+
+def live_files() -> list[Path]:
+    return sorted(list(RUNS.glob("h*/ws/*/sessions/*/*/thinking/step-*.txt")) + list(RUNS.glob("base_live/*.txt")),
+                  key=lambda f: f.stat().st_mtime)
+
+
+def watch() -> None:
+    """Print the newest live thinking file as it grows; switch to a newer one when it appears."""
+    current, pos = None, 0
+    while True:
+        files = live_files()
+        if files and files[-1] != current:
+            current = files[-1]
+            pos = max(0, current.stat().st_size - 4000)   # joining mid-think: just the latest part
+            print(f"\n\n########## {current.relative_to(RUNS)}" + (" (latest 4 KB)" if pos else "") + "\n",
+                  flush=True)
+        if current is not None:
+            with open(current, encoding="utf-8", errors="replace") as f:
+                f.seek(pos)
+                chunk = f.read()
+                pos = f.tell()
+            if chunk:
+                print(chunk, end="", flush=True)
+        time.sleep(1.0)
 PERSONA = "high_end_dev"
 
 
@@ -87,19 +136,28 @@ def examples_text(task: dict) -> str:
                        for k, ex in enumerate(task["train"], 1))
 
 
-def run_base(cfg, task: dict, limit: float) -> dict:
+def run_base(cfg, task_id: str, task: dict, limit: float) -> dict:
     persona_model = load_persona_model(cfg)
     llm = make_llm(persona_model, cfg.providers)
     cancel = threading.Event()
     timer = threading.Timer(limit, cancel.set)
     timer.start()
+    skipped, done = watch_skip(cancel.set)
     try:
         prompt = PROMPT.format(examples=examples_text(task), test=grid_text(task["test"][0]["input"]))
-        res = llm.chat([{"role": "user", "content": prompt}], cancel=cancel)
+        try:
+            res = llm.chat([{"role": "user", "content": prompt}], cancel=cancel,
+                           live=RUNS / "base_live" / f"{task_id}.txt")
+        except Exception:  # noqa: BLE001 - cancelled (time limit or SKIP)
+            if not cancel.is_set():
+                raise
+            return {"answer": "", "input": 0, "output": 0, "thinking": 0,
+                    "timed_out": not skipped.is_set(), "skipped": skipped.is_set()}
         return {"answer": res.text[-4000:], "input": res.input_tokens, "output": res.output_tokens,
-                "thinking": getattr(res, "thinking_tokens", 0), "timed_out": cancel.is_set()}
+                "thinking": getattr(res, "thinking_tokens", 0), "timed_out": False, "skipped": False}
     finally:
         timer.cancel()
+        done.set()
 
 
 def load_persona_model(cfg) -> dict:
@@ -124,15 +182,18 @@ def run_harness(cfg, task_id: str, task: dict, limit: float, run_dir: Path) -> d
         p.mcp = []
     timer = threading.Timer(limit, h.cancel)
     timer.start()
+    skipped, done = watch_skip(h.cancel)
     try:
         r = h.turn(HARNESS_MSG.format(path=puzzle), force=PERSONA)
     finally:
         timer.cancel()
+        done.set()
         h.wait_learning()
     tot = (r.usage or {}).get("total", {})
     steps = [d.get("step") for k, d in events if k == "code"]
     return {"answer": r.answer[-4000:], "input": tot.get("input", 0), "output": tot.get("output", 0),
-            "thinking": tot.get("thinking", 0), "timed_out": r.cancelled, "steps": max(steps or [0]),
+            "thinking": tot.get("thinking", 0), "timed_out": r.cancelled and not skipped.is_set(),
+            "skipped": skipped.is_set(), "steps": max(steps or [0]),
             "bounces": sum(1 for k, d in events if k == "verify" and d.get("bounced")),
             "escalated": any(k == "escalate" for k, _ in events)}
 
@@ -150,7 +211,8 @@ def report() -> None:
         secs = sum(r["seconds"] for r in rs.values())
         print(f"{mode:14} {ok}/{n} = {ok / max(n, 1):.0%}  avg {secs / max(n, 1) / 60:.1f} min/task, "
               f"{sum(r['output'] for r in rs.values()) / max(n, 1):,.0f} out tokens/task, "
-              f"no grid {sum(r['grid'] is None for r in rs.values())}, timeouts {sum(r['timed_out'] for r in rs.values())}")
+              f"no grid {sum(r['grid'] is None for r in rs.values())}, timeouts {sum(r['timed_out'] for r in rs.values())}, "
+              f"skipped {sum(bool(r.get('skipped')) for r in rs.values())}")
     if both:
         print(f"\non the {len(both)} tasks every run did: " + ", ".join(
             f"{name} {sum(rs[i]['correct'] for i in both)}" for name, rs in rows.items()))
@@ -165,9 +227,12 @@ def main() -> None:
     ap.add_argument("--limit", type=float, default=45 * 60, help="seconds per task")
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--tag", default="", help="suffix for the results file (a harness version)")
+    ap.add_argument("--watch", action="store_true", help="follow the running task's thinking live")
     a = ap.parse_args()
     if a.report:
         return report()
+    if a.watch:
+        return watch()
     cfg = load_config()
     tasks = load_tasks(400, a.seed) if a.ids else load_tasks(a.n, a.seed)
     if a.ids:
@@ -175,12 +240,19 @@ def main() -> None:
     RUNS.mkdir(parents=True, exist_ok=True)
     out = RUNS / f"arc1_{a.mode}{'_' + a.tag if a.tag else ''}.jsonl"
     done = {json.loads(line)["id"] for line in out.read_text(encoding="utf-8").splitlines()} if out.exists() else set()
+    for f in (SKIP, STOP):   # stale control files from an earlier run
+        f.unlink(missing_ok=True)
     for k, (tid, task) in enumerate(tasks, 1):
         if tid in done:
             continue
+        if STOP.exists():
+            STOP.unlink(missing_ok=True)
+            print("STOP file found: ending the run", flush=True)
+            break
         t = time.time()
         try:
-            r = run_base(cfg, task, a.limit) if a.mode == "base" else run_harness(cfg, tid, task, a.limit, RUNS / ("h" + a.tag))
+            r = (run_base(cfg, tid, task, a.limit) if a.mode == "base"
+                 else run_harness(cfg, tid, task, a.limit, RUNS / ("h" + a.tag)))
             err = None
         except Exception as e:  # noqa: BLE001 - a crash is a result, keep going
             r, err = {"answer": "", "input": 0, "output": 0, "thinking": 0, "timed_out": False}, f"{type(e).__name__}: {e}"
@@ -192,7 +264,8 @@ def main() -> None:
             f.write(json.dumps(row) + "\n")
         print(f"[{k}/{len(tasks)}] {tid} {a.mode}: {'RIGHT' if row['correct'] else 'wrong'} "
               f"{row['seconds'] / 60:.1f} min, {row['output']:,} out ({row['thinking']:,} thinking)"
-              f"{' TIMEOUT' if row['timed_out'] else ''}{' no grid' if grid is None else ''}{' ERR ' + err if err else ''}",
+              f"{' TIMEOUT' if row['timed_out'] else ''}{' SKIPPED' if row.get('skipped') else ''}"
+              f"{' no grid' if grid is None else ''}{' ERR ' + err if err else ''}",
               flush=True)
 
 
