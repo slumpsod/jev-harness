@@ -295,3 +295,12 @@ def test_the_reviewer_is_picked_by_how_severe_a_mistake_could_be(cfg, tmp_path):
     assert run({"pay.py": "stripe.Refund.create(amount=amount)\n"}) == "strong"    # plain code: money
     assert run({"jobs.py": "db.execute('DELETE FROM orders')\n"}, forced="fast") == "fast"
     assert run({"api.py": "def get_user(user_id):\n"}, forced="strong") == "strong"
+
+
+def test_a_json_grid_is_not_read_as_one_big_number():
+    """Live: an ARC answer's grid row '3,3,0,0,0,...' was flagged as a made-up number."""
+    from jevh.verify import grounding
+    answer = "[[0, 0, 3, 3, 0, 0], [3,3,0,0,0,0,0,0,0,3,3,0,0,0,0,0]]"
+    assert grounding(answer, "ran predict(test_in)") == (set(), set())
+    assert grounding("It costs $1,999.", "price: $1,999")[0] == {"1,999"}      # thousands still one number
+    assert grounding("It costs $1,999.", "price: $2,499")[1] == {"1,999"}

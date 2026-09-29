@@ -95,6 +95,7 @@ class Verdict:
 
 
 NUM = re.compile(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)(?:\s*(thousand|million|billion|trillion|[kKmMbB]n?)\b)?")
+THOUSANDS = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?")
 SCALE = {"thousand": 1e3, "k": 1e3, "million": 1e6, "m": 1e6, "billion": 1e9, "b": 1e9, "bn": 1e9, "trillion": 1e12}
 
 
@@ -104,6 +105,11 @@ def _nums(text: str) -> list[tuple[str, float, float]]:
     out = []
     for digits, unit in NUM.findall(text):
         digits = digits.rstrip(",")
+        if "," in digits and not THOUSANDS.fullmatch(digits):
+            # "3,3,0,0,6" is a list of numbers (a grid row as JSON), not one number written with
+            # thousands commas (live: an ARC answer's grid was flagged as a made-up number)
+            out += [(d, float(d), 1e-6) for d in digits.split(",") if d]
+            continue
         try:
             value = float(digits.replace(",", ""))
         except ValueError:

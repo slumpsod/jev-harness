@@ -163,9 +163,15 @@ def run_base(cfg, task_id: str, task: dict, limit: float) -> dict:
 TIER = "strong"   # --tier
 
 
+MODEL = None   # --model: an LM Studio model id for both modes (default: the persona's own model)
+
+
 def load_persona_model(cfg) -> dict:
     import yaml
-    return yaml.safe_load((HERE.parent.parent / "personas" / f"{PERSONA}.yaml").read_text(encoding="utf-8"))["model"]
+    block = yaml.safe_load((HERE.parent.parent / "personas" / f"{PERSONA}.yaml").read_text(encoding="utf-8"))["model"]
+    if MODEL:   # same settings (unlimited thinking, the model's own sampling), another model
+        block = {**block, "provider": "lmstudio", "model": MODEL}
+    return block
 
 
 def run_harness(cfg, task_id: str, task: dict, limit: float, run_dir: Path) -> dict:
@@ -194,6 +200,8 @@ def run_harness(cfg, task_id: str, task: dict, limit: float, run_dir: Path) -> d
     h.learning, h.tier_mode = False, TIER
     p = h.personas[PERSONA]
     p.tools, p.can_request = [], []
+    if MODEL:
+        p.model = load_persona_model(cfg)
     if hasattr(p, "mcp"):
         p.mcp = []
     timer = threading.Timer(limit, h.cancel)
@@ -249,6 +257,7 @@ def main() -> None:
     ap.add_argument("--thinking-watch", action="store_true", help="harness: Jev pauses long thinks at a testable idea")
     ap.add_argument("--compact-tokens", type=int, help="harness: compact the context past this (test compaction)")
     ap.add_argument("--tier", choices=["strong", "fast"], default="strong", help="harness: the persona's model or the fast one")
+    ap.add_argument("--model", help="an LM Studio model id for both modes (e.g. google/gemma-4-12b-qat)")
     a = ap.parse_args()
     if a.report:
         return report()
@@ -259,8 +268,8 @@ def main() -> None:
         cfg.limits["thinking_watch"] = 1
     if a.compact_tokens:
         cfg.limits["compact_tokens"] = a.compact_tokens
-    global TIER
-    TIER = a.tier
+    global TIER, MODEL
+    TIER, MODEL = a.tier, a.model
     tasks = load_tasks(400, a.seed) if a.ids else load_tasks(a.n, a.seed)
     if a.ids:
         tasks = [t for t in tasks if t[0] in a.ids]
@@ -285,7 +294,8 @@ def main() -> None:
             r, err = {"answer": "", "input": 0, "output": 0, "thinking": 0, "timed_out": False}, f"{type(e).__name__}: {e}"
         grid = parse_grid(r["answer"])
         want = task["test"][0]["output"]
-        row = {"id": tid, "mode": a.mode, "correct": grid == want, "seconds": round(time.time() - t, 1),
+        row = {"id": tid, "mode": a.mode, "model": load_persona_model(cfg)["model"],
+               "correct": grid == want, "seconds": round(time.time() - t, 1),
                "grid": grid, "want_shape": [len(want), len(want[0])], "error": err, **r}
         with open(out, "a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
