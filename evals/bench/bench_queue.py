@@ -1,7 +1,7 @@
 """Run ARC benchmark jobs one after another (LM Studio holds one model at a time).
 
-    python evals/bench/queue.py ornith-base-dev ornith-harness-dev ...
-    python evals/bench/queue.py --list
+    python evals/bench/bench_queue.py ornith-base-dev ornith-harness-dev ...
+    python evals/bench/bench_queue.py --list
 
 Each job is arc.py with a model, a mode and a task set; results go to runs/arc1_<mode>_<tag>.jsonl
 and a finished task is never re-run (arc.py resumes), so a stopped queue can simply be restarted.

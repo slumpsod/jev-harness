@@ -302,7 +302,8 @@ def main() -> None:
         print(f"[{k}/{len(tasks)}] {tid} {a.mode}: {'RIGHT' if row['correct'] else 'wrong'} "
               f"{row['seconds'] / 60:.1f} min, {row['output']:,} out ({row['thinking']:,} thinking)"
               f"{' TIMEOUT' if row['timed_out'] else ''}{' SKIPPED' if row.get('skipped') else ''}"
-              f"{' no grid' if grid is None else ''}{' ERR ' + err if err else ''}",
+              f"{' no grid' if grid is None else ''}{' ERR ' + err if err else ''}"
+              f"{' HARNESS FAILED: ' + r['answer'][:160] if ' failed: ' in r['answer'][:200] else ''}",
               flush=True)
 
 
