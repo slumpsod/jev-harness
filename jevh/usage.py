@@ -145,11 +145,13 @@ class Metered:
             takes = False
         object.__setattr__(self, "_takes_cancel", takes)
 
-    def chat(self, messages, cancel=None):
+    def chat(self, messages, cancel=None, tools=None):
         started = time.monotonic()
         res = None
         try:
-            res = self._inner.chat(messages, cancel=cancel) if self._takes_cancel else self._inner.chat(messages)
+            kw = {"tools": tools} if tools else {}
+            res = (self._inner.chat(messages, cancel=cancel, **kw) if self._takes_cancel
+                   else self._inner.chat(messages, **kw))
             return res
         finally:
             w = self._where()

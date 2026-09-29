@@ -68,44 +68,106 @@ PRIMARY = {"web": "ask", "browser": "do", "project": "find", "comfy": "run"}   #
 REPL_CALLS = {"final", "ask_user", "recall", "remember", "request", "save_artifact", "load_artifact", "peek"}
 
 
-def translate_tool_calls(text: str, tools: dict[str, str]) -> tuple[list[str], list[str]]:
-    """(code blocks, calls it couldn't map) for native-template tool calls in `text`.
-    <function=web><parameter=search>q -> web.search('q'); <parameter=question>q -> web.ask(question='q')."""
+def call_to_code(name: str, params: dict[str, Any], tools: dict[str, str]) -> str | None:
+    """The Python a tool call means, or None. python(code=...) -> the code; web(search=q) ->
+    web.search(q); web(question=q) -> web.ask(question=q); final(answer=...) -> final(...)."""
     import importlib
+    if name in PYTHON_TOOL_NAMES:
+        code = params.get("code")
+        if not isinstance(code, str):
+            code = next((v for v in params.values() if isinstance(v, str)), None)
+        return code
+    if name in REPL_CALLS and params:
+        return f"print({name}(**{params!r}))"
+    if name not in tools or not params:
+        return None
+    mod = importlib.import_module(tools[name])
+    funcs = {n: f for n, f in vars(mod).items() if callable(f) and not n.startswith("_")
+             and getattr(f, "__module__", "") == mod.__name__}
+
+    def accepts(fn):
+        try:
+            return set(inspect.signature(funcs[fn]).parameters)
+        except (TypeError, ValueError):
+            return set()
+    called = next((k for k in params if k in funcs), None)
+    if called:   # <parameter=search>q: the parameter names the function
+        rest = {k: v for k, v in params.items() if k != called and k in accepts(called)}
+        args = [repr(params[called])] + [f"{k}={v!r}" for k, v in rest.items()]
+    else:        # <parameter=question>q: the function whose arguments these are
+        fits = [f for f in funcs if params.keys() <= accepts(f)] or \
+               [f for f in funcs if next(iter(params)) in accepts(f)]
+        if not fits:
+            return None
+        called = PRIMARY.get(name) if PRIMARY.get(name) in fits else fits[0]
+        args = [f"{k}={v!r}" for k, v in params.items() if k in accepts(called)]
+    return f"print({name}.{called}({', '.join(args)}))"
+
+
+def translate_tool_calls(text: str, tools: dict[str, str]) -> tuple[list[str], list[str]]:
+    """(code blocks, calls it couldn't map) for native-template tool calls written as text.
+    <function=web><parameter=search>q -> web.search('q'); <parameter=question>q -> web.ask(question='q')."""
     codes, failed = [], []
     for name, body in XML_CALL_RE.findall(text):
         if name == "python":
             continue   # TOOL_CALL_RE's job
-        params = {k: v for k, v in XML_PARAM_RE.findall(body)}
-        if name in REPL_CALLS and params:
-            codes.append(f"print({name}(**{params!r}))")
-            continue
-        if name not in tools or not params:
-            failed.append(name)
-            continue
-        mod = importlib.import_module(tools[name])
-        funcs = {n: f for n, f in vars(mod).items() if callable(f) and not n.startswith("_")
-                 and getattr(f, "__module__", "") == mod.__name__}
-
-        def accepts(fn):
-            try:
-                return set(inspect.signature(funcs[fn]).parameters)
-            except (TypeError, ValueError):
-                return set()
-        called = next((k for k in params if k in funcs), None)
-        if called:   # <parameter=search>q: the parameter names the function
-            rest = {k: v for k, v in params.items() if k != called and k in accepts(called)}
-            args = [repr(params[called])] + [f"{k}={v!r}" for k, v in rest.items()]
-        else:        # <parameter=question>q: the function whose arguments these are
-            fits = [f for f in funcs if params.keys() <= accepts(f)] or \
-                   [f for f in funcs if next(iter(params)) in accepts(f)]
-            if not fits:
-                failed.append(name)
-                continue
-            called = PRIMARY.get(name) if PRIMARY.get(name) in fits else fits[0]
-            args = [f"{k}={v!r}" for k, v in params.items() if k in accepts(called)]
-        codes.append(f"print({name}.{called}({', '.join(args)}))")
+        code = call_to_code(name, {k: v for k, v in XML_PARAM_RE.findall(body)}, tools)
+        (codes.append(code) if code else failed.append(name))
     return codes, failed
+
+
+def call_args(arguments: str) -> dict[str, Any]:
+    """A native call's arguments. Some servers send bad escapes in long code: fall back to
+    pulling the code string out by hand, then to the raw text as code."""
+    try:
+        args = json.loads(arguments or "{}")
+        return args if isinstance(args, dict) else {"code": str(args)}
+    except ValueError:
+        m = re.search(r'"code"\s*:\s*"(.*)"\s*}\s*$', arguments or "", re.DOTALL)
+        if m:
+            try:
+                return {"code": json.loads('"' + m.group(1) + '"')}
+            except ValueError:
+                import warnings
+                with warnings.catch_warnings():   # bad escapes are the reason we're here
+                    warnings.simplefilter("ignore")
+                    return {"code": m.group(1).encode().decode("unicode_escape", "ignore")}
+        return {"code": arguments}
+
+
+def msg_code(m: dict) -> list[str]:
+    """The code an assistant message ran, whatever form it came in."""
+    if m.get("role") != "assistant":
+        return []
+    calls = [call_args(c.get("function", {}).get("arguments", "")) for c in m.get("tool_calls") or []]
+    native = [a["code"] for a in calls if isinstance(a.get("code"), str)]
+    text = str(m.get("content", ""))
+    return native + (CODE_RE.findall(text) or TOOL_CALL_RE.findall(text))
+
+
+def is_output(m: dict) -> bool:
+    """A tool/code result: a tool message, or our 'Output:' user message."""
+    return m.get("role") == "tool" or (m.get("role") == "user" and str(m.get("content", "")).startswith("Output:"))
+
+
+PYTHON_TOOL_NAMES = {"python", "ipython", "code", "run_python", "execute_python", "python_repl"}
+PYTHON_TOOL = {"type": "function", "function": {
+    "name": "python",
+    "description": ("Run Python code in your persistent REPL and see its output (stdout, errors, and the value "
+                    "of a trailing expression). Variables, imports and functions persist between calls. The "
+                    "REPL's helpers (final, ask_user, save_artifact, peek, the tool modules...) are pre-imported."),
+    "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "Python code to run"}},
+                   "required": ["code"]}}}
+
+NATIVE_INTRO = """\
+You solve tasks by writing and running code in a persistent Python REPL: the `python` tool.
+Call it with the code to run; you see its output. Variables, imports and functions persist
+between calls. Work one step at a time: break the problem down, run code, look at the
+result, iterate. Use code to think - keep what you learn in named variables and test a
+hypothesis by running it on the data, rather than working through data by hand in your
+head. When you are done, call final(answer, artifacts=[...]) from the tool - `answer` is
+what the user (or the assistant who asked you) receives. If the request needs no code,
+just reply in plain text without calling the tool."""
 
 REPL_GUIDE = """\
 ## How you work
@@ -182,7 +244,7 @@ MEMORY_GUIDE = """\
 
 def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, str],
                  suggested: list[str], tools: list[str] | None = None,
-                 mcp_tools: list | None = None) -> str:
+                 mcp_tools: list | None = None, native: bool = False) -> str:
     """`tools`: the tool guides Jev picked for this task; the persona's other tools are still
     importable and named in one line. `mcp_tools`: McpTool objects Jev picked."""
     from .tools import TOOLS
@@ -192,7 +254,10 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
     parts = [persona.system_prompt.strip() + f"\n\nToday is {today}. Work out relative dates "
              "(\"next Tuesday\", \"in two weeks\") from it."]
     if persona.code:
-        guide = REPL_GUIDE + "\n" + MEMORY_GUIDE
+        guide = REPL_GUIDE
+        if native:   # the same guide, but acting is a `python` tool call, as in Prime Agent
+            guide = "## How you work\n" + NATIVE_INTRO + REPL_GUIDE[REPL_GUIDE.index("\n\nAvailable in the REPL:"):]
+        guide += "\n" + MEMORY_GUIDE
         if requestable:
             roster = "\n".join(f"    - {n}: {d}" for n, d in requestable.items())
             guide += "\n" + REQUEST_GUIDE.format(roster=roster)
@@ -318,45 +383,63 @@ class Worker:
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 messages.append(self._assistant(out))
-                blocks = CODE_RE.findall(out.text) or TOOL_CALL_RE.findall(out.text)
-                xml_note = ""
-                if not blocks and "<function=" in out.text:
-                    blocks, failed = translate_tool_calls(out.text, self.tools)
-                    if blocks:
-                        xml_note = ("\n(Your <tool_call> ran as Python: " + "; ".join(blocks) +
-                                    ". Write ```python blocks yourself from now on.)")
-                    else:
+                calls = [c for c in (getattr(out, "tool_calls", None) or []) if c.get("name")]
+                call_ids: list[str] = []
+                note = ""
+                if calls:   # native tool calls: the python tool (or a REPL module called by name)
+                    messages[-1]["tool_calls"] = [{"id": c["id"], "type": "function",
+                                                   "function": {"name": c["name"], "arguments": c["arguments"]}}
+                                                  for c in calls]
+                    call_ids = [c["id"] for c in calls]
+                    blocks, failed = [], []
+                    for c in calls:
+                        code = call_to_code(c["name"], call_args(c["arguments"]), self.tools)
+                        (blocks.append(code) if code else failed.append(c["name"]))
+                    if failed:
+                        note = (f"\n(Not run: there is no `{'`, `'.join(failed)}` tool. The only tool is `python`; "
+                                "the REPL's modules and helpers are pre-imported inside it.)")
+                    if not blocks:
+                        messages += self._replies(call_ids, note.strip("\n()") + self._steps_left_note(step))
+                        continue
+                else:
+                    blocks = CODE_RE.findall(out.text) or TOOL_CALL_RE.findall(out.text)
+                    if not blocks and "<function=" in out.text:
+                        blocks, failed = translate_tool_calls(out.text, self.tools)
+                        if blocks:
+                            note = (f"\n(Your <tool_call> text ran as Python: " + "; ".join(blocks) +
+                                    f". Next time {self._act}.)")
+                        else:
+                            messages.append({"role": "user", "content": (
+                                f"Nothing ran: <tool_call> text ({', '.join(failed)}) isn't run here. To act, "
+                                f"{self._act}; the tools are modules already imported in your REPL, e.g. "
+                                "print(web.ask(\"the question\"))." + self._steps_left_note(step))})
+                            continue
+                    if "[output cut off at max_tokens" in out.text[-120:] or (
+                            not blocks and OPEN_FENCE_RE.search(out.text)):
+                        self.on_step("output", {"persona": self.persona.name, "step": step,
+                                                "output": "(reply cut off - asked to use smaller steps)",
+                                                "error": True})
                         messages.append({"role": "user", "content": (
-                            f"Nothing ran: this harness doesn't take <tool_call> ({', '.join(failed)}). Act by "
-                            "writing ONE ```python block; the tools are modules already imported in your REPL, "
-                            "e.g.\n```python\nprint(web.ask(\"the question\"))\n```" + self._steps_left_note(step))})
+                            "Your reply was cut off before the code was complete, so nothing ran. "
+                            "Work in smaller steps: write big files in parts (open(..., 'a')) across "
+                            "several steps, and keep each reply short." + self._steps_left_note(step))})
                         continue
-                if "[output cut off at max_tokens" in out.text[-120:] or (
-                        not blocks and OPEN_FENCE_RE.search(out.text)):
-                    self.on_step("output", {"persona": self.persona.name, "step": step,
-                                            "output": "(reply cut off - asked to use smaller steps)",
-                                            "error": True})
-                    messages.append({"role": "user", "content": (
-                        "Your reply was cut off before the code block closed, so nothing ran. "
-                        "Work in smaller steps: write big files in parts (open(..., 'a')) across "
-                        "several python blocks, and keep each reply short." + self._steps_left_note(step))})
-                    continue
-                if not blocks and not out.text.strip():
-                    # all thinking, no reply (Qwen, ARC bench: ~10 min of reasoning then nothing): not an
-                    # answer to check, just a turn to continue
-                    self.on_step("output", {"persona": self.persona.name, "step": step,
-                                            "output": "(empty reply - asked to continue)", "error": True})
-                    messages[-1]["content"] = "(no reply text)"
-                    messages.append({"role": "user", "content": (
-                        "Your last reply was empty (only thinking, no text). Continue from where your "
-                        "reasoning got to: reply with the next ```python block, or call final() if you are "
-                        "done." + self._steps_left_note(step))})
-                    continue
-                if not blocks:
-                    if self._bounce(out.text, [], [], messages, step, "(no code was run)\n\n"):
+                    if not blocks and not out.text.strip():
+                        # all thinking, no reply (Qwen, ARC bench: ~10 min of reasoning then nothing): not an
+                        # answer to check, just a turn to continue
+                        self.on_step("output", {"persona": self.persona.name, "step": step,
+                                                "output": "(empty reply - asked to continue)", "error": True})
+                        messages[-1]["content"] = "(no reply text)"
+                        messages.append({"role": "user", "content": (
+                            f"Your last reply was empty (only thinking, no text). Continue from where your "
+                            f"reasoning got to: {self._act}, or call final() if you are done."
+                            + self._steps_left_note(step))})
                         continue
-                    res.answer, res.stopped = self._with_unresolved(out.text), "plain"
-                    break
+                    if not blocks:
+                        if self._bounce(out.text, [], [], messages, step, "(no code was run)\n\n"):
+                            continue
+                        res.answer, res.stopped = self._with_unresolved(out.text), "plain"
+                        break
                 code = "\n\n".join(blocks)
                 self.on_step("code", {"persona": self.persona.name, "step": step, "code": code})
                 ex = repl.run(code)
@@ -369,15 +452,18 @@ class Worker:
                     artifacts = ex.final["artifacts"] or self._harvest()
                     # (no artifacts but files written in private scratch: ship them, or whoever asked
                     # never sees the deliverable - seen live: a designer's index.html)
+                    prefix = f"Output:\n{ex.output or '(no output)'}\n\n"
+                    if call_ids:   # a tool call gets its tool result first; a bounce follows as a user turn
+                        messages += self._replies(call_ids, ex.output or "(no output)")
+                        prefix = ""
                     if self._bounce(ex.final["answer"], artifacts, ex.final.get("changed") or [], messages, step,
-                                    f"Output:\n{ex.output or '(no output)'}\n\n"):
+                                    prefix):
                         continue
                     res.answer, res.artifacts, res.stopped = (self._with_unresolved(ex.final["answer"]),
                                                               artifacts, "final")
                     break
-                messages.append({"role": "user", "content": f"Output:\n{ex.output or '(no output)'}" + xml_note
-                                                            + self._stuck_note(ex.output, ex.error)
-                                                            + self._steps_left_note(step)})
+                messages += self._replies(call_ids, (ex.output or "(no output)") + note
+                                          + self._stuck_note(ex.output, ex.error) + self._steps_left_note(step))
                 self._save(messages, step, False)
                 if self._stalled(messages, step):
                     res.artifacts = self._harvest()
@@ -409,9 +495,12 @@ class Worker:
         keep = 2 * self.keep_steps
         if len(body) <= keep:
             return
-        old, recent = body[:-keep], body[-keep:]
-        if recent and recent[0]["role"] != "assistant":  # the tail must start with the model's turn
-            old, recent = body[:-(keep - 1)], body[-(keep - 1):]
+        cut = len(body) - keep
+        while cut < len(body) and body[cut]["role"] != "assistant":   # the tail starts with the model's turn
+            cut += 1   # (and never splits a tool call from its tool results)
+        old, recent = body[:cut], body[cut:]
+        if not old:
+            return
         condensed = self._condense(old)
         old_chars = sum(len(str(m.get("content", ""))) for m in old)
         if old_chars < 2 * len(condensed) or old_chars / CHARS_PER_TOKEN < self.compact_tokens * 0.1:
@@ -442,7 +531,7 @@ class Worker:
         for m in old:
             text = str(m.get("content", ""))
             if m["role"] == "assistant":
-                codes = CODE_RE.findall(text) or TOOL_CALL_RE.findall(text)
+                codes = msg_code(m)
                 prose = CODE_RE.sub("", text).strip()
                 if prose:
                     lines.append("- note: " + prose[:300].replace("\n", " "))
@@ -474,7 +563,7 @@ class Worker:
         self._stalls += 1
         if self._stalls >= 2:
             return True
-        messages[-1] = {"role": "user", "content": messages[-1]["content"] + (
+        messages[-1] = {**messages[-1], "content": messages[-1]["content"] + (
             "\n\n[The harness's progress check: your recent steps look like the same attempt repeating with the "
             "same result. Step back: find the root cause (read the error, inspect the data or the docs), try a "
             "genuinely different approach, or ask_user() for what you need. If it can't be done, call final() and "
@@ -537,17 +626,39 @@ class Worker:
         if self.cancel.is_set():
             raise Cancelled("stopped by the user")
 
+    @property
+    def native(self) -> bool:
+        return bool(getattr(self.llm, "native_tools", False))
+
+    @property
+    def _act(self) -> str:
+        return "call the python tool with your code" if self.native else "reply with ONE ```python block"
+
     def _llm(self, messages):
-        return self.llm.chat(messages, cancel=self.cancel) if self._llm_cancel else self.llm.chat(messages)
+        kw = {"tools": [PYTHON_TOOL]} if self.native else {}
+        if self._llm_cancel:
+            kw["cancel"] = self.cancel
+        return self.llm.chat(messages, **kw)
+
+    @staticmethod
+    def _replies(call_ids: list[str], text: str) -> list[dict]:
+        """What a step's code produced, as the model expects it back: a tool result per native call
+        (the first carries the output), or one 'Output:' user message for code written as text."""
+        if not call_ids:
+            return [{"role": "user", "content": f"Output:\n{text}"}]
+        return [{"role": "tool", "tool_call_id": call_ids[0], "content": text}] + [
+            {"role": "tool", "tool_call_id": i, "content": "(ran together with the first call: its output is above)"}
+            for i in call_ids[1:]]
 
     def _steps_left_note(self, step: int) -> str:
         left = self.persona.max_steps - step
+        where = "with your next python tool call" if self.native else "in your next block"
         if left == 2:
-            return ("\n\n[2 steps left: save your deliverables with save_artifact() and call "
-                    "final() in your next block.]")
+            return (f"\n\n[2 steps left: save your deliverables with save_artifact() and call "
+                    f"final() {where}.]")
         if left == 1:
-            return ("\n\n[LAST STEP: reply with only a python block that calls final(answer, "
-                    "artifacts) with what you have now. Anything else is lost.]")
+            return (f"\n\n[LAST STEP: only call final(answer, artifacts) {where}, with what you have "
+                    "now. Anything else is lost.]")
         return ""
 
     def _stuck_note(self, output: str, error: bool) -> str:

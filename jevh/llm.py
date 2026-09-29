@@ -15,7 +15,7 @@ import os
 import re
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from .errors import Cancelled
@@ -32,6 +32,7 @@ class LLMResult:
     model: str = ""
     thinking_tokens: int = 0   # part of output_tokens spent in hidden reasoning
     reasoning: str = ""        # that hidden reasoning's text, where the server returns it
+    tool_calls: list = field(default_factory=list)   # native calls: [{"id", "name", "arguments" (JSON text)}]
 
 
 class LLM(Protocol):
@@ -75,16 +76,21 @@ class OpenAICompat:
         self.on_progress = None  # callable(tokens_so_far) set by the UI, optional
         self.gate = gate         # lmstudio.ExclusiveModels: one model resident at a time
         self.unlimited_thinking = False  # think: unlimited -> no cap, and workers skip the first-step nudge
+        self.native_tools = False        # provider/persona native_tools: true -> tools= in chat()
 
-    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
+    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
+             tools: list[dict] | None = None) -> LLMResult:
         if self.gate is None:
-            return self._chat(messages, cancel)
+            return self._chat(messages, cancel, tools)
         with self.gate.use(self.model):
-            return self._chat(messages, cancel)
+            return self._chat(messages, cancel, tools)
 
-    def _chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
+    def _chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
+              tools: list[dict] | None = None) -> LLMResult:
         body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True,
                                 "stream_options": {"include_usage": True}, **self.extra}
+        if tools:
+            body["tools"] = tools
         if self.temperature is not None:
             body["temperature"] = self.temperature
         if self.max_tokens:
@@ -96,6 +102,7 @@ class OpenAICompat:
                                      data=json.dumps(body).encode("utf-8"), headers=headers)
         parts: list[str] = []
         thought: list[str] = []
+        calls: dict[int, dict[str, str]] = {}   # streamed tool calls, assembled by index
         usage: dict[str, Any] = {}
         finish = None
         chunks = thinking = 0
@@ -120,6 +127,12 @@ class OpenAICompat:
                         if piece:
                             thinking += 1
                             thought.append(piece if isinstance(piece, str) else "")
+                        for tc in delta.get("tool_calls") or []:
+                            slot = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": ""})
+                            slot["id"] = tc.get("id") or slot["id"]
+                            fn = tc.get("function") or {}
+                            slot["name"] += fn.get("name") or ""
+                            slot["arguments"] += fn.get("arguments") or ""
                         finish = ch.get("finish_reason") or finish
                     chunks += 1
                     if self.on_progress and chunks % 50 == 0:
@@ -148,7 +161,8 @@ class OpenAICompat:
         counted = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
         return LLMResult(text=text, input_tokens=int(usage.get("prompt_tokens") or 0),
                          output_tokens=int(usage.get("completion_tokens") or 0), model=self.model,
-                         thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning)
+                         thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning,
+                         tool_calls=[{**c, "id": c["id"] or f"call_{i}"} for i, c in sorted(calls.items())])
 
 
 class AnthropicLLM:
@@ -232,6 +246,8 @@ def make_llm(model_cfg: dict[str, Any], providers: dict[str, dict[str, Any]]) ->
                                extra=cfg.get("extra"),
                                gate=gate_for(prov["base_url"]) if prov.get("exclusive") else None)
             llm.unlimited_thinking = unlimited
+            # workers get a real `python` tool (the model's own tool-call format) instead of fenced blocks
+            llm.native_tools = bool(cfg.get("native_tools", prov.get("native_tools", False)))
             return llm
         if prov["type"] == "anthropic":
             return AnthropicLLM(model=cfg.get("model", "claude-opus-5"),

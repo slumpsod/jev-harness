@@ -140,21 +140,22 @@ def seen_text(transcript: list[dict[str, str]]) -> str:
     start = next((i for i, m in enumerate(transcript)
                   if m.get("role") == "user" and "(In your REPL:" in m.get("content", "")), len(transcript))
     return "\n".join(m.get("content", "") for i, m in enumerate(transcript)
-                     if m.get("role") == "user" or (m.get("role") == "assistant" and i < start))
+                     if m.get("role") in ("user", "tool") or (m.get("role") == "assistant" and i < start))
 
 
 def work_log(transcript: list[dict[str, str]], cap: int = 5000, answer: str | None = None) -> str:
     """The code a worker ran and what came back, compact, most recent last. With `answer`,
     each long output also keeps its lines that mention the answer's numbers and words."""
+    from .worker import is_output, msg_code   # (worker imports nothing from here; kept lazy anyway)
     parts = []
     terms = evidence_terms(answer) if answer else None
     for m in transcript[2:]:
-        text = m.get("content", "")
+        text = m.get("content", "") or ""
         if m.get("role") == "assistant":
-            for code in re.findall(r"```(?:python|py)?[ \t]*\n(.*?)```", text, re.S):
+            for code in msg_code(m):   # fenced blocks, or native python tool calls
                 parts.append("CODE:\n" + code.strip()[:700])
-        elif text.startswith("Output:"):
-            out = text[7:].strip()
+        elif is_output(m):
+            out = (text[7:] if text.startswith("Output:") else text).strip()
             entry = "OUTPUT: " + out[:350]
             if terms and len(out) > 350:
                 extra = evidence_lines(out[350:], terms)

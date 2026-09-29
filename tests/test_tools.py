@@ -185,4 +185,4 @@ def test_native_final_call_ends_the_task_and_unknown_calls_get_a_nudge(cfg):
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(tool_rules(tools_yes={"web"}))), llm_factory=lambda p: llm)
     h.learning = False
     assert h.turn("weather in Salt Lake?", force="daily_assistant").answer == "Sunny, 72F."
-    assert "doesn't take <tool_call> (weather)" in llm.seen[1][-1]["content"]
+    assert "<tool_call> text (weather) isn't run here" in llm.seen[1][-1]["content"]

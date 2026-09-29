@@ -413,6 +413,9 @@ class Harness:
         tier = self._pick_tier(task, persona)
         self.on_event("tier", {"task": task, "decision": tier})
         llm = self._llm(persona, tier.tier)
+        if getattr(llm, "native_tools", False):   # acting is a `python` tool call, not a fenced block
+            system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
+                                  [catalog[k] for k in tools.mcp if k in catalog], native=True)
         handles = Handles(self._start_request, task, goal, requestable)
         handlers = {
             "llm_query": lambda prompt, data=None: llm.chat([{"role": "user", "content": (
