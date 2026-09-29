@@ -131,6 +131,16 @@ reproduces EVERY train output exactly, then apply it to the test input. Call fin
 test output grid as JSON (a list of rows)."""
 
 
+# --framing same: the harness gets the raw model's own prompt (the grids inline), plus the puzzle as a
+# file for its REPL - so it can answer by looking, like the raw model, or check a rule in code.
+SAME_MSG = """{prompt}
+
+The same puzzle is in the file {path} (JSON {{"train": [{{"input", "output"}}, ...], "test": [{{"input"}}]}}) \
+for your Python REPL: use it to check a rule against every example before you answer. Call final() with only \
+the test output grid as JSON (a list of rows)."""
+FRAMING = "code"   # --framing
+
+
 def examples_text(task: dict) -> str:
     return "\n\n".join(f"Example {k}\nInput:\n{grid_text(ex['input'])}\nOutput:\n{grid_text(ex['output'])}"
                        for k, ex in enumerate(task["train"], 1))
@@ -217,7 +227,10 @@ def run_harness(cfg, task_id: str, task: dict, limit: float, run_dir: Path) -> d
     timer.start()
     skipped, done = watch_skip(h.cancel)
     try:
-        r = h.turn(HARNESS_MSG.format(path=puzzle), force=PERSONA)
+        msg = (SAME_MSG.format(prompt=PROMPT.format(examples=examples_text(task),
+                                                    test=grid_text(task["test"][0]["input"])), path=puzzle)
+               if FRAMING == "same" else HARNESS_MSG.format(path=puzzle))
+        r = h.turn(msg, force=PERSONA)
     finally:
         timer.cancel()
         done.set()
@@ -266,6 +279,8 @@ def main() -> None:
     ap.add_argument("--thinking-watch", action="store_true", help="harness: Jev pauses long thinks at a testable idea")
     ap.add_argument("--compact-tokens", type=int, help="harness: compact the context past this (test compaction)")
     ap.add_argument("--tier", choices=["strong", "fast"], default="strong", help="harness: the persona's model or the fast one")
+    ap.add_argument("--framing", choices=["code", "same"], default="code",
+                    help="harness: 'code' = load the file and write a checked function; 'same' = the raw prompt + the file")
     ap.add_argument("--model", help="an LM Studio model id for both modes (e.g. google/gemma-4-12b-qat)")
     a = ap.parse_args()
     if a.report:
@@ -277,8 +292,8 @@ def main() -> None:
         cfg.limits["thinking_watch"] = 1
     if a.compact_tokens:
         cfg.limits["compact_tokens"] = a.compact_tokens
-    global TIER, MODEL
-    TIER, MODEL = a.tier, a.model
+    global TIER, MODEL, FRAMING
+    TIER, MODEL, FRAMING = a.tier, a.model, a.framing
     tasks = load_tasks(400, a.seed) if a.ids else load_tasks(a.n, a.seed)
     if a.ids:
         tasks = [t for t in tasks if t[0] in a.ids]

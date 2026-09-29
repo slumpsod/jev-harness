@@ -29,6 +29,8 @@ def job_args(job: str) -> tuple[list[str], str]:
     model, mode, which, *ver = job.split("-")
     tag = f"{model}_{which}" + (f"_{ver[0]}" if ver else "")
     args = ["--mode", mode, "--tag", tag, "--limit", str(LIMITS[model]), *SETS[which]]
+    if ver and ver[0].startswith("same"):   # e.g. gemma-harness-dev-same: the raw prompt + the file
+        args += ["--framing", "same"]
     if MODELS[model]:
         args += ["--model", MODELS[model]]
     if mode == "harness":
