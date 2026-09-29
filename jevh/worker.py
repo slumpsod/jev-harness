@@ -343,6 +343,7 @@ class Worker:
         self.keep_reasoning = REASONING_CHARS
         self.thinking_watch: Callable[[str], bool] | None = None   # (reasoning so far) -> pause the step?
         self.watch_every, self.watch_after = 4000, 6000
+        self._ran_code = False
         self._step = 0
         self._use(llm)
 
@@ -475,6 +476,7 @@ class Worker:
                         res.answer, res.stopped = self._with_unresolved(out.text), "plain"
                         break
                 code = "\n\n".join(blocks)
+                self._ran_code = True
                 self.on_step("code", {"persona": self.persona.name, "step": step, "code": code})
                 ex = repl.run(code)
                 if ex.usage:
@@ -706,7 +708,8 @@ class Worker:
             params, takes_all = {}, False
         if takes_all or "live" in params:   # the reply streams to thinking/step-NN.txt as it is generated
             kw["live"] = self.workdir / "thinking" / f"step-{self._step:02d}.txt"
-        if self.thinking_watch is not None and (takes_all or "watch" in params):
+        # only once this task has run code: then there is data in the REPL that code could read exactly
+        if self.thinking_watch is not None and self._ran_code and (takes_all or "watch" in params):
             kw.update(watch=self.thinking_watch, watch_every=self.watch_every, watch_after=self.watch_after)
         return self.llm.chat(messages, **kw)
 

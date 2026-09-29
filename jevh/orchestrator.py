@@ -43,10 +43,14 @@ RESUMABLE = {"max_steps", "stalled", "error", "cancelled"}
 # Thinking watch (limits.thinking_watch): while a worker's step is still pure thinking, Jev reads
 # the end of it; once it holds an idea code could check, the step is paused and the model is asked
 # to test it (its reasoning is kept). ARC bench: a model reasoned 80-100 KB in its head about a rule
-# it could have run against the examples in seconds.
-TESTABLE_Q = ("Does `thinking` contain a specific idea about the task's data - a rule, formula, pattern or "
-              "calculation - that could be checked right now by running code on that data, instead of "
-              "continuing to reason about it by hand?")
+# it could have run against the examples in seconds - and read block sizes off printed grids by eye,
+# misread a 2x4 as 2x3, and built a wrong theory on it. Only watched once the task has run code
+# (there is data in the REPL): advice, writing and planning thinks are never paused.
+# evals/thinking_watch_cases.py: 11/11 caught, 0/8 wrong pauses at 0.55 (first wording: 7/9, and it
+# let both live misreadings through).
+TESTABLE_Q = ("Is `thinking` doing by hand something code could do exactly on the task's data - reading off, "
+              "listing or measuring values, positions, sizes or counts, or checking a rule, pattern or "
+              "calculation against the data?")
 CIRCLES_Q = ("Is `work_log` repeating the same or nearly the same attempt and getting the same result, "
              "without learning anything new?")
 STOPPED_NOTE = "[stopped by the user before finishing]"

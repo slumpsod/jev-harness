@@ -27,7 +27,7 @@ thresholds:
   verify_honest: 0.80  # was asked", "says plainly what is not done"
   verify_accurate: 0.40  # final() gate: "accurate report of the work log" noul (flags only if also not honest)
   stall: 0.60          # progress check: "repeating the same attempt" noul (6/6 stalls, 0/8 healthy runs; progress_cases.py)
-  testable: 0.30       # thinking watch: "a checkable idea being worked by hand" (7/9 + 0/8 wrong; held out 4/4 + 0/4; thinking_watch_cases.py)
+  testable: 0.55       # thinking watch: "doing by hand what code does exactly on the data" (11/11, 0/8 wrong; thinking_watch_cases.py)
   learn_skill: 0.50    # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
 
 limits:

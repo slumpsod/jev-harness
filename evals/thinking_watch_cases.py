@@ -6,7 +6,10 @@ through by hand, plus non-ARC equivalents. Negatives ("keep thinking"): reasonin
 code can't help (writing, advice, intent, design before data) and exploration with no idea yet.
 
     python evals/thinking_watch_cases.py            # score TESTABLE_Q on every case, sweep thresholds
-    python evals/thinking_watch_cases.py --holdout  # the cases written after choosing (thresholds.testable = 0.3)
+    python evals/thinking_watch_cases.py --holdout  # written after the first wording was chosen (now seen)
+
+In the harness the watch only runs once a task has executed code, so the writing/advice negatives
+here are a stricter test than it faces live (they'd never be watched).
 """
 from __future__ import annotations
 
@@ -93,6 +96,14 @@ the silence behind it. The turn happens in the third stanza when the key appears
 grids yet or how many training examples there are, so first I'll print the shapes.""", False),
 ]
 
+# Live watch test (2026-09-28, puzzle 3): what Jev saw at 6 KB and 10 KB and let through (0.20, 0.09).
+# Both read block positions/sizes off printed grids by eye - and misread a 2x4 block as 2x3, which
+# then produced a wrong theory ("rotated and shrunk by 1"). Code would have listed them exactly.
+CASES += [
+    (ARC_TASK, " outward.\n\nRing 1 (immediately around the original block, rows 5–8, columns 6–7):\n- Top: rows 3–4, columns 8–10 (2x3 of 3s) and columns 2–4 (2x3 of 3s)? Hmm, two blocks on top: one at columns 2–4, one at columns 8–10. The original is at columns 6–7. So top side: a block to the left of the top (columns 2–4), a block to the right of the top (columns 8–10).\n\n- Bottom: rows 9–10, columns 2–4 and columns 8–10 (2x3 of 3s). Same as top.\n- Left: rows 0–2, columns 0–1 (3x2 of 6s) and rows 11–14, columns 0–1 (4x2 of 6s).\n- Right: rows 0–2, columns 12–13 (3x2 of 6s) and rows 11–14, columns 12–13 (4x2 of 6s).\n\nSo ring 1 consists of: 2 top 3-blocks, 2 bottom 3-blocks, 2 left 6-blocks, 2 right 6-blocks. Then ring 2 (further out): rows 15–16, columns 14–16 (2x3 of 3s), rows 17–20, columns 18–19 (4x2 of 6s), rows 21–22, columns 19–21 (2x3 of 3s). This is the bottom-right corner region — a continuation of the spiral.\n\nSo the pattern is a square spiral: starting from the original block, going clockwise (or counterclockwise) around it, with alternating block types: top side is 3-blocks (horizontal), right side is 6-blocks (vertical), bottom side is 3-blocks, left side is 6-blocks... but each side has 2 blocks, one at each corner?\n\nHmm wait. Let me look at ring 1 more carefully:\n\nThe original occupies rows 5–8 (4 rows), columns 6–7 (2 columns).\n\nTop blocks (3s, 2x3): rows 3–4, columns 2–4 and rows 3–4, columns 8–10. Distance from the original: 1 row gap (row 5 is the top edge of the original, so rows 3–4 are 1 row above... no wait, the top edge of the original is row 5, so rows 3–4 are adjacent (row 4 is adjacent to row 5). Columns 2–4: the original is at columns 6–7; gap at column 5. Columns 8–10: adjacent to the right.\n\nRight blocks (6s): rows 0–2, columns 12–13 (3x2) and rows 11–14, columns 12–13 (4x2). Distance: 4-column gap (8,9,10,11 are empty... no wait, the original's right edge is column 7, so columns 8–11 are empty, blocks at columns 12–13). Rows 0–2: 2 rows above the top edge of the original (row 5), with row... hmm, rows 0,1,2 and the top edge of the original is row 5; rows 3–4 are occupied by the top 3-blocks. Rows 11–14: below the original (bottom edge is row 8), gap at rows 9–10 (occupied by the bottom 3-blocks).\n\nBottom blocks (3s): rows 9–10, columns 2–4 and columns 8–10.\n\nLeft blocks (6s): rows 0–2, columns 0–1 (3x2) and rows 11–14, columns 0–1 (4x2).\n\nSo ring 1 forms a square ring around the original block, with gaps: the ring extends from rows 0–14, column", True),
+    (ARC_TASK, '- Ring 2 bottom 3-block: (16, 16).\n- Ring 2 right 6-block: (20, 19).\n- Ring 2 bottom 3-block: (22, 21).\n\nSo the ring corners: the corners of ring 1 are at (0,1), (0,13), (14,1), (14,13) as the outer corners of the 6-blocks; the inner corners are the 3-blocks at (3,4)... hmm wait.\n\nActually the ring is: the left/right sides are 6-blocks (vertical), the top/bottom sides are 3-blocks (horizontal). At each corner of the ring there are both a vertical 6-block and a horizontal 3-block.\n\nLet me reconsider: maybe it\'s a "spiral of rectangles" where each arm is one block, and the path goes:\n\nOriginal (5–8, 6–7)\n→ Up: top-right 3-block (3–4, 8–10)? That\'s up and to the right.\n\nHmm, this is tricky. Instead let me compare the relative geometry between training examples.\n\nTraining example 1:\n- Input: 1x3 of 3s at row 7, columns 7–9. Wait: row 7 = "0000000333000000" so columns 7,8,9 are 3s. A 1x3 horizontal block of 3s.\n- Output: in addition to the original, the following appear:\n  - Rows 0–2, columns 2 and 13: 6s (3x1)\n  - Row 3: columns 3–5 and 11–13 are 3s (1x3)\n  - Rows 4–6, columns 6 and 9: 6s (3x1)\n  - Row 7: original 1x3 of 3s at columns 7–9\n  - Rows 8–10, columns 6 and 9: 6s (3x1)\n  - Row 11: columns 3–5 and 11–13 are 3s (1x3)\n  - Rows 12–14, columns 2 and 13: 6s (3x1)\n  - Row 15: columns 0–2 and 15 are 3s (1x3, partially cut off at the edge)\n\nSo the original is a 1x3 of 3s (horizontal). The "other" blocks: 6s (vertical 3x1) and 3s (horizontal 1x3).\n\nInteresting: here the original color is 3, and the new blocks use both 3 and 6.\n\nIn training example 0, the original is 6, and the new blocks use 6 and 3.\nIn training example 2, the original is 3 (a 5x2 of 3s at rows 5–9, columns 10–11), and the new blocks: 3s (2x3 horizontal) and 6s (6x2 vertical... let me check).\n\nOutput 2:\n- Rows 0–2, columns 4–5 and 18–19: 3s (3x2)\n- Rows 3–4, columns 6–10 and 12–16: 6s (2x5)\n- Rows 5–9, columns 10–11: 3s (5x2) — the original\n- Rows 10–11, columns 6–10 and 12–16: 6s (2x5)\n- Rows 12–16, columns 4–5 and 18–19: 3s (5x2)\n- Rows 17–18, columns 0–3 and 20–24: 6s (2x4)\n- Rows 19–23, column 22: 3s (5x1)\n- Rows 24–25: nothing (empty)\n\nLet me re-read the output rows of training 2:\nRow 0: 00003300000000000033000000 → columns 4–5 are 3, columns 18–19 are 3\nRow 1: same\nRow 2: same\nRow 3: 00000066666006666600000000 → columns 6–10 are 6, columns 12–16 are 6\nRow 4: same\nRow 5: 00000000000330000000000000 → columns 10–11 are 3 (original)\nRow 6: same\nRow 7: same\nRow 8: same\nRow 9: same\nRow 10: 000', True),
+]
+
 
 def main() -> None:
     cfg = load_config()
@@ -135,9 +146,11 @@ question is their risk tolerance given the mortgage - I should lay out both side
     ("Explain the TCP handshake to a beginner", """I'll use an analogy: a phone call where each side confirms
 they can hear the other. SYN is 'can you hear me?', SYN-ACK is 'yes, can you hear me?', ACK is 'yes'. Then
 explain why three steps and not two, and keep jargon to a minimum.""", False),
+    # relabelled True when the question widened to reading data by hand: listing colours and sizes by eye
+    # is exactly what a line of code does (and what went wrong live)
     (ARC_TASK, """I've printed the three training pairs. Before guessing anything I want to understand what's in
 them: which colours appear, whether the output is the same size as the input, and whether anything moves.""",
-     False),
+     True),
 ]
 
 

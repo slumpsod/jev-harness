@@ -106,3 +106,29 @@ def test_a_paused_step_is_asked_to_test_its_idea(cfg):
     before = llm.seen[1]
     assert before[-2]["reasoning_content"] == "so the rule is: mirror each row"
     assert "paused your thinking" in before[-1]["content"] and "Test that idea now" in before[-1]["content"]
+
+
+def test_the_watch_starts_only_after_the_task_has_run_code(cfg):
+    """Advice, writing and planning never get watched: no code has run, so there is no data in the REPL."""
+    from jevh.jev import Jev
+    from jevh.llm import LLMResult
+    from jevh.orchestrator import Harness
+
+    from conftest import FakeSystemOne, py
+    watched = []
+
+    class Recorder:
+        name = "rec"
+
+        def __init__(self, replies):
+            self.replies = list(replies)
+
+        def chat(self, messages, watch=None, live=None, watch_every=0, watch_after=0):
+            watched.append(watch is not None)
+            return LLMResult(text=self.replies.pop(0))
+    cfg.limits["thinking_watch"] = 1
+    llm = Recorder([py("rows = [1, 2, 3]\nprint(len(rows))"), py("final(str(sum(rows)))")])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: llm)
+    h.learning = False
+    assert h.turn("add up the rows", force="high_end_dev").answer == "6"
+    assert watched == [False, True]
