@@ -163,6 +163,15 @@ def run_base(cfg, task_id: str, task: dict, limit: float) -> dict:
 TIER = "strong"   # --tier
 
 
+def loaded_llms() -> list[str]:
+    """The LLMs LM Studio has loaded right now ([] if it can't be asked)."""
+    try:
+        from jevh.lmstudio import gate_for
+        return [k for k, _ in gate_for("http://127.0.0.1:1234/v1")._loaded()]
+    except Exception:  # noqa: BLE001 - a benchmark never fails over this check
+        return []
+
+
 MODEL = None   # --model: an LM Studio model id for both modes (default: the persona's own model)
 
 
@@ -286,6 +295,7 @@ def main() -> None:
             print("STOP file found: ending the run", flush=True)
             break
         t = time.time()
+        loaded_before = loaded_llms()
         try:
             r = (run_base(cfg, tid, task, a.limit) if a.mode == "base"
                  else run_harness(cfg, tid, task, a.limit, RUNS / ("h" + a.tag)))
@@ -294,6 +304,11 @@ def main() -> None:
             r, err = {"answer": "", "input": 0, "output": 0, "thinking": 0, "timed_out": False}, f"{type(e).__name__}: {e}"
         grid = parse_grid(r["answer"])
         want = task["test"][0]["output"]
+        # another big model loaded alongside (live: a second session's Qwen next to the benchmark's Gemma
+        # cut it from ~67 to ~11 tok/s): the result's time - and a timeout - says nothing about the model
+        loaded = sorted(set(loaded_before) | set(loaded_llms()))
+        r["contention"] = len(loaded) > 1
+        r["loaded"] = loaded
         row = {"id": tid, "mode": a.mode, "model": load_persona_model(cfg)["model"],
                "correct": grid == want, "seconds": round(time.time() - t, 1),
                "grid": grid, "want_shape": [len(want), len(want[0])], "error": err, **r}
@@ -303,7 +318,8 @@ def main() -> None:
               f"{row['seconds'] / 60:.1f} min, {row['output']:,} out ({row['thinking']:,} thinking)"
               f"{' TIMEOUT' if row['timed_out'] else ''}{' SKIPPED' if row.get('skipped') else ''}"
               f"{' no grid' if grid is None else ''}{' ERR ' + err if err else ''}"
-              f"{' HARNESS FAILED: ' + r['answer'][:160] if ' failed: ' in r['answer'][:200] else ''}",
+              f"{' HARNESS FAILED: ' + r['answer'][:160] if ' failed: ' in r['answer'][:200] else ''}"
+              f"{' CONTENTION ' + str(r['loaded']) if r['contention'] else ''}",
               flush=True)
 
 
