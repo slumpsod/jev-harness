@@ -37,6 +37,7 @@ HISTORY_CHARS = 3000       # per earlier assistant reply carried into a follow-u
 WATCH_WHY = {"testable": "you were working out by hand something code does exactly on the data",
              "searching": "you have been trying one theory after another in your head",
              "repeating": "you were repeating yourself"}
+SILENT_RETRIES = 2          # more tries for a step the server answers with silence
 REPLY_KEPT = 3000          # chars of a stopped reply kept in the conversation (a model that reasons in its reply)
 WORDS_RE = re.compile(r"[A-Za-z][A-Za-z'_]+")
 
@@ -923,13 +924,21 @@ class Worker:
         try:
             return self.llm.chat(messages, **kw)
         except LLMError as e:
-            # the server went silent (live: LM Studio sent nothing for 180 s on Gemma's next step, after it had
-            # computed the right answer, and the whole task failed). Sampling differs on a retry; once.
+            # the server went silent. Live (Gemma 4 in LM Studio): it sometimes generates for minutes without
+            # streaming anything - replaying one such request, 5 of 9 tries went silent, the rest answered in
+            # seconds - and the whole task failed after computing the right answer. Sampling differs on a
+            # retry: up to SILENT_RETRIES more tries.
             if "no tokens for" not in str(e):
                 raise
-            self.on_step("output", {"persona": self.persona.name, "step": self._step, "error": True,
-                                    "output": f"({e} - retrying the step once)"})
-            return self.llm.chat(messages, **kw)
+            for attempt in range(1, SILENT_RETRIES + 1):
+                self.on_step("output", {"persona": self.persona.name, "step": self._step, "error": True,
+                                        "output": f"({e} - retrying the step, try {attempt + 1})"})
+                try:
+                    return self.llm.chat(messages, **kw)
+                except LLMError as again:
+                    if "no tokens for" not in str(again) or attempt == SILENT_RETRIES:
+                        raise
+                    e = again
 
     @staticmethod
     def _replies(call_ids: list[str], text: str) -> list[dict]:

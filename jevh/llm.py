@@ -48,6 +48,18 @@ class LLMError(RuntimeError):
     pass
 
 
+FIRST_CHUNK_BASE = 30.0   # seconds a reply may take to start streaming, plus the prompt at PREFILL_TPS
+PREFILL_TPS = 400.0       # conservative prompt-reading speed (tokens/s) for a local model
+
+
+def _set_read_timeout(response, seconds: float) -> None:
+    """Change a streaming response's socket read timeout mid-stream."""
+    try:
+        response.fp.raw._sock.settimeout(seconds)
+    except AttributeError:
+        pass
+
+
 def _close_on_cancel(response, cancel: threading.Event, done: threading.Event) -> None:
     """Close a streaming response from outside when the user stops the turn: the read in the
     worker's thread fails at once (even while the server is still processing the prompt)."""
@@ -180,8 +192,13 @@ class OpenAICompat:
         done = threading.Event()
         stop_watch = threading.Event()   # set by the watcher: close the stream, keep what we have
         feed = _LiveFeed(live, self.model)
+        # Until the first chunk, a shorter limit scaled to the prompt (time to read it in): live, Gemma 4 in LM
+        # Studio sometimes generated for minutes (12k tokens once) without streaming any of it, and waiting
+        # the full idle_timeout never helped. After the first chunk, idle_timeout bounds each gap.
+        first_limit = min(self.idle_timeout, FIRST_CHUNK_BASE + len(req.data) / 3.2 / PREFILL_TPS)
+        streaming = False
         try:
-            with urllib.request.urlopen(req, timeout=self.idle_timeout) as r:
+            with urllib.request.urlopen(req, timeout=first_limit) as r:
                 if cancel is not None:  # a stop mid-generation closes the stream: the server stops too
                     threading.Thread(target=_close_on_cancel, args=(r, cancel, done), daemon=True).start()
                 if watch is not None:
@@ -194,6 +211,9 @@ class OpenAICompat:
                     data = line[5:].strip()
                     if data == "[DONE]":
                         break
+                    if not streaming:
+                        streaming = True
+                        _set_read_timeout(r, self.idle_timeout)
                     evt = json.loads(data)
                     usage = evt.get("usage") or usage
                     for ch in evt.get("choices") or []:
@@ -227,7 +247,17 @@ class OpenAICompat:
             elif isinstance(e, urllib.error.URLError):
                 raise LLMError(f"{self.name}: unreachable ({e.reason})") from e
             elif isinstance(e, TimeoutError):
-                raise LLMError(f"{self.name}: no tokens for {self.idle_timeout:.0f}s") from e
+                dump = os.environ.get("JEVH_DUMP_STALLS")   # debugging: keep the request that stalled
+                if dump:
+                    try:
+                        Path(dump).mkdir(parents=True, exist_ok=True)
+                        (Path(dump) / f"stall-{time.strftime('%H%M%S')}.json").write_text(
+                            json.dumps(body), encoding="utf-8")
+                    except OSError:
+                        pass
+                limit = self.idle_timeout if streaming else first_limit
+                raise LLMError(f"{self.name}: no tokens for {limit:.0f}s"
+                               + ("" if streaming else " (nothing streamed)")) from e
             else:
                 raise
         finally:

@@ -119,7 +119,7 @@ def test_final_in_code_sends_a_list_as_json(cfg):
     assert harness(cfg, llm).turn("go", force="high_end_dev").answer == '{"total": 3, "items": ["a", "b"]}'
 
 
-def test_a_silent_server_is_retried_once(cfg):
+def test_a_silent_server_is_retried_twice(cfg):
     """Live (Gemma via LM Studio): no tokens for 180 s on one step failed a task already solved."""
     from jevh.llm import LLMError
 
@@ -136,4 +136,6 @@ def test_a_silent_server_is_retried_once(cfg):
     ok = Stalls([call(name="final", answer="done")], stalls=1)
     assert harness(cfg, ok).turn("go", force="high_end_dev").answer == "done"
     twice = Stalls([call(name="final", answer="done")], stalls=2)
-    assert "no tokens for 180s" in harness(cfg, twice).turn("go", force="high_end_dev").answer
+    assert harness(cfg, twice).turn("go", force="high_end_dev").answer == "done"
+    thrice = Stalls([call(name="final", answer="done")], stalls=3)
+    assert "no tokens for 180s" in harness(cfg, thrice).turn("go", force="high_end_dev").answer

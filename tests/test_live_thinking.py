@@ -3,6 +3,8 @@ import http.server
 import json
 import threading
 
+import pytest
+
 from jevh.llm import OpenAICompat
 
 
@@ -260,3 +262,39 @@ def test_a_looping_reply_is_stopped_and_told_to_act(cfg):
     stopped, told = seen[1][-2]["content"], seen[1][-1]["content"]
     assert stopped.endswith("[... stopped here by the harness]") and len(stopped) < 3100
     assert "you were repeating yourself" in told and "do it now" in told
+
+
+def test_a_reply_that_never_starts_streaming_is_given_up_on_early():
+    """Live (Gemma 4 in LM Studio): generation with nothing streamed for minutes. Until the first
+    chunk the limit is short (scaled to the prompt); after it, idle_timeout bounds each gap."""
+    import http.server
+    import time as _t
+
+    from jevh import llm as L
+
+    class Silent(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            try:
+                _t.sleep(5)
+            except OSError:
+                pass
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Silent)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    old = L.FIRST_CHUNK_BASE
+    L.FIRST_CHUNK_BASE = 1.0
+    try:
+        t = _t.time()
+        with pytest.raises(L.LLMError, match="nothing streamed"):
+            L.OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "m", idle_timeout=60).chat(
+                [{"role": "user", "content": "hi"}])
+        assert _t.time() - t < 4
+    finally:
+        L.FIRST_CHUNK_BASE = old
+        srv.shutdown()
