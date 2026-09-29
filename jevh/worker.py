@@ -43,16 +43,35 @@ CHARS_PER_TOKEN = 3.2      # conservative for code-heavy transcripts (context-si
 
 def _msg_chars(m: dict) -> int:
     return len(str(m.get("content", ""))) + len(str(m.get("reasoning_content", "")))
-PROGRESS_CHARS = 12000     # condensed progress log above this gets summarized by the model
-SUMMARY_PROMPT = """You are partway through a long task. Below is a condensed log of your earlier steps. \
-Write a compact progress summary for yourself to continue from: what is done (files, results, \
-decisions and why), what failed and what you learned from it, and what is left. Keep exact names, \
-paths, numbers and commands. Plain text, at most 40 lines.
 
-Task: {task}
 
-Log:
-{log}"""
+def _steps(messages: list[dict]) -> list[list[dict]]:
+    """Group a stretch of conversation into steps: each assistant reply with what came back."""
+    groups: list[list[dict]] = []
+    for m in messages:
+        if m["role"] == "assistant" or not groups:
+            groups.append([m])
+        else:
+            groups[-1].append(m)
+    return groups
+
+
+def _render(entries: list[dict], dropped: int, legacy: str = "") -> str:
+    """The progress log: kept steps in full, the rest as one-line notes."""
+    head = f"({dropped} earlier steps left out)\n" if dropped else ""
+    return legacy + head + "".join(e["full"] + "\n" if e["keep"] else e["brief"] for e in entries)
+
+
+def _clip_mid(text: str, n: int) -> str:
+    """Head and tail of a long text: the start says what it is, the end what came of it."""
+    if len(text) <= n:
+        return text
+    return text[:n * 2 // 3] + f"\n[... {len(text) - n} chars ...]\n" + text[-(n // 3):]
+
+PROGRESS_CHARS = 16000     # the progress log's budget: past it, full steps shrink to notes, then the least useful go
+FULL_CODE, FULL_OUT, FULL_THOUGHT = 1500, 2000, 400   # an old step Jev keeps in full, capped at these (chars)
+COMPACT_TARGET = 0.6       # compaction aims the context at this share of compact_tokens
+MIN_FULL_LOG = 8000        # ...but steps still needed always get this much room in the log (chars)
 RESUME_NOTE = ("[Resumed after an interruption. Your REPL was restarted, so variables are gone; files in your "
                "working directory, the artifact store and the project are as you left them. Continue the task "
                "from where you were.]")
@@ -164,6 +183,16 @@ PYTHON_TOOL = {"type": "function", "function": {
                     "REPL's helpers (final, ask_user, save_artifact, peek, the tool modules...) are pre-imported."),
     "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "Python code to run"}},
                    "required": ["code"]}}}
+# Live (ornith, native tools): with `python` as the only tool, it wrote report.md at step 6, then ran
+# print("done") for 34 steps saying "I need to call the final tool" - it looked for final() as a tool.
+FINAL_TOOL = {"type": "function", "function": {
+    "name": "final",
+    "description": ("Finish the task: `answer` is what the user (or the assistant who asked you) receives; "
+                    "`artifacts` are paths of files to hand over. The same as calling final() in Python."),
+    "parameters": {"type": "object", "properties": {
+        "answer": {"type": "string", "description": "the final answer"},
+        "artifacts": {"type": "array", "items": {"type": "string"}, "description": "file paths to hand over"}},
+        "required": ["answer"]}}}
 
 WORKDIR_MARK = "<your working folder>"   # the worker fills in the real path
 PACKAGES = ["numpy", "pandas", "scipy", "PIL", "matplotlib", "requests", "bs4", "sklearn", "networkx",
@@ -212,7 +241,7 @@ In the REPL:
 Your working folder is private scratch space. Keep printed output short; write large files in
 several steps (open(path, 'a'))."""
 NATIVE_ACT = dict(act_intro="the `python` tool. Call it with code to run.",
-                  final_where="from the tool", plain=" without calling the tool")
+                  final_where="(the `final` tool, or final(...) in your code)", plain=" without calling a tool")
 TEXT_ACT = dict(act_intro="to act, reply with ONE ```python block; it runs.",
                 final_where="in a python block", plain="")
 
@@ -336,7 +365,13 @@ class Worker:
         self.checkpoint = checkpoint    # json of the conversation after every step (for resume)
         self._task_idx = 0              # index of the task message (compaction rewrites everything after it)
         self._task_text = ""
-        self._progress_log = ""
+        self._progress_log = ""         # a pre-Jev checkpoint's log (resume only); new logs are self._entries
+        self._entries: list[dict] = []  # compacted steps: {brief, full, score, keep}
+        self._dropped = 0               # compacted steps left out of the log to fit PROGRESS_CHARS
+        self._scores: dict[str, float] = {}   # Jev's score per step text (a skipped compaction isn't re-asked)
+        # (old step texts, where the work is now) -> P(the rest of the task needs each step); None = notes only
+        self.step_value: Callable[[list[str], str], list[float]] | None = None
+        self.keep_at = 0.8
         self.repl: Repl | None = None      # the orchestrator kills it when the user stops the turn
         # fast tier only: () -> the persona's strong model, swapped in when the gate sends work back
         self.escalate: Callable[[], LLM] | None = None
@@ -386,7 +421,11 @@ class Worker:
         if resume:
             messages = [{"role": "system", "content": system}, *[m for m in resume["messages"] if m["role"] != "system"]]
             self._task_idx, self._task_text = resume.get("task_idx", 1), resume.get("task_text", task)
-            self._progress_log = resume.get("progress_log", "")
+            comp = resume.get("compact")
+            if comp:
+                self._entries, self._dropped = comp.get("entries", []), comp.get("dropped", 0)
+            else:
+                self._progress_log = resume.get("progress_log", "")
             # (the resume note goes in once the REPL state is restored: it says what came back)
         else:
             listed = describe_ctx(ctx)
@@ -530,8 +569,10 @@ class Worker:
     # -- stamina ---------------------------------------------------------------------
     def _compact(self, messages: list[dict], step: int) -> None:
         """Keep the conversation inside the model's context: past `compact_tokens`, older steps
-        become a condensed progress log in the task message (code heads + output snippets); the
-        last `keep_steps` steps stay verbatim. A log that grows too big is summarized by the model."""
+        become a progress log in the task message; the last `keep_steps` steps stay verbatim.
+        Jev reads each old step: the ones the rest of the task still needs (values, names, sources,
+        what failed and why) stay in full, the rest become one-line notes. No model call: a summary
+        by the worker's model cost minutes on a thinking model and lost exact values."""
         size = sum(_msg_chars(m) for m in messages) / CHARS_PER_TOKEN
         if size <= self.compact_tokens:
             return
@@ -545,29 +586,89 @@ class Worker:
         old, recent = body[:cut], body[cut:]
         if not old:
             return
-        condensed = self._condense(old)
-        old_chars = sum(len(str(m.get("content", ""))) for m in old)
-        if old_chars < 2 * len(condensed) or old_chars / CHARS_PER_TOKEN < self.compact_tokens * 0.1:
+        old_chars = sum(_msg_chars(m) for m in old)
+        if old_chars / CHARS_PER_TOKEN < self.compact_tokens * 0.1:
             return  # not enough old material to be worth condensing (e.g. a big system prompt)
-        log = self._progress_log + condensed
-        summarized = False
-        if len(log) > PROGRESS_CHARS:
-            try:
-                log = self._llm([{"role": "user", "content": SUMMARY_PROMPT.format(
-                    task=self._task_text[:2000], log=log[-40000:])}]).text.strip() + "\n"
-                summarized = True
-            except Cancelled:
-                raise
-            except Exception:  # noqa: BLE001 - keep the condensed log if summarizing fails
-                log = log[-PROGRESS_CHARS:]
-        self._progress_log = log
+        now = self._condense(recent)[-2000:]
+        new = [{"brief": self._condense(g), "full": self._full(g), "score": None, "keep": False}
+               for g in _steps(old)]
+        self._score(new, now)
+        # Aim well under the limit (live: compacting only down to it re-triggered every step, and each
+        # compaction rewrites the prompt's start, so the model server re-reads all of it). What the log
+        # may use is what the target leaves after the system prompt, task and recent steps.
+        rest = sum(_msg_chars(m) for m in messages[:self._task_idx] + recent) + len(self._task_text)
+        soft = max(MIN_FULL_LOG, int(self.compact_tokens * COMPACT_TARGET * CHARS_PER_TOKEN) - rest)
+        entries = [dict(e) for e in self._entries] + new
+        dropped = self._fit(entries, now, soft)
+        log_chars = len(_render(entries, self._dropped + dropped, self._progress_log))
+        if log_chars > 0.9 * (old_chars + len(self._render_log())):
+            return  # would barely save anything (live: all-needed steps in full grew the context)
+        self._entries, self._dropped = entries, self._dropped + dropped
         task_msg = {"role": "user", "content": self._task_text + "\n\n[Progress so far - earlier steps condensed to "
-                    "save context; your REPL variables and files are intact:\n" + log + "]"}
+                    "save context (the ones still needed are kept in full); your REPL variables and files are "
+                    "intact:\n" + self._render_log() + "]"}
         before = int(size)
         messages[:] = messages[:self._task_idx] + [task_msg] + recent
         after = int(sum(_msg_chars(m) for m in messages) / CHARS_PER_TOKEN)
         self.on_step("compact", {"persona": self.persona.name, "step": step, "tokens_before": before,
-                                 "tokens_after": after, "summarized": summarized})
+                                 "tokens_after": after, "full": sum(e["keep"] for e in self._entries),
+                                 "notes": sum(not e["keep"] for e in self._entries), "dropped": self._dropped})
+
+    def _score(self, entries: list[dict], now: str, cached: bool = True) -> None:
+        """Jev: does the rest of the task still need this step? (evals/compact_cases.py). A step
+        scored before (a compaction that was skipped) keeps its score unless `cached` is False."""
+        todo = [e for e in entries if not (cached and e["full"] in self._scores)]
+        if self.step_value is not None and todo:
+            try:
+                for e, s in zip(todo, self.step_value([e["full"] for e in todo], now)):
+                    self._scores[e["full"]] = s
+            except Cancelled:
+                raise
+            except Exception:  # noqa: BLE001 - Jev down: notes only this time
+                pass
+        for e in entries:
+            s = self._scores.get(e["full"])
+            e["score"], e["keep"] = s, s is not None and s >= self.keep_at
+
+    def _fit(self, entries: list[dict], now: str, soft: int) -> int:
+        """Shrink the log in place: past `soft` chars, re-check the full steps against where the
+        work is now and turn the least needed into notes; past PROGRESS_CHARS, also leave out the
+        least needed notes (oldest first on ties). -> how many were left out."""
+        def size():
+            return sum(len(e["full"] if e["keep"] else e["brief"]) for e in entries)
+        limit = min(soft, PROGRESS_CHARS)
+        if size() > limit:
+            full = [e for e in entries if e["keep"]]
+            self._score(full, now, cached=False)
+            for e in sorted((e for e in full if e["keep"]), key=lambda e: e["score"] or 0.0):
+                if size() <= limit:
+                    break
+                e["keep"] = False
+        dropped = 0
+        for e in sorted(entries, key=lambda e: e["score"] or 0.0):
+            if size() <= PROGRESS_CHARS:
+                break
+            entries.remove(e)
+            dropped += 1
+        return dropped
+
+    def _render_log(self) -> str:
+        return _render(self._entries, self._dropped, self._progress_log)
+
+    @staticmethod
+    def _full(group: list[dict]) -> str:
+        """One old step as Jev reads it, and as the log keeps it when it is still needed."""
+        thought, codes, outs = "", [], []
+        for m in group:
+            text = str(m.get("content", ""))
+            if m["role"] == "assistant":
+                thought = (str(m.get("reasoning_content", "")) or CODE_RE.sub("", text)).strip()
+                codes += msg_code(m)
+            else:
+                outs.append(text.split("[Not accepted yet", 1)[0].replace("Output:\n", "", 1).strip())
+        code, out = "\n".join(codes).strip(), "\n".join(outs).strip()
+        return ((f"THOUGHT: ...{thought[-FULL_THOUGHT:]}\n" if thought else "")
+                + f"CODE:\n{_clip_mid(code, FULL_CODE)}\nOUTPUT:\n{_clip_mid(out, FULL_OUT)}")
 
     @staticmethod
     def _condense(old: list[dict]) -> str:
@@ -642,7 +743,8 @@ class Worker:
             except Exception:  # noqa: BLE001 - a convenience; never fail the task over it
                 pass
         data = {"version": 1, "persona": self.persona.name, "task_text": self._task_text, "task_idx": self._task_idx,
-                "progress_log": self._progress_log, "step": step, "finished": finished, "stopped": stopped,
+                "progress_log": self._render_log(), "compact": {"entries": self._entries, "dropped": self._dropped},
+                "step": step, "finished": finished, "stopped": stopped,
                 "workdir": str(self.workdir), "saved": time.time(),
                 "messages": [m for m in messages if m["role"] != "system"]}
         try:
@@ -706,7 +808,7 @@ class Worker:
         return "call the python tool with your code" if self.native else "reply with ONE ```python block"
 
     def _llm(self, messages):
-        kw = {"tools": [PYTHON_TOOL]} if self.native else {}
+        kw = {"tools": [PYTHON_TOOL, FINAL_TOOL]} if self.native else {}
         if self._llm_cancel:
             kw["cancel"] = self.cancel
         try:

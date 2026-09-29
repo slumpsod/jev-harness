@@ -53,6 +53,15 @@ def test_a_module_called_as_a_tool_is_run_and_an_unknown_one_is_explained(cfg):
     assert reply["role"] == "tool" and "no `weather` tool" in reply["content"]
 
 
+def test_final_is_offered_as_a_tool_and_finishes_the_task(cfg):
+    llm = NativeLLM([call("rows = 600\nprint(rows)"),
+                     call(name="final", answer="600 rows", artifacts=[])])
+    r = harness(cfg, llm).turn("how many rows? use code", force="high_end_dev")
+    assert r.answer == "600 rows" and len(llm.seen) == 2
+    assert [t["function"]["name"] for t in llm.tools_seen[0]] == ["python", "final"]
+    assert "the `final` tool" in llm.seen[0][0]["content"]
+
+
 def test_several_calls_in_one_reply_each_get_a_result(cfg):
     two = LLMResult(text="", tool_calls=[{"id": "a", "name": "python", "arguments": '{"code": "y = 2"}'},
                                          {"id": "b", "name": "python", "arguments": '{"code": "print(y + 1)"}'}])

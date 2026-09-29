@@ -160,6 +160,9 @@ def run_base(cfg, task_id: str, task: dict, limit: float) -> dict:
         done.set()
 
 
+TIER = "strong"   # --tier
+
+
 def load_persona_model(cfg) -> dict:
     import yaml
     return yaml.safe_load((HERE.parent.parent / "personas" / f"{PERSONA}.yaml").read_text(encoding="utf-8"))["model"]
@@ -181,10 +184,13 @@ def run_harness(cfg, task_id: str, task: dict, limit: float, run_dir: Path) -> d
         elif k == "code":
             first = next((ln for ln in str(d.get("code", "")).splitlines() if ln.strip()), "")
             print(f"    code: step {d.get('step')}: {first[:90]}", flush=True)
+        elif k == "compact":
+            print(f"    compact: step {d['step']}: ~{d['tokens_before']:,} -> ~{d['tokens_after']:,} tokens, "
+                  f"{d['full']} steps kept in full, {d['notes']} as notes, {d['dropped']} left out", flush=True)
         elif k == "output" and "paused a long think" in str(d.get("output")):
             print(f"    watch: step {d.get('step')} paused to test its idea", flush=True)
     h = Harness(cfg, on_event=on_event)
-    h.learning, h.tier_mode = False, "strong"
+    h.learning, h.tier_mode = False, TIER
     p = h.personas[PERSONA]
     p.tools, p.can_request = [], []
     if hasattr(p, "mcp"):
@@ -240,6 +246,8 @@ def main() -> None:
     ap.add_argument("--tag", default="", help="suffix for the results file (a harness version)")
     ap.add_argument("--watch", action="store_true", help="follow the running task's thinking live")
     ap.add_argument("--thinking-watch", action="store_true", help="harness: Jev pauses long thinks at a testable idea")
+    ap.add_argument("--compact-tokens", type=int, help="harness: compact the context past this (test compaction)")
+    ap.add_argument("--tier", choices=["strong", "fast"], default="strong", help="harness: the persona's model or the fast one")
     a = ap.parse_args()
     if a.report:
         return report()
@@ -248,6 +256,10 @@ def main() -> None:
     cfg = load_config()
     if a.thinking_watch:
         cfg.limits["thinking_watch"] = 1
+    if a.compact_tokens:
+        cfg.limits["compact_tokens"] = a.compact_tokens
+    global TIER
+    TIER = a.tier
     tasks = load_tasks(400, a.seed) if a.ids else load_tasks(a.n, a.seed)
     if a.ids:
         tasks = [t for t in tasks if t[0] in a.ids]

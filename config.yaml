@@ -28,7 +28,8 @@ thresholds:
   verify_accurate: 0.40  # final() gate: "accurate report of the work log" noul (flags only if also not honest)
   stall: 0.60          # progress check: "repeating the same attempt" noul (6/6 stalls, 0/8 healthy runs; progress_cases.py)
   testable: 0.55       # thinking watch: "doing by hand what code does exactly on the data" (11/11, 0/8 wrong; thinking_watch_cases.py)
-  learn_skill: 0.50    # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
+  compact_keep: 0.80   # compaction: "step holds information finishing the task uses again" -> kept in full (16/18, 3/22; compact_cases.py)
+  learn_skill: 0.50   # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
 
 limits:
   max_skills: 1                 # evals: every extra skill was mostly noise

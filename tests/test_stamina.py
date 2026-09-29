@@ -49,6 +49,88 @@ def test_compaction_keeps_the_conversation_small_and_well_formed(cfg):
     assert "step 7 done" in last[-1]["content"]                      # the latest step is verbatim
 
 
+def tail_steps(n):
+    """Big steps whose output ends with a marker a one-line note (first 400 chars) would lose."""
+    return [py(f"print('step {i} done'); print('y' * 3000); print('TA' + 'IL{i}')") for i in range(n)] + \
+        [py("final('all done')")]
+
+
+def compact_harness(cfg, replies, needed=lambda step: False, events=None, **limits):
+    """Jev's compaction question answers high for the steps `needed(step text)` picks."""
+    base = rules()
+
+    def r(k, q, s):
+        if k == "info":
+            if isinstance(needed, Exception):
+                raise needed
+            return noul_ans(0.95 if needed(s["step"]) else 0.2)
+        return base(k, q, s)
+    cfg.limits.update(limits)
+    llm = ScriptedLLM(replies)
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(r)), llm_factory=lambda p: llm,
+                on_event=(lambda k, d: events.append((k, d))) if events is not None else None)
+    h.learning = False
+    return h, llm
+
+
+def test_compaction_keeps_the_steps_jev_marks_needed_in_full(cfg):
+    events = []
+    h, llm = compact_harness(cfg, tail_steps(8), needed=lambda s: "step 1 done" in s, events=events,
+                             compact_tokens=3000, keep_steps=2)
+    assert h.turn("do a long job").answer == "all done"
+    assert len(llm.seen) == 9                        # one call per step: compaction never calls the model
+    log = llm.seen[-1][1]["content"]
+    assert "TAIL1" in log                            # needed: kept in full, output tail included
+    assert "TAIL0" not in log and "step 0 done" in log   # not needed: a one-line note
+    last = [d for k, d in events if k == "compact"][-1]
+    assert last["full"] == 1 and last["notes"] >= 1 and last["dropped"] == 0
+
+
+def test_compaction_that_saves_nothing_is_skipped_and_jev_asked_once_per_step(cfg):
+    # all steps needed and small: their full form is no smaller than the original (live: 17.9k -> 18.5k)
+    events, asked = [], []
+    replies = [py(f"print('step {i} done'); print('z' * 700)") for i in range(10)] + [py("final('all done')")]
+    h, llm = compact_harness(cfg, replies, needed=lambda s: asked.append(s) or True, events=events,
+                             compact_tokens=2500, keep_steps=2)
+    assert h.turn("do a long job").answer == "all done"
+    assert asked and not [c for k, c in events if k == "compact"]   # scored, then skipped: nothing to gain
+    assert len(asked) == len(set(asked))            # a skipped compaction doesn't re-ask about the same steps
+
+
+def test_compaction_log_stays_within_budget(cfg, monkeypatch):
+    import jevh.worker as worker
+    monkeypatch.setattr(worker, "PROGRESS_CHARS", 3000)
+    events = []
+    h, llm = compact_harness(cfg, tail_steps(12), needed=lambda s: True, events=events,
+                             compact_tokens=3000, keep_steps=2)
+    assert h.turn("do a long job").answer == "all done"
+    log = llm.seen[-1][1]["content"].split("[Progress so far", 1)[1]
+    assert len(log) < 3000 + 400
+    last = [d for k, d in events if k == "compact"][-1]
+    assert last["dropped"] > 0 and f"({last['dropped']} earlier steps left out)" in log
+
+
+def test_compaction_without_jev_falls_back_to_notes(cfg):
+    events = []
+    h, llm = compact_harness(cfg, tail_steps(8), needed=RuntimeError("jev down"), events=events,
+                             compact_tokens=3000, keep_steps=2)
+    assert h.turn("do a long job").answer == "all done"
+    log = llm.seen[-1][1]["content"]
+    assert "step 0 done" in log and "TAIL0" not in log
+    assert all(d["full"] == 0 for k, d in events if k == "compact")
+
+
+def test_compaction_state_survives_a_resume(cfg):
+    h, llm = compact_harness(cfg, tail_steps(6)[:-1], needed=lambda s: "step 0 done" in s,
+                             compact_tokens=3000, keep_steps=2)
+    h.personas["daily_assistant"].max_steps = 5
+    r = h.turn("do a long job")
+    data = json.loads(Path(r.checkpoint).read_text(encoding="utf-8"))
+    kept = [e for e in data["compact"]["entries"] if e["keep"]]
+    assert len(kept) == 1 and "TAIL0" in kept[0]["full"]
+    assert "TAIL0" in data["progress_log"]
+
+
 def test_going_in_circles_is_flagged_then_stopped(cfg):
     events = []
     h, llm = harness(cfg, steps(10, final=False), circles=0.95, events=events, progress_every=2)

@@ -51,6 +51,12 @@ RESUMABLE = {"max_steps", "stalled", "error", "cancelled"}
 TESTABLE_Q = ("Is `thinking` doing by hand something code could do exactly on the task's data - reading off, "
               "listing or measuring values, positions, sizes or counts, or checking a rule, pattern or "
               "calculation against the data?")
+# Compaction: which old steps the rest of the task still needs in full (the rest become one-line notes).
+# evals/compact_cases.py at 0.8: 11/11 needed kept, 2/15 needless (both superseded test runs); held out
+# 5/7 and 1/7 - the two misses were 1-3 line steps whose note already holds all of their code. A
+# "will finishing still need what step found or did" wording ran flat (9/11 needed at 8/15 needless).
+COMPACT_Q = ("Does `step` hold information that finishing `task` will use again, such as data values, "
+             "column or function names, file contents, sources, URLs or a finding about what does or does not work?")
 CIRCLES_Q = ("Is `work_log` repeating the same or nearly the same attempt and getting the same result, "
              "without learning anything new?")
 STOPPED_NOTE = "[stopped by the user before finishing]"
@@ -452,6 +458,7 @@ class Harness:
                         self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
         worker.keep_reasoning = self.cfg.lim("keep_reasoning")
+        worker.step_value, worker.keep_at = self._compact_fn(task), self.cfg.t("compact_keep")
         if self.cfg.lim("thinking_watch"):
             worker.thinking_watch = self._watch_fn(task)
             worker.watch_every, worker.watch_after = self.cfg.lim("watch_every"), self.cfg.lim("watch_after")
@@ -577,6 +584,16 @@ class Harness:
                               {"circles": noul(CIRCLES_Q)})
             return r["circles"].noul
         return circles
+
+    def _compact_fn(self, task: Task):
+        """-> (old step texts, where the work is now) -> P(the rest of the task needs each step).
+        One call per step: batching the steps into one call scored them lower (10/18 needed kept at
+        0.8 vs 16/18) and was no faster (~0.2 s a step either way)."""
+        def value(steps: list[str], now: str) -> list[float]:
+            state = {"task": task.text[:1500], "now": now[-2000:]}
+            return [self.jev._ask("compact", {**state, "step": s[:4500]}, {"info": noul(COMPACT_Q)})["info"].noul
+                    for s in steps]
+        return value
 
     def _watch_fn(self, task: Task):
         """-> (reasoning so far) -> pause? Jev on the end of a long think (see TESTABLE_Q)."""
