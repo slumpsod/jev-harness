@@ -41,7 +41,8 @@ TOOLS: dict[str, ToolInfo] = {
     "project": ToolInfo(
         "read, search, edit and run code or files in the user's project folder",
         """project (the user's project folder; ctx['project'] is its path):
-- project.tree(".", depth=2); project.find(question) -> likely files; project.grep(regex, glob)
+- project.tree(".", depth=2); project.find(question) -> ["path:line: text", ...] where it's answered, best
+  first (project.read(hit) opens the lines around one); project.grep(regex, glob)
 - project.read(path, start, end) -> numbered lines; project.edit(path, old, new) (exact, unique text);
   project.write(path, text); project.sh(cmd, timeout=120) -> {code, out}
 - project.changed() / project.undo(path=None). Read before editing; run the tests after.

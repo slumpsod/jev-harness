@@ -3,7 +3,9 @@
 
     project.root                             # absolute path of the project
     project.tree(".", depth=2)               # folder outline (skips .git, node_modules, venvs, builds)
-    project.find("where are API routes defined?")   # Jev ranks the files -> a few likely paths
+    project.find("where are API routes defined?")   # search + Jev -> ["src/api.py:42: ...", ...]
+    project.read(project.find(q)[0])         # the lines around a find() hit
+    project.find_files(q)                    # Jev ranks whole files instead
     project.grep(r"def handle_\\w+", "**/*.py")     # -> ["path:line: text", ...]
     project.read("src/app.py", 40, 120)      # numbered lines (at most 400 at a time)
     project.edit("src/app.py", old, new)     # exact text replacement; `old` must be unique
@@ -62,8 +64,32 @@ def _path(rel: str) -> Path:
     return p
 
 
+def _git_files(base: Path) -> list[str] | None:
+    """The repo's files minus what .gitignore excludes (tracked + untracked), or None if `base`
+    isn't a git repo. Without it, find/grep walked generated data - session folders, saved runs."""
+    if not (base / ".git").exists():
+        return None
+    try:
+        r = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=base,
+                           capture_output=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    return sorted({p for p in r.stdout.decode("utf-8", "replace").split("\0") if p})
+
+
 def _files(glob: str = "**/*"):
     base = _root()
+    listed = _git_files(base)
+    if listed is not None:
+        for rel in listed:
+            parts = rel.split("/")
+            if any(p in SKIP_DIRS or p.startswith(".") for p in parts[:-1]) or not (base / rel).is_file():
+                continue
+            if fnmatch.fnmatch(rel, glob) or fnmatch.fnmatch(parts[-1], glob):
+                yield rel
+        return
     for dirpath, dirnames, filenames in os.walk(base):
         dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS and not d.startswith("."))
         for f in sorted(filenames):
@@ -116,7 +142,16 @@ def grep(pattern: str, glob: str = "**/*", limit: int = 60, ignore_case: bool = 
     return out
 
 
+LOCATION_RE = re.compile(r"^(.+?):(\d+):")
+
+
 def read(path: str, start: int = 1, end: int | None = None) -> str:
+    """Numbered lines. `path` may be a find() result ("src/app.py:42: ..."): the lines around it."""
+    m = LOCATION_RE.match(path)
+    if m and not (_root() / path).exists():
+        path, line = m.group(1), int(m.group(2))
+        if start == 1 and end is None:
+            start, end = max(1, line - 10), line + 40
     lines = _path(path).read_text(encoding="utf-8", errors="replace").splitlines()
     end = min(end or len(lines), start + 399, len(lines))
     body = "\n".join(f"{n:>5}  {lines[n - 1]}" for n in range(max(1, start), end + 1))
@@ -215,22 +250,137 @@ def undo(path: str | None = None) -> list[str]:
     return done
 
 
-def find(question: str, k: int = 5) -> list[str]:
-    """Files most likely relevant to `question`: Jev ranks every file by its path and first
-    meaningful line (keyword-prefiltered to 240 on big repos)."""
+STOP_WORDS = {"where", "what", "which", "how", "does", "the", "and", "for", "that", "this", "with", "from", "into",
+               "when", "who", "why", "are", "was", "were", "has", "have", "can", "get", "set", "its", "our", "your",
+               "code", "file", "files", "function", "method", "class", "defined", "define", "find", "done", "made",
+               "make", "handle", "handled", "handles", "used", "use", "uses", "there", "then", "than", "them", "they",
+               "about", "out", "whether", "decide", "decides", "decided", "work", "works", "worked", "happen"}
+DEF_RE = re.compile(r"^\s*(?:async\s+def|def|class|function|export|const|let|var|pub\s+fn|fn|func|interface|type)\b"
+                    r"|^\s*[A-Z][A-Z0-9_]{2,}\s*=|^\s*@\w+\.(?:get|post|put|delete|route)\(")
+FIND_CANDIDATES = 48    # snippets Jev ranks per find() (at most 3 Choice rounds + a final on local semif)
+FIND_Q = "Which code snippet is where `question` is answered?"
+FIND_FILES = 48         # files Jev ranks in find_files() after the keyword prefilter
+
+
+def _keywords(question: str) -> set[str]:
+    """The question's words worth searching for: no stop words; plurals and the parts of
+    snake_case / camelCase names too ("API routes" -> api, routes, route)."""
+    out = set()
+    for w in re.findall(r"[A-Za-z_][A-Za-z0-9_]{2,}", question):
+        parts = [w] + re.findall(r"[a-z]{3,}|[A-Z][a-z]{2,}", w)
+        for p in parts:
+            lw = p.lower().strip("_")
+            if len(lw) < 3 or lw in STOP_WORDS:
+                continue
+            out.add(lw)
+            if lw.endswith("es") and len(lw) > 5:
+                out.add(lw[:-2])
+            if lw.endswith("s") and len(lw) > 4:
+                out.add(lw[:-1])
+    return out
+
+
+def _candidates(question: str, n: int = FIND_CANDIDATES) -> list[tuple[str, int, str, str]]:
+    """(path, line number, the line, snippet around it) for the lines sharing the most keywords with `question`: plain
+    search, best line per 6-line window, definitions and matching paths first."""
+    words = _keywords(question)
+    if not words:
+        return []
+    scored = []
+    for rel in _files():
+        if not _is_text(rel):
+            continue
+        try:
+            lines = _path(rel).read_text(encoding="utf-8", errors="replace").splitlines()[:8000]
+        except OSError:
+            continue
+        in_path = sum(w in rel.lower() for w in words)
+        best: dict[int, tuple[float, int]] = {}
+        for i, line in enumerate(lines):
+            low = line.lower()
+            hit = sum(w in low for w in words)
+            if not hit:
+                continue
+            score = 2 * hit + in_path + (1.5 if DEF_RE.match(line) else 0)
+            window = i // 6
+            if window not in best or score > best[window][0]:
+                best[window] = (score, i)
+        for score, i in best.values():
+            snippet = " | ".join(ln.strip() for ln in lines[max(0, i - 1):i + 3] if ln.strip())
+            scored.append((score, rel, i + 1, lines[i].strip()[:150], snippet[:300]))
+    scored.sort(key=lambda x: -x[0])
+    return [c[1:] for c in scored[:n]]
+
+
+def _in_files(question: str, files: list[str], n: int = FIND_CANDIDATES) -> list[tuple[str, int, str, str]]:
+    """(path, line number, the line, snippet) inside `files`: their definitions (def, class,
+    constant, route), each shown with its docstring and scored on the question's keywords
+    anywhere in its body. Only definitions: offered keyword lines too, Jev picked docstrings,
+    comments and messages that restate the question over the code that does it. A file with no
+    definitions (docs, config) offers its keyword-matching lines instead."""
+    words = _keywords(question)
+    scored = []
+    for rank, rel in enumerate(files):
+        try:
+            lines = _path(rel).read_text(encoding="utf-8", errors="replace").splitlines()[:8000]
+        except OSError:
+            continue
+        heads = [i for i, ln in enumerate(lines) if DEF_RE.match(ln)]
+        if not heads:
+            for i, line in enumerate(lines):
+                hit = sum(w in line.lower() for w in words)
+                if hit:
+                    snippet = " | ".join(ln.strip() for ln in lines[max(0, i - 1):i + 2] if ln.strip())
+                    scored.append((2 * hit - 0.5 * rank, rel, i + 1, line.strip()[:150], snippet[:300]))
+            continue
+        for h, i in enumerate(heads):
+            body = lines[i:min(heads[h + 1] if h + 1 < len(heads) else len(lines), i + 80)]
+            low = "\n".join(body).lower()
+            found = sum(w in low for w in words)
+            named = sum(w in lines[i].lower() for w in words)
+            doc = next((ln.strip().strip('"\'#/* ') for ln in body[1:5] if ln.strip().strip('"\'#/* ')), "")
+            snippet = lines[i].strip() + (f" | {doc}" if doc else "")
+            scored.append((2 * found + 2 * named - 0.5 * rank, rel, i + 1, lines[i].strip()[:150], snippet[:300]))
+    scored.sort(key=lambda x: -x[0])
+    return [c[1:] for c in scored[:n]]
+
+
+def find(question: str, k: int = 5, files: int = 3) -> list[str]:
+    """Where in the project `question` is answered -> ["path:line: text", ...], best first;
+    project.read() takes one of these directly. Two steps: Jev picks the `files` most relevant
+    files (find_files), then ranks the definitions and keyword-matching lines inside them.
+    (evals/find_cases.py: one Jev pick over 48 keyword-matched lines from anywhere put the
+    right line first 9/16 on the tuning questions but 2/8 held out - it was fooled by
+    look-alike lines in other files, where picking the file first is steadier.)"""
+    from jevh.tools._pick import choose, client_from_env
+    top = find_files(question, files)
+    cands = _in_files(question, top)
+    if not cands:
+        return [f"{rel}:1:" for rel in top[:k]]
+    opts = {f"s{i}": f"{rel}:{n}: {snip}" for i, (rel, n, _, snip) in enumerate(cands)}
+    jev, cap = client_from_env()
+    probs, _ = choose(jev, {"question": question}, FIND_Q, opts, cap)
+    ranked = sorted((key for key in probs if probs[key] > 0), key=probs.get, reverse=True)[:k]
+    return [f"{rel}:{n}: {line}" for rel, n, line, _ in (cands[int(key[1:])] for key in ranked)]
+
+
+def find_files(question: str, k: int = 5, prefilter: int = FIND_FILES) -> list[str]:
+    """Files most likely relevant to `question`: Jev ranks files by path and first meaningful
+    line, after a keyword prefilter to `prefilter` files (the ones mentioning the most of the
+    question's keywords, in path or content)."""
     from jevh.tools._pick import choose, client_from_env
     files = [rel for rel in _files() if _is_text(rel)]
     if not files:
         return []
-    words = {w for w in re.findall(r"[a-z0-9_]{3,}", question.lower())}
-    if len(files) > 240:
+    words = _keywords(question)
+    if len(files) > prefilter and words:
         def hits(rel):
             try:
-                head = _path(rel).read_text(encoding="utf-8", errors="replace")[:4000].lower()
+                text = _path(rel).read_text(encoding="utf-8", errors="replace")[:200_000].lower()
             except OSError:
-                head = ""
-            return sum(w in rel.lower() for w in words) * 3 + sum(w in head for w in words)
-        files = sorted(files, key=hits, reverse=True)[:240]
+                text = ""
+            return sum(w in rel.lower() for w in words) * 3 + sum(w in text for w in words)
+        files = sorted(files, key=hits, reverse=True)[:prefilter]
     opts = {f"f{i}": f"{rel}: {_head(rel)}" for i, rel in enumerate(files)}
     jev, cap = client_from_env()
     probs, _ = choose(jev, {"question": question}, "Which file is most relevant to `question`?", opts, cap)
