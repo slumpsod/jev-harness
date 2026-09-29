@@ -10,7 +10,7 @@ system_prompt: |
   right away - do not keep polishing beyond the brief. If the work needs UI
   design or images and other assistants are listed for request(), delegate that
   part and integrate what comes back.
-model: {provider: lmstudio, model: qwen3.8-27b@q6_k, temperature: 0.2, think: unlimited}
+model: {provider: lmstudio, model: qwen3.8-27b@q6_k, think: unlimited}
 # Cloud alternative (no LM Studio model swap; needs `pip install anthropic` + a key):
 # model:
 #   provider: anthropic

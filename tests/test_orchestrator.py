@@ -336,8 +336,10 @@ def test_fast_model_keeps_persona_sampling_but_drops_fallback(cfg):
     assert dev["model"] == cfg.models["fast"]["model"] and "fallback" not in dev and "effort" not in dev
     fe = h._model_cfg(h.personas["front_end_designer"], "fast")
     assert fe["model"] == cfg.models["fast"]["model"]
-    assert fe["temperature"] == 0.6  # the persona's own sampling settings...
-    assert "think" not in fe and "max_tokens" not in fe  # ...but not Qwen's "think: unlimited" / caps
+    assert "temperature" not in fe   # no persona temperature: the model's own recommended sampling applies
+    assert "think" not in fe and "max_tokens" not in fe  # and not Qwen's "think: unlimited" / caps
+    h.personas["front_end_designer"].model["temperature"] = 0.6
+    assert h._model_cfg(h.personas["front_end_designer"], "fast")["temperature"] == 0.6   # an explicit one is kept
 
 
 def test_no_tier_call_when_persona_opts_out(cfg):
