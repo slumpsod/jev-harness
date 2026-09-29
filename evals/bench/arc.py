@@ -174,7 +174,13 @@ def run_harness(cfg, task_id: str, task: dict, limit: float, run_dir: Path) -> d
                       encoding="utf-8")
     cfg.workspace = ws
     events: list[tuple[str, dict]] = []
-    h = Harness(cfg, on_event=lambda k, d: events.append((k, d)))
+    def on_event(k, d):
+        events.append((k, d))
+        if k == "thinking_watch":   # live: each Jev check of a long think
+            print(f"    watch: {d['chars'] // 1000} KB thought, testable {d['p']:.2f}", flush=True)
+        elif k == "output" and "paused a long think" in str(d.get("output")):
+            print(f"    watch: step {d.get('step')} paused to test its idea", flush=True)
+    h = Harness(cfg, on_event=on_event)
     h.learning, h.tier_mode = False, "strong"
     p = h.personas[PERSONA]
     p.tools, p.can_request = [], []
