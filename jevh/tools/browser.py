@@ -22,13 +22,17 @@ decides, Playwright acts. Differences, measured on evals/browser_cases.py with l
 typed into fields whose label matches them by plain code; the irreversible check runs only
 before clicking a button. Environment: JEVH_TOOLS_JEV=local|cloud (see _pick.py),
 JEVH_BROWSER_HEADED=1 to watch it (the element Jev picked is outlined and held for
-JEVH_BROWSER_PAUSE seconds, default 0.8), JEVH_BROWSER_PROFILE=<dir> to keep logins.
+JEVH_BROWSER_PAUSE seconds, default 0.8), JEVH_BROWSER_PROFILE=<dir> to keep logins. With
+JEVH_BROWSER_DOCK=<dir> (the dashboard sets it) a watched browser has no window: it is shown,
+and can be taken over, in the dashboard's Browser panel.
 """
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
+import socket
 import time
 from pathlib import Path
 
@@ -269,12 +273,26 @@ class Session:
         profile = profile or os.environ.get("JEVH_BROWSER_PROFILE")
         self._pw = sync_playwright().start()
         viewport = {"width": 1280, "height": 900}
+        # docked (the dashboard's Browser panel): no window; the dashboard attaches over CDP on a local
+        # port to mirror the page and pass on the user's clicks and typing
+        dock, args, port = os.environ.get("JEVH_BROWSER_DOCK") if headed else None, [], 0
+        if dock:
+            with socket.socket() as s:
+                s.bind(("127.0.0.1", 0))
+                port = s.getsockname()[1]
+            args = [f"--remote-debugging-port={port}"]
+        window = headed and not dock
         if profile:
-            self.context = self._pw.chromium.launch_persistent_context(profile, headless=not headed, viewport=viewport)
+            self.context = self._pw.chromium.launch_persistent_context(profile, headless=not window, viewport=viewport,
+                                                                       args=args)
             self._browser = None
         else:
-            self._browser = self._pw.chromium.launch(headless=not headed)
+            self._browser = self._pw.chromium.launch(headless=not window, args=args)
             self.context = self._browser.new_context(viewport=viewport)
+        self._dock_file = Path(dock) / f"{os.getpid()}.json" if dock else None
+        if self._dock_file:
+            self._dock_file.parent.mkdir(parents=True, exist_ok=True)
+            self._dock_file.write_text(json.dumps({"port": port, "pid": os.getpid(), "started": time.time()}))
         self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
         # script errors on every page (test() reports them): uncaught exceptions and console.error
         self.js_errors: list[str] = []
@@ -282,7 +300,8 @@ class Session:
         self.context.on("page", self._listen)
         for p in self.context.pages:
             self._listen(p)
-        # watching: outline what Jev picked and hold it on screen before acting
+        # watching (a window, or docked in the dashboard - both let the user take over): outline what
+        # Jev picked and hold it on screen before acting
         self.headed = headed
         self.pause = float(os.environ.get("JEVH_BROWSER_PAUSE", "0.8" if headed else "0"))
         self.jev_calls = 0
@@ -381,6 +400,8 @@ class Session:
         return str(dest)
 
     def close(self) -> None:
+        if self._dock_file:
+            self._dock_file.unlink(missing_ok=True)
         try:
             self.context.close()
             if self._browser:

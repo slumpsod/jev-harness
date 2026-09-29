@@ -204,3 +204,15 @@ def test_snapshot_skips_what_cannot_be_saved(tmp_path):
         back = r.restore(tmp_path / "s.pkl")
         out = r.run("print(data['a'], P.z, json.dumps(1))")
     assert back["restored"] == ["data"] and out.output.strip() == "[1, 2] 7 1"
+
+
+def test_each_step_reports_what_the_context_is_made_of(cfg):
+    events = []
+    h, _ = harness(cfg, steps(2, big=True), events=events)
+    h.turn("do a long job")
+    ctx = [d for k, d in events if k == "context"]
+    assert [c["step"] for c in ctx] == [1, 2, 3] and ctx[0]["limit"] == cfg.lim("compact_tokens")
+    first, last = ctx[0]["parts"], ctx[-1]["parts"]
+    assert set(first) == {"instructions", "skills", "tools", "task", "work", "output"}
+    assert first["instructions"] > 0 and first["task"] > 0 and first["work"] == first["output"] == 0
+    assert last["work"] > 0 and last["output"] > 500      # two steps printed ~3000 chars each

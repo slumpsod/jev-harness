@@ -443,6 +443,7 @@ class Worker:
             for step in range(1, self.persona.max_steps + 1):
                 self._check()
                 self._compact(messages, step)
+                self._report_context(messages, step)
                 self._step = step
                 out = self._llm(messages)
                 res.steps, res.input_tokens, res.output_tokens = (
@@ -568,6 +569,34 @@ class Worker:
         return res
 
     # -- stamina ---------------------------------------------------------------------
+    def _report_context(self, messages: list[dict], step: int) -> None:
+        """What the prompt about to be sent is made of (estimated tokens), for the dashboard's
+        context ring: out of `compact_tokens`, where older steps get condensed."""
+        system = str(messages[0].get("content", "")) if messages and messages[0]["role"] == "system" else ""
+        skills_at = system.find("\n\n## Skill: ")
+        skills_at = len(system) if skills_at < 0 else skills_at
+        tools = 0
+        for mark in ("\n\n## Tools in your REPL", "\n\n## MCP tools"):
+            a = system.find(mark, 0, skills_at)
+            if a >= 0:   # up to the next section of another kind
+                ends = [system.find(m, a + len(mark), skills_at) for m in ("\n\nAlso importable", "\n\n## MCP tools",
+                                                                            "\n\nJev (the router) suggests")]
+                tools += min([e for e in ends if e >= 0] + [skills_at]) - a
+        task = self._task_text if self._task_idx < len(messages) else ""
+        task_msg = _msg_chars(messages[self._task_idx]) if self._task_idx < len(messages) else 0
+        work = output = 0
+        for m in messages[self._task_idx + 1:]:
+            if m["role"] == "assistant":
+                work += _msg_chars(m) + len(str(m.get("tool_calls") or ""))
+            else:
+                output += _msg_chars(m)
+        chars = {"instructions": skills_at - tools, "skills": len(system) - skills_at, "tools": tools,
+                 "task": len(task) + sum(_msg_chars(m) for m in messages[1:self._task_idx]),
+                 "work": work + max(0, task_msg - len(task)),   # the progress log is condensed past work
+                 "output": output}
+        self.on_step("context", {"persona": self.persona.name, "step": step, "limit": self.compact_tokens,
+                                 "parts": {k: round(v / CHARS_PER_TOKEN) for k, v in chars.items()}})
+
     def _compact(self, messages: list[dict], step: int) -> None:
         """Keep the conversation inside the model's context: past `compact_tokens`, older steps
         become a progress log in the task message; the last `keep_steps` steps stay verbatim.

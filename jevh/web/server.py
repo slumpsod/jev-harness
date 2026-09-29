@@ -20,15 +20,18 @@ import re
 import secrets
 import shutil
 import subprocess
+import queue
 import threading
 import time
+import urllib.parse
 import urllib.request
+from concurrent.futures import Future
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
 from ..bus import Task
 from ..config import Config, load_config
@@ -75,6 +78,8 @@ class Hub:
         self._factory = harness_factory or (lambda on_event: Harness(cfg, on_event=on_event,
                                                                      model_override=model_override))
         self.harness = self._factory(self.publish)
+        self.harness.browser_dock = True   # a watched browser shows in the Browser panel, not a window
+        self.dock = BrowserDock(lambda: Path(self.harness.session_dir) / "browsers")
         self.events: list[dict] = []
         self.turns: list[dict] = []
         self.swaps: list[dict] = []
@@ -142,8 +147,108 @@ class Hub:
         mode, project, watch = self.harness.tier_mode, self.harness.project, self.harness.watch_browser
         self.harness = self._factory(self.publish)
         self.harness.tier_mode, self.harness.project, self.harness.watch_browser = mode, project, watch
+        self.harness.browser_dock = True
         self.turns.clear()
         self.publish("reset", {"session": self.harness.session})
+
+
+# ---------------------------------------------------------------- docked browser
+
+KEYS = {"Enter", "Backspace", "Tab", "Escape", "Delete", "Home", "End", "PageUp", "PageDown",
+        "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"}
+
+
+class BrowserDock:
+    """Mirrors the browser tool's docked Chromium (JEVH_BROWSER_DOCK) into the dashboard: frames of
+    the page it is on, and the user's clicks and typing passed on to it. The tool writes
+    <session>/browsers/<pid>.json with its CDP port; we attach over CDP and never close it (it
+    belongs to the worker). Playwright's sync API is bound to one thread: every call runs on ours."""
+
+    def __init__(self, folder):
+        self.folder = folder
+        self._jobs: queue.Queue = queue.Queue()
+        self._thread: threading.Thread | None = None
+        self._lock = threading.Lock()
+
+    def call(self, fn, timeout: float = 10.0):
+        """fn(page) on the dock thread -> its result, or None when no docked browser is up."""
+        with self._lock:
+            if self._thread is None or not self._thread.is_alive():
+                self._thread = threading.Thread(target=self._run, name="browser-dock", daemon=True)
+                self._thread.start()
+        fut: Future = Future()
+        self._jobs.put((fn, fut))
+        return fut.result(timeout)
+
+    def _newest(self, dead: set) -> dict | None:
+        try:
+            files = sorted(Path(self.folder()).glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
+        except OSError:
+            return None
+        for f in files:
+            try:
+                key = (str(f), f.stat().st_mtime)
+                if key not in dead:
+                    return {**json.loads(f.read_text(encoding="utf-8")), "key": key}
+            except (OSError, ValueError):
+                continue   # being written or just removed
+        return None
+
+    def _run(self) -> None:
+        from playwright.sync_api import sync_playwright
+        pw = sync_playwright().start()
+        browser, at, dead = None, None, set()   # dead: info files whose browser is gone (a killed worker)
+        try:
+            while True:
+                fn, fut = self._jobs.get()
+                try:
+                    info = self._newest(dead)
+                    if info and (browser is None or at != info["key"] or not browser.is_connected()):
+                        browser = None
+                        try:
+                            browser = pw.chromium.connect_over_cdp(f"http://127.0.0.1:{info['port']}", timeout=3000)
+                            at = info["key"]
+                        except Exception:  # noqa: BLE001
+                            dead.add(info["key"])
+                    pages = [p for c in browser.contexts for p in c.pages if not p.is_closed()] if info and browser else []
+                    fut.set_result(fn(pages[-1], info) if pages else None)   # the tool follows the newest tab too
+                except Exception as e:  # noqa: BLE001
+                    browser = None
+                    fut.set_exception(e)
+        finally:
+            pw.stop()
+
+    def frame(self) -> dict | None:
+        def shot(page, info):
+            try:
+                title = page.title()
+            except Exception:  # noqa: BLE001 - mid-navigation
+                title = ""
+            return {"jpeg": page.screenshot(type="jpeg", quality=70, timeout=5000), "url": page.url, "title": title,
+                    "id": f"{info['pid']}-{info['started']}"}
+        return self.call(shot)
+
+    def send(self, ev: dict) -> bool:
+        """The user's input: click/scroll at (x, y) as fractions of the frame, type text, press a key."""
+        kind = ev.get("kind")
+
+        def act(page, _info):
+            vp = page.viewport_size or {"width": 1280, "height": 900}
+            x = min(max(float(ev.get("x", 0)), 0.0), 1.0) * vp["width"]
+            y = min(max(float(ev.get("y", 0)), 0.0), 1.0) * vp["height"]
+            if kind == "click":
+                page.mouse.click(x, y)
+            elif kind == "scroll":
+                page.mouse.move(x, y)
+                page.mouse.wheel(0, max(-2000.0, min(2000.0, float(ev.get("dy", 0)))))
+            elif kind == "type":
+                page.keyboard.type(str(ev.get("text", ""))[:2000])
+            elif kind == "key" and ev.get("key") in KEYS:
+                page.keyboard.press(ev["key"])
+            else:
+                raise ValueError("unknown input")
+            return True
+        return bool(self.call(act))
 
 
 # ---------------------------------------------------------------- status probes
@@ -262,6 +367,33 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             text = fh.read().decode("utf-8", "replace")
         return {"file": f"{f.parent.parent.name}/{f.name}", "bytes": size, "text": text,
                 "idle": round(time.time() - f.stat().st_mtime, 1)}
+
+    @app.get("/api/browser/frame")
+    def browser_frame():
+        """The docked browser's page as a JPEG (204: none is open). Only while Watch browser is on."""
+        try:
+            f = hub.dock.frame()
+        except Exception:  # noqa: BLE001 - closing, navigating: the next poll gets one
+            f = None
+        if not f:
+            return Response(status_code=204)
+        q = urllib.parse.quote
+        return Response(f["jpeg"], media_type="image/jpeg", headers={
+            "Cache-Control": "no-store", "X-Browser-Id": f["id"], "X-Page-Url": q(f["url"], safe=":/?&=#%"),
+            "X-Page-Title": q(f["title"][:200])})
+
+    @app.post("/api/browser/input")
+    async def browser_input(request: Request) -> dict:
+        body = await request.json()
+        try:
+            ok = await asyncio.to_thread(hub.dock.send, body)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(409, f"browser busy: {e}") from None
+        if not ok:
+            raise HTTPException(404, "no docked browser is open")
+        return {"ok": True}
 
     @app.get("/api/resumable")
     def resumable() -> list:

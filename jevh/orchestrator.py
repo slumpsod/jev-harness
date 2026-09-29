@@ -171,6 +171,7 @@ class Harness:
         self._escalated = False  # the last turn's fast model was replaced by the strong one
         # show the browser tool's window, with Jev's picks outlined (dashboard toggle, CLI /watch)
         self.watch_browser = bool(self.cfg.tools.get("browser_watch")) or os.environ.get("JEVH_BROWSER_HEADED") == "1"
+        self.browser_dock = False   # the dashboard sets it: watched browsers run hidden and show in its Browser panel
         # the factory gets the persona with its model block already resolved for the tier
         self._llm_factory = llm_factory or (lambda p: make_llm(p.model, self.cfg.providers))
         self._llms: dict[str, LLM] = {}
@@ -424,6 +425,8 @@ class Harness:
         env = {}
         if "browser" in persona.tools:
             env["JEVH_BROWSER_HEADED"] = "1" if self.watch_browser else "0"
+            if self.watch_browser and self.browser_dock:
+                env["JEVH_BROWSER_DOCK"] = str(self.session_dir / "browsers")
         if self.project and "project" in persona.tools:
             ctx["project"] = self.project
             env["JEVH_PROJECT"] = self.project

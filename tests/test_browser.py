@@ -186,3 +186,32 @@ def test_irreversible_steps_still_need_confirmation_off_the_local_machine():
     assert LOCAL_URL.match("http://localhost:3000/cart") and LOCAL_URL.match("http://127.0.0.1:8000")
     assert LOCAL_URL.match("file:///C:/site/index.html") and LOCAL_URL.match("https://shop.test/")
     assert not LOCAL_URL.match("https://www.amazon.com/") and not LOCAL_URL.match("https://localhost.evil.com/")
+
+
+def test_docked_browser_is_mirrored_and_takes_the_users_input(tmp_path, monkeypatch):
+    """Watch browser in the dashboard: no window; the dashboard attaches over CDP, shows the page
+    and passes clicks and typing on to it."""
+    from concurrent.futures import ThreadPoolExecutor
+    from jevh.web.server import BrowserDock
+    monkeypatch.setenv("JEVH_BROWSER_DOCK", str(tmp_path))
+    own = ThreadPoolExecutor(1)   # the session's own thread (the module's session holds this one's Playwright)
+    run = lambda fn: own.submit(fn).result(60)  # noqa: E731
+    try:
+        s = run(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16))
+    except Exception as e:  # noqa: BLE001 - no Chromium in this environment
+        pytest.skip(f"chromium unavailable: {e}")
+    dock = BrowserDock(lambda: tmp_path)
+    try:
+        assert s.headed and len(list(tmp_path.glob("*.json"))) == 1
+        run(lambda: s.page.set_content("<input id=q style='position:fixed;left:0;top:0;width:100%;height:100%'>"))
+        f = dock.frame()
+        assert f["jpeg"].startswith(bytes([0xFF, 0xD8])) and f["url"] == "about:blank"   # a JPEG
+        assert dock.send({"kind": "click", "x": 0.5, "y": 0.5}) and dock.send({"kind": "type", "text": "hi there"})
+        assert dock.send({"kind": "key", "key": "Backspace"})
+        assert run(lambda: s.page.eval_on_selector("#q", "e => e.value")) == "hi ther"
+        with pytest.raises(ValueError):
+            dock.send({"kind": "key", "key": "F12"})   # only plain editing/navigation keys
+    finally:
+        run(s.close)
+        own.shutdown()
+    assert not list(tmp_path.glob("*.json")) and dock.frame() is None
