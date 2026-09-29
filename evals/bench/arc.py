@@ -195,7 +195,9 @@ def run_harness(cfg, task_id: str, task: dict, limit: float, run_dir: Path) -> d
             "thinking": tot.get("thinking", 0), "timed_out": r.cancelled and not skipped.is_set(),
             "skipped": skipped.is_set(), "steps": max(steps or [0]),
             "bounces": sum(1 for k, d in events if k == "verify" and d.get("bounced")),
-            "escalated": any(k == "escalate" for k, _ in events)}
+            "escalated": any(k == "escalate" for k, _ in events),
+            "watch_checks": [(d["chars"], d["p"]) for k, d in events if k == "thinking_watch"],
+            "pauses": sum(1 for k, d in events if k == "output" and "paused a long think" in str(d.get("output")))}
 
 
 def report() -> None:
@@ -228,12 +230,15 @@ def main() -> None:
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--tag", default="", help="suffix for the results file (a harness version)")
     ap.add_argument("--watch", action="store_true", help="follow the running task's thinking live")
+    ap.add_argument("--thinking-watch", action="store_true", help="harness: Jev pauses long thinks at a testable idea")
     a = ap.parse_args()
     if a.report:
         return report()
     if a.watch:
         return watch()
     cfg = load_config()
+    if a.thinking_watch:
+        cfg.limits["thinking_watch"] = 1
     tasks = load_tasks(400, a.seed) if a.ids else load_tasks(a.n, a.seed)
     if a.ids:
         tasks = [t for t in tasks if t[0] in a.ids]
