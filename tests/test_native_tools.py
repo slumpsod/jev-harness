@@ -103,3 +103,17 @@ def test_a_bounced_final_gets_its_tool_result_then_the_problems(cfg):
     after = llm.seen[1]
     assert after[-2]["role"] == "tool" and after[-2]["tool_call_id"] == "c1" and "Delta $1,284" in after[-2]["content"]
     assert after[-1]["role"] == "user" and "1,099" in after[-1]["content"]
+
+
+def test_final_tool_hands_over_a_variable_exactly(cfg):
+    """Live (ornith, ARC): a computed grid passed as `answer` was retyped as strings; answer_var sends it as is."""
+    llm = NativeLLM([call("pred = [[0, 2], [3, 0]]"), call(name="final", answer_var="pred")])
+    r = harness(cfg, llm).turn("solve it with code", force="high_end_dev")
+    assert r.answer == "[[0, 2], [3, 0]]"
+    assert "answer_var" in json.dumps(llm.tools_seen[0][1])
+    assert "never retype data" in llm.seen[0][0]["content"]
+
+
+def test_final_in_code_sends_a_list_as_json(cfg):
+    llm = NativeLLM([call("final({'total': 3, 'items': ['a', 'b']})")])
+    assert harness(cfg, llm).turn("go", force="high_end_dev").answer == '{"total": 3, "items": ["a", "b"]}'

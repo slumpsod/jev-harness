@@ -216,7 +216,12 @@ def final(answer: str, artifacts: list | None = None) -> str:
     global _FINAL
     proj = sys.modules.get("jevh.tools.project")
     changed = proj.changed() if proj is not None and getattr(proj, "root", None) else []
-    _FINAL = {"answer": str(answer), "artifacts": [_resolve_artifact(a) for a in (artifacts or [])],
+    if not isinstance(answer, str):   # a computed list / dict / grid goes back as JSON, not Python's repr
+        try:
+            answer = json.dumps(answer)
+        except (TypeError, ValueError):
+            answer = str(answer)
+    _FINAL = {"answer": answer, "artifacts": [_resolve_artifact(a) for a in (artifacts or [])],
               "changed": changed}
     return "[final answer recorded]"
 

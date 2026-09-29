@@ -103,6 +103,9 @@ def call_to_code(name: str, params: dict[str, Any], tools: dict[str, str]) -> st
         if not isinstance(code, str):
             code = next((v for v in params.values() if isinstance(v, str)), None)
         return code
+    if name == "final" and isinstance(params.get("answer_var"), str) and params["answer_var"].strip().isidentifier():
+        rest = {k: v for k, v in params.items() if k not in ("answer_var", "answer")}
+        return f"print(final({params['answer_var'].strip()}{', **' + repr(rest) if rest else ''}))"
     if name in REPL_CALLS and params:
         return f"print({name}(**{params!r}))"
     if name not in tools or not params:
@@ -186,14 +189,19 @@ PYTHON_TOOL = {"type": "function", "function": {
                    "required": ["code"]}}}
 # Live (ornith, native tools): with `python` as the only tool, it wrote report.md at step 6, then ran
 # print("done") for 34 steps saying "I need to call the final tool" - it looked for final() as a tool.
+# A tool call can't refer to a REPL variable, so a computed answer passed as `answer` gets retyped by the
+# model (live, ARC: a correct 10x10 grid came back as strings "0","2"...; another had a row wrong) -
+# `answer_var` hands over the variable itself.
 FINAL_TOOL = {"type": "function", "function": {
     "name": "final",
-    "description": ("Finish the task: `answer` is what the user (or the assistant who asked you) receives; "
-                    "`artifacts` are paths of files to hand over. The same as calling final() in Python."),
+    "description": ("Finish the task and hand over the answer. For anything you computed (data, a list, a table, "
+                    "a grid, a long text), pass answer_var: the name of the REPL variable that holds it - it is sent "
+                    "exactly, never retyped. Use answer only for a short answer you write yourself. artifacts: paths "
+                    "of files to hand over. The same as calling final() in Python."),
     "parameters": {"type": "object", "properties": {
-        "answer": {"type": "string", "description": "the final answer"},
-        "artifacts": {"type": "array", "items": {"type": "string"}, "description": "file paths to hand over"}},
-        "required": ["answer"]}}}
+        "answer_var": {"type": "string", "description": "name of the REPL variable holding the answer"},
+        "answer": {"type": "string", "description": "a short answer written out"},
+        "artifacts": {"type": "array", "items": {"type": "string"}, "description": "file paths to hand over"}}}}}
 
 WORKDIR_MARK = "<your working folder>"   # the worker fills in the real path
 PACKAGES = ["numpy", "pandas", "scipy", "PIL", "matplotlib", "requests", "bs4", "sklearn", "networkx",
@@ -231,7 +239,8 @@ value of a last expression. Everything you define - variables, functions, import
   you have, printing only where it's wrong - before thinking further. The mismatches show what to fix.
 - To see how a module or function works: help(x), dir(x), inspect.signature(f).
 - When you are done, call final(answer, artifacts=[...]) {final_where}: `answer` is what the user
-  (or the assistant who asked you) receives. If the request needs no code, just reply in plain text{plain}.
+  (or the assistant who asked you) receives. Hand over what you computed from its variable{final_var}
+  - never retype data. If the request needs no code, just reply in plain text{plain}.
 
 In the REPL:
 - ctx: what you were given (the task lists its keys, if any); look with peek(ctx['key']).
@@ -246,9 +255,10 @@ In the REPL:
 Your working folder is private scratch space. Keep printed output short; write large files in
 several steps (open(path, 'a'))."""
 NATIVE_ACT = dict(act_intro="the `python` tool. Call it with code to run.",
-                  final_where="(the `final` tool, or final(...) in your code)", plain=" without calling a tool")
+                  final_where="(the `final` tool, or final(...) in your code)", plain=" without calling a tool",
+                  final_var=" (the final tool's answer_var='result', or final(result) in code)")
 TEXT_ACT = dict(act_intro="to act, reply with ONE ```python block; it runs.",
-                final_where="in a python block", plain="")
+                final_where="in a python block", plain="", final_var=" (final(result))")
 
 REQUEST_GUIDE = """\
 - request(assistant, task, inputs=[artifact paths]) -> {{status, answer, artifacts}}: hand a
