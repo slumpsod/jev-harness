@@ -53,6 +53,9 @@ Log:
 RESUME_NOTE = ("[Resumed after an interruption. Your REPL was restarted, so variables are gone; files in your "
                "working directory, the artifact store and the project are as you left them. Continue the task "
                "from where you were.]")
+RESTORED_NOTE = ("[Resumed after an interruption. Your REPL was restarted and its saved state brought back - "
+                 "variables: {vars}; functions/classes: {defs}.{lost} Files in your working directory, the artifact "
+                 "store and the project are as you left them. Continue the task from where you were.]")
 SKILL_PROMPT_CHARS = 6000   # longer skills: head in the prompt, full text in ctx['skills']
 CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
 # Some local models (seen: ornith in LM Studio) sometimes answer in their native tool-call
@@ -361,10 +364,7 @@ class Worker:
             messages = [{"role": "system", "content": system}, *[m for m in resume["messages"] if m["role"] != "system"]]
             self._task_idx, self._task_text = resume.get("task_idx", 1), resume.get("task_text", task)
             self._progress_log = resume.get("progress_log", "")
-            if messages[-1]["role"] == "user":
-                messages[-1] = {"role": "user", "content": messages[-1]["content"] + "\n\n" + RESUME_NOTE}
-            else:
-                messages.append({"role": "user", "content": RESUME_NOTE})
+            # (the resume note goes in once the REPL state is restored: it says what came back)
         else:
             self._task_text = (f"{task}\n\n(In your REPL:\n{describe_ctx(ctx)})"
                                + ("" if getattr(self.llm, "unlimited_thinking", False) else FIRST_STEP_NUDGE))
@@ -376,6 +376,8 @@ class Worker:
                   self.repl_timeout, self.output_cap, self.env) as repl:
             self.repl = repl
             repl.set("ctx", ctx)
+            if resume:
+                self._add_resume_note(messages, repl)
             for step in range(1, self.persona.max_steps + 1):
                 self._check()
                 self._compact(messages, step)
@@ -570,9 +572,33 @@ class Worker:
             "say what blocks it.]")}
         return False
 
+    @property
+    def _state_path(self) -> Path | None:
+        return self.checkpoint.with_name("repl_state.pkl") if self.checkpoint else None
+
+    def _add_resume_note(self, messages: list[dict], repl) -> None:
+        info = repl.restore(self._state_path) if self._state_path else {}
+        if info.get("restored") or info.get("defs"):
+            lost = info.get("failed") or []
+            note = RESTORED_NOTE.format(vars=", ".join(info.get("restored") or []) or "none",
+                                        defs=", ".join(info.get("defs") or []) or "none",
+                                        lost=f" Not restored (recreate them if needed): {', '.join(lost)}." if lost else "")
+        else:
+            note = RESUME_NOTE
+        if messages[-1]["role"] == "user":
+            messages[-1] = {"role": "user", "content": messages[-1]["content"] + "\n\n" + note}
+        else:
+            messages.append({"role": "user", "content": note})
+
     def _save(self, messages: list[dict], step: int, finished: bool, stopped: str | None = None) -> None:
         if self.checkpoint is None:
             return
+        if self.repl is not None and not finished:   # REPL variables too, so a resume keeps them
+            try:
+                self.checkpoint.parent.mkdir(parents=True, exist_ok=True)
+                self.repl.snapshot(self._state_path)
+            except Exception:  # noqa: BLE001 - a convenience; never fail the task over it
+                pass
         data = {"version": 1, "persona": self.persona.name, "task_text": self._task_text, "task_idx": self._task_idx,
                 "progress_log": self._progress_log, "step": step, "finished": finished, "stopped": stopped,
                 "workdir": str(self.workdir), "saved": time.time(),
@@ -679,7 +705,7 @@ class Worker:
         self.artifacts.mkdir(parents=True, exist_ok=True)
         for p in sorted(self.workdir.rglob("*")):
             rel = p.relative_to(self.workdir)
-            if p.is_file() and p.stat().st_size and p != self.checkpoint and not any(
+            if p.is_file() and p.stat().st_size and p not in (self.checkpoint, self._state_path) and not any(
                     part.startswith((".", "__")) for part in rel.parts):
                 dest = self.artifacts / f"{self.persona.name}_{'_'.join(rel.parts)}"
                 shutil.copyfile(p, dest)
