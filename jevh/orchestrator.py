@@ -567,9 +567,10 @@ class Harness:
     def _verify_fn(self, task: Task):
         project = self.project
 
-        def check(answer: str, artifacts: list[str], transcript: list[dict], changed: list[str]):
+        def check(answer: str, artifacts: list[str], transcript: list[dict], changed: list[str],
+                  task_idx: int | None = None):
             return self.verifier.check(task.text, answer, artifacts, work_log(transcript, answer=answer),
-                                       project, changed, evidence=seen_text(transcript))
+                                       project, changed, evidence=seen_text(transcript, task_idx))
         return check
 
     def _mcp_call(self, persona: Persona, key: str, arguments: dict) -> str:

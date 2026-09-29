@@ -164,43 +164,56 @@ PYTHON_TOOL = {"type": "function", "function": {
     "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "Python code to run"}},
                    "required": ["code"]}}}
 
-NATIVE_INTRO = """\
-You solve tasks by writing and running code in a persistent Python REPL: the `python` tool.
-Call it with the code to run; you see its output. Variables, imports and functions persist
-between calls. Work one step at a time: break the problem down, run code, look at the
-result, iterate. Use code to think - keep what you learn in named variables and test a
-hypothesis by running it on the data, rather than working through data by hand in your
-head. When you are done, call final(answer, artifacts=[...]) from the tool - `answer` is
-what the user (or the assistant who asked you) receives. If the request needs no code,
-just reply in plain text without calling the tool."""
+WORKDIR_MARK = "<your working folder>"   # the worker fills in the real path
+PACKAGES = ["numpy", "pandas", "scipy", "PIL", "matplotlib", "requests", "bs4", "sklearn", "networkx",
+            "sympy", "openpyxl", "yaml", "playwright"]
 
-REPL_GUIDE = """\
+
+def importable(names: list[str] = PACKAGES) -> list[str]:
+    """The common third-party packages the REPL can import (it runs this same Python)."""
+    import importlib.util
+    out = []
+    for n in names:
+        try:
+            if importlib.util.find_spec(n) is not None:
+                out.append(n)
+        except (ImportError, ValueError):
+            pass
+    return out
+
+
+# Adapted from Prime Agent's REPL prompt: the REPL is where the model thinks, not just where it
+# runs a final program. ARC bench (live thinking files): Qwen misread a printed grid row and argued
+# about a "gap" for 18 KB, and spent 80 KB comparing two hypotheses it never ran.
+HOW_YOU_WORK = """\
 ## How you work
-You have a persistent Python REPL. To act, reply with ONE ```python block; it runs and
-you see its output. Variables persist between blocks. Work in it one step at a time: break
-the problem down, write and run code, look at the result, iterate. Use code to think - keep
-what you learn in named variables and test a hypothesis by running it on the data, rather
-than working through data by hand in your head. When you are done, call
-final(answer, artifacts=[...]) in a python block - `answer` is what the user (or the
-assistant who asked you) receives. If the request needs no code, just reply in plain text.
+You solve tasks with a persistent Python REPL: {act_intro} You see what it prints, errors, and the
+value of a last expression. Everything you define - variables, functions, imports - persists.
+- Work one step at a time: break the problem down, run code, look at the result, iterate.
+- The REPL is where you think. Keep what you learn in named variables, write small helper
+  functions, and test each idea by running it on the data. Don't work through data by hand in
+  your head: a line of code is faster, and it doesn't misread.
+- Assign what you read or compute to named variables, so you can come back to it without re-reading.
+- To see how a module or function works: help(x), dir(x), inspect.signature(f).
+- When you are done, call final(answer, artifacts=[...]) {final_where}: `answer` is what the user
+  (or the assistant who asked you) receives. If the request needs no code, just reply in plain text{plain}.
 
-Available in the REPL:
-- ctx: dict of what you were given (see the key list in the task). Big values live
-  here instead of in your prompt - look with peek(ctx['key']) or slice them.
+In the REPL:
+- ctx: what you were given (the task lists its keys, if any); look with peek(ctx['key']).
 - peek(x, n=2000) -> str: preview any value.
-- llm_query(prompt, data=None) -> str: ask a focused sub-question about a slice of data.
-- jev(state, questions) -> dict: fast typed decisions; questions like
-  {"is_x": {"type": "noul", "instructions": "Is ...?"}}.
-- save_artifact(name, data=None, path=None) -> path; load_artifact(ref); list_artifacts().
-- start_job(cmd, cwd=None) -> id; job_status(id) -> {running, code, seconds, out}; job_wait(id, timeout=None):
-  run long commands (builds, installs, training, test suites) in the background while you keep working.
-- ask_user(question, options=None) -> str: ask the user mid-task and wait, keeping all your work
-  (variables, an open browser page). Use it for details only they know, and to confirm before
-  anything hard to undo (an order, a payment, sending, deleting). In a simple chat, just ask
-  in your reply instead.
-- final(answer, artifacts=None).
-Your working directory is private scratch space. Keep printed output short, and keep
-each reply short: write large files across several blocks (open(path, 'a'))."""
+- save_artifact(name, data=None, path=None) -> path: a deliverable for the user; load_artifact(ref).
+- ask_user(question, options=None) -> str: ask the user and wait (details only they know; confirm
+  anything hard to undo, like an order, a payment, sending or deleting).
+- final(answer, artifacts=None): finish.
+- Also there (help(name) shows how): start_job / job_status / job_wait (long commands in the
+  background), recall / remember (past conversations; lasting facts about the user), llm_query
+  (a sub-question to a model), jev (fast typed yes/no and choice decisions).
+Your working folder is private scratch space. Keep printed output short; write large files in
+several steps (open(path, 'a'))."""
+NATIVE_ACT = dict(act_intro="the `python` tool. Call it with code to run.",
+                  final_where="from the tool", plain=" without calling the tool")
+TEXT_ACT = dict(act_intro="to act, reply with ONE ```python block; it runs.",
+                final_where="in a python block", plain="")
 
 REQUEST_GUIDE = """\
 - request(assistant, task, inputs=[artifact paths]) -> {{status, answer, artifacts}}: hand a
@@ -228,9 +241,10 @@ class WorkerResult:
 
 
 def describe_ctx(ctx: dict[str, Any]) -> str:
+    """The non-empty ctx keys and their sizes ("" when there is nothing to say)."""
     lines = []
     for k, v in ctx.items():
-        if k == "request":
+        if k == "request" or (isinstance(v, (list, tuple, dict, str)) and not v):
             continue
         if isinstance(v, (list, tuple)):
             size = f"list of {len(v)}"
@@ -239,12 +253,7 @@ def describe_ctx(ctx: dict[str, Any]) -> str:
         else:
             size = type(v).__name__
         lines.append(f"- ctx[{k!r}]: {size}")
-    return "\n".join(lines) or "- (nothing else)"
-
-
-MEMORY_GUIDE = """\
-- recall(query) -> [snippets]: search ALL past conversations and remembered facts (ctx['memory']
-  only holds what Jev judged relevant up front). remember(fact): save a lasting fact about the user."""
+    return "\n".join(lines)
 
 
 def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, str],
@@ -260,13 +269,14 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
              "(\"next Tuesday\", \"in two weeks\") from it."]
     if persona.code:
         # (ARC bench, native tool: step 1 assumed Linux and walked '/' looking for a Windows path)
-        parts.append(f"Your REPL runs Python {sys.version.split()[0]} on {platform.system()} "
-                     f"{platform.release()}; it starts in your private working folder, and paths you are "
-                     f"given are {'Windows' if os.name == 'nt' else 'POSIX'} paths you can open as-is.")
-        guide = REPL_GUIDE
-        if native:   # the same guide, but acting is a `python` tool call, as in Prime Agent
-            guide = "## How you work\n" + NATIVE_INTRO + REPL_GUIDE[REPL_GUIDE.index("\n\nAvailable in the REPL:"):]
-        guide += "\n" + MEMORY_GUIDE
+        pkgs = importable()
+        parts.append(f"## Environment\nYour REPL runs Python {sys.version.split()[0]} on {platform.system()} "
+                     f"{platform.release()}. It starts in your private working folder, {WORKDIR_MARK}. Paths you "
+                     f"are given are {'Windows' if os.name == 'nt' else 'POSIX'} paths you can open as-is."
+                     + (f" Installed packages you can import: {', '.join(pkgs)} (and the standard library)."
+                        if pkgs else ""))
+        # native: acting is a `python` tool call, as in Prime Agent; text: a fenced block
+        guide = HOW_YOU_WORK.format(**(NATIVE_ACT if native else TEXT_ACT))
         if requestable:
             roster = "\n".join(f"    - {n}: {d}" for n, d in requestable.items())
             guide += "\n" + REQUEST_GUIDE.format(roster=roster)
@@ -359,6 +369,7 @@ class Worker:
             history: list[tuple[str, str]] | None = None, resume: dict | None = None) -> WorkerResult:
         """`history`: the (user, assistant) turns this message follows up on, as real chat turns.
         `resume`: a checkpoint of an interrupted run of this task: its conversation continues."""
+        system = system.replace(WORKDIR_MARK, str(self.workdir))
         prior = []
         for u, a, *notes in history or []:
             a = a[:HISTORY_CHARS]
@@ -373,7 +384,8 @@ class Worker:
             self._progress_log = resume.get("progress_log", "")
             # (the resume note goes in once the REPL state is restored: it says what came back)
         else:
-            self._task_text = (f"{task}\n\n(In your REPL:\n{describe_ctx(ctx)})"
+            listed = describe_ctx(ctx)
+            self._task_text = (task + (f"\n\n(In your REPL:\n{listed})" if listed else "")
                                + ("" if getattr(self.llm, "unlimited_thinking", False) else FIRST_STEP_NUDGE))
             messages = [{"role": "system", "content": system}, *prior, {"role": "user", "content": self._task_text}]
             self._task_idx = len(messages) - 1
@@ -627,7 +639,10 @@ class Worker:
             return False
         # what the final() block itself printed counts as seen (print(total); final(...) is common)
         seen = messages + ([{"role": "user", "content": prefix.strip()}] if prefix.startswith("Output:") else [])
-        verdict = self.verify(answer, artifacts, seen, changed)
+        try:
+            verdict = self.verify(answer, artifacts, seen, changed, task_idx=self._task_idx)
+        except TypeError:   # a verify callable from before task_idx
+            verdict = self.verify(answer, artifacts, seen, changed)
         self._verdict = verdict
         can_retry = self._bounces < self.max_bounces and step < self.persona.max_steps
         self.on_step("verify", {"persona": self.persona.name, "step": step, "ok": verdict.ok,

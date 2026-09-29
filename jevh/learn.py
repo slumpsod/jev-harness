@@ -134,11 +134,16 @@ def evidence_lines(text: str, terms: tuple[set[str], set[str]], budget: int = 60
     return " / ".join(line for _, line in sorted(keep))
 
 
-def seen_text(transcript: list[dict[str, str]]) -> str:
+def seen_text(transcript: list[dict[str, str]], task_idx: int | None = None) -> str:
     """Everything the worker was shown, uncut: prior turns (both sides), the task, every tool
-    output. Not its own replies during the task, where a made-up detail would come from."""
-    start = next((i for i, m in enumerate(transcript)
-                  if m.get("role") == "user" and "(In your REPL:" in m.get("content", "")), len(transcript))
+    output. Not its own replies during the task, where a made-up detail would come from.
+    `task_idx`: where the task message is (the worker knows it); without it the first user message
+    is taken as the task, so earlier turns' replies don't count as evidence."""
+    if task_idx is None:
+        task_idx = next((i for i, m in enumerate(transcript)
+                         if m.get("role") == "user" and "(In your REPL:" in m.get("content", "")), None)
+    start = task_idx if task_idx is not None else next(
+        (i for i, m in enumerate(transcript) if m.get("role") == "user"), len(transcript))
     return "\n".join(m.get("content", "") for i, m in enumerate(transcript)
                      if m.get("role") in ("user", "tool") or (m.get("role") == "assistant" and i < start))
 
