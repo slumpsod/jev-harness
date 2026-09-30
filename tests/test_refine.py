@@ -187,13 +187,39 @@ def test_verdicts():
     assert v["verdict"] == "improves" and v["gain"] == 0.583 and v["p"] < 0.05
     broke = good[:-3] + rows_for("new", "m1", "control", 2, 5)[2:]   # 2/5 controls instead of 5/5
     v = report.verdict(base + broke, "old", "new")
-    assert v["verdict"] == "mixed" and any("controls got worse" in c for c in v["caveats"])
+    assert v["verdict"] == "mixed" and any("controls and regression checks 5/5 -> 2/5" in c for c in v["caveats"])
     same = [dict(r, version="new") for r in base]
     assert report.verdict(base + same, "old", "new")["verdict"] == "no_gain"
     slow = rows_for("new", "m1", "dev", 7, 8, seconds=30) + rows_for("new", "m1", "holdout", 3, 4, seconds=30) + \
         rows_for("new", "m1", "control", 5, 5, seconds=30)
     v = report.verdict(base + slow, "old", "new")
     assert v["verdict"] == "improves" and any("time per run up 200%" in c for c in v["caveats"])
+
+
+def test_the_verdict_counts_cases_by_their_split_now():
+    # dev0-dev7 ran as dev; afterwards dev4-dev7 (never failed) became regression checks, dev3 a suspect
+    base = rows_for("old", "m1", "dev", 5, 8) + rows_for("old", "m1", "control", 5, 5)
+    for r in base:
+        r["passed"] = r["case"] not in ("dev0", "dev1", "dev2", "dev3")
+    new = [dict(r, version="new", passed=r["case"] != "dev3") for r in base]
+    splits = {**{f"dev{i}": "regress" for i in range(4, 8)}, "dev3": "suspect"}
+    v = report.verdict(base + new, "old", "new", splits=splits)
+    assert v["old"]["all"]["target"]["n"] == 3 and v["gain"] == 1.0 and v["verdict"] == "improves"
+    worse = [dict(r, passed=False) if r["case"] in ("dev4", "dev5") else r for r in new]   # 2 regression checks break
+    v = report.verdict(base + worse, "old", "new", splits=splits)
+    assert v["verdict"] == "mixed" and any("controls and regression checks 9/9 -> 7/9" in c for c in v["caveats"])
+
+
+def test_a_needless_bounce_is_judged_on_cost():
+    old = [dict(r, bounces=1.0) for r in rows_for("old", "m1", "dev", 8, 8)] + rows_for("old", "m1", "control", 5, 5)
+    new = [dict(r, version="new", bounces=0.0 if int(r["case"][3:]) < 6 else 1.0) for r in old[:8]] + \
+        rows_for("new", "m1", "control", 5, 5)
+    v = report.verdict(old + new, "old", "new", objective="cost")
+    assert v["verdict"] == "improves" and v["gain"] == 0.75           # bounces per run 1.0 -> 0.25
+    assert report.verdict(old + new, "old", "new")["verdict"] == "no_gain"   # completion alone sees nothing
+    fewer_done = [dict(r, passed=False) if r["case"] == "dev0" else r for r in new]
+    v = report.verdict(old + fewer_done, "old", "new", objective="cost")
+    assert v["verdict"] == "mixed" and any("done less often" in c for c in v["caveats"])
 
 
 def test_p_better():
@@ -246,7 +272,12 @@ def repo(tmp_path, monkeypatch):
     return r
 
 
-def make_refiner(cfg, repo, fix_text="fixed", passes=None, n_variants=6):
+REPLAY = json.dumps({"checker": {"type": "number", "value": 102}, "good_answer": "It is 102."})
+READING = json.dumps({"category": "harness_preventable", "component": "the worker prompt",
+                      "evidence": "I can't do maths reliably", "why": "nothing tells it to compute in the REPL"})
+
+
+def make_refiner(cfg, repo, fix_text="fixed", passes=None, n_variants=6, reading=None):
     cfg.root, cfg.workspace = repo, repo / "workspace"
     cfg.raw = {**cfg.raw, "refine": {"model": "lmstudio:m1", "models": ["lmstudio:m1", "lmstudio:m2"], "runs": 1,
                                      "repro_runs": 2, "cases": 6, "min_cases": 5, "fix_tries": 2,
@@ -254,11 +285,12 @@ def make_refiner(cfg, repo, fix_text="fixed", passes=None, n_variants=6):
     log = FailureLog(cfg.workspace / "failures.db")
     fid = log.record(source="jev", kind="gave_up", summary="said it couldn't compute it", persona="daily_assistant",
                      model="m1", request=FAILURE["request"], answer=FAILURE["answer"])["id"]
-    log.record(source="jev", kind="gave_up", summary="gave up on a sum", persona="daily_assistant",
+    log.record(source="jev", kind="gave_up", summary="said it couldn't compute it", persona="daily_assistant",
                request="What is 7% of 300?", answer="Sorry.")
-    replay = json.dumps({"checker": {"type": "number", "value": 102}, "good_answer": "It is 102."})
+    log.record(source="jev", kind="gave_up", summary="said the site was down", persona="daily_assistant",
+               request="Price of X?", answer="Sorry.")   # same kind, another cause: another group
     variants = json.dumps([variant(f"What is {p}% of 400?", p * 4) for p in range(1, n_variants + 1)])
-    llm = ScriptedLLM([replay, variants])
+    llm = ScriptedLLM([REPLAY, reading or READING, variants])
     fixed = lambda root: (root / "harness.txt").read_text(encoding="utf-8") == "fixed"  # noqa: E731
     passes = passes or (lambda root, case, model: case["split"] == "control" or fixed(root))
     turns = []
@@ -275,28 +307,32 @@ def make_refiner(cfg, repo, fix_text="fixed", passes=None, n_variants=6):
 
 def test_the_loop_proposes_a_fix_that_works_and_approval_merges_it(cfg, repo):
     ref, fid, turns = make_refiner(cfg, repo)
-    assert [g["count"] for g in ref.groups()] == [2]
+    assert [g["count"] for g in ref.groups()] == [2, 1]
     aid = ref.start(ref.pick()["latest"]["id"])
     st = ref.run(aid)
-    assert st["stage"] == "proposed" and st["verdict"] == "improves"
-    assert st["repro"] == {"model": "lmstudio:m1", "runs": 2, "failed": 2}
+    assert st["stage"] == "proposed" and st["verdict"] == "improves" and st["objective"] == "pass"
+    assert st["repro"] == {"lmstudio:m1": {"runs": 2, "failed": 2}, "lmstudio:m2": {"runs": 2, "failed": 2}}
+    assert st["triage"]["category"] == "harness_preventable" and st["triage"]["failing_models"] == st["models"]
+    assert next(c for c in ref.cases(st) if c.id == "replay").runs == 3   # sized: 3 failures expected
     t = st["tries"][0]
     assert t["files"] == ["harness.txt"] and t["reverted"] == ["tests/test_rigged.py"] and t["tests_ok"]
     # the fixer saw the dev cases and the old results, never the held-out ones
     cases = ref.cases(st)
     held = [c for c in cases if c.split == "holdout"]
     assert held and not any(c.request in turns[0] for c in held)
-    assert "What is 12% of 850?" in turns[0] and "old: 0/2 passed" in turns[0]
+    assert "What is 12% of 850?" in turns[0] and "old: 0/6 passed" in turns[0]
+    assert "harness_preventable - the worker prompt: nothing tells it to compute" in turns[0]
     md = (ref.dir(aid) / "report.md").read_text(encoding="utf-8")
     for part in ("Verdict: ✅ Improves", "The failure that caught it", "What changed", "How much it improved",
-                 "Caveats", "thrown away (protected)", "Reproduced 2/2 times", "compute percentages in code"):
+                 "Caveats", "thrown away (protected)", "failed: lmstudio:m1 2/2, lmstudio:m2 2/2",
+                 "the local model's reading", "compute percentages in code"):
         assert part in md, part
-    assert ref.pick() is None   # both failures of the group are being handled
+    assert ref.pick()["cause"] == "said the site was down"   # both failures of the first group are handled
     commit = ref.approve(aid)
     assert (repo / "harness.txt").read_text(encoding="utf-8") == "fixed"
     assert not (repo / "tests" / "test_rigged.py").exists()
     assert "Refine" in git(repo, "log", "-1", "--format=%s") and commit == git(repo, "rev-parse", "HEAD").strip()
-    assert {f["status"] for f in ref.failures.list()} == {"fixed"}
+    assert {f["status"] for f in ref.failures.list() if f["summary"].startswith("said it")} == {"fixed"}
     assert st["branch"] not in git(repo, "branch")
     assert ref.state(aid)["stage"] == "approved"
 
@@ -308,8 +344,7 @@ def test_a_rejected_fix_is_dropped_and_its_reason_reaches_the_next_fixer(cfg, re
     ref.reject(aid, "hard-codes percentages instead of fixing the cause")
     assert ref.state(aid)["stage"] == "rejected" and (repo / "harness.txt").read_text(encoding="utf-8") == "broken"
     assert ref.rejections()[0]["reason"].startswith("hard-codes")
-    ref._llm = ScriptedLLM([json.dumps({"checker": {"type": "number", "value": 102}, "good_answer": "It is 102."}),
-                            json.dumps([variant(f"What is {p}% of 400?", p * 4) for p in range(1, 7)])])
+    ref._llm = ScriptedLLM([REPLAY, READING, json.dumps([variant(f"What is {p}% of 400?", p * 4) for p in range(1, 7)])])
     ref.run(ref.start(fid))
     assert "hard-codes percentages" in turns[-1]
 
@@ -346,8 +381,8 @@ def test_a_night_cut_short_carries_on(cfg, repo):
     ref.execute_fn = count
     st = ref.run(aid, deadline=time.time() - 1)
     assert st["stage"] == "new" and n["runs"] == 0
-    done = ref.nightly(time.time() + 600)
-    assert [s["stage"] for s in done] == ["proposed"]
+    done = ref.nightly(time.time() + 600)   # carries on, then starts the other cause's group (no replies left)
+    assert [s["stage"] for s in done] == ["proposed", "dropped"] and done[1]["cause"] == "said the site was down"
 
 
 def test_the_writer_keeps_the_settings_the_harness_runs_its_model_with(cfg, repo, monkeypatch):
@@ -365,11 +400,115 @@ def test_the_writer_keeps_the_settings_the_harness_runs_its_model_with(cfg, repo
     assert ref.model_block() == {"provider": "lmstudio", "model": "m1", "max_tokens": 16000}
 
 
-def test_gate_bounces_are_not_picked(cfg, repo):
-    ref, _, _ = make_refiner(cfg, repo)
-    ref.failures.record(source="gate", kind="gate_bounce", summary="final() sent back", persona="daily_assistant",
-                        request="What is 2+2?", answer="4")
-    assert {g["kind"] for g in ref.groups()} == {"gave_up"}
+def test_failures_are_grouped_by_cause():
+    from jevh.refine.loop import cause
+    a = cause("final() sent back at step 1: Your answer doesn't match what the work log shows (numbers differ). Check it.")
+    b = cause("final() sent back at step 3: Your answer doesn't match what the work log shows (numbers differ). Check.")
+    c = cause("final() sent back at step 7: These numbers in your answer appear in none of your outputs: 16. Check them.")
+    assert a == b != c and "#" in c and "16" not in c
+
+
+def test_a_slip_one_model_made_is_dropped_and_marked(cfg, repo):
+    only_m1 = lambda root, case, model: case["split"] == "control" or model == "lmstudio:m2"   # noqa: E731
+    slip = json.dumps({"category": "model_only", "component": "", "evidence": "", "why": "m1 miscounted"})
+    ref, fid, turns = make_refiner(cfg, repo, passes=only_m1, reading=slip)
+    st = ref.run(ref.start(fid))
+    assert st["stage"] == "dropped" and st["reason"].startswith("not the harness's to fix - model_only")
+    assert st["repro"]["lmstudio:m2"] == {"runs": 2, "failed": 0} and turns == []
+    assert {f["status"] for f in ref.failures.list() if f["id"] in st["group"]} == {"reviewed"}
+    assert "refine triage" in ref.failures.get(fid)["note"]
+
+
+def test_a_failure_on_several_models_is_kept_whatever_the_reading(cfg, repo):
+    slip = json.dumps({"category": "model_only", "component": "", "evidence": "", "why": "a slip"})
+    ref, fid, turns = make_refiner(cfg, repo, reading=slip)
+    st = ref.run(ref.start(fid))
+    assert st["triage"]["decision"] == "read as model_only, but it failed on 2 models" and turns
+
+
+def test_variants_are_sorted_by_what_they_showed_on_the_old_code(cfg, repo):
+    # v1 never fails (a regression check); v2-v6 fail every run on the old code: the local model judges v2's
+    # checker wrong (a suspect), the rest right (hard cases, still counted)
+    state = {"n": 0}
+
+    def passes(root, case, model):
+        if case["split"] == "control" or case["id"] == "v1":
+            return True
+        if case["id"] == "v2":
+            return False
+        fixed = (root / "harness.txt").read_text(encoding="utf-8") == "fixed"
+        if case["id"] == "replay" and not fixed:
+            state["n"] += 1
+            return state["n"] % 2 == 0
+        return fixed
+    ref, fid, turns = make_refiner(cfg, repo, passes=passes)
+    ref._llm.replies += [json.dumps({"checker_wrong": True, "why": "the answer is right; the check wants one layout"}),
+                         *[json.dumps({"checker_wrong": False, "why": "really wrong"})] * 4]
+    st = ref.run(ref.start(fid))
+    assert st["moved"] == {"regress": ["v1"], "suspect": ["v2"]}
+    assert st["checker_review"]["v2"].startswith("the answer is right") and st["checker_review"]["v3"] == "really wrong"
+    review = ref._llm.seen[-5][0]["content"]
+    assert "What is 2% of 400?" in review and "failed on every run" in review
+    cases = {c.id: c.split for c in ref.cases(st)}
+    assert cases["v1"] == "regress" and cases["v2"] == "suspect"
+    assert "v2" not in {r["case"] for r in ref.rows(st) if r["version"].startswith("new")}
+    md = (ref.dir(st["id"]) / "report-try1.md").read_text(encoding="utf-8")
+    assert "Set aside: checkers that failed every run" in md and "Regression checks" in md
+
+
+def test_an_unfinished_fixer_is_flagged(cfg, repo):
+    ref, fid, turns = make_refiner(cfg, repo)
+    real = ref._run_turn
+
+    def stopped(tree, task):
+        real(tree, task)
+        return "[high_end_dev reached its step limit (60) without calling final()]\nAll that's left is to run"
+    ref._run_turn = stopped
+    st = ref.run(ref.start(fid))
+    assert st["tries"][0]["unfinished"]
+    assert "didn't finish its turn" in (ref.dir(st["id"]) / "report.md").read_text(encoding="utf-8")
+
+
+def test_a_needless_bounce_is_worked_on_by_its_cost(cfg, repo):
+    ref, _, turns = make_refiner(cfg, repo)
+    fid = ref.failures.record(source="gate", kind="gate_bounce", persona="daily_assistant", model="m1",
+                              summary="final() sent back at step 1: Your answer doesn't match the work log",
+                              request="What is 12% of 850?", answer="102")["id"]
+    fixed = lambda root: (root / "harness.txt").read_text(encoding="utf-8") == "fixed"  # noqa: E731
+
+    def run(root, case, model, ws):   # always done; bounced on the old code, not on the fixed one
+        return {"answer": case["good_answer"], "seconds": 1.0, "failures": [] if fixed(Path(root)) or
+                case["split"] == "control" else ["gate_bounce"]}
+    ref.execute_fn = run
+    ref.s["cost_guard"] = GUARD
+    st = ref.run(ref.start(fid))
+    assert st["objective"] == "cost" and st["stage"] == "proposed" and st["verdict"] == "improves"
+    assert st["tries"][0]["guard"]["new"] == {"caught": 5, "bad": 5, "false": 0}
+    assert "Gate bounces per run on the failing cases 1 → 0" in (ref.dir(st["id"]) / "report.md").read_text(encoding="utf-8")
+
+
+def test_a_fix_that_makes_the_gate_lenient_is_not_a_cost_win(cfg, repo):
+    ref, _, turns = make_refiner(cfg, repo)
+    fid = ref.failures.record(source="gate", kind="gate_bounce", persona="daily_assistant", model="m1",
+                              summary="final() sent back at step 1: Your answer doesn't match the work log",
+                              request="What is 12% of 850?", answer="102")["id"]
+    real = ref._run_turn
+
+    def lenient(tree, task):   # the "fix": the gate stops catching bad answers
+        (tree / "lenient").write_text("1", encoding="utf-8")
+        return real(tree, task)
+    ref._run_turn = lenient
+    ref.execute_fn = lambda root, case, model, ws: {"answer": case["good_answer"], "failures": [] if (
+        Path(root) / "lenient").exists() or case["split"] == "control" else ["gate_bounce"]}
+    ref.s["cost_guard"] = GUARD
+    st = ref.run(ref.start(fid))
+    assert st["stage"] == "dropped" and "the final() gate got more lenient" in st["reason"]
+    assert "caught 5/5 bad answers with 0 false alarms, now 3/5" in st["tries"][0]["outcome"]
+
+
+# stands in for evals/verify_cases.py --guard: the gate catches 3 of 5 bad answers once a fix made it lenient
+GUARD = ("python -c \"import os, json; print(json.dumps({'caught': 3 if os.path.exists('lenient') else 5, "
+         "'bad': 5, 'false': 0}))\"")
 
 
 def test_the_refine_model_must_be_local(cfg, repo):

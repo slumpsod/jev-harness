@@ -149,8 +149,10 @@ def run_matrix(cases: list[Case], versions: dict[str, Path], models: list[str], 
     execute_fn = execute_fn or execute
     done = {key(r) for r in load_rows(results)}
     for model in models:
-        for rep in range(runs):
+        for rep in range(max([runs, *(c.runs or 0 for c in cases)])):
             for case in cases:
+                if rep >= (case.runs or runs):   # a case can carry its own count (the replay: sized to its rate)
+                    continue
                 for version, root in versions.items():
                     row_key = (version, model, case.id, rep)
                     if row_key in done:
@@ -163,7 +165,9 @@ def run_matrix(cases: list[Case], versions: dict[str, Path], models: list[str], 
                     row = {"version": version, "model": model, "case": case.id, "rep": rep, "split": case.split,
                            "passed": passed, "why": why, "ts": time.time(), "workspace": str(ws),
                            **{k: res.get(k) for k in ("seconds", "input", "output", "thinking", "model_seconds",
-                                                      "jev_calls", "status", "failures", "error")},
+                                                      "jev_calls", "calls", "status", "failures", "error")},
+                           # (an older tree's run_case doesn't count them: its logged failures do)
+                           "bounces": res.get("bounces", (res.get("failures") or []).count("gate_bounce")),
                            "answer": str(res.get("answer", ""))[:1500]}
                     with open(results, "a", encoding="utf-8") as fh:
                         fh.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")

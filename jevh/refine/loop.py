@@ -1,18 +1,31 @@
 """The refinement loop: logged failures -> tests -> a fix -> old vs new -> a report to approve.
 
-One attempt per failure group (same kind, same persona), in workspace/refine/<id>/, moving
-through stages that each survive a restart, so a night cut short carries on the next night:
+One attempt per failure group (same kind, persona and cause), in workspace/refine/<id>/, moving
+through stages that each survive a restart, so a night cut short carries on the next night. The cheap
+questions come first - does it happen again, and is it the harness's to fix? - so a night isn't spent
+writing tests for a slip one model made once:
 
-  new         the local model writes the test cases (a replay of the failure + variants), plus
-              the control tasks -> cases.json          (dropped: too few checkers held up)
-  generated   the failure is re-run on its model a few times      (dropped: it doesn't reproduce)
-  reproduced  baseline: every case on every local model, on the old code
+  new         the local model writes a checker for the failed request (the replay)
+                                                        (dropped: no checker held up)
+  checked     cross-model replay: the request on every local model, up to repro_runs each (a model
+              stops after repro_stop failures)          (dropped: it doesn't happen again)
+  replayed    triage: the local model reads the failure and the replays - harness_caused /
+              harness_preventable / model_only / not_a_failure, the component, the evidence
+                                                        (dropped, and the failures marked: not the harness's)
+  triaged     the local model writes variants aimed at that cause, plus the control tasks
+                                                        (dropped: too few checkers held up)
+  generated   baseline: every case on every local model, on the old code; the replay runs as often as
+              its failure rate needs. Then variants that never failed become regression checks, and the
+              local model looks at one that failed every run everywhere: a wrong checker is set aside.
   baseline    the local model changes a worktree of the harness (branch refine/<id>) and the
               offline tests must pass                   (dropped: no working change in N tries)
   fixed       the same matrix on the new code, then the verdict:
               improves / mixed -> proposed (report.md); no_gain -> another fix try, or dropped
   proposed    waiting for you: approve (merged, the failures marked fixed) or reject (the reason
               is shown to the fixer the next time this kind of failure comes up)
+
+A failure whose task got done with needless extra work (refine.cost_kinds: a correct answer the
+final() gate sent back) is scored on cost - gate bounces per run - instead of completion.
 
 "Old" is the commit the attempt started from, in its own worktree: edits in your checkout and
 approvals merged meanwhile don't change what the fix is compared against. Everything runs on
@@ -21,6 +34,8 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import math
+import re
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -29,7 +44,7 @@ from ..config import Config
 from ..decide import noul
 from ..failures import FailureLog
 from . import cases as cases_mod
-from . import checks, fixer, report, runner
+from . import checks, fixer, report, runner, triage
 from .cases import Case
 from .generate import Generator
 
@@ -42,24 +57,39 @@ DEFAULTS: dict[str, Any] = {
     "min_cases": 6,             # fewer checkers held up -> the attempt is dropped
     "holdout": 0.3,             # share of variants the fixer never sees
     "runs": 2,                  # runs of each case per model and version
-    "repro_runs": 3,            # runs of the failed request before anything else
-    "min_repro": 0.34,          # share of those that must fail, or there's nothing to measure
+    "repro_runs": 4,            # replays of the failed request per model, before any variant is written
+    "repro_stop": 2,            # ...a model stops once it failed this often (enough to know it happens)
+    "min_repro": 0.1,           # share of all replays that must fail, or there's nothing to measure
+    "repro_target": 3,          # the replay runs often enough to expect this many failures on the old code
+    "max_runs": 8,              # ...up to this many per model and version
     "fix_tries": 2,             # changes the fixer may try per attempt
     "min_gain": 0.15,           # verdict: the failing cases' pass rate must rise this much
-    "control_slack": 1,         # ...with no model losing more than this many control runs
+    "min_cost_gain": 0.5,       # verdict (cost kinds): gate bounces per run must fall by this share
+    "control_slack": 1,         # ...with no model losing more than this many control + regression runs
     "cost_warn": 0.25,          # time/tokens per run up more than this -> a caveat
     "case_timeout": 3600,       # seconds per run
     "test_command": "python -m pytest -q -x",
     "test_timeout": 1800,
     "fixer_persona": "high_end_dev",
-    # not the harness's to fix; or (gate_bounce) the worker got another go and the task went on - only completion
-    # is scored, so there is no gain to measure, and the bounced answer is often right (live: 4 of 4 were), so a
-    # checker "that rejects it" is a wrong test. A bounce whose task still failed is logged again at the end.
-    "skip_kinds": ["stopped_by_user", "jev_unavailable", "gate_bounce"],
+    "skip_kinds": ["stopped_by_user", "jev_unavailable"],   # not the harness's to fix
+    # the task got done, with needless extra work: scored on gate bounces per run, and the logged answer may be
+    # right (live: 4 of 4 bounced answers were), so the replay checker passes a correct result instead of rejecting it
+    "cost_kinds": ["gate_bounce"],
+    # ...and bounces come from the harness's own gate, so a fix could win by making it lenient: for a cost kind the
+    # gate's offline eval must catch as many bad answers as before, with no more false alarms (old tree vs new)
+    "cost_guard": "python evals/verify_cases.py --guard",
     "retry_days": 14,           # a failure group attempted within this many days isn't picked again
     "controls": None,           # control tasks file (default evals/refine_controls.json)
 }
-OPEN = ("new", "generated", "reproduced", "baseline", "fixed")
+OPEN = ("new", "checked", "replayed", "triaged", "generated", "baseline", "fixed")
+UNFINISHED = re.compile(r"^\[[^\]\n]*(?:step limit|going in circles|crashed|stopped)", re.I)
+
+
+def cause(summary: str) -> str:
+    """What a failure's summary says went wrong, without its numbers: failures of one kind can have
+    different causes (live: gate bounces for "doesn't match the work log" and for "16" in "16:9")."""
+    s = re.sub(r"\d+(?:[.,:]\d+)*", "#", summary or "")
+    return re.split(r"(?<=[.!?])\s", s, maxsplit=1)[0].strip()[:140]
 
 
 class Refiner:
@@ -144,7 +174,7 @@ class Refiner:
         return out
 
     def groups(self) -> list[dict]:
-        """Open failures by (kind, persona), most frequent first, with whether they were tried lately."""
+        """Open failures by (kind, persona, cause), most frequent first, with whether they were tried lately."""
         recent = time.time() - float(self.s["retry_days"]) * 86400
         tried = {i for a in self.attempts() if a["created"] >= recent or a["stage"] in ("proposed", "approved")
                  for i in a.get("group", [])}
@@ -152,9 +182,9 @@ class Refiner:
         groups: dict[tuple, list[dict]] = {}
         for f in self.failures.list(status="open", limit=100000):
             if f["kind"] not in skip and (f.get("request") or "").strip():
-                groups.setdefault((f["kind"], f["persona"]), []).append(f)
-        out = [{"kind": k, "persona": p, "count": len(fs), "ids": [f["id"] for f in fs], "latest": fs[0],
-                "tried": all(f["id"] in tried for f in fs)} for (k, p), fs in groups.items()]
+                groups.setdefault((f["kind"], f["persona"], cause(f["summary"])), []).append(f)
+        out = [{"kind": k, "persona": p, "cause": c, "count": len(fs), "ids": [f["id"] for f in fs], "latest": fs[0],
+                "tried": all(f["id"] in tried for f in fs)} for (k, p, c), fs in groups.items()]
         return sorted(out, key=lambda g: (g["tried"], -g["count"], -g["latest"]["ts"]))
 
     def pick(self) -> dict | None:
@@ -176,8 +206,9 @@ class Refiner:
         f = self.failures.get(failure_id)
         if f is None:
             raise LookupError(f"no failure #{failure_id}")
+        why = cause(f["summary"])
         group = [g["id"] for g in self.failures.list(kind=f["kind"], status="open", limit=100000)
-                 if g["persona"] == f["persona"]] or [f["id"]]
+                 if g["persona"] == f["persona"] and cause(g["summary"]) == why] or [f["id"]]
         stem = time.strftime("%Y%m%d-%H%M%S") + f"-f{f['id']}"
         aid, n = stem, 1
         while self.dir(aid).exists():   # two attempts on one failure within a second
@@ -186,9 +217,10 @@ class Refiner:
         self.dir(aid).mkdir(parents=True)
         base = fixer.git(self.repo, "rev-parse", "HEAD").strip()
         st = {"id": aid, "failure": {k: v for k, v in f.items()}, "group": group, "group_size": len(group),
+              "cause": why, "objective": "cost" if f["kind"] in (self.s["cost_kinds"] or []) else "pass",
               "stage": "new", "created": time.time(), "base": base, "branch": f"refine/{aid}",
               "tree": str(self.dir(aid) / "tree"), "models": self.models(), "runs": int(self.s["runs"]),
-              "generator_model": self.model(), "fixer_model": self.model(), "tries": []}
+              "generator_model": self.model(), "fixer_model": self.model(), "tries": [], "dropped": 0}
         if not st["models"]:
             raise RuntimeError("no local models to test on (config refine.models)")
         self.save(st)
@@ -223,7 +255,14 @@ class Refiner:
         return runner.run_matrix(cs, versions, models, runs, self.dir(st["id"]) / "results.jsonl",
                                  self.dir(st["id"]) / "runs", self.judge(), self.execute_fn, deadline,
                                  lambda r: self.log(f"{st['id']}: {r['version']} {r['model']} {r['case']} "
-                                                    f"r{r['rep']}: {'pass' if r['passed'] else 'FAIL'} ({r['why'][:80]})"))
+                                                    f"r{r['rep']}: {'pass' if r['passed'] else 'FAIL'} ({r['why'][:80]})"
+                                                    + (f" [{r['bounces']} bounce(s)]" if r.get("bounces") else "")))
+
+    def failed(self, st: dict, row: dict) -> bool:
+        """Did this run show the failure? Not done - or, for a cost kind, the same failure was logged again
+        (the gate sent the answer back)."""
+        return not row["passed"] or (st.get("objective") == "cost"
+                                     and st["failure"]["kind"] in (row.get("failures") or []))
 
     def _drop(self, st: dict, reason: str) -> dict:
         st["stage"], st["reason"] = "dropped", reason
@@ -233,47 +272,123 @@ class Refiner:
             fixer.remove_tree(self.repo, tree, st["branch"])
         return st
 
+    def _generator(self, st: dict) -> Generator:
+        t = st.get("triage") or {}
+        reading = f"{t['category']}" + (f" ({t['component']})" if t.get("component") else "") + \
+            (f": {t['why']}" if t.get("why") else "") if t else ""
+        return Generator(self.llm(), self.judge(), int(self.s["cases"]), float(self.s["holdout"]),
+                         seed=int(st["failure"]["id"]), cost=st.get("objective") == "cost", cause=reading)
+
+    def _keep_writing(self, st: dict, gen: Generator) -> None:
+        """What the writer produced (dropped cases, raw replies), added to the attempt's files."""
+        for name, new in (("dropped.json", gen.dropped), ("replies.json", gen.replies)):
+            p = self.dir(st["id"]) / name
+            old = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else []
+            p.write_text(json.dumps(old + new, indent=1, ensure_ascii=False), encoding="utf-8")
+        st["dropped"] = int(st.get("dropped") or 0) + len(gen.dropped)
+
     def _new(self, st: dict, deadline) -> dict:
-        f = st["failure"]
-        gen = Generator(self.llm(), self.judge(), int(self.s["cases"]), float(self.s["holdout"]),
-                        seed=int(f["id"]))
-        replay = gen.replay(f)
-        variants = gen.variants(f, f.get("persona") or None) if replay else []
-        st["dropped"] = len(gen.dropped)
-        (self.dir(st["id"]) / "dropped.json").write_text(json.dumps(gen.dropped, indent=1, ensure_ascii=False),
-                                                          encoding="utf-8")
-        (self.dir(st["id"]) / "replies.json").write_text(json.dumps(gen.replies, indent=1, ensure_ascii=False),
-                                                          encoding="utf-8")
+        gen = self._generator(st)
+        replay = gen.replay(st["failure"])
+        self._keep_writing(st, gen)
         if replay is None:
             return self._drop(st, "no checker for the failed request held up")
+        cases_mod.save(self.dir(st["id"]) / "cases.json", [replay])
+        st["stage"] = "checked"
+        self.log(f"{st['id']}: replay checker: {checks.describe(replay.checker)[:120]}")
+        return st
+
+    def _checked(self, st: dict, deadline) -> dict:
+        """Cross-model replay: does it happen again, and on which models?"""
+        replay = self.cases(st)[0]
+        old = {"old": self.base_tree(st["base"])}
+        for model in st["models"]:
+            for rep in range(int(self.s["repro_runs"])):
+                mine = [r for r in self.rows(st) if r["case"] == "replay" and r["model"] == model and r["version"] == "old"]
+                if sum(self.failed(st, r) for r in mine) >= int(self.s["repro_stop"]):
+                    break
+                if not self._matrix(st, [replay], old, [model], rep + 1, deadline):
+                    return st
+        rows = [r for r in self.rows(st) if r["case"] == "replay" and r["version"] == "old"]
+        st["repro"] = {m: {"runs": sum(r["model"] == m for r in rows),
+                           "failed": sum(r["model"] == m and self.failed(st, r) for r in rows)} for m in st["models"]}
+        failed, runs = sum(v["failed"] for v in st["repro"].values()), len(rows)
+        st["repro_rate"] = round(failed / max(runs, 1), 3)
+        seen = ", ".join(f"{m.partition(':')[2]} {v['failed']}/{v['runs']}" for m, v in st["repro"].items())
+        if st["repro_rate"] < float(self.s["min_repro"]) or not failed:
+            return self._drop(st, f"doesn't reproduce: failed {seen}")
+        self.log(f"{st['id']}: reproduced: failed {seen}")
+        st["stage"] = "replayed"
+        return st
+
+    def _replayed(self, st: dict, deadline) -> dict:
+        """The local model's own reading of the failure and its replays: is it the harness's to fix?"""
+        f, replay = st["failure"], self.cases(st)[0]
+        rows = [dict(r, reproduced=self.failed(st, r)) for r in self.rows(st) if r["case"] == "replay"]
+        how = (f"the final() gate sends its answer back, or its result fails this check: {checks.describe(replay.checker)}"
+               if st.get("objective") == "cost" else f"its result fails this check: {checks.describe(replay.checker)}")
+        reading = triage.triage(self.llm(), f, rows, st["models"], how)
+        failing = [m for m, v in st["repro"].items() if v["failed"]]
+        go, decision = triage.keep(reading, failing)
+        st["triage"] = {k: v for k, v in reading.items() if k != "reply"} | {"failing_models": failing,
+                                                                            "decision": decision}
+        (self.dir(st["id"]) / "triage.json").write_text(json.dumps(reading, indent=1, ensure_ascii=False),
+                                                         encoding="utf-8")
+        self.log(f"{st['id']}: triage: {decision[:200]}")
+        if not go:
+            status = "ignored" if reading["category"] == "not_a_failure" else "reviewed"
+            for fid in st["group"]:
+                self.failures.set_status(fid, status, f"refine triage {st['id']}: {decision}"[:500])
+            return self._drop(st, f"not the harness's to fix - {decision}")
+        st["stage"] = "triaged"
+        return st
+
+    def _triaged(self, st: dict, deadline) -> dict:
+        f = st["failure"]
+        gen = self._generator(st)
+        variants = gen.variants(f, f.get("persona") or None)
+        self._keep_writing(st, gen)
         if 1 + len(variants) < int(self.s["min_cases"]):
             return self._drop(st, f"only {1 + len(variants)} test cases held up (need {self.s['min_cases']})")
+        replay = self.cases(st)[0]
+        # run the replay often enough to see the failure a few times on the old code: a 1-in-4 failure shows
+        # nothing in 2 runs (live: planets.csv, 1 of 3, then "mixed" at p = 0.32)
+        rate = max(float(st.get("repro_rate") or 1.0), 1e-3)
+        replay.runs = max(int(st["runs"]), min(int(self.s["max_runs"]), math.ceil(float(self.s["repro_target"]) / rate)))
         cases_mod.save(self.dir(st["id"]) / "cases.json", [replay, *variants, *cases_mod.controls(self.s["controls"])])
         st["stage"] = "generated"
-        self.log(f"{st['id']}: {1 + len(variants)} test cases ({len(gen.dropped)} dropped)")
+        self.log(f"{st['id']}: {1 + len(variants)} test cases ({len(gen.dropped)} dropped); "
+                 f"the replay runs {replay.runs}x per model")
         return st
 
     def _generated(self, st: dict, deadline) -> dict:
-        f = st["failure"]
-        replay = next(c for c in self.cases(st) if c.origin == "replay")
-        # the log names an OpenAI-compatible model "name@base_url" (llm.py); the models here are "provider:name"
-        logged = str(f.get("model") or "").partition("@http")[0]
-        model = next((m for m in st["models"] if m.partition(":")[2] == logged), st["models"][0])
-        n = int(self.s["repro_runs"])
-        if not self._matrix(st, [replay], {"old": self.base_tree(st["base"])}, [model], n, deadline):
+        """Baseline on the old code, then sort the variants by what they showed there."""
+        cs = self.cases(st)
+        if not self._matrix(st, cs, {"old": self.base_tree(st["base"])}, st["models"], st["runs"], deadline):
             return st
-        rows = [r for r in self.rows(st) if r["case"] == "replay" and r["model"] == model and r["version"] == "old"][:n]
-        failed = sum(not r["passed"] for r in rows)
-        st["repro"] = {"model": model, "runs": len(rows), "failed": failed}
-        if failed / max(len(rows), 1) < float(self.s["min_repro"]):
-            return self._drop(st, f"doesn't reproduce: the failed request passed {len(rows) - failed}/{len(rows)} "
-                                  f"times on {model}")
-        st["stage"] = "reproduced"
-        return st
-
-    def _reproduced(self, st: dict, deadline) -> dict:
-        if self._matrix(st, self.cases(st), {"old": self.base_tree(st["base"])}, st["models"], st["runs"], deadline):
-            st["stage"] = "baseline"
+        old = [r for r in self.rows(st) if r["version"] == "old"]
+        moved, why = {"regress": [], "suspect": []}, {}
+        for c in cs:
+            if c.origin != "variant":
+                continue
+            mine = [r for r in old if r["case"] == c.id]
+            fails = [r for r in mine if self.failed(st, r)]
+            if mine and not fails:
+                c.split = "regress"   # never failed: it can't show a gain, but a fix must not break it
+            elif mine and len(fails) == len(mine):
+                # failed every run everywhere: a hard case, or a wrong checker - the local model looks at a run
+                wrong, why[c.id] = triage.review_checker(self.llm(), c, fails[0])
+                if not wrong:
+                    continue
+                c.split = "suspect"
+            else:
+                continue
+            moved[c.split].append(c.id)
+        cases_mod.save(self.dir(st["id"]) / "cases.json", cs)
+        st["moved"], st["checker_review"] = moved, why
+        if any(moved.values()):
+            self.log(f"{st['id']}: regression checks {moved['regress'] or '-'}; suspect checkers {moved['suspect'] or '-'}")
+        st["stage"] = "baseline"
         return st
 
     def _baseline(self, st: dict, deadline) -> dict:
@@ -287,14 +402,20 @@ class Refiner:
                    f" -> {t.get('outcome', '')}" for t in st["tries"]]
         task = fixer.prompt(f, group, self.cases(st), [r for r in self.rows(st) if r["version"] == "old"],
                             [r for r in self.rejections() if r.get("kind") == f["kind"]], self.s["test_command"],
-                            earlier)
+                            earlier, st.get("triage"))
         self.log(f"{st['id']}: fix try {k} on {st['fixer_model']}")
         fx = fixer.fix(tree, task, self._run_turn or self._turn, self.s["test_command"], float(self.s["test_timeout"]),
                        f"refine {st['id']}: {f['kind']} ({f.get('persona') or '-'})")
         (self.dir(st["id"]) / f"try{k}.diff").write_text(fx.diff, encoding="utf-8")
         t = {"k": k, "summary": fx.summary, "files": fx.files, "reverted": fx.reverted, "tests_ok": fx.tests_ok,
-             "tests_out": fx.tests_out[-1500:], "commit": fx.commit, "error": fx.error}
-        if not fx.ok:
+             "tests_out": fx.tests_out[-1500:], "commit": fx.commit, "error": fx.error,
+             # live: the fixer hit its step limit mid-sentence; its change was fine, its "summary" was not one
+             "unfinished": bool(UNFINISHED.match(fx.summary or ""))}
+        if fx.ok and st.get("objective") == "cost" and self.s.get("cost_guard"):
+            t["guard"] = self._guard(st, tree)
+            if t["guard"].get("error"):
+                fx.error = t["guard"]["error"]
+        if not fx.ok or t.get("guard", {}).get("error"):
             t["outcome"] = fx.error
             st["tries"].append(t)
             self.log(f"{st['id']}: try {k}: {fx.error}")
@@ -303,18 +424,38 @@ class Refiner:
         st["stage"] = "fixed"
         return st
 
+    def _guard(self, st: dict, tree: Path) -> dict:
+        """The cost guard on the old and the new code: {old, new} (each {caught, bad, false}), or {error}."""
+        out = {}
+        for name, root in (("old", self.base_tree(st["base"])), ("new", tree)):
+            ok, text = fixer.run_tests(root, self.s["cost_guard"], float(self.s["test_timeout"]))
+            try:
+                out[name] = json.loads(text.strip().splitlines()[-1])
+            except (ValueError, IndexError):
+                return {"error": f"the cost guard didn't run on the {name} code: {text.strip()[-300:]}"}
+        a, b = out["old"], out["new"]
+        if b["caught"] < a["caught"] or b["false"] > a["false"]:
+            out["error"] = (f"the final() gate got more lenient: its eval caught {a['caught']}/{a['bad']} bad answers "
+                            f"with {a['false']} false alarms, now {b['caught']}/{b['bad']} with {b['false']}")
+        return out
+
     def _fixed(self, st: dict, deadline) -> dict:
         t = st["tries"][-1]
         new = f"new{t['k']}"
-        if not self._matrix(st, self.cases(st), {"old": self.base_tree(st["base"]), new: Path(st["tree"])},
+        cs = self.cases(st)
+        live = [c for c in cs if c.split != "suspect"]   # a suspect checker measures nothing: not run again
+        if not self._matrix(st, live, {"old": self.base_tree(st["base"]), new: Path(st["tree"])},
                             st["models"], st["runs"], deadline):
             return st
-        v = report.verdict(self.rows(st), "old", new, self.s)
+        v = report.verdict(self.rows(st), "old", new, self.s, {c.id: c.split for c in cs}, st.get("objective", "pass"))
         t["verdict"], t["gain"] = v["verdict"], v["gain"]
         extra = [f"the fixer's edits to {', '.join(t['reverted'])} were thrown away (protected)"] if t["reverted"] else []
+        if t.get("unfinished"):
+            extra.append("the fixer didn't finish its turn (it stopped before final()): its summary is not an account "
+                         "of the change - read the diff")
         if st.get("dropped"):
             extra.append(f"{st['dropped']} generated test cases were dropped (their checker didn't hold up)")
-        md = report.render({**st, "try": t["k"]}, v, self.cases(st),
+        md = report.render({**st, "try": t["k"]}, v, cs,
                            {**t, "diff": (self.dir(st["id"]) / f"try{t['k']}.diff").read_text(encoding="utf-8")}, extra)
         (self.dir(st["id"]) / f"report-try{t['k']}.md").write_text(md, encoding="utf-8")
         self.log(f"{st['id']}: try {t['k']}: {v['verdict']} (gain {v['gain']:+.2f})")
@@ -323,7 +464,8 @@ class Refiner:
             st["stage"], st["verdict"] = "proposed", v["verdict"]
             return st
         ta, tb = v["old"]["all"]["target"], v["new"]["all"]["target"]
-        t["outcome"] = f"no gain: failing cases {ta['passed']}/{ta['n']} -> {tb['passed']}/{tb['n']}"
+        t["outcome"] = f"no gain: failing cases {ta['passed']}/{ta['n']} -> {tb['passed']}/{tb['n']}" + (
+            f", bounces per run {ta['bounces']:g} -> {tb['bounces']:g}" if st.get("objective") == "cost" else "")
         if t["k"] < int(self.s["fix_tries"]):
             st["stage"] = "baseline"
             return st

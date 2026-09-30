@@ -94,10 +94,17 @@ refine:
                            # else the fixer persona's model)
   models: null             # models the tests run on (default: every local model in this config)
   discover: false          # also every chat model LM Studio lists
+  max_tokens: 65536        # per test-writing reply, thinking included (Qwen 3.8 27B used 18-21k; 32k cut lists off)
   cases: 10                # test variants written per failure (plus the failure itself)
   runs: 2                  # runs of each case per model and version
+  repro_runs: 4            # replays of the failed request per model before any variant is written
+  min_repro: 0.1           # share of those replays that must fail (a 1-in-4 failure is worth fixing)
+  repro_target: 3          # the replay then runs often enough to expect 3 failures on the old code...
+  max_runs: 8              # ...up to 8 per model and version
   fix_tries: 2             # changes the fixer may try per failure
   min_gain: 0.15           # the failing cases' pass rate must rise this much to be proposed as "improves"
+  min_cost_gain: 0.5       # cost kinds: gate bounces per run on the failing cases must halve
+  cost_kinds: [gate_bounce]   # the task got done with needless extra work: scored on bounces, not completion
   case_timeout: 3600       # seconds per test run
   fixer_persona: high_end_dev
 

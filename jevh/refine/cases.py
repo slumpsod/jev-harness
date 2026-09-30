@@ -3,7 +3,10 @@ wrote, and control tasks that already work (a fix must not break them).
 
 split: dev      the fixer sees these (with how the old harness did on them)
        holdout  never shown to the fixer: they show whether the fix generalizes
-       control  unrelated tasks that work today: they catch a fix that breaks other things"""
+       control  unrelated tasks that work today: they catch a fix that breaks other things
+       regress  a variant that never failed on the old code: it can't show a gain, so it counts as a control
+       suspect  a variant that failed every run on every model, whose checker the local model then judged
+                wrong (live: an XML check that only accepted one layout); left out of the verdict"""
 from __future__ import annotations
 
 import json
@@ -27,6 +30,7 @@ class Case:
     good_answer: str = ""         # what validated the checker
     bad_answer: str = ""
     good_files: dict = field(default_factory=dict)   # {name: content} a correct run hands over (validation)
+    runs: int | None = None       # runs per model and version (None: refine.runs); the replay's is sized
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

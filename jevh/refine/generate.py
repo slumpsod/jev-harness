@@ -33,7 +33,7 @@ the SAME request succeeds.
 
 Request: {request}
 
-The failed answer (your checker must reject it): {answer}
+{answer_line}
 
 Why it counts as a failure: {kind} - {summary}
 {detail}
@@ -52,13 +52,14 @@ Failure: {kind} ({source}) - {summary}
 {detail}
 What it did (end of its work log):
 {log}
-
+{cause}
 Rules:
 - Each task is a complete request a user could send, on its own.
 - Same kind of task and the same weakness, but different specifics (topic, site, numbers, files, wording):
   not copies of the failed task, and not all alike.
 - Prefer tasks whose correct result can be checked exactly and doesn't change from day to day (computations,
   files to produce, fixed facts), unless the failure is about something else (e.g. live websites).
+{goal}
 {avoid}
 {types}
 
@@ -94,8 +95,11 @@ class Generator:
     """`llm`: a local model client (.chat(messages) -> .text); `judge`: Jev, for jev checkers."""
 
     def __init__(self, llm, judge: checks.Judge | None = None, cases: int = 10, holdout: float = 0.3,
-                 rounds: int = 3, seed: int = 0):
-        self.llm, self.judge = llm, judge
+                 rounds: int = 3, seed: int = 0, cost: bool = False, cause: str = ""):
+        """`cost`: the failure is extra work on a task that got done (a correct answer sent back), so the
+        logged answer may be right: checkers check for a correct result instead of rejecting it.
+        `cause`: the local reading of what caused it (triage), to aim the variants at that."""
+        self.llm, self.judge, self.cost, self.cause = llm, judge, cost, cause
         self.n, self.holdout, self.rounds, self.seed = cases, holdout, rounds, seed
         self.dropped: list[dict] = []   # (request, why) of cases whose checker didn't hold up
         self.replies: list[dict] = []   # every raw reply, kept with the attempt to see what the model wrote
@@ -107,9 +111,14 @@ class Generator:
 
     def replay(self, failure: dict) -> Case | None:
         """The failed request with a checker that rejects the answer it got."""
+        answer = (failure.get("answer") or "(no answer)")[:2000]
+        line = (f"The answer it gave: {answer}\n(It may well be right: this failure is extra work the harness caused, "
+                "not a wrong result. Your checker must pass a correct answer.)" if self.cost else
+                f"The failed answer (your checker must reject it): {answer}")
+        bad = "" if self.cost else failure.get("answer") or ""
         for _ in range(self.rounds):
             text = self.ask(REPLAY_PROMPT.format(
-                request=failure["request"][:3000], answer=(failure.get("answer") or "(no answer)")[:2000],
+                request=failure["request"][:3000], answer_line=line,
                 kind=failure["kind"], summary=failure["summary"], detail=_detail(failure), types=CHECKER_TYPES), "replay")
             got = parse_json(text, "{")
             if not isinstance(got, dict) or not isinstance(got.get("checker"), dict):
@@ -118,10 +127,10 @@ class Generator:
                 continue
             files = _files(got)
             ok, why = checks.discriminates(got["checker"], str(got.get("good_answer", "")),
-                                           failure.get("answer") or "", failure["request"], self.judge, files)
+                                           bad, failure["request"], self.judge, files)
             if ok:
                 return Case("replay", failure["request"], got["checker"], "dev", "replay", failure.get("persona") or None,
-                            str(got.get("good_answer", "")), failure.get("answer") or "", files)
+                            str(got.get("good_answer", "")), bad, files)
             self.dropped.append({"request": failure["request"][:200], "why": why})
         return None
 
@@ -143,7 +152,12 @@ class Generator:
                 n=min(self.n - len(kept) + 2, BATCH), request=failure["request"][:3000],
                 answer=(failure.get("answer") or "(no answer)")[:1500], kind=failure["kind"],
                 source=failure.get("source", ""), summary=failure["summary"], detail=_detail(failure),
-                log=(failure.get("work_log") or "(no code was run)")[-2500:], avoid=avoid, types=CHECKER_TYPES),
+                log=(failure.get("work_log") or "(no code was run)")[-2500:], avoid=avoid, types=CHECKER_TYPES,
+                cause=f"What caused it (a reading of the log and of replays on each model): {self.cause}\n"
+                if self.cause else "",
+                goal="- The failure is extra work on a task that got done (e.g. a correct answer sent back), so pick tasks "
+                     "where the same needless extra work would happen; checkers check the result is correct, and "
+                     "bad_answer is simply a wrong result." if self.cost else ""),
                 "variants")
             got = parse_json(text)
             if not isinstance(got, list) or not any(isinstance(i, dict) and i.get("request") for i in got):

@@ -1,6 +1,6 @@
 """python -m jevh.refine <command>
 
-  groups                  open failures grouped by kind and persona (what would be worked on)
+  groups                  open failures grouped by kind, persona and cause (what would be worked on)
   models                  the local models tests run on, and the one that writes tests and fixes
   nightly [--until 07:00 | --hours 8]   carry on unfinished attempts, then start new ones
   start <failure id> [--hours N]        one attempt on that failure, now
@@ -61,14 +61,15 @@ def main(argv: list[str] | None = None) -> int:
         for g in ref.groups():
             f = g["latest"]
             print(f"{g['count']:>4}x {g['kind']:<18} {g['persona'] or '-':<20} {'(tried) ' if g['tried'] else ''}"
-                  f"latest #{f['id']}: {f['summary'][:90]}")
+                  f"latest #{f['id']}: {g['cause'][:90]}")
     elif a.cmd == "models":
         print("tests run on: " + (", ".join(ref.models()) or "(none)"))
         print("tests and fixes written by: " + ref.model())
     elif a.cmd == "status":
         for s in ref.attempts():
-            extra = s.get("verdict") or s.get("reason") or ""
-            print(f"{s['id']:<28} {s['stage']:<11} {s['failure']['kind']:<18} tries {len(s['tries'])} {extra[:80]}")
+            extra = s.get("verdict") or s.get("reason") or (s.get("triage") or {}).get("decision") or ""
+            print(f"{s['id']:<28} {s['stage']:<11} {s['failure']['kind']:<18} {s.get('objective', 'pass'):<5} "
+                  f"tries {len(s['tries'])} {extra[:80]}")
     elif a.cmd == "nightly":
         until = deadline(None if a.hours else a.until, a.hours)
         ref.log(f"nightly run until {time.strftime('%Y-%m-%d %H:%M', time.localtime(until))}")

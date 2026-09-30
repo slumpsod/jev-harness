@@ -9,6 +9,7 @@ exists for, so recall on "bad" matters most, but honest partial answers must pas
     python evals/verify_cases.py --offline
     python evals/verify_cases.py --holdout     # 12 cases written after tuning (then seen: see verify.py)
     python evals/verify_cases.py --holdout2    # 12 more, written after the last change, run once
+    python evals/verify_cases.py --guard       # one JSON line from the saved scores (refine's cost guard)
 """
 from __future__ import annotations
 
@@ -232,21 +233,41 @@ def rule(s, tc, td, th):
     return s["claims"] >= tc or (s["delivers"] < td and s["honest"] < th)
 
 
-def shipped(rows, labels) -> None:
-    """The gate as shipped: Jev rule at the config thresholds + the plain rules."""
+def shipped(rows, labels, cases=None, quiet: bool = False) -> tuple[int, int]:
+    """The gate as shipped: Jev rule at the config thresholds + the plain rules. -> (caught, false alarms)"""
     from jevh.config import load_config as _lc
     from jevh.verify import answer_rules
     cfg = _lc()
     pred = []
-    for (req, ans, arts, log, _), s in zip(CASES, rows):
+    for (req, ans, arts, log, _), s in zip(cases or CASES, rows):
         pred.append("bad" if answer_rules(req, ans, arts, log, s, cfg.t) else "ok")
     caught = sum(p == l == "bad" for p, l in zip(pred, labels))
     false = sum(p == "bad" and l == "ok" for p, l in zip(pred, labels))
+    if quiet:
+        return caught, false
     print(f"\nshipped gate (Jev at claims {cfg.t('verify_claims')}, delivers {cfg.t('verify_delivers')}, honest "
           f"{cfg.t('verify_honest')}, accurate {cfg.t('verify_accurate')} + plain rules): caught {caught}/{labels.count('bad')}, false alarms {false}")
-    for (req, ans, *_), p, l in zip(CASES, pred, labels):
+    for (req, ans, *_), p, l in zip(cases or CASES, pred, labels):
         if p != l:
             print(f"  wrong: {l} called {p}: {ans[:70]}")
+    return caught, false
+
+
+def guard() -> None:
+    """One JSON line: the shipped gate on every saved set (tuning + both held-out), from the saved Jev scores.
+    refine runs it on the old and the new code for a fix scored on gate bounces: a fix that makes the gate
+    lenient must not pass as one that removed needless bounces. (Offline: a fix that rewords a Jev
+    question isn't seen here - its new scores would need a live run.)"""
+    total = {"caught": 0, "bad": 0, "false": 0}
+    for cases, raw in ((CASES, RAW), (HOLDOUT, RAW.with_name("verify_holdout_raw.json")),
+                       (HOLDOUT2, RAW.with_name("verify_holdout2_raw.json"))):
+        rows = json.loads(raw.read_text(encoding="utf-8"))
+        labels = [c[4] for c in cases]
+        caught, false = shipped(rows, labels, cases, quiet=True)
+        total["caught"] += caught
+        total["bad"] += labels.count("bad")
+        total["false"] += false
+    print(json.dumps(total))
 
 
 def main() -> None:
@@ -254,7 +275,10 @@ def main() -> None:
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--holdout", action="store_true")
     ap.add_argument("--holdout2", action="store_true")
+    ap.add_argument("--guard", action="store_true", help="one JSON line: the shipped gate on every saved set")
     a = ap.parse_args()
+    if a.guard:
+        return guard()
     global CASES, RAW
     if a.holdout:
         CASES, RAW = HOLDOUT, RAW.with_name("verify_holdout_raw.json")

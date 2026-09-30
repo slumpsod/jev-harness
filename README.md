@@ -471,7 +471,9 @@ gone. Rows have a triage `status` (open / reviewed / fixed / ignored) and a note
 
 Where you see them: new failures show in the CLI and the dashboard's activity feed as they happen;
 `/failures [n|kind]` in the CLI; `GET /api/failures` and `POST /api/failures/status` on the dashboard
-server; and `python -m jevh.failures` (list, `--kind`, `export out.jsonl`, `status <id> fixed "note"`).
+server; and `python -m jevh.failures` (list, `--kind`, `export out.jsonl`, `status <id> fixed "note"`, and
+`add <kind> "<summary>" --workdir <task folder>` for a failure no detector caught: it reads the request,
+persona, work log and answer from the task's checkpoint).
 
 ## Refinement: failures become tested, approved changes
 
@@ -481,45 +483,73 @@ model (`refine.model`, default `models.strong`, else the fixer persona's model),
 non-local model is refused.
 
 ```bash
-python -m jevh.refine groups                 # what it would work on: open failures by kind + persona
+python -m jevh.refine groups                 # what it would work on: open failures by kind, persona and cause
 python -m jevh.refine nightly --until 07:00  # overnight: carry on unfinished attempts, then start new ones
-python -m jevh.refine status                 # every attempt and its stage
+python -m jevh.refine status                 # every attempt, its stage and objective
 python -m jevh.refine report <id>            # the approval report
 python -m jevh.refine approve <id>           # merge it; its failures are marked fixed
 python -m jevh.refine reject <id> "why"      # drop it; the reason is shown to the fixer next time
 ```
 
-One attempt per failure group, in `workspace/refine/<id>/`, through stages that survive a restart
-(a night cut short carries on the next night):
-1. **Tests.** The local model writes a checker for the failed request, then about 10 variants
-   (same weakness, different specifics). Each checker must pass a good answer and fail a bad one
-   and a plain refusal, or its case is dropped. About 30% are held out: the fixer never sees them.
+One attempt per failure group (same kind, persona and cause: failures of one kind can have different
+causes), in `workspace/refine/<id>/`, through stages that survive a restart (a night cut short carries
+on the next night). The cheap questions come first - does it happen again, and is it the harness's to
+fix? - so a night isn't spent writing tests for a slip one model made once:
+1. **Replay checker.** The local model writes a checker for the failed request. It must pass a good
+   answer and fail the failed one and a plain refusal. For a task that hands over files it also gives
+   the files a correct run would hand over; they're written to disk and the checker must pass them
+   (and still pass when the answer only names the file).
+2. **Cross-model replay.** The failed request runs on every local model, up to `repro_runs` times each
+   (a model stops after 2 failures). If less than `min_repro` of the replays fail, there's nothing to
+   measure and the attempt is dropped.
+3. **Triage: the local model's own reading.** It reads the failure, its work log and the replays and
+   says whether the harness caused it (`harness_caused`), could have prevented it
+   (`harness_preventable`), or it was the model alone (`model_only`) or no failure (`not_a_failure`),
+   with the component and the evidence. Only the first two go on; the others are dropped and their
+   failures marked (reviewed / ignored). A failure that came back on 2+ models goes on whatever the
+   reading says: a slip one model makes is noise, one several make points at what they were all given.
+4. **Tests.** About 10 variants aimed at that cause (same weakness, different specifics), each with a
+   checker that must hold up the same way; about 30% are held out and the fixer never sees them.
    Control tasks that already work (`evals/refine_controls.json`) catch a fix that breaks other things.
-2. **Reproduce.** The failed request is run again on its model. If it mostly passes now, there's
-   nothing to measure and the attempt is dropped.
-3. **Baseline.** Every case on every local model, on the old code (the commit the attempt started from).
-4. **Fix.** The local model, as a harness worker with the `project` tool, changes a git worktree
-   of the harness (branch `refine/<id>`), never your checkout. Its edits to `jevh/refine/`,
-   `tests/` and `evals/` are thrown away (a fix can't change how it's scored), and the offline
-   tests must pass.
-5. **Compare.** The same matrix on the new code. Each run is its own process and workspace, and it's
-   scored by the case's checker, not the harness's own failure detectors (a fix that only makes the
-   final() gate lenient scores nothing). Verdict: **improves** (the failing cases' pass rate up by at
-   least `min_gain`, held-out cases not worse, no model losing controls), **mixed**, or **no gain**
-   (then another fix try, up to `fix_tries`).
-6. **Report** for improves / mixed. It covers the failure that caught it (and how reliably it
-   reproduced), what changed (the fixer's account plus the diff), per-model old → new pass counts,
-   time, tokens and thinking for dev, held-out and control cases, and caveats: small samples (with
-   a p-value), models that got worse or slower, controls that broke, thrown-away edits, dropped tests.
+5. **Baseline.** Every case on every local model, on the old code. The replay runs often enough to
+   expect about 3 failures (`repro_target`, up to `max_runs`): a 1-in-4 failure shows nothing in 2
+   runs. Then a variant that never failed becomes a regression check (counted with the controls), and
+   the local model looks at one that failed every run on every model: if the result was right and
+   the checker wrong, it's set aside (out of the verdict, listed in the report).
+6. **Fix.** The local model, as a harness worker with the `project` tool, changes a git worktree
+   of the harness (branch `refine/<id>`), never your checkout. It gets the triage reading. Its edits
+   to `jevh/refine/`, `tests/` and `evals/` are thrown away (a fix can't change how it's scored), and
+   the offline tests must pass. A fixer that stopped before final() is flagged in the report.
+7. **Compare.** The same matrix on the new code. Each run is its own process and workspace, and it's
+   scored by the case's checker. Verdict: **improves** (the failing cases' pass rate up by at least
+   `min_gain`, held-out cases not worse, no model losing controls or regression checks), **mixed**,
+   or **no gain** (then another fix try, up to `fix_tries`).
+   - **Cost kinds** (`cost_kinds`: `gate_bounce`): the task got done, with needless extra work (the
+     final() gate sent a correct answer back). These are scored on gate bounces per run, which must
+     fall by `min_cost_gain`, with the pass rate not falling. Bounces come from the harness's own
+     gate, so a fix could win by making it lenient: the gate's offline eval
+     (`evals/verify_cases.py --guard`) must catch as many bad answers as before with no more false
+     alarms, or the fix is refused.
+8. **Report** for improves / mixed: the failure, its replays per model, the triage reading, what
+   changed (the fixer's account plus the diff), per-model old → new pass counts, bounces, model
+   calls, time and tokens for dev, held-out, regression and control cases, set-aside checkers, and
+   caveats (small samples with a p-value, models that got worse or slower, broken controls,
+   thrown-away edits, dropped tests, an unfinished fixer).
 
-Scale: cases × models × `runs` × 2 versions, at several minutes a run on a local model. With 10
-cases, 7 controls, 2 models and 2 runs that is about 136 runs, which is overnight. Lower `runs`
-or set `refine.models` to trade confidence for time.
+Scale: cases × models × `runs` × 2 versions, plus the sized replay, at several minutes a run on a
+local model; about 140 runs with 10 cases, 7 controls and 2 models, which is overnight. Lower
+`runs` or set `refine.models` to trade confidence for time. Test writing uses `refine.max_tokens`
+(65536) per reply: Qwen 3.8 27B took 18-21k tokens per reply, and 8192 or 32768 cut its lists off.
 
-Limits for now: a failure whose task still gets done (a gate bounce that was then fixed) can't
-show a gain yet, because only completion is scored. Checkers the local model writes can be
-`python` code; they run in their own process, with the same trust as worker code. The dashboard
-doesn't show proposals yet; use the CLI.
+Seen live (2026-09-30), the gaps these stages close: all 4 gate bounces logged were correct answers
+(a checker built to reject them is a wrong test); a local checker looked for file contents in
+`artifacts` (which holds paths) and would have failed the correct planets.csv; its variants all
+passed on the old code, and an XML checker that accepted one layout failed every run - so a real
+fix scored "mixed" at p = 0.32.
+
+Limits for now: checkers the local model writes can be `python` code; they run in their own
+process, with the same trust as worker code. The cost guard is offline: a fix that rewords a Jev
+question isn't seen by it. The dashboard doesn't show proposals yet; use the CLI.
 
 ## Limits / next
 

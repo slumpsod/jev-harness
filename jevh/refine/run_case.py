@@ -45,7 +45,9 @@ def run_one(case: dict[str, Any], cfg, model: str | None, jev=None, llm_factory=
             "output": sum(x.get("output", 0) for x in llm), "thinking": sum(x.get("thinking", 0) for x in llm),
             "model_seconds": round(sum(x.get("seconds", 0) for x in llm), 2),
             "jev_calls": sum(x.get("calls", 0) for x in jev_), "status": root.status if root else "",
+            "calls": sum(x.get("calls", 0) for x in llm),   # model steps: what a needless bounce costs
             "tasks": len(r.tasks), "failures": [f["kind"] for f in h.failures.list(limit=200)]})
+        out["bounces"] = out["failures"].count("gate_bounce")
     except Exception as e:  # noqa: BLE001 - reported as the run's error, never raised
         out.update({"error": f"{type(e).__name__}: {e}", "traceback": traceback.format_exc()[-3000:],
                     "seconds": round(time.time() - started, 2)})

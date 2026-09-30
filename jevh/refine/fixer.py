@@ -31,7 +31,7 @@ The answer it gave: {answer}
 {detail}
 End of its work log:
 {log}
-{others}
+{others}{reading}
 ## Test tasks (the old harness's results). Others like them are held back to check the fix generalizes.
 {cases}
 {rejected}
@@ -117,8 +117,9 @@ def changed_files(tree: Path) -> list[str]:
 
 
 def prompt(failure: dict, group: list[dict], cases: list[Case], old_rows: list[dict], rejections: list[dict],
-           test_command: str, earlier: list[str] | None = None) -> str:
-    """The fixer's task. It sees dev cases only - never the held-out ones."""
+           test_command: str, earlier: list[str] | None = None, reading: dict | None = None) -> str:
+    """The fixer's task. It sees dev cases only - never the held-out ones. `reading`: the triage of
+    the failure (category, component, evidence) and the models it failed on when replayed."""
     lines = []
     for c in cases:
         if c.split != "dev":
@@ -142,6 +143,10 @@ def prompt(failure: dict, group: list[dict], cases: list[Case], old_rows: list[d
         log=(failure.get("work_log") or "(no code was run)")[-2500:],
         others=("\nOther failures like it:\n" + "\n".join(f"- {f['summary'][:160]} (request: {f['request'][:120]})"
                                                       for f in others) + "\n") if others else "",
+        reading=(f"\n## What caused it (a reading of the log and of replays on every local model)\n"
+                 f"{reading.get('category')}" + (f" - {reading['component']}" if reading.get("component") else "")
+                 + f": {reading.get('why', '')}\nEvidence: {str(reading.get('evidence', ''))[:800]}\n"
+                 f"Failed again on: {', '.join(reading.get('failing_models') or []) or '-'}\n") if reading else "",
         cases="\n".join(lines) or "(none)", rejected=rejected, test_command=test_command)
 
 
