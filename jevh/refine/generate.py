@@ -89,18 +89,23 @@ class Generator:
         self.llm, self.judge = llm, judge
         self.n, self.holdout, self.rounds, self.seed = cases, holdout, rounds, seed
         self.dropped: list[dict] = []   # (request, why) of cases whose checker didn't hold up
+        self.replies: list[dict] = []   # every raw reply, kept with the attempt to see what the model wrote
 
-    def ask(self, prompt: str) -> str:
-        return self.llm.chat([{"role": "user", "content": prompt}]).text
+    def ask(self, prompt: str, kind: str = "") -> str:
+        text = self.llm.chat([{"role": "user", "content": prompt}]).text
+        self.replies.append({"kind": kind, "reply": text})
+        return text
 
     def replay(self, failure: dict) -> Case | None:
         """The failed request with a checker that rejects the answer it got."""
         for _ in range(self.rounds):
-            got = parse_json(self.ask(REPLAY_PROMPT.format(
+            text = self.ask(REPLAY_PROMPT.format(
                 request=failure["request"][:3000], answer=(failure.get("answer") or "(no answer)")[:2000],
-                kind=failure["kind"], summary=failure["summary"], detail=_detail(failure), types=CHECKER_TYPES)), "{")
+                kind=failure["kind"], summary=failure["summary"], detail=_detail(failure), types=CHECKER_TYPES), "replay")
+            got = parse_json(text, "{")
             if not isinstance(got, dict) or not isinstance(got.get("checker"), dict):
-                self.dropped.append({"request": failure["request"][:200], "why": "no checker in the reply"})
+                self.dropped.append({"request": failure["request"][:200], "why": _unusable(text, "no checker"),
+                                     "reply": True})
                 continue
             ok, why = checks.discriminates(got["checker"], str(got.get("good_answer", "")),
                                            failure.get("answer") or "", failure["request"], self.judge)
@@ -121,13 +126,21 @@ class Generator:
                 avoid = "- Already written (write different ones):\n" + "\n".join(f"  - {c.request[:120]}" for c in kept)
             if self.dropped:
                 avoid += "\n- These were dropped because their checker didn't hold up - avoid the same mistake:\n" + \
-                    "\n".join(f"  - {d['request'][:80]}: {d['why'][:120]}" for d in self.dropped[-5:])
-            got = parse_json(self.ask(VARIANTS_PROMPT.format(
+                    "\n".join(f"  - {d['request'][:80]}: {d['why'][:120]}"
+                              for d in [d for d in self.dropped if not d.get("reply")][-5:])
+            text = self.ask(VARIANTS_PROMPT.format(
                 n=self.n - len(kept) + 2, request=failure["request"][:3000],
                 answer=(failure.get("answer") or "(no answer)")[:1500], kind=failure["kind"],
                 source=failure.get("source", ""), summary=failure["summary"], detail=_detail(failure),
-                log=(failure.get("work_log") or "(no code was run)")[-2500:], avoid=avoid, types=CHECKER_TYPES)))
-            for item in got if isinstance(got, list) else []:
+                log=(failure.get("work_log") or "(no code was run)")[-2500:], avoid=avoid, types=CHECKER_TYPES),
+                "variants")
+            got = parse_json(text)
+            if not isinstance(got, list) or not any(isinstance(i, dict) and i.get("request") for i in got):
+                # (a reply cut off mid-list parses as some inner list - a checker's "checks" - with no tasks in it)
+                self.dropped.append({"request": "(the whole reply)", "why": _unusable(text, "no list of tasks"),
+                                     "reply": True})
+                continue
+            for item in got:
                 if not isinstance(item, dict) or not str(item.get("request", "")).strip():
                     continue
                 req = str(item["request"]).strip()
@@ -150,6 +163,13 @@ class Generator:
         for i in order[:round(len(kept) * self.holdout)]:
             kept[i].split = "holdout"
         return kept
+
+
+def _unusable(text: str, what: str) -> str:
+    """Why a reply gave nothing to use."""
+    if "[output cut off at max_tokens" in (text or ""):
+        return f"{what}: the reply was cut off at max_tokens ({text.strip()[-80:]})"
+    return f"{what} in the reply ({len(text or '')} chars)"
 
 
 def _detail(failure: dict) -> str:

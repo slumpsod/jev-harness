@@ -51,7 +51,10 @@ DEFAULTS: dict[str, Any] = {
     "test_command": "python -m pytest -q -x",
     "test_timeout": 1800,
     "fixer_persona": "high_end_dev",
-    "skip_kinds": ["stopped_by_user", "jev_unavailable"],   # not the harness's to fix
+    # not the harness's to fix; or (gate_bounce) the worker got another go and the task went on - only completion
+    # is scored, so there is no gain to measure, and the bounced answer is often right (live: 4 of 4 were), so a
+    # checker "that rejects it" is a wrong test. A bounce whose task still failed is logged again at the end.
+    "skip_kinds": ["stopped_by_user", "jev_unavailable", "gate_bounce"],
     "retry_days": 14,           # a failure group attempted within this many days isn't picked again
     "controls": None,           # control tasks file (default evals/refine_controls.json)
 }
@@ -80,17 +83,29 @@ class Refiner:
         self._log(line)
 
     # -- models ------------------------------------------------------------------------
-    def model(self) -> str:
-        """The local model that writes tests and fixes."""
+    def model_block(self) -> dict[str, Any]:
+        """The writer's model with its settings: refine.model as a block, or the block the harness already
+        runs that model with (models.strong / the personas'), so a thinking model keeps `think: unlimited`.
+        Live: a bare "provider:model" got the 8192-token default, and Qwen spent all of it thinking - no
+        variant list came back in 3 rounds and the attempt was dropped with 1 test case."""
+        from ..personas import load_personas
         m = self.s["model"]
         if isinstance(m, dict):
-            m = runner.model_id(m)
+            return dict(m)
+        personas = load_personas(self.cfg.personas_dir)
         if not m:
-            block = self.cfg.models.get("strong")
-            if not block:
-                from ..personas import load_personas
-                block = load_personas(self.cfg.personas_dir)[self.s["fixer_persona"]].model
-            m = runner.model_id(block)
+            return dict(self.cfg.models.get("strong") or personas[self.s["fixer_persona"]].model)
+        known = [b for b in (self.cfg.models.get("strong"), self.cfg.models.get("fast"),
+                             *(p.model for p in personas.values())) if b and b.get("provider") and b.get("model")]
+        block = next((dict(b) for b in known if runner.model_id(b) == m),
+                     {"provider": m.partition(":")[0], "model": m.partition(":")[2]})
+        if "think" not in block and "max_tokens" not in block:
+            block["max_tokens"] = 32768   # thinking + a JSON list of ~12 test cases
+        return block
+
+    def model(self) -> str:
+        """The local model that writes tests and fixes."""
+        m = runner.model_id(self.model_block())
         prov = self.cfg.providers.get(m.partition(":")[0])
         if prov is None or not runner.is_local(prov):
             raise RuntimeError(f"refine runs on local models only; {m} isn't one (set refine.model)")
@@ -102,8 +117,8 @@ class Refiner:
     def llm(self):
         if self._llm is None:
             from ..llm import make_llm
-            provider, _, name = self.model().partition(":")
-            self._llm = make_llm({"provider": provider, "model": name}, self.cfg.providers)
+            self.model()   # local only
+            self._llm = make_llm(self.model_block(), self.cfg.providers)
         return self._llm
 
     def judge(self) -> checks.Judge:
@@ -221,6 +236,8 @@ class Refiner:
         variants = gen.variants(f, f.get("persona") or None) if replay else []
         st["dropped"] = len(gen.dropped)
         (self.dir(st["id"]) / "dropped.json").write_text(json.dumps(gen.dropped, indent=1, ensure_ascii=False),
+                                                          encoding="utf-8")
+        (self.dir(st["id"]) / "replies.json").write_text(json.dumps(gen.replies, indent=1, ensure_ascii=False),
                                                           encoding="utf-8")
         if replay is None:
             return self._drop(st, "no checker for the failed request held up")

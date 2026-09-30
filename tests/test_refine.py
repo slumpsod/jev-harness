@@ -97,6 +97,19 @@ def test_replay_needs_a_checker_that_rejects_the_failed_answer():
     assert gen.replay(FAILURE) is None and len(gen.dropped) == 3
 
 
+def test_a_reply_cut_off_is_recorded_not_skipped_silently():
+    replay = json.dumps({"checker": {"type": "number", "value": 102}, "good_answer": "102"})
+    # cut off mid-list: the only list that parses is a checker's "checks", which holds no tasks
+    cut = ('[{"request": "What is 1% of 5?", "checker": {"type": "all", "checks": [{"type": "number", '
+           '"value": 0.05}]}, "good_answer": "0.0\n[output cut off at max_tokens: ~8000 thinking + ~150 answer tokens]')
+    gen = Generator(ScriptedLLM([replay, cut, json.dumps([variant("What is 3% of 900?", 27)])]), judge, cases=1)
+    assert gen.replay(FAILURE) is not None
+    assert [v.request for v in gen.variants(FAILURE)] == ["What is 3% of 900?"]
+    assert len(gen.dropped) == 1 and gen.dropped[0]["request"] == "(the whole reply)"
+    assert gen.dropped[0]["why"].startswith("no list of tasks: the reply was cut off at max_tokens")
+    assert [r["kind"] for r in gen.replies] == ["replay", "variants", "variants"]
+
+
 def test_parse_json_reads_through_chatter():
     assert parse_json('ok: [1, {"a": 2}] trailing') == [1, {"a": 2}]
     assert parse_json('x {"a": [1]} y', "{") == {"a": [1]}
@@ -320,6 +333,26 @@ def test_a_night_cut_short_carries_on(cfg, repo):
     assert st["stage"] == "new" and n["runs"] == 0
     done = ref.nightly(time.time() + 600)
     assert [s["stage"] for s in done] == ["proposed"]
+
+
+def test_the_writer_keeps_the_settings_the_harness_runs_its_model_with(cfg, repo):
+    from jevh.personas import load_personas
+    ref, _, _ = make_refiner(cfg, repo)
+    fixer = dict(load_personas(cfg.personas_dir)[ref.s["fixer_persona"]].model)
+    ref.cfg.models = {k: v for k, v in ref.cfg.models.items() if k != "strong"}
+    ref.s["model"] = None
+    assert ref.model_block() == fixer                                  # the fixer persona's block, all of it
+    ref.s["model"] = runner.model_id(fixer)
+    assert ref.model_block() == fixer                                  # named: the harness's block for it
+    ref.s["model"] = "lmstudio:m1"
+    assert ref.model_block() == {"provider": "lmstudio", "model": "m1", "max_tokens": 32768}   # unknown: room to think
+
+
+def test_gate_bounces_are_not_picked(cfg, repo):
+    ref, _, _ = make_refiner(cfg, repo)
+    ref.failures.record(source="gate", kind="gate_bounce", summary="final() sent back", persona="daily_assistant",
+                        request="What is 2+2?", answer="4")
+    assert {g["kind"] for g in ref.groups()} == {"gave_up"}
 
 
 def test_the_refine_model_must_be_local(cfg, repo):
