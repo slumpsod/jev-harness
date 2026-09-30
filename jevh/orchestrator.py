@@ -24,6 +24,7 @@ from .bus import Board, LimitError, Task
 from .config import Config, load_config
 from .decide import SystemOneError, noul
 from .errors import Cancelled
+from .failures import FailureLog, FailureWatch
 from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision
 from .learn import Learner, seen_text, work_log
 from .llm import LLM, make_llm
@@ -175,7 +176,18 @@ class Harness:
         self.session_dir = self.cfg.workspace / "sessions" / self.session
         self.artifacts = self.session_dir / "artifacts"
         self.current: str | None = None
-        self.on_event = _shielded(on_event or (lambda kind, data: None))
+        ui = _shielded(on_event or (lambda kind, data: None))
+        # every event also passes the failure watch, which logs what went wrong (and runs the hooks)
+        self.failures = FailureLog(self.cfg.workspace / "failures.db")
+        self.failure_watch = FailureWatch(
+            self.failures, self.cfg.raw.get("failures") or {}, self.session, self._where,
+            lambda tid: next((t for t in self.board.tasks if t.id == tid), None),
+            lambda step, state, questions: self.jev._ask(step, state, questions), ui, self.cfg.t, self.cfg.root)
+
+        def emit(kind: str, data: dict) -> None:
+            ui(kind, data)
+            self.failure_watch.on_event(kind, data)
+        self.on_event = emit
         self.model_override = model_override
         self.tier_mode = "auto"  # auto (Jev decides) | fast | strong
         self._escalated = False  # the last turn's fast model was replaced by the strong one
@@ -462,6 +474,7 @@ class Harness:
             "recall": lambda query, k=5: self._recall(query, k),
             "remember": lambda fact: self.learner.remember(str(fact), f"{self.session}/{persona.name}"),
             "ask_user": lambda question, options=None: self._ask_user(task, persona, question, options),
+            "report_failure": lambda what, detail="": self.failure_watch.report(task, what, detail),
         }
         workdir = Path(resume["workdir"]) if resume and resume.get("workdir") else \
             self.session_dir / f"u{turn_no}t{task.id}-{persona.name}"   # task ids restart every turn

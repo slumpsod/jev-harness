@@ -452,6 +452,8 @@ function handle(e) {
     case "swap": t.swaps.push({ts: e.ts, ...d}); t.activity.push({ts: e.ts, kind: "swap", text: `LM Studio: unloaded ${(d.unloaded || []).join(", ") || "nothing"} -> loaded ${d.loaded} (${secs(d.seconds)})`}); break;
     case "jev_error": t.activity.push({ts: e.ts, kind: "warn", text: `Jev unavailable during ${d.step}: ${d.error}`}); break;
     case "unwaited": t.activity.push({ts: e.ts, kind: "warn", text: `${d.task.to} never waited on a hand-off; kept its artifacts`}); break;
+    case "failure": t.activity.push({ts: e.ts, kind: "warn", text: `Failure logged #${d.failure.id} (${d.failure.source}: ${d.failure.kind}): ${d.failure.summary}`}); break;
+    case "hook_error": t.activity.push({ts: e.ts, kind: "warn", text: `Failure hook ${d.hook} broke on ${d.event}: ${d.error}`}); break;
   }
   schedule();
 }

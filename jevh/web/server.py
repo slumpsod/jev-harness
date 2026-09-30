@@ -33,7 +33,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
-from ..bus import Task
+from ..bus import jsonable, task_json
 from ..config import Config, load_config
 from ..lmstudio import gate_for
 from ..orchestrator import Harness
@@ -41,30 +41,6 @@ from ..skills import load_roster
 
 STATIC = Path(__file__).with_name("static")
 MAX_EVENTS = 5000
-
-
-# ---------------------------------------------------------------- event serialization
-
-def task_json(t: Task) -> dict[str, Any]:
-    return {"id": t.id, "parent": t.parent.id if t.parent else None, "requester": t.requester, "to": t.to,
-            "text": t.text[:600], "depth": t.depth, "status": t.status, "started": t.started,
-            "finished": t.finished, "artifacts": list(t.artifacts), "answer": t.answer[:1500]}
-
-
-def jsonable(x: Any) -> Any:
-    """Harness events carry dataclasses (Task, decisions, WorkerResult); make them JSON-safe."""
-    if isinstance(x, Task):
-        return task_json(x)
-    if dataclasses.is_dataclass(x) and not isinstance(x, type):
-        d = {f.name: getattr(x, f.name) for f in dataclasses.fields(x) if f.name != "transcript"}
-        return {k: jsonable(v) for k, v in d.items()}
-    if isinstance(x, dict):
-        return {str(k): jsonable(v) for k, v in x.items()}
-    if isinstance(x, (list, tuple, set)):
-        return [jsonable(v) for v in x]
-    if isinstance(x, (str, int, float, bool)) or x is None:
-        return x
-    return str(x)
 
 
 # ---------------------------------------------------------------- app state
@@ -348,6 +324,27 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         session = h.session if range == "session" else None
         return {"range": range, "summary": h.usage.summary(session=session, since=since),
                 "turns": h.usage.turns(session=session, limit=60)}
+
+    @app.get("/api/failures")
+    def failures(range: str = "week", kind: str | None = None, source: str | None = None,
+                 status: str | None = None, limit: int = 100) -> dict:
+        h = hub.harness
+        since = {"today": time.time() - 86400, "week": time.time() - 7 * 86400}.get(range)
+        session = h.session if range == "session" else None
+        return {"range": range, "counts": h.failures.counts(session=session, since=since),
+                "failures": [{k: v for k, v in f.items() if k != "work_log"} for f in h.failures.list(
+                    session=session, kind=kind, source=source, status=status, since=since, limit=min(limit, 500))]}
+
+    @app.post("/api/failures/status")
+    async def failure_status(request: Request) -> dict:
+        body = await request.json()
+        try:
+            ok = hub.harness.failures.set_status(int(body.get("id", 0)), str(body.get("status", "")), body.get("note"))
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        if not ok:
+            raise HTTPException(404, "no such failure")
+        return {"ok": True}
 
     @app.get("/api/thinking")
     def thinking() -> dict:

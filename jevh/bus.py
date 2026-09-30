@@ -2,6 +2,7 @@
 (depth, task count, cycles) that hold no matter what Jev says."""
 from __future__ import annotations
 
+import dataclasses
 import itertools
 import threading
 from dataclasses import dataclass, field
@@ -40,6 +41,29 @@ class Task:
     def chain(self) -> list[str]:
         """Personas currently working up the call stack, innermost last."""
         return ([] if self.parent is None else self.parent.chain()) + [self.to]
+
+
+def task_json(t: Task) -> dict[str, Any]:
+    return {"id": t.id, "parent": t.parent.id if t.parent else None, "requester": t.requester, "to": t.to,
+            "text": t.text[:600], "depth": t.depth, "status": t.status, "started": t.started,
+            "finished": t.finished, "artifacts": list(t.artifacts), "answer": t.answer[:1500]}
+
+
+def jsonable(x: Any) -> Any:
+    """Harness events carry dataclasses (Task, decisions, WorkerResult); make them JSON-safe
+    (for the dashboard and for failure hooks)."""
+    if isinstance(x, Task):
+        return task_json(x)
+    if dataclasses.is_dataclass(x) and not isinstance(x, type):
+        d = {f.name: getattr(x, f.name) for f in dataclasses.fields(x) if f.name != "transcript"}
+        return {k: jsonable(v) for k, v in d.items()}
+    if isinstance(x, dict):
+        return {str(k): jsonable(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple, set)):
+        return [jsonable(v) for v in x]
+    if isinstance(x, (str, int, float, bool)) or x is None:
+        return x
+    return str(x)
 
 
 class LimitError(RuntimeError):

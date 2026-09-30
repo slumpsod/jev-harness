@@ -38,9 +38,11 @@ python evals/browser_cases.py --live   # Jev browser agent on a local test shop 
 python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness turns (flights, tickets, forms...)
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
+python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
+python -m jevh.failures                # logged failures; `export out.jsonl` to study them
 ```
 
-CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`,
+CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`,
 `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
 `/jev` (adapter health), `/reset`, `/quit`.
 
@@ -417,6 +419,42 @@ Seen live (ornith as every worker, semif as Jev):
   top stories for "current top 5" and a skill claiming "current" was learned from it.
 - Everything runs on a background thread after the turn has returned. The Memory tab lists facts
   (with "forget"), learned skills and lesson notes. `learning: false` in config turns it all off.
+
+## Failure log
+
+Every way a task goes wrong is written to `workspace/failures.db` (`jevh/failures.py`), to improve
+the harness from later. Logging only watches the harness's events; it never changes how a task runs.
+Failures come from five sources:
+- **harness**: a crash, the step limit, a stall, going in circles (progress check), a reply cut
+  off or empty, Jev unreachable, a hand-off refused, the user pressing Stop.
+- **gate**: the final() gate sent work back (`gate_bounce`, with the answer it rejected), or
+  accepted it with problems still listed (`gate_unresolved`).
+- **jev**: after every task that ended normally, one Jev call reads the request, the answer and the
+  work log: does the answer say it couldn't (fully) do it (`gave_up`), or does it not deliver what
+  was asked (`missed_request`)? `failures.jev_check: false` turns it off. The questions aren't
+  tuned yet: run `evals/failure_cases.py` and set `failure_gave_up` / `failure_missed` from its sweep.
+- **model**: a worker calls `report_failure(what, detail)` in its REPL: a tool that misbehaved, a
+  skill or instruction that was wrong. It's logged and the worker carries on.
+- **hook**: your own checks in `failures.hooks`, run on any harness event. A hook is a shell
+  command (the event arrives as JSON on stdin; print a summary or `{kind, summary, detail}`, or
+  exit 2, to flag a failure) or a Python function `module:fn(event)`. A `done` event carries the
+  task, the result and the work log. A hook that breaks is shown, never logged as the task's failure.
+
+  ```yaml
+  failures:
+    hooks:
+      - name: no_sources
+        on: [done]
+        command: python checks/sources.py
+  ```
+
+Each row keeps the request, answer, work log, persona, model and the task's working folder (its
+`checkpoint.json` holds the whole conversation), so a failure can be studied after the session is
+gone. Rows have a triage `status` (open / reviewed / fixed / ignored) and a note.
+
+Where you see them: new failures show in the CLI and the dashboard's activity feed as they happen;
+`/failures [n|kind]` in the CLI; `GET /api/failures` and `POST /api/failures/status` on the dashboard
+server; and `python -m jevh.failures` (list, `--kind`, `export out.jsonl`, `status <id> fixed "note"`).
 
 ## Limits / next
 

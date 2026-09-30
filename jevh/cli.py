@@ -7,7 +7,7 @@ asked right here in the terminal.
 
 Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
 /project <path> (open a project folder; "/project off" closes it), /watch [on|off] (see the
-browser tool work in a visible window), /facts, /forget <id>, /usage,
+browser tool work in a visible window), /facts, /forget <id>, /usage, /failures [n|kind],
 /resume [n|list] (continue an interrupted task: stopped, step limit, stalled, crashed),
 /personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
 """
@@ -168,6 +168,14 @@ class Printer:
                           f"kept its {len(r['artifacts'])} artifact(s)[/]")
         elif kind == "jev_error":
             console.print(f"[yellow]jev unavailable during {data['step']}; degrading ({esc(data['error'][:120])})[/]")
+        elif kind == "failure":
+            f = data["failure"]
+            if f["source"] in ("jev", "model", "hook") or self.verbose:   # the harness's own are shown above
+                console.print(f"[yellow]    failure logged #{f['id']} ({f['source']}: {esc(f['kind'])}): "
+                              f"{esc(f['summary'][:140])}[/]")
+        elif kind == "hook_error":
+            console.print(f"[red]    failure hook {esc(data['hook'])} broke on {data['event']}: "
+                          f"{esc(data['error'][:160])}[/]")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -297,6 +305,17 @@ def main(argv: list[str] | None = None) -> None:
                 for m, v in s["by_model"].items():
                     console.print(f"  [dim]{esc(m)}: {v['calls']} calls, {v['input']:,} in / {v['output']:,} out "
                                   f"({v['thinking']:,} thinking), {v['seconds']:.0f}s[/]")
+            elif cmd == "failures":
+                # /failures [n | kind]: the latest logged failures (python -m jevh.failures exports them)
+                n, kind = (int(arg), None) if arg.strip().isdigit() else (15, arg.strip() or None)
+                rows = h.failures.list(kind=kind, limit=n)
+                for f in reversed(rows):
+                    when = time.strftime("%m-%d %H:%M", time.localtime(f["ts"]))
+                    console.print(f"[bold]#{f['id']}[/] [dim]{when}[/] {f['source']}: [yellow]{esc(f['kind'])}[/] "
+                                  f"[dim]{esc(f['persona'] or '-')}[/] {esc(f['summary'][:120])}")
+                counts = h.failures.counts()["by_kind"]
+                console.print(("open: " + ", ".join(f"{k} {v}" for k, v in counts.items())) if counts
+                              else "no failures logged")
             elif cmd == "facts":
                 for f in h.memory.facts(None, 50):
                     console.print(f"[bold]{f.id}[/] {esc(f.chunk())}")

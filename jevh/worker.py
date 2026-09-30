@@ -140,7 +140,8 @@ OPEN_FENCE_RE = re.compile(r"```(?:python|py)[ \t]*\n")
 XML_CALL_RE = re.compile(r"<function=(\w+)>(.*?)(?:</function>|</tool_call>|\Z)", re.DOTALL)
 XML_PARAM_RE = re.compile(r"<parameter=(\w+)>\s*(.*?)\s*(?:</parameter>|(?=<parameter=)|\Z)", re.DOTALL)
 PRIMARY = {"web": "ask", "browser": "do", "project": "find", "comfy": "run"}   # a bare "question=" etc.
-REPL_CALLS = {"final", "ask_user", "recall", "remember", "request", "save_artifact", "load_artifact", "peek"}
+REPL_CALLS = {"final", "ask_user", "recall", "remember", "request", "save_artifact", "load_artifact", "peek",
+              "report_failure"}
 
 
 FINAL_KEYS = {"answer", "answer_var", "artifacts"}
@@ -340,7 +341,8 @@ In the REPL:
 - final(answer, artifacts=None): finish.
 - Also there (help(name) shows how): start_job / job_status / job_wait (long commands in the
   background), recall / remember (past conversations; lasting facts about the user), llm_query
-  (a sub-question to a model), jev (fast typed yes/no and choice decisions).
+  (a sub-question to a model), jev (fast typed yes/no and choice decisions), report_failure(what,
+  detail) (log a tool, helper or instruction that misbehaved so the harness can be fixed; then carry on).
 Your working folder is private scratch space. Keep printed output short; write large files in
 several steps (open(path, 'a'))."""
 NATIVE_ACT = dict(act_intro="the `python` tool. Call it with code to run.",
@@ -950,7 +952,7 @@ class Worker:
         can_retry = self._bounces < self.max_bounces and step < self.persona.max_steps and self._wrap_step is None
         self.on_step("verify", {"persona": self.persona.name, "step": step, "ok": verdict.ok,
                                 "problems": verdict.problems, "checks": verdict.checks, "scores": verdict.scores,
-                                "bounced": (not verdict.ok) and can_retry})
+                                "bounced": (not verdict.ok) and can_retry, "answer": answer[:4000]})
         if verdict.ok or not can_retry:
             return False
         self._bounces += 1

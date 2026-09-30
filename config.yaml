@@ -34,6 +34,8 @@ thresholds:
   review_risk: 0.65    # cheap first pass: a changed file this risky gets a full review by the strong model (18/19, 0/18; risk_cases.py)
   review_severe: 0.20  # ...reviewed by the strong model if a mistake could be severe (15/15, 13/13 with plain code; severity_cases.py)
   learn_skill: 0.50   # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
+  failure_gave_up: 0.85  # failure log's Jev check: "the answer says it couldn't (fully) do it" (not tuned yet:
+  failure_missed: 0.85   # evals/failure_cases.py) ... "the answer doesn't deliver what was asked"
 
 limits:
   max_skills: 1                 # evals: every extra skill was mostly noise
@@ -71,6 +73,19 @@ verify:
   review_tier: auto        # the reviewer: auto (Jev: strong if a mistake could be severe - access, secrets,
                            # data loss, money - else fast) | strong | fast. Live: Qwen ~5 min, fast ~7 s
   # project_command: python -m pytest -q   # tests to run when a worker changed project files (default: detected)
+
+# Failure log (jevh/failures.py): what went wrong in each task, kept in workspace/failures.db to improve
+# the harness from. The harness's own signals (crash, step limit, stall, final() gate, ...) are always
+# logged; a worker can log one with report_failure(); `python -m jevh.failures` lists and exports them.
+failures:
+  enabled: true
+  jev_check: true          # after each task, Jev judges the answer: gave up / doesn't deliver what was asked
+  hooks: []                # your own checks, run on harness events (see jevh/failures.py), e.g.
+  #  - name: no_sources
+  #    on: [done]                           # event kinds; "*" = every event
+  #    command: python checks/sources.py    # event JSON on stdin; print a summary (or exit 2) to flag a failure
+  #  - on: [output]
+  #    python: checks.repl:bad_output       # fn(event) -> None | str | {kind, summary, detail} | list
 
 # Cost per million tokens for paid models (usage tracking); local models cost nothing.
 prices: {}

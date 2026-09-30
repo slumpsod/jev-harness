@@ -215,3 +215,18 @@ def test_live_thinking_of_the_running_turn(cfg):
         r = client.get("/api/thinking", headers=auth()).json()
     assert r["file"] == "u1t1-daily_assistant/step-03.txt" and r["text"].endswith("mirrors rows")
     assert len(r["text"]) <= 4000 and r["bytes"] > 5000
+
+
+def test_failures_api_lists_and_triages(cfg):
+    client, app = make_client(cfg, [py("print(report_failure('comfy.run hung with no error'))"), py("final('ok')")])
+    client.post("/api/chat", json={"message": "make an image"}, headers=auth())
+    wait_done(client)
+    got = client.get("/api/failures?range=session", headers=auth()).json()
+    [f] = got["failures"]
+    assert (f["source"], f["kind"], f["status"]) == ("model", "reported", "open") and "work_log" not in f
+    assert got["counts"]["by_kind"] == {"reported": 1}
+    assert client.post("/api/failures/status", json={"id": f["id"], "status": "bogus"}, headers=auth()).status_code == 400
+    assert client.post("/api/failures/status", json={"id": 999, "status": "fixed"}, headers=auth()).status_code == 404
+    assert client.post("/api/failures/status", json={"id": f["id"], "status": "fixed", "note": "timeout added"},
+                       headers=auth()).json() == {"ok": True}
+    assert client.get("/api/failures?status=fixed", headers=auth()).json()["failures"][0]["note"] == "timeout added"

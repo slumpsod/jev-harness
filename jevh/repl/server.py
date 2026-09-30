@@ -96,6 +96,12 @@ def remember(fact: str) -> str:
     return _call("remember", fact)
 
 
+def report_failure(what: str, detail: str = "") -> str:
+    """Log something that went wrong so the harness can be improved: a tool or helper that misbehaved,
+    an instruction or skill that was wrong, an approach that failed and why. Then carry on."""
+    return _call("report_failure", str(what), str(detail))
+
+
 _JOBS: dict = {}
 
 
@@ -240,7 +246,7 @@ G: dict = {"__name__": "__main__", "ctx": {}, "peek": peek, "llm_query": llm_que
            "save_artifact": save_artifact, "load_artifact": load_artifact,
            "list_artifacts": list_artifacts, "final": final, "mcp": mcp, "recall": recall,
            "remember": remember, "ask_user": ask_user, "start_job": start_job, "job_status": job_status,
-           "job_wait": job_wait}
+           "job_wait": job_wait, "report_failure": report_failure}
 _BUILTINS = set(G)   # the harness's own helpers: never snapshotted (they come back with the REPL)
 
 
