@@ -36,6 +36,7 @@ Any other non-zero exit, or an exception, is the hook's own error: shown, never 
     python -m jevh.failures --kind gate_bounce -n 50
     python -m jevh.failures export failures.jsonl    # everything, one JSON object per line
     python -m jevh.failures status 12 fixed "gate wording changed"
+    python -m jevh.failures add bad_artifact "handed over the file name, not the file" --workdir <task folder>
 """
 from __future__ import annotations
 
@@ -389,6 +390,27 @@ class FailureWatch:
 
 # ---------------------------------------------------------------- command line
 
+def from_workdir(workdir: Path) -> dict[str, Any]:
+    """What a task's folder tells about it (its checkpoint.json): request, persona, session, work log,
+    and the answer it handed to final() - to log a failure that no detector caught."""
+    from .learn import work_log
+    cp = json.loads((Path(workdir) / "checkpoint.json").read_text(encoding="utf-8"))
+    msgs = cp.get("messages") or []
+    answer = ""
+    for m in msgs:
+        for call in m.get("tool_calls") or []:
+            fn = call.get("function") or {}
+            if fn.get("name") == "final":
+                try:
+                    answer = str(json.loads(fn.get("arguments") or "{}").get("answer") or answer)
+                except ValueError:
+                    pass
+    return {"request": cp.get("task_text", ""), "persona": cp.get("persona", ""), "answer": answer,
+            "session": Path(workdir).resolve().parent.name, "workdir": str(Path(workdir).resolve()),
+            # (the checkpoint keeps no system message; work_log skips the first two)
+            "work_log": work_log([{"role": "system", "content": ""}, *msgs], answer=answer or None) if msgs else ""}
+
+
 def main(argv: list[str] | None = None) -> int:
     from .config import load_config
     ap = argparse.ArgumentParser(prog="python -m jevh.failures", description="The harness's failure log.")
@@ -404,8 +426,24 @@ def main(argv: list[str] | None = None) -> int:
     st.add_argument("id", type=int)
     st.add_argument("status", choices=STATUSES)
     st.add_argument("note", nargs="?")
+    ad = sub.add_parser("add", help="log a failure no detector caught (source: user)")
+    ad.add_argument("kind", help="a short slug, e.g. bad_artifact")
+    ad.add_argument("summary")
+    ad.add_argument("--workdir", help="the task's folder (has checkpoint.json): fills request, persona, work log")
+    for opt in ("request", "answer", "persona", "model", "detail", "session"):
+        ad.add_argument(f"--{opt}")
     a = ap.parse_args(argv)
     log = FailureLog(load_config(a.config).workspace / "failures.db")
+    if a.cmd == "add":
+        row = from_workdir(Path(a.workdir)) if a.workdir else {}
+        row.update({k: getattr(a, k) for k in ("request", "answer", "persona", "model", "detail", "session")
+                    if getattr(a, k) is not None})
+        if not (row.get("request") or "").strip():
+            print("give --request or --workdir: refine replays the request")
+            return 1
+        f = log.record(source="user", kind=a.kind, summary=a.summary, **row)
+        print(f"#{f['id']} {a.kind} logged")
+        return 0
     if a.cmd == "export":
         print(f"{log.export(Path(a.path), a.status)} failures -> {a.path}")
         return 0

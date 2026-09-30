@@ -175,3 +175,25 @@ def test_command_line_lists_exports_and_triages(cfg, tmp_path, capsys, monkeypat
     assert log.list()[0]["status"] == "reviewed"
     assert main(["export", str(tmp_path / "x.jsonl")]) == 0
     assert json.loads((tmp_path / "x.jsonl").read_text(encoding="utf-8"))["kind"] == "stalled"
+
+
+def test_a_missed_failure_is_added_from_the_task_folder(cfg, tmp_path, capsys, monkeypatch):
+    task = tmp_path / "sessions" / "20260930-120314-a809" / "u1t1-high_end_dev"
+    task.mkdir(parents=True)
+    final = {"id": "c2", "type": "function", "function": {"name": "final", "arguments": json.dumps(
+        {"answer": "CSV of the 8 planets", "artifacts": ["planets.csv"]})}}
+    (task / "checkpoint.json").write_text(json.dumps({"persona": "high_end_dev", "task_text": "Give me planets.csv",
+        "messages": [{"role": "user", "content": "Give me planets.csv"},
+                     {"role": "assistant", "content": "", "tool_calls": [{"id": "c1", "type": "function", "function": {
+                         "name": "python", "arguments": json.dumps({"code": "save_artifact('planets.csv', 'planets.csv')"})}}]},
+                     {"role": "tool", "tool_call_id": "c1", "content": "artifacts/planets.csv"},
+                     {"role": "assistant", "content": "", "tool_calls": [final]}]}), encoding="utf-8")
+    monkeypatch.setattr("jevh.config.load_config", lambda path=None: cfg)
+    assert main(["add", "bad_artifact", "handed over the name, not the file", "--workdir", str(task),
+                 "--model", "ornith"]) == 0
+    f = FailureLog(cfg.workspace / "failures.db").list()[0]
+    assert (f["source"], f["kind"], f["persona"], f["model"], f["session"]) == \
+        ("user", "bad_artifact", "high_end_dev", "ornith", "20260930-120314-a809")
+    assert f["request"] == "Give me planets.csv" and f["answer"] == "CSV of the 8 planets"
+    assert "save_artifact('planets.csv', 'planets.csv')" in f["work_log"]
+    assert main(["add", "x", "no request given"]) == 1
