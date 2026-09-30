@@ -1,0 +1,62 @@
+# Nango on this machine, for the harness's `nango` tool (SETUP.md, "Connected accounts").
+# The free self-hosted edition is Nango's auth + proxy, which is all the tool uses.
+#
+#   cp .env.example .env      # then put a key in it: openssl rand -base64 32
+#   docker compose up -d      # dashboard: http://localhost:3003
+#
+# Adapted from github.com/NangoHQ/nango/blob/master/docker-compose.yaml:
+# - every port is bound to 127.0.0.1. The stock file publishes Postgres (password "nango"), Redis
+#   and the API on all interfaces, so anyone on the network could reach them; here the secret key
+#   only works from this machine.
+# - no providers.yaml mount (it needs a checkout of the Nango repo; the image has its own copy)
+# - the database lives in a named volume (a Windows folder bind mount trips up Postgres permissions)
+name: jev-nango
+
+services:
+  nango-db:
+    image: postgres:16.0-alpine
+    environment:
+      POSTGRES_USER: nango
+      POSTGRES_PASSWORD: nango
+      POSTGRES_DB: nango
+    volumes:
+      - nango-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  nango-redis:
+    image: redis:7.2.4
+    restart: unless-stopped
+
+  nango-server:
+    # "hosted" follows Nango's latest release; pin a tag from hub.docker.com/r/nangohq/nango-server/tags
+    # if an update ever breaks something
+    image: nangohq/nango-server:hosted
+    platform: linux/amd64        # Apple silicon: runs under Rosetta (Docker Desktop > Settings > General)
+    environment:
+      NANGO_ENCRYPTION_KEY: ${NANGO_ENCRYPTION_KEY:?put a key in nango/.env (openssl rand -base64 32)}
+      NANGO_DB_HOST: nango-db
+      NANGO_DB_USER: nango
+      NANGO_DB_PASSWORD: nango
+      NANGO_DB_NAME: nango
+      RECORDS_DATABASE_URL: postgresql://nango:nango@nango-db:5432/nango
+      SERVER_PORT: 3003
+      NANGO_SERVER_URL: http://localhost:3003          # OAuth redirect: http://localhost:3003/oauth/callback
+      NANGO_PUBLIC_SERVER_URL: http://localhost:3000   # (the stock default)
+      FLAG_SERVE_CONNECT_UI: "true"                    # the page connect links open, on :3009
+      CSP_REPORT_ONLY: "true"
+      NANGO_LOGS_ENABLED: "false"
+      LOG_LEVEL: info
+      # dashboard login (nango/.env): FLAG_AUTH_ENABLED=false drops Nango's accounts; then an optional
+      # NANGO_DASHBOARD_USERNAME/PASSWORD pair puts the dashboard behind a browser password prompt
+      FLAG_AUTH_ENABLED: ${FLAG_AUTH_ENABLED:-true}
+      NANGO_DASHBOARD_USERNAME: ${NANGO_DASHBOARD_USERNAME:-}
+      NANGO_DASHBOARD_PASSWORD: ${NANGO_DASHBOARD_PASSWORD:-}
+    ports:
+      - "127.0.0.1:3003:3003"
+      - "127.0.0.1:3009:3009"
+    depends_on:
+      - nango-db
+    restart: unless-stopped
+
+volumes:
+  nango-data:

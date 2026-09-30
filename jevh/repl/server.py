@@ -379,6 +379,8 @@ def main() -> None:
                 try:
                     G[alias] = importlib.import_module(module)
                     sys.modules.setdefault(alias, G[alias])  # so `import comfy` works too
+                    if hasattr(G[alias], "_host"):   # a tool that asks the harness (browser.look -> the model)
+                        G[alias]._host = _call
                 except Exception as e:  # noqa: BLE001
                     out.append(f"tool {alias} ({module}) failed to import: {e}")
                     err = True

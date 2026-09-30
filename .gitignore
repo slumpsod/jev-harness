@@ -6,3 +6,4 @@ evals/bench/data/
 evals/bench/runs/
 config.local.yaml
 *.egg-info/
+nango/.env

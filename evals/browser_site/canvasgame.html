@@ -1,0 +1,12 @@
+<!doctype html><html><head><title>Canvas game</title></head><body>
+<!-- play2048.co's pattern: the board is drawn on a canvas, so no text or HTML shows it, and a move that
+     scores nothing changes no text at all -->
+<h1>Tiles</h1><p>Score: <span id="score">0</span></p>
+<canvas id="c" width="600" height="600"></canvas>
+<script>
+const ctx = document.getElementById("c").getContext("2d");
+let x = 0;
+const draw = () => { ctx.fillStyle = "#eee"; ctx.fillRect(0, 0, 600, 600); ctx.fillStyle = "#e67"; ctx.fillRect(x, 250, 100, 100); };
+draw();
+document.addEventListener("keydown", e => { if (e.key === "ArrowRight") { x = (x + 100) % 600; draw(); } });
+</script></body></html>

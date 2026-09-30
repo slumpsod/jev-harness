@@ -11,7 +11,7 @@ skills_allowed: [daily-*, appointment-*, email-*, gmail-*, google-workspace*, gw
                  document-tools, eco-insulation-quotes, "*payroll*", openhue, roku-ecp,
                  web-research-workflow, radon-mitigation-study, journalist, serpapi-image-search,
                  pokemon-player, ideation, learned-*]
-tools: [web, browser]
+tools: [web, browser, nango]
 mcp: ["*"]
 can_request: ["*"]
 max_steps: 30

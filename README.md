@@ -52,7 +52,7 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
   `model` picks the provider from `config.yaml` (an optional `fallback:` is used if the primary errors);
   `skills_allowed` holds globs over the skill roster; `can_request` lists who it may delegate to (Jev's
   collaborator suggestions add to this per turn); `tools` are modules from `jevh/tools/` pre-imported
-  into its REPL (`web`, `browser`, `project`, `comfy`); `mcp` holds globs over MCP tools ("server.tool");
+  into its REPL (`web`, `browser`, `project`, `nango`, `comfy`); `mcp` holds globs over MCP tools ("server.tool");
   `code: false` makes it a plain chat persona.
 - **MCP server**: add it under `mcp_servers:` in `config.yaml` (`command`, `args`, `env`) and give a persona
   `mcp: ["server.*"]`. Servers start on first use.
@@ -89,7 +89,7 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
 | Skill picking | `skill_cases.py`, 63 requests (your 52 Hermes-router cases + 11) | 94% right skill, 93% correct "no skill", 3 needless | ~1.5s |
 | Memory gating | `memory_cases.py`, 18 requests over an 18-turn history | 95% of needed turns passed, 0 leaks | ~1.5s |
 | Model tier (fast/strong) | `tier_cases.py`, 39 tasks + 15 held out | 100% and 15/15, 0 hard tasks sent fast | ~0.2s |
-| Tool guides | `tool_cases.py`, 42 requests x 4 tools | 40/42 exact, 0 needless | ~0.6s |
+| Tool guides | `tool_cases.py`, 54 requests x 5 tools | 50/54 exact, 3 needless (nango: 10/10 picked, 1 needless) | ~0.3s |
 | final() answer check | `verify_cases.py`, 22 tuning + 2 held-out sets of 12 | 12/12 tuning; fresh held-out 4/6 bad caught, 0 false alarms | ~0.3s |
 | Progress check (long tasks) | `progress_cases.py`, 14 work logs | 6/6 stalls caught, 0/8 healthy runs interrupted | every 8 steps |
 | Browser agent | `browser_cases.py`, 16 tuning + 12 held-out + 2 Wikipedia goals | 29-30/30, 0 false "done" | ~2.3s per goal |
@@ -313,7 +313,7 @@ don't ask for brevity either (a new turn still drops a learning call in progress
 - Background learning yields to you: starting a new turn drops a learning call still in progress
   (on Qwen, writing a skill thought ~1100-1400 hidden tokens, 45-60s, while you'd be waiting).
 
-## Tools: web, browser, project, MCP
+## Tools: web, browser, project, nango, MCP
 
 A persona lists its tools; per task Jev decides which tools' guides go into the prompt (one noul
 each, ~0.6s for four; `thresholds.tool`). The rest are still importable and named in one line, so a
@@ -382,6 +382,23 @@ missed pick costs one `help(name)`, not the capability. The Inspector shows the 
     for `undo()`.
   - `sh(cmd)`: runs a command in the project folder.
   - Only personas that list it (dev and designer) get it, and only while a project is open.
+- **nango**: the user's own accounts (Gmail, Google Calendar and Drive, GitHub, Slack, Notion, HubSpot,
+  and ~700 other APIs) through [Nango](https://github.com/NangoHQ/nango). Nango holds the OAuth tokens
+  and refreshes them. The worker calls each app's own REST API through Nango's proxy
+  (`nango.get("google-mail", "/gmail/v1/users/me/messages", {...})`), so no token reaches a prompt.
+  - Setup: [SETUP.md](SETUP.md#connected-accounts-nango). It's offered only when `NANGO_SECRET_KEY` is set,
+    and Jev's tool pick sees which accounts are connected ("my calendar" with Google Calendar connected).
+  - **Changes are approved by the user, not the model.** A POST/PUT/PATCH/DELETE that isn't a search or
+    query goes to the user as a question (`Allow` / `Allow all <app> changes this task` / `Don't allow`)
+    showing the method, path, params and body. A request with `base_url=` (Nango then sends your token to
+    that host) is always asked, even a read. It's asked from inside the tool, so the worker can't approve itself,
+    and an email it read can't talk it into forwarding the inbox. `tools.nango_writes: deny` turns
+    changes off; `allow` skips the question.
+  - Not connected yet: `nango.connect("notion")` returns a Connect link the worker hands to the user.
+  - Limit: this gate guards the tool's normal path, not a sandbox. The worker's REPL can read
+    `NANGO_SECRET_KEY` from its environment, like any other key the harness runs with.
+  - Tool pick (`tool_cases.py`, live on semif): all 10 account requests scored >= 0.99 (a draft email 0.87),
+    everything else <= 0.25 except "how do I use the Gmail API from Python" (1.00, a needless guide).
 - **MCP**: stdio JSON-RPC client (`jevh/mcp.py`). The servers' tools form one catalog, and Jev picks
   the few that fit a task (Choice + fits noul, like skills). Only those signatures reach the prompt:
   `mcp("server.tool", arg=value)`. A broken server is reported and skipped.
