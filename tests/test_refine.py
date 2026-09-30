@@ -335,17 +335,19 @@ def test_a_night_cut_short_carries_on(cfg, repo):
     assert [s["stage"] for s in done] == ["proposed"]
 
 
-def test_the_writer_keeps_the_settings_the_harness_runs_its_model_with(cfg, repo):
-    from jevh.personas import load_personas
+def test_the_writer_keeps_the_settings_the_harness_runs_its_model_with(cfg, repo, monkeypatch):
+    from types import SimpleNamespace
     ref, _, _ = make_refiner(cfg, repo)
-    fixer = dict(load_personas(cfg.personas_dir)[ref.s["fixer_persona"]].model)
+    fixer = {"provider": "lmstudio", "model": "q@q6", "think": "unlimited", "temperature": 0.3}
+    monkeypatch.setattr("jevh.personas.load_personas", lambda d: {ref.s["fixer_persona"]: SimpleNamespace(model=fixer)})
     ref.cfg.models = {k: v for k, v in ref.cfg.models.items() if k != "strong"}
+    want = {"provider": "lmstudio", "model": "q@q6", "temperature": 0.3, "max_tokens": 32768}   # a budget, not unlimited
     ref.s["model"] = None
-    assert ref.model_block() == fixer                                  # the fixer persona's block, all of it
-    ref.s["model"] = runner.model_id(fixer)
-    assert ref.model_block() == fixer                                  # named: the harness's block for it
-    ref.s["model"] = "lmstudio:m1"
-    assert ref.model_block() == {"provider": "lmstudio", "model": "m1", "max_tokens": 32768}   # unknown: room to think
+    assert ref.model_block() == want                                   # the fixer persona's block
+    ref.s["model"] = "lmstudio:q@q6"
+    assert ref.model_block() == want                                   # named: the harness's block for it
+    ref.s["model"], ref.s["max_tokens"] = "lmstudio:m1", 16000
+    assert ref.model_block() == {"provider": "lmstudio", "model": "m1", "max_tokens": 16000}
 
 
 def test_gate_bounces_are_not_picked(cfg, repo):

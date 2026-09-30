@@ -35,6 +35,7 @@ from .generate import Generator
 
 DEFAULTS: dict[str, Any] = {
     "model": None,              # "provider:model" that writes tests and fixes (local only)
+    "max_tokens": 32768,        # per test-writing reply, thinking included (the fixer's turn uses its persona's)
     "models": None,             # models the cases run on (default: every local model in the config)
     "discover": False,          # also every chat model LM Studio lists
     "cases": 10,                # variants to write per failure (plus the replayed failure itself)
@@ -85,22 +86,25 @@ class Refiner:
     # -- models ------------------------------------------------------------------------
     def model_block(self) -> dict[str, Any]:
         """The writer's model with its settings: refine.model as a block, or the block the harness already
-        runs that model with (models.strong / the personas'), so a thinking model keeps `think: unlimited`.
+        runs that model with (models.strong / the personas'), with refine.max_tokens as its budget.
         Live: a bare "provider:model" got the 8192-token default, and Qwen spent all of it thinking - no
-        variant list came back in 3 rounds and the attempt was dropped with 1 test case."""
+        variant list came back in 3 rounds and the attempt was dropped with 1 test case. `think: unlimited`
+        isn't kept either: nothing watches these calls, and one thought for 30+ minutes on a single reply."""
         from ..personas import load_personas
         m = self.s["model"]
         if isinstance(m, dict):
-            return dict(m)
-        personas = load_personas(self.cfg.personas_dir)
-        if not m:
-            return dict(self.cfg.models.get("strong") or personas[self.s["fixer_persona"]].model)
-        known = [b for b in (self.cfg.models.get("strong"), self.cfg.models.get("fast"),
-                             *(p.model for p in personas.values())) if b and b.get("provider") and b.get("model")]
-        block = next((dict(b) for b in known if runner.model_id(b) == m),
-                     {"provider": m.partition(":")[0], "model": m.partition(":")[2]})
-        if "think" not in block and "max_tokens" not in block:
-            block["max_tokens"] = 32768   # thinking + a JSON list of ~12 test cases
+            block = dict(m)
+        else:
+            personas = load_personas(self.cfg.personas_dir)
+            if not m:
+                block = dict(self.cfg.models.get("strong") or personas[self.s["fixer_persona"]].model)
+            else:
+                known = [b for b in (self.cfg.models.get("strong"), self.cfg.models.get("fast"),
+                                     *(p.model for p in personas.values())) if b and b.get("provider") and b.get("model")]
+                block = next((dict(b) for b in known if runner.model_id(b) == m),
+                             {"provider": m.partition(":")[0], "model": m.partition(":")[2]})
+        block.pop("think", None)
+        block["max_tokens"] = int(self.s["max_tokens"])
         return block
 
     def model(self) -> str:
