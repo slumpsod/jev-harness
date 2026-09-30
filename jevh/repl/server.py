@@ -175,6 +175,10 @@ def request_all(jobs: list) -> list:
 def save_artifact(name: str, data=None, path: str | None = None) -> str:
     """Save bytes/str/JSON-able data, or copy a file, into the shared artifact store."""
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    if path is None and isinstance(data, str) and "\n" not in data and 0 < len(data) < 260 and Path(data).is_file():
+        # save_artifact("planets.csv", "planets.csv") means that file: saving its name as the content handed
+        # the user an 11-byte file reading "planets.csv" while the real CSV sat in the working dir (live)
+        path = data
     dest = ARTIFACTS / Path(name).name
     if path is not None and not dest.suffix and Path(path).suffix:
         dest = dest.with_suffix(Path(path).suffix)  # keep ".html" etc. so the file opens

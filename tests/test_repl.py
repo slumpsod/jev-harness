@@ -33,6 +33,15 @@ def test_final_and_artifacts(tmp_path):
         assert (tmp_path / "a" / "note.txt").read_text() == "hello"
 
 
+def test_save_artifact_given_a_file_name_as_data_saves_that_file(tmp_path):
+    with make(tmp_path) as r:   # live: save_artifact('planets.csv', 'planets.csv') saved the name as the CSV
+        r.run("open('planets.csv', 'w').write('name,order\\nMercury,1\\n')")
+        r.run("p = save_artifact('planets.csv', 'planets.csv')\nfinal('ok', ['planets.csv'])")
+        assert (tmp_path / "a" / "planets.csv").read_text() == "name,order\nMercury,1\n"
+        r.run("save_artifact('hello.txt', 'no such file.txt')")   # not a file: still text
+        assert (tmp_path / "a" / "hello.txt").read_text() == "no such file.txt"
+
+
 def test_timeout_restarts_quickly(tmp_path):
     with make(tmp_path) as r:
         r.run("keep = 1")

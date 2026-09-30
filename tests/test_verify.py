@@ -51,6 +51,19 @@ def test_files_are_checked(cfg, tmp_path):
     assert "Email" not in problems  # a placeholder= attribute on an input is fine
 
 
+def test_a_file_holding_only_a_file_name_is_caught(cfg, tmp_path):
+    v = verifier(cfg)
+    (tmp_path / "planets.csv").write_text("planets.csv", encoding="utf-8")        # live: its own name as content
+    (tmp_path / "report.md").write_text("C:\\work\\out\\report_final.md", encoding="utf-8")
+    problems = " | ".join(v.check("hand them over", "Here they are.", [str(tmp_path / "planets.csv"),
+                                                                        str(tmp_path / "report.md")], "").problems)
+    assert "planets.csv holds only 'planets.csv'" in problems and "report.md holds only" in problems
+    for name, text in (("link.txt", "https://example.org/page.html"), ("version.txt", "v1.2"),
+                       ("row.csv", "name,age"), ("note.txt", "Done.")):
+        (tmp_path / name).write_text(text, encoding="utf-8")
+        assert not any("holds only" in p for p in v.check("x", "ok", [str(tmp_path / name)], "").problems), name
+
+
 def test_clean_files_and_a_good_answer_pass(cfg, tmp_path):
     (tmp_path / "app.py").write_text("print('hi')\n", encoding="utf-8")
     v = verifier(cfg).check("write a script", "Here's app.py; it prints hi.", [str(tmp_path / "app.py")],

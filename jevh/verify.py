@@ -87,6 +87,19 @@ BROWSER_CLAIM = re.compile(r"\b(?:checked|tested|verified|opened|previewed|confi
 IMAGE_MAGIC = {".png": b"\x89PNG", ".jpg": b"\xff\xd8", ".jpeg": b"\xff\xd8", ".gif": b"GIF8", ".webp": b"RIFF"}
 
 
+FILE_NAME = re.compile(r"[\w .()~\\/:-]{0,250}\.[A-Za-z0-9]{1,5}")
+
+
+def _names_a_file(text: str, p: Path) -> bool:
+    """A deliverable whose whole content is a file name or path (its own, or one of its kind) - a file's name
+    saved as its content: save_artifact("planets.csv", "planets.csv") (live, 2026-09-30)."""
+    if not text or "\n" in text or re.match(r"[a-z]+://", text, re.I) or not FILE_NAME.fullmatch(text):
+        return False
+    named = Path(text.replace("\\", "/"))
+    return named.name.lower() == p.name.lower() or named.suffix.lower() == p.suffix.lower() or "/" in text \
+        or "\\" in text
+
+
 @dataclass
 class Verdict:
     ok: bool
@@ -249,6 +262,9 @@ class Verifier:
             return []
         text = p.read_text(encoding="utf-8", errors="replace")
         problems = []
+        if _names_a_file(text.strip(), p):
+            return [f"{p.name} holds only {text.strip()[:120]!r} - a file name, not the file's content. Hand over "
+                    f"the file itself: save_artifact('{p.name}', path=<its path>), or list its path in final()."]
         if ext == ".py":
             try:
                 compile(text, p.name, "exec")
