@@ -22,6 +22,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
@@ -115,21 +116,44 @@ def check(spec: dict, answer: str, artifacts: list[str] | None = None, request: 
     raise CheckerError(f"unknown checker type {t!r}")
 
 
-def discriminates(spec: dict, good: str, bad: str, request: str = "", judge: Judge | None = None) -> tuple[bool, str]:
-    """A checker is kept only if it passes `good` and fails `bad` and a plain refusal."""
+def discriminates(spec: dict, good: str, bad: str, request: str = "", judge: Judge | None = None,
+                  good_files: dict | None = None) -> tuple[bool, str]:
+    """A checker is kept only if it passes `good` and fails `bad` and a plain refusal. `good_files`
+    ({name: content}): what a correct run hands over, written to disk so file checks read real files.
+    (Live: a python checker that looked for file contents in `artifacts` - which holds paths - passed a
+    text-only good answer, then failed the real, correct planets.csv.)"""
     errs = problems(spec)
     if errs:
         return False, "; ".join(errs)
     try:
-        ok, why = check(spec, good, [], request, judge, files_assumed=True)
-        if not ok:
-            return False, f"rejects the good answer ({why})"
+        with tempfile.TemporaryDirectory() as d:
+            paths = _write_files(Path(d), good_files)
+            ok, why = check(spec, good, paths, request, judge, files_assumed=not paths)
+            if not ok:
+                return False, f"rejects the good answer ({why})"
+            if paths:   # a correct run's answer often only names the file: the file must be enough
+                names = ", ".join(Path(p).name for p in paths)
+                if not check(spec, f"Here is {names}.", paths, request, judge)[0]:
+                    return False, ("passes only when the answer text repeats the file's content; check the file "
+                                   "(artifacts holds its path)")
         for b in [bad, *REFUSALS]:
             if b and check(spec, b, [], request, judge)[0]:
                 return False, f"accepts a bad answer: {b[:80]!r}"
     except Exception as e:  # noqa: BLE001 - a broken generated checker is just not used
         return False, f"{type(e).__name__}: {e}"
     return True, "ok"
+
+
+def _write_files(folder: Path, files: dict | None) -> list[str]:
+    paths = []
+    for name, content in (files or {}).items() if isinstance(files, dict) else []:
+        p = folder / (Path(str(name)).name or "file")
+        if isinstance(content, str):
+            p.write_text(content, encoding="utf-8")
+        else:
+            p.write_text(json.dumps(content), encoding="utf-8")
+        paths.append(str(p))
+    return paths
 
 
 def describe(spec: dict) -> str:

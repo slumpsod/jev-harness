@@ -18,12 +18,15 @@ CHECKER_TYPES = """Checker types (JSON):
   {"type": "regex", "pattern": "..."}
   {"type": "number", "value": 412, "tolerance": 0.5}   a number in the answer, within tolerance
   {"type": "json_equals", "value": [...]}        the answer is exactly this JSON
-  {"type": "artifact", "name": "*.html", "contains": "..."}   the task hands over such a file
-  {"type": "python", "code": "def check(answer, artifacts):\\n    return ..."}   True/False from the answer text
+  {"type": "artifact", "name": "*.html", "contains": "..."}   the task hands over such a file (read from disk)
+  {"type": "python", "code": "def check(answer, artifacts):\\n    return ..."}   True/False; `answer` is the reply
+      text, `artifacts` a list of the handed-over files' PATHS (strings) - open(path) to read one
   {"type": "jev", "question": "Does `answer` ...?", "min": 0.7}   a yes/no judgement of the answer (last resort)
   {"type": "all", "checks": [...]}  /  {"type": "any", "checks": [...]}
 Prefer exact checks (number, contains, json_equals, artifact). Check what a correct result must
-contain, not the wording. A checker must pass good_answer and fail bad_answer and a refusal."""
+contain, not the wording. When the task hands over a file, check the file (artifact, or python reading
+the paths), not the answer text: a correct run's answer often just names the file. A checker must pass
+good_answer and fail bad_answer and a refusal."""
 
 REPLAY_PROMPT = """An AI assistant harness failed a task. Write a checker that decides whether an answer to \
 the SAME request succeeds.
@@ -37,7 +40,8 @@ Why it counts as a failure: {kind} - {summary}
 {types}
 
 Reply with ONLY a JSON object: {{"checker": {{...}}, "good_answer": "<a short answer that does the task and \
-passes your checker>"}}"""
+passes your checker>", "good_files": {{"<name.ext>": "<content>"}}}}   (good_files: what a correct run hands over, \
+only if the task hands over files; they are written to disk and your checker must pass them)"""
 
 VARIANTS_PROMPT = """An AI assistant harness failed a task. Write {n} NEW test tasks that would hit the same \
 weakness, so a fix can be tested on more than this one case.
@@ -59,7 +63,9 @@ Rules:
 {types}
 
 Reply with ONLY a JSON list: [{{"request": "...", "checker": {{...}}, "good_answer": "a short correct answer \
-that passes the checker", "bad_answer": "an answer that shows the same failure and must fail the checker"}}, ...]"""
+that passes the checker", "good_files": {{"<name.ext>": "<content>"}}, "bad_answer": "an answer that shows the same \
+failure and must fail the checker"}}, ...]   (good_files: only for tasks that hand over files - what a correct run \
+hands over; your checker must pass them)"""
 
 
 BATCH = 6   # variants asked for per reply
@@ -110,11 +116,12 @@ class Generator:
                 self.dropped.append({"request": failure["request"][:200], "why": _unusable(text, "no checker"),
                                      "reply": True})
                 continue
+            files = _files(got)
             ok, why = checks.discriminates(got["checker"], str(got.get("good_answer", "")),
-                                           failure.get("answer") or "", failure["request"], self.judge)
+                                           failure.get("answer") or "", failure["request"], self.judge, files)
             if ok:
                 return Case("replay", failure["request"], got["checker"], "dev", "replay", failure.get("persona") or None,
-                            str(got.get("good_answer", "")), failure.get("answer") or "")
+                            str(got.get("good_answer", "")), failure.get("answer") or "", files)
             self.dropped.append({"request": failure["request"][:200], "why": why})
         return None
 
@@ -151,14 +158,15 @@ class Generator:
                 if _norm(req) in seen:
                     self.dropped.append({"request": req[:200], "why": "a duplicate"})
                     continue
+                files = _files(item)
                 ok, why = checks.discriminates(item.get("checker"), str(item.get("good_answer", "")),
-                                               str(item.get("bad_answer", "")), req, self.judge)
+                                               str(item.get("bad_answer", "")), req, self.judge, files)
                 if not ok:
                     self.dropped.append({"request": req[:200], "why": why})
                     continue
                 seen.add(_norm(req))
                 kept.append(Case(f"v{len(kept) + 1}", req, item["checker"], "dev", "variant", persona,
-                                 str(item.get("good_answer", "")), str(item.get("bad_answer", ""))))
+                                 str(item.get("good_answer", "")), str(item.get("bad_answer", "")), files))
                 if len(kept) >= self.n:
                     break
         # held out at random (seeded: the same attempt splits the same way when it resumes)
@@ -167,6 +175,14 @@ class Generator:
         for i in order[:round(len(kept) * self.holdout)]:
             kept[i].split = "holdout"
         return kept
+
+
+def _files(item: dict) -> dict[str, str]:
+    """The reply's good_files, as {name: text}."""
+    files = item.get("good_files")
+    if not isinstance(files, dict):
+        return {}
+    return {str(k): v if isinstance(v, str) else json.dumps(v) for k, v in files.items() if str(k).strip()}
 
 
 def _unusable(text: str, what: str) -> str:

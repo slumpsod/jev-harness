@@ -7,7 +7,7 @@ split: dev      the fixer sees these (with how the old harness did on them)
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,7 @@ class Case:
     persona: str | None = None    # pinned persona (None: Jev routes)
     good_answer: str = ""         # what validated the checker
     bad_answer: str = ""
+    good_files: dict = field(default_factory=dict)   # {name: content} a correct run hands over (validation)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

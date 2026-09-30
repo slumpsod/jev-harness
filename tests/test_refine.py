@@ -55,6 +55,21 @@ def test_a_checker_must_tell_good_from_bad():
     assert not checks.discriminates({"type": "all", "checks": []}, "a", "b")[0]
 
 
+def test_a_file_checker_is_validated_on_real_files():
+    csv = "name,order\nMercury,1\n"
+    reads_paths = {"type": "python", "code": "def check(answer, artifacts):\n    return any("
+                   "'Mercury,1' in open(p).read() for p in artifacts)"}
+    # live (Qwen): content looked for in `artifacts`, which holds paths - it passed a text-only good answer
+    wants_contents = {"type": "python", "code": "def check(answer, artifacts):\n    blob = ' '.join(a.get('content', '') "
+                      "if isinstance(a, dict) else '' for a in artifacts)\n    return 'Mercury,1' in (blob or answer)"}
+    files = {"planets.csv": csv}
+    assert checks.discriminates(reads_paths, "Here is planets.csv.", "planets.csv", good_files=files) == (True, "ok")
+    ok, why = checks.discriminates(wants_contents, "Here it is:\n" + csv, "planets.csv", good_files=files)
+    assert not ok and why.startswith("passes only when the answer text repeats the file's content")
+    assert checks.discriminates({"type": "artifact", "name": "*.csv", "contains": "Mercury"}, "Done.", "no",
+                                good_files={"p.csv": "Venus"})[1].startswith("rejects the good answer")
+
+
 def test_the_control_tasks_have_checkers_that_hold_up():
     cs = controls()
     assert len(cs) >= 6 and all(c.split == "control" for c in cs)
