@@ -87,6 +87,20 @@ failures:
   #  - on: [output]
   #    python: checks.repl:bad_output       # fn(event) -> None | str | {kind, summary, detail} | list
 
+# Refinement (jevh/refine/): logged failures -> tests -> a fix by a local model -> old vs new on every
+# local model -> a report you approve or reject. `python -m jevh.refine nightly` runs it; see README.
+refine:
+  model: null              # "provider:model" that writes tests and fixes (local only; default models.strong,
+                           # else the fixer persona's model)
+  models: null             # models the tests run on (default: every local model in this config)
+  discover: false          # also every chat model LM Studio lists
+  cases: 10                # test variants written per failure (plus the failure itself)
+  runs: 2                  # runs of each case per model and version
+  fix_tries: 2             # changes the fixer may try per failure
+  min_gain: 0.15           # the failing cases' pass rate must rise this much to be proposed as "improves"
+  case_timeout: 3600       # seconds per test run
+  fixer_persona: high_end_dev
+
 # Cost per million tokens for paid models (usage tracking); local models cost nothing.
 prices: {}
 #  claude-opus-5: {input: 5.0, output: 25.0}

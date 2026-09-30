@@ -112,6 +112,11 @@ class FailureLog:
             rows = self.db.execute(f"SELECT * FROM failures {clause} ORDER BY id DESC LIMIT ?", [*args, limit]).fetchall()
         return [self._row(r) for r in rows]
 
+    def get(self, fid: int) -> dict[str, Any] | None:
+        with self._lock:
+            r = self.db.execute("SELECT * FROM failures WHERE id=?", (fid,)).fetchone()
+        return self._row(r) if r else None
+
     def counts(self, session: str | None = None, since: float | None = None) -> dict[str, dict[str, int]]:
         """Open failures by kind, source and persona."""
         where, args = ["status='open'"], []

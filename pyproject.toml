@@ -15,7 +15,7 @@ dev = ["pytest", "httpx"]
 jevh = "jevh.cli:main"
 
 [tool.setuptools]
-packages = ["jevh", "jevh.repl", "jevh.tools", "jevh.web"]
+packages = ["jevh", "jevh.repl", "jevh.tools", "jevh.web", "jevh.refine"]
 
 [tool.setuptools.package-data]
 "jevh.web" = ["static/*"]
