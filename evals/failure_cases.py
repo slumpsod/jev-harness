@@ -28,7 +28,13 @@ def log(*steps):
 
 
 NO_CODE = "(no code was run)"
-CASES = [  # (request, answer, work log, label: ok | gave_up | missed)
+PLANETS_LOG = log(("rows = [('Mercury', 1, False), ('Venus', 2, False), ('Earth', 3, False), ('Mars', 4, False), "
+                   "('Jupiter', 5, True), ('Saturn', 6, True), ('Uranus', 7, True), ('Neptune', 8, True)]\n"
+                   "df = pd.DataFrame(rows, columns=['name', 'order_from_sun', 'has_rings'])\n"
+                   "df.to_csv('planets.csv', index=False)\nprint(df.to_string(index=False))",
+                   "name  order_from_sun  has_rings\nMercury  1  False\n...\nNeptune  8  True"),
+                  ("final(answer, artifacts=['planets.csv'])", "[final answer recorded]"))
+CASES = [  # (request, answer, work log, label: ok | gave_up | missed[, files handed over])
     ("hi", "Hello Jed! What can I do for you today?", NO_CODE, "ok"),
     ("Plan my training week: 4 days, full gym.",
      "Mon: upper (bench 4x6, row 4x8, OHP 3x8)\nTue: lower (squat 4x5, RDL 3x8)\nThu: upper (incline DB 4x8, "
@@ -40,7 +46,7 @@ CASES = [  # (request, answer, work log, label: ok | gave_up | missed)
          ("project.edit('app/db.py', 'def get(id):', 'def get(record_id):')", "edited app/db.py"),
          ("print(project.sh('pytest -q')['out'])", "15 passed")), "ok"),
     ("Build a landing page for my bakery.", "Built index.html: hero, menu, opening hours and a contact form.",
-     log(("p = save_artifact('index.html', html)", "artifacts/index.html")), "ok"),
+     log(("p = save_artifact('index.html', html)", "artifacts/index.html")), "ok", ["index.html"]),
     ("Find the cheapest flight to Lisbon on Oct 3.", "The cheapest is TAP at $412, departing 09:40 from JFK.",
      log(("print(browser.do('search flights JFK to LIS Oct 3'))", "done"),
          ("print(browser.read('cheapest fare'))", "TAP $412 09:40; United $455 18:05")), "ok"),
@@ -69,6 +75,23 @@ CASES = [  # (request, answer, work log, label: ok | gave_up | missed)
      "separate the fields.", NO_CODE, "missed"),
     ("Plan my training week: 4 days, full gym.", "Great goal! Consistency is the key to progress. Remember to "
      "sleep well and eat enough protein.", NO_CODE, "missed"),
+    # files: the request asks for a file; `artifacts` is what was handed over. Live (2026-09-30): without
+    # the artifacts in the check, 2 of 5 correct planets.csv runs were logged as missed_request (0.89, 0.97).
+    ("Give me a CSV file of the 8 planets with columns name, order_from_sun, has_rings and hand it over.",
+     "planets.csv with 8 planets: name, order_from_sun, has_rings. Mercury(1),Venus(2),Earth(3),Mars(4) have no "
+     "rings; Jupiter(5),Saturn(6),Uranus(7),Neptune(8) have rings.", PLANETS_LOG, "ok", ["planets.csv"]),
+    ("Give me a CSV file of the 8 planets with columns name, order_from_sun, has_rings and hand it over.",
+     "Created planets.csv with 8 rows and columns name, order_from_sun, has_rings.", PLANETS_LOG, "ok",
+     ["planets.csv"]),
+    ("Make me a PNG bar chart of these monthly sales: Jan 12, Feb 18, Mar 9, Apr 15, and hand it over.",
+     "PNG bar chart of the four monthly sales values with labeled axes and per-bar value labels.",
+     log(("plt.bar(months, sales); plt.savefig('monthly_sales_chart.png')", "")), "ok", ["monthly_sales_chart.png"]),
+    ("Give me a CSV file of the 8 planets with columns name, order_from_sun, has_rings and hand it over.",
+     "Here are the planets: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune.", NO_CODE, "missed", []),
+    ("Make me a PNG bar chart of these monthly sales: Jan 12, Feb 18, Mar 9, Apr 15, and hand it over.",
+     "You can make this in Excel: select the data, then Insert > Bar chart.", NO_CODE, "missed", []),
+    ("Write a Python file leap.py with a function is_leap(year) and hand it over.",
+     "Sure - I'll write leap.py with is_leap() next.", NO_CODE, "missed", []),
 ]
 
 
@@ -76,8 +99,9 @@ def run_live() -> list[dict]:
     cfg = load_config()
     c = SystemOneClient(cfg.jev["url"], cfg.jev["backend"], timeout=300)
     rows = []
-    for req, ans, wl, _ in CASES:
-        r = c.ask({"request": req, "answer": ans, "work_log": wl}, {"gave_up": noul(GAVE_UP_Q), "missed": noul(MISSED_Q)})
+    for req, ans, wl, _, *files in CASES:
+        state = {"request": req, "answer": ans, "work_log": wl, "artifacts": (files[0] if files else []) or "(none)"}
+        r = c.ask(state, {"gave_up": noul(GAVE_UP_Q), "missed": noul(MISSED_Q)})
         rows.append({"gave_up": r["gave_up"].noul, "missed": r["missed"].noul})
     RAW.write_text(json.dumps(rows, indent=1), encoding="utf-8")
     return rows
@@ -88,7 +112,7 @@ def main() -> None:
     ap.add_argument("--offline", action="store_true")
     rows = json.loads(RAW.read_text(encoding="utf-8")) if ap.parse_args().offline else run_live()
     labels = [c[3] for c in CASES]
-    for (req, ans, _, lab), s in zip(CASES, rows):
+    for (req, ans, _, lab, *_files), s in zip(CASES, rows):
         print(f"  {lab:<8} gave_up={s['gave_up']:.2f} missed={s['missed']:.2f}  {req[:40]} / {ans[:40]}")
     for key in ("gave_up", "missed"):
         print(f"\n== {key}")

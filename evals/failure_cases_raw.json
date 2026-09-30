@@ -1,0 +1,86 @@
+[
+ {
+  "gave_up": 0.0675,
+  "missed": 0.133
+ },
+ {
+  "gave_up": 0.0293,
+  "missed": 0.0675
+ },
+ {
+  "gave_up": 0.148,
+  "missed": 0.0293
+ },
+ {
+  "gave_up": 0.1824,
+  "missed": 0.1067
+ },
+ {
+  "gave_up": 0.0601,
+  "missed": 0.0675
+ },
+ {
+  "gave_up": 0.2689,
+  "missed": 0.0474
+ },
+ {
+  "gave_up": 0.3208,
+  "missed": 0.0851
+ },
+ {
+  "gave_up": 0.9859,
+  "missed": 0.9988
+ },
+ {
+  "gave_up": 0.9526,
+  "missed": 0.9859
+ },
+ {
+  "gave_up": 0.9903,
+  "missed": 0.9994
+ },
+ {
+  "gave_up": 0.8355,
+  "missed": 0.9948
+ },
+ {
+  "gave_up": 0.148,
+  "missed": 0.9579
+ },
+ {
+  "gave_up": 0.3486,
+  "missed": 0.974
+ },
+ {
+  "gave_up": 0.4073,
+  "missed": 0.9959
+ },
+ {
+  "gave_up": 0.0474,
+  "missed": 0.9859
+ },
+ {
+  "gave_up": 0.2227,
+  "missed": 0.2227
+ },
+ {
+  "gave_up": 0.0851,
+  "missed": 0.0759
+ },
+ {
+  "gave_up": 0.2451,
+  "missed": 0.5622
+ },
+ {
+  "gave_up": 0.5927,
+  "missed": 0.9983
+ },
+ {
+  "gave_up": 0.5312,
+  "missed": 0.9981
+ },
+ {
+  "gave_up": 0.4688,
+  "missed": 0.9903
+ }
+]

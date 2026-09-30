@@ -60,10 +60,11 @@ STOPS = {"error": ("crash", "the worker crashed"),
          "max_steps": ("step_limit", "reached its step limit without calling final()"),
          "stalled": ("stalled", "stopped for going in circles"),
          "cancelled": ("stopped_by_user", "the user stopped the task")}
-# The Jev check after a task. Not tuned yet: evals/failure_cases.py measures both questions; until it
-# has been run live the thresholds (failure_gave_up, failure_missed) sit high, so a flag is a strong one.
+# The Jev check after a task, on evals/failure_cases.py (semif, 21 cases): 0.60-0.90 all catch 11/11 failures with
+# 0/10 good answers flagged. It sees the files handed over: asked only about the answer text, 2 of 5 correct
+# "give me a CSV file" runs were logged as missed_request (0.89, 0.97; live 2026-09-30).
 GAVE_UP_Q = "Does `answer` say that `request` could not be done, or was only partly done?"
-MISSED_Q = "Does `answer` fail to deliver what `request` asked for?"
+MISSED_Q = "Do `answer` and the files in `artifacts` (handed over with it) fail to deliver what `request` asked for?"
 CAP = 8000   # chars kept of each text field
 
 
@@ -346,6 +347,7 @@ class FailureWatch:
             return
         try:
             r = self.ask("failure_check", {"request": task.text[:2000], "answer": result.answer[:3000],
+                                           "artifacts": [Path(a).name for a in result.artifacts] or "(none)",
                                            "work_log": (log or "(no code was run)")[-4000:]},
                          {"gave_up": noul(GAVE_UP_Q), "missed": noul(MISSED_Q)})
             scores = {"gave_up": round(r["gave_up"].noul, 3), "missed": round(r["missed"].noul, 3)}

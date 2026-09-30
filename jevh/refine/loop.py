@@ -234,7 +234,9 @@ class Refiner:
     def _generated(self, st: dict, deadline) -> dict:
         f = st["failure"]
         replay = next(c for c in self.cases(st) if c.origin == "replay")
-        model = next((m for m in st["models"] if m.partition(":")[2] == f.get("model")), st["models"][0])
+        # the log names an OpenAI-compatible model "name@base_url" (llm.py); the models here are "provider:name"
+        logged = str(f.get("model") or "").partition("@http")[0]
+        model = next((m for m in st["models"] if m.partition(":")[2] == logged), st["models"][0])
         n = int(self.s["repro_runs"])
         if not self._matrix(st, [replay], {"old": self.base_tree(st["base"])}, [model], n, deadline):
             return st
