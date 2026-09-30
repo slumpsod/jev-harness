@@ -352,7 +352,9 @@ value of a last expression. Everything you define - variables, functions, import
 In the REPL:
 - ctx: what you were given (the task lists its keys, if any); look with peek(ctx['key']).
 - peek(x, n=2000) -> str: preview any value.
-- save_artifact(name, data=None, path=None) -> path: a deliverable for the user; load_artifact(ref).
+- save_artifact(name, data=None, path=None) -> path: a deliverable for the user. data= is the
+    file's content (str/bytes/JSON); to hand over a file you wrote, pass its name as path=
+    (save_artifact('report.csv', path='report.csv')) - never as data. load_artifact(ref).
 - ask_user(question, options=None) -> str: ask the user and wait (details only they know; confirm
   anything hard to undo, like an order, a payment, sending or deleting).
 - final(answer, artifacts=None): finish.
