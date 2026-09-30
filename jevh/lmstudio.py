@@ -42,8 +42,14 @@ def _base(model: str) -> str:
 
 
 class ExclusiveModels:
-    def __init__(self, root: str, load_timeout: float = 600.0, linger: float = 8.0, max_wait: float = 180.0):
+    def __init__(self, root: str, load_timeout: float = 600.0, linger: float = 8.0, max_wait: float = 180.0,
+                 recheck: float = 30.0):
         self.root = root
+        # `current` is this process's belief. Another process on the same server (refine's test runs, the
+        # dashboard next to a CLI) may have swapped models since: after `recheck` idle seconds the gate asks
+        # LM Studio again. Live: refine's writer believed Qwen was loaded while its test runs had swapped to
+        # ornith, sent the request cold, and gave up after 33s with nothing streamed.
+        self.recheck = recheck
         self.load_timeout = load_timeout
         # A worker alternates LLM calls with REPL steps. Without a linger, parallel hand-offs on
         # different models would swap on every step (~15s each). The current model stays for
@@ -62,6 +68,8 @@ class ExclusiveModels:
     @contextmanager
     def use(self, model: str) -> Iterator[None]:
         with self._cond:
+            if self.current is not None and self.inflight == 0 and time.monotonic() - self.last_used >= self.recheck:
+                self.current = None   # idle a while: ask LM Studio what's loaded (_swap_to is a no-op if it's ours)
             deadline = time.monotonic() + self.max_wait
             while self.current is not None and not self._same(self.current, model):
                 if self.inflight == 0:

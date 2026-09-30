@@ -141,3 +141,22 @@ def test_max_wait_stops_a_busy_model_starving_others():
         waited = time.time() - started
     stop.set(); t.join()
     assert 0.25 < waited < 2.0 and lm.max_resident == 1
+
+
+def test_an_idle_gate_asks_again_what_another_process_loaded():
+    lm = FakeLMStudio(loaded=["qwen3.8-27b"])
+    lm.recheck = 0.05
+    with lm.use("qwen3.8-27b@q6_k"):
+        pass
+    lm.state = {"ornith": "ornith"}   # another process swapped (live: refine's test runs)
+    with lm.use("qwen3.8-27b@q6_k"):   # still within recheck: trusts its belief
+        pass
+    assert lm.log == []
+    time.sleep(0.06)
+    with lm.use("qwen3.8-27b@q6_k"):
+        pass
+    assert lm.log == ["unload ornith", "load qwen3.8-27b"]
+    time.sleep(0.06)
+    with lm.use("qwen3.8-27b@q6_k"):   # asked again, and it's there: nothing to do
+        pass
+    assert lm.log == ["unload ornith", "load qwen3.8-27b"]

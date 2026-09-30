@@ -517,3 +517,23 @@ def test_the_refine_model_must_be_local(cfg, repo):
     ref.s["model"] = "anthropic:claude-opus-5"
     with pytest.raises(RuntimeError, match="local models only"):
         ref.model()
+
+
+def test_the_writer_gets_another_try_after_a_model_error(monkeypatch):
+    from jevh.llm import LLMError, LLMResult
+    from jevh.refine.loop import _Retry
+    calls = []
+
+    class Flaky:
+        name = "flaky"
+
+        def chat(self, messages):
+            calls.append(1)
+            if len(calls) == 1:
+                raise LLMError("qwen: no tokens for 33s (nothing streamed)")
+            return LLMResult(text="ok")
+    logged = []
+    r = _Retry(Flaky(), logged.append)
+    monkeypatch.setattr("jevh.refine.loop.time.sleep", lambda s: None)   # no real wait in tests
+    assert r.chat([{"role": "user", "content": "x"}]).text == "ok" and len(calls) == 2
+    assert "trying again" in logged[0] and r.name == "flaky"

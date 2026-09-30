@@ -92,6 +92,28 @@ def cause(summary: str) -> str:
     return re.split(r"(?<=[.!?])\s", s, maxsplit=1)[0].strip()[:140]
 
 
+class _Retry:
+    """The writer's model, with one more try on a model error: a night of attempts shouldn't end on one
+    call that timed out while LM Studio was swapping models (live: after the test runs, on triage)."""
+
+    def __init__(self, llm, log: Callable[[str], None], tries: int = 2):
+        self.llm, self._log, self.tries = llm, log, tries
+
+    def chat(self, messages, **kw):
+        from ..llm import LLMError
+        for k in range(self.tries):
+            try:
+                return self.llm.chat(messages, **kw)
+            except LLMError as e:
+                if k + 1 == self.tries:
+                    raise
+                self._log(f"writer model error, trying again: {e}")
+                time.sleep(5)
+
+    def __getattr__(self, name):
+        return getattr(self.llm, name)
+
+
 class Refiner:
     def __init__(self, cfg: Config, *, llm=None, judge: checks.Judge | None = None,
                  execute_fn: runner.Execute | None = None, run_turn: Callable[[Path, str], str] | None = None,
@@ -153,7 +175,7 @@ class Refiner:
         if self._llm is None:
             from ..llm import make_llm
             self.model()   # local only
-            self._llm = make_llm(self.model_block(), self.cfg.providers)
+            self._llm = _Retry(make_llm(self.model_block(), self.cfg.providers), self.log)
         return self._llm
 
     def judge(self) -> checks.Judge:
