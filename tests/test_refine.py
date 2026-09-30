@@ -484,6 +484,9 @@ def test_a_needless_bounce_is_worked_on_by_its_cost(cfg, repo):
     st = ref.run(ref.start(fid))
     assert st["objective"] == "cost" and st["stage"] == "proposed" and st["verdict"] == "improves"
     assert st["tries"][0]["guard"]["new"] == {"caught": 5, "bad": 5, "false": 0}
+    # every variant was bounced on every run with a right answer: the best targets, not suspect checkers
+    assert st["moved"]["suspect"] == [] and {c.split for c in ref.cases(st) if c.origin == "variant"} <= {"dev", "holdout"}
+    assert not any("failed on every run" in m[0]["content"] for m in ref._llm.seen)
     assert "Gate bounces per run on the failing cases 1 → 0" in (ref.dir(st["id"]) / "report.md").read_text(encoding="utf-8")
 
 

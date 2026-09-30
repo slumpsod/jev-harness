@@ -397,8 +397,10 @@ class Refiner:
             fails = [r for r in mine if self.failed(st, r)]
             if mine and not fails:
                 c.split = "regress"   # never failed: it can't show a gain, but a fix must not break it
-            elif mine and len(fails) == len(mine):
-                # failed every run everywhere: a hard case, or a wrong checker - the local model looks at a run
+            elif mine and not any(r["passed"] for r in mine):
+                # the checker said no on every run everywhere: a hard case, or a wrong checker - the local model looks
+                # at a run. (Not when the checker passed and only the gate bounced: live, a cost attempt set aside
+                # its two strongest cases, correct answers the gate sent back every run.)
                 wrong, why[c.id] = triage.review_checker(self.llm(), c, fails[0])
                 if not wrong:
                     continue
