@@ -382,6 +382,25 @@ class WithFallback:
             return self.fallback.chat(messages, cancel)
 
 
+def see_image(llm: LLM, path: str, question: str) -> str:
+    """Ask `llm` about an image file (a browser screenshot). Local vision models (Qwen 3.5+, Gemma 4
+    in LM Studio) take OpenAI-style image parts; Claude takes its own image block."""
+    import base64
+    data = base64.b64encode(Path(path).read_bytes()).decode("ascii")
+    kind = "image/jpeg" if str(path).lower().endswith((".jpg", ".jpeg")) else "image/png"
+    target = getattr(llm, "_primary", None) or llm
+    if isinstance(target, AnthropicLLM):
+        content = [{"type": "image", "source": {"type": "base64", "media_type": kind, "data": data}},
+                   {"type": "text", "text": question}]
+    else:
+        content = [{"type": "text", "text": question},
+                   {"type": "image_url", "image_url": {"url": f"data:{kind};base64,{data}"}}]
+    try:
+        return llm.chat([{"role": "user", "content": content}]).text
+    except Exception as e:  # noqa: BLE001 - a text-only model says so instead of failing the step
+        return f"(could not look at the image: {str(e).splitlines()[0][:200]} - this model may not take images)"
+
+
 def make_llm(model_cfg: dict[str, Any], providers: dict[str, dict[str, Any]]) -> LLM:
     def build(cfg: dict[str, Any]) -> LLM:
         pname = cfg["provider"]

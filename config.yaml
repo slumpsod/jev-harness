@@ -115,6 +115,9 @@ tools:
   comfy_workflows: C:/Comfyui workflows
   tools_jev: local            # browser/web/project decisions: local (the adapter above) | cloud (TYPESAFE_API_KEY)
   browser_watch: false        # true: the browser tool opens a visible window with Jev's picks outlined
+  # nango: the user's connected accounts (Gmail, GitHub, Slack...). Needs NANGO_SECRET_KEY; see SETUP.md.
+  # nango_url: https://api.nango.dev   # (default) Nango Cloud; on this machine (nango/docker-compose.yaml): http://localhost:3003
+  nango_writes: ask           # changes (send, create, edit, delete): ask the user | deny | allow
 
 # MCP servers (stdio). Started on first use; Jev picks which of their tools a task sees.
 # Personas opt in with `mcp: ["server.*"]`.

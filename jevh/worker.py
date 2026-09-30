@@ -58,6 +58,23 @@ def _step_outputs(messages: list[dict]) -> list[str]:
     return outs
 
 
+PAGE_URL = re.compile(r"https?://[^\s'\"<>)\]\\]+", re.I)
+
+
+def new_pages(earlier: list[dict], recent: list[dict]) -> list[str]:
+    """Pages (host + path) the tool outputs of `recent` show that those of `earlier` never did. Only
+    outputs count, not the worker's code: a URL it typed or guessed hasn't been reached."""
+    def pages(msgs: list[dict]) -> set[str]:
+        out = set()
+        for m in msgs:
+            if m.get("role") in ("tool", "user") and isinstance(m.get("content"), str):
+                for u in PAGE_URL.findall(m["content"]):
+                    out.add(re.sub(r"[?#].*$", "", u).rstrip("/.,;:").lower())
+        return out
+    before = pages(earlier)
+    return sorted(pages(recent) - before)
+
+
 def repeated_result(messages: list[dict], n: int = 3) -> str | None:
     """The result the last `n` code steps all printed, if identical and not an error - a worker that
     has its answer and keeps re-checking it instead of handing it over."""
@@ -392,9 +409,10 @@ def describe_ctx(ctx: dict[str, Any]) -> str:
 
 def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, str],
                  suggested: list[str], tools: list[str] | None = None,
-                 mcp_tools: list | None = None, native: bool = False) -> str:
+                 mcp_tools: list | None = None, native: bool = False, tool_notes: dict[str, str] | None = None) -> str:
     """`tools`: the tool guides Jev picked for this task; the persona's other tools are still
-    importable and named in one line. `mcp_tools`: McpTool objects Jev picked."""
+    importable and named in one line. `mcp_tools`: McpTool objects Jev picked. `tool_notes`: a line of
+    live state after a picked tool's guide (nango: which accounts are connected)."""
     from .tools import TOOLS
     # the date only (not the time), so the prompt - and the local model's prompt cache - holds all day;
     # without it "next week on Tuesday" was searched as tomorrow (live, 2026-09-28)
@@ -417,7 +435,9 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
         parts.append(guide)
         picked = [t for t in tools or [] if t in TOOLS]
         if picked:
-            parts.append("## Tools in your REPL\n" + "\n".join(TOOLS[t].guide for t in picked))
+            notes = tool_notes or {}
+            parts.append("## Tools in your REPL\n" + "\n".join(
+                TOOLS[t].guide + (f"\n  {notes[t]}" if notes.get(t) else "") for t in picked))
         rest = [t for t in persona.tools if t not in picked]
         if rest:
             parts.append("Also importable in your REPL (help(name) shows how): " + ", ".join(rest))
@@ -854,6 +874,14 @@ class Worker:
         if self.progress is None or step % self.progress_every:
             return False
         recent = messages[-2 * self.progress_every:]
+        # a page it hadn't reached before is progress, however alike the steps look (live: Booking.com's first
+        # strike came right after the dates were picked by hand, BlazeDemo's right after the flight was chosen)
+        new = new_pages(messages[self._task_idx + 1:-len(recent)], recent)
+        if new:
+            self._stalls = 0
+            self.on_step("progress_check", {"persona": self.persona.name, "step": step, "circles": None,
+                                            "stuck": False, "strike": 0, "new_pages": new[:3]})
+            return False
         log = self._condense(recent)
         try:
             circles = self.progress(log)

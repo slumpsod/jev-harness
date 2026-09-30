@@ -8,6 +8,7 @@ so the worker's model never reads a page snapshot:
     r = browser.do("sign in", values={"email": e, "password": pw})
     browser.read("what year was the espresso machine patented?")  # only the passages that answer it
     browser.screenshot("page.png")                               # saved as an artifact
+    browser.elements("october"); browser.click(12)               # when Jev is stuck: the worker acts itself
 
 do() statuses: done, likely_done, needs_confirmation (an order/payment/send/delete is next:
 repeat with allow_irreversible=True only if the user asked for it), needs_value (a field
@@ -70,6 +71,24 @@ BOT_WALL = re.compile(r"just a moment\.\.\.|checking (if the site connection is 
                       r"(you are|you're|that you are) (a )?human|are you a (human|robot)|ensuring a fair fan experience|"
                       r"pardon our interruption|press (&|and) hold|unusual traffic from your computer|"
                       r"access denied|request unsuccessful\. incapsula|captcha", re.I)
+CARD_FIELD = re.compile(r"card\s*(number|no\b|#)|\bcvv|\bcvc|security code|\bexpir|\biban\b|routing|"
+                        r"account number|\bssn\b|social security", re.I)
+# query keys that aren't the search itself: tracking, and the hand-offs of a sign-in flow (their loss is normal)
+NOT_SEARCH_KEYS = re.compile(r"^(utm_|_ga|gclid$|fbclid$|label$|aid$|sid$|srpvid$|chal_t$|force_referer$|efdco$|ssne|"
+                             r"ref$|src$|source$|next$|return|redirect|continue$|token$|code$|state$|session|lang$)", re.I)
+STRIPPED_NOTE = ("the site threw the search away: it sent {asked} on to {final} without {keys}. Sites do this to "
+                 "turn away automated browsers (Booking.com does). Don't retry or rebuild the URL: tell the user, "
+                 "say what is filled in and where, and let them finish the search in their own browser")
+# links that would open a new tab open in this one: one page for the agent, and one for the dashboard's dock
+SAME_TAB_JS = """document.addEventListener('click', e => {
+  const a = e.target && e.target.closest && e.target.closest('a[target]');
+  if (a && !['_self', '_top', '_parent'].includes(a.target) && a.href && !/^javascript:/i.test(a.getAttribute('href') || ''))
+    a.target = '_self';
+}, true);"""
+CANVAS_SHARE = 0.12   # a canvas covering this much of the screen holds the page's real content
+CANVAS_NOTE = ("the page's main content is drawn on a canvas (a game board, chart or map): it is not in the text "
+               "or HTML, so don't search for it there. See it with browser.look(question); play or act with "
+               "browser.press(keys) / click(i)")
 WALL_WAIT = 2.0   # seconds between looks while a bot check might clear by itself (4 looks)
 REFUSED = {403, 429, 435, 456}   # what bot managers answer a flagged client's API calls with
 BLOCKED_NOTE = ("the site shows a bot check ({}), which the agent does not get past - not by retrying, calling "
@@ -83,6 +102,7 @@ SET_TO = re.compile(r"^\s*(?:set|change|update)\s+(?:the\s+|my\s+)?[\w\s-]{2,40}
 SEARCH_KEYS = {"query", "q", "search", "term", "terms", "keywords", "keyword"}
 
 PAGE_JS = r"""() => {
+  const MAX = %d;
   const OPT = '[id*="-option-"],[class*="__option"],[role=listbox] li,li[class*="suggestion" i],' +
     '[class*="autocomplete" i] li';
   const SEL = 'a[href],button,input,select,textarea,summary,[role=button],[role=link],[role=tab],' +
@@ -163,7 +183,7 @@ PAGE_JS = r"""() => {
     if (!vis(e)) continue;
     const kind = e.tagName === 'LABEL' ? kindOf(e.control) : kindOf(e);
     const r = e.getBoundingClientRect();
-    const el = {i: out.length, kind, label: labelOf(e), below: r.top > innerHeight};
+    const el = {i: out.length, kind, label: labelOf(e), below: r.top > innerHeight, _v: r.bottom > 0 && r.top < innerHeight};
     if (e.disabled) el.disabled = true;
     if (['text field', 'search box'].includes(kind)) el.value = clean(e.value ?? e.innerText).slice(0, 60);
     if (kind === 'password') el.value = e.value ? '(filled)' : '';
@@ -173,13 +193,19 @@ PAGE_JS = r"""() => {
       el.options = [...e.options].slice(0, 40).map(o => clean(o.text));
     }
     if (kind === 'link') el.href = (e.getAttribute('href') || '').slice(0, 60);
-    if (e.closest('a[target=_blank]')) el.newtab = true;
     if (e.name) el.name = e.name;
-    e.setAttribute('data-jevh-i', out.length);
     out.push(el);
     nodes.push(e);
-    if (out.length >= %d) break;
+    if (out.length >= MAX * 4) break;
   }
+  // over the cap: what's on screen first (live, Booking.com: an open calendar sits at the end of the page and
+  // its days were cut off by the first 300 controls in page order), then page order; numbered after
+  if (out.length > MAX) {
+    const keep = new Set(out.map((o, j) => j).sort((a, b) => (out[b]._v - out[a]._v) || (a - b)).slice(0, MAX));
+    const o2 = out.filter((o, j) => keep.has(j)), n2 = nodes.filter((n, j) => keep.has(j));
+    out.length = 0; nodes.length = 0; out.push(...o2); nodes.push(...n2);
+  }
+  out.forEach((o, j) => { o.i = j; delete o._v; nodes[j].setAttribute('data-jevh-i', j); });
   // identical controls (a "Choose This Flight" per table row, an "Add to cart" per product card) are
   // told apart by their own row's text: the nearest container holding only this one of them
   const key = o => o.kind + '|' + o.label, count = {};
@@ -232,7 +258,13 @@ PAGE_JS = r"""() => {
     if (view_start < 0 && l.bottom > 0) view_start = text.length;
     text += l.t + '\n';
   }
-  return {url: location.href, title: document.title, elements: out, text, view_start: Math.max(view_start, 0), notices};
+  // how much of the screen a canvas covers: a game board or chart drawn there is in no text or HTML
+  const shareOf = c => { const r = c.getBoundingClientRect();
+    return Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0)) *
+           Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)) / (innerWidth * innerHeight); };
+  const canvas = Math.max(0, ...[...document.querySelectorAll('canvas')].filter(vis).map(shareOf));
+  return {url: location.href, title: document.title, elements: out, text, view_start: Math.max(view_start, 0), notices,
+          canvas: Math.round(canvas * 100) / 100};
 }""" % MAX_ELEMENTS
 
 PSEUDO = {"scroll": "scroll down to reveal more of the page",
@@ -331,6 +363,20 @@ def _date_forms(text: str) -> list[str]:
     return []
 
 
+def dropped_search(asked: str, final: str) -> list[str]:
+    """The search terms of `asked` that the site threw away on the way to `final` ([] if it kept any, or
+    `asked` had fewer than two real ones). Booking.com sends a headless browser's searchresults.html?ss=
+    Denver&checkin=... back to a page with no query at all - no dates, no hotels, no error text."""
+    from urllib.parse import parse_qsl, urlsplit
+    if _site(asked) != _site(final):
+        return []
+    keys = sorted({k for k, v in parse_qsl(urlsplit(asked).query) if v and not NOT_SEARCH_KEYS.match(k)})
+    if len(keys) < 2:
+        return []
+    kept = {k for k, _ in parse_qsl(urlsplit(final).query)}
+    return [] if kept & set(keys) else keys
+
+
 def _site(url: str) -> str:
     """The site a URL belongs to, roughly: its last two host labels (redsky.target.com -> target.com)."""
     host = re.sub(r"^[a-z]+://", "", url or "").split("/")[0].split(":")[0].lower()
@@ -392,7 +438,9 @@ class Session:
         if self._dock_file:
             self._dock_file.parent.mkdir(parents=True, exist_ok=True)
             self._dock_file.write_text(json.dumps({"port": port, "pid": os.getpid(), "started": time.time()}))
+        self.context.add_init_script(SAME_TAB_JS)
         self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+        self.navs: list[str] = []   # the pages (main-frame documents) asked for since the last action
         # script errors on every page (test() reports them): uncaught exceptions and console.error
         self.js_errors: list[str] = []
         self.console_errors: list[str] = []
@@ -414,6 +462,16 @@ class Session:
         page.on("console", lambda m: self.console_errors.append(m.text[:300])
                 if m.type == "error" and "favicon" not in m.text.lower() else None)
         page.on("response", self._on_response)
+        page.on("request", lambda r: self.navs.append(r.url)
+                if r.is_navigation_request() and r.frame == r.frame.page.main_frame else None)
+
+    def _dropped(self, final: str, also: str | None = None) -> str:
+        """STRIPPED_NOTE if a page asked for since the last action (or `also`) had its search thrown away."""
+        for asked in ([also] if also else []) + self.navs:
+            keys = dropped_search(asked, final)
+            if keys:
+                return STRIPPED_NOTE.format(asked=asked[:160], final=final[:120], keys=", ".join(keys))
+        return ""
 
     def _on_response(self, r) -> None:
         """The page's own data requests turned away (live: Target answered its product search API with
@@ -501,6 +559,7 @@ class Session:
                 if not grown:
                     break
         self._last_url = obs["url"]
+        self._last_obs = obs   # the numbering click()/fill()/select() refer to
         return obs
 
     @staticmethod
@@ -521,10 +580,18 @@ class Session:
     def goto(self, url: str) -> dict:
         if not re.match(r"^[a-z]+://", url):
             url = "https://" + url
-        self.refused = []
+        self.refused, self.navs = [], []
         fixed, resp = None, None
         try:
-            resp = self.page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            try:
+                resp = self.page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            except Exception as e:  # noqa: BLE001
+                # the page we are leaving was still redirecting itself and cut this navigation off (live:
+                # Booking.com's results page, "net::ERR_ABORTED"): once more, after it settles
+                if "ERR_ABORTED" not in str(e) and "interrupted by another navigation" not in str(e):
+                    raise
+                self.page.wait_for_timeout(800)
+                resp = self.page.goto(url, wait_until="domcontentloaded", timeout=30000)
         except Exception as e:  # noqa: BLE001
             if "ERR_NAME_NOT_RESOLVED" not in str(e):
                 raise
@@ -553,7 +620,8 @@ class Session:
         deadline = time.monotonic() + 2.0
         while 0 < len(self._refused_here()) < 3 and time.monotonic() < deadline:
             self.page.wait_for_timeout(250)
-        out = {"status": "done", "url": obs["url"], "title": obs["title"], "page": self._view(obs, 1200), "note": ""}
+        out = {"status": "done", "url": obs["url"], "title": obs["title"], "page": self._view(obs, 1200),
+               "note": CANVAS_NOTE if obs.get("canvas", 0) >= CANVAS_SHARE else ""}
         if fixed:
             out["note"] = f"{url} does not exist; opened {fixed} (the site the request names) instead"
         wall = self._bot_wall(obs)
@@ -563,6 +631,8 @@ class Session:
             out["note"] = self._refused_note()
             if self._refusing():
                 out["status"] = "blocked"
+        elif self._dropped(obs["url"], url):
+            out.update(status="blocked", note=self._dropped(obs["url"], url))
         return out
 
     def read(self, question: str | None = None, max_chars: int = 4000) -> str:
@@ -570,6 +640,8 @@ class Session:
         obs = self.observe()
         text = obs["text"]
         note = f"[note: {self._refused_note()}]\n" if self._refused_note() else ""
+        if obs.get("canvas", 0) >= CANVAS_SHARE:
+            note += f"[note: {CANVAS_NOTE}]\n"
         # what is typed into the fields isn't page text: without it a worker couldn't check its own form
         # (live, demoqa: it reloaded the page to "check" and lost what it had entered; asked as a question,
         # "what are the field values?" got the page's menu back and it retried fields that were right)
@@ -579,32 +651,123 @@ class Session:
             return note + text[:max(max_chars - len(tail), 0)] + tail
         return note + "\n---\n".join(pick_passages(self, self.cap, question, text))[:max(max_chars - len(tail), 0)] + tail
 
-    def elements(self) -> list[str]:
-        return [f"[{e['i']}] {describe(e)}" for e in self.observe()["elements"]]
+    def elements(self, match: str | None = None) -> list[str]:
+        """The page's controls, numbered for click()/fill()/select(). `match` keeps the ones whose
+        description contains it (case-insensitive): elements("october"), elements("add to cart")."""
+        out = [f"[{e['i']}] {describe(e)}" for e in self.observe()["elements"]]
+        return [s for s in out if match.lower() in s.lower()] if match else out
+
+    # ---------------------------------------------------------------- the worker acting itself
+    # do() is the default: Jev picks each click and the worker never reads the page. When Jev gets
+    # stuck (a big app-like site, a calendar), the worker picks the element itself, by the number
+    # elements() or a do() result's `candidates` shows. The same guards apply as in do().
+    def _element(self, i: int) -> dict:
+        els = (getattr(self, "_last_obs", None) or {}).get("elements", [])
+        e = next((e for e in els if e["i"] == int(i)), None)
+        if e is None:
+            raise ValueError(f"no element [{i}] in the last listing: call browser.elements() again")
+        return e
+
+    def _direct(self, tool: str, e: dict, value: str | None = None) -> dict:
+        before = self._signature(self._last_obs)
+        self._caption = f"worker (not Jev): {tool.replace('_', ' ')} {describe(e)}"
+        self.navs = []
+        try:
+            label = self._act(tool, e, value)
+        except Exception as ex:  # noqa: BLE001 - reported, like a failed action in do()
+            obs = self.observe()
+            return {"status": "error", "action": f"{tool} {describe(e)}", "changed": False, "url": obs["url"],
+                    "note": f"it failed: {str(ex).splitlines()[0][:160]}", "page": self._view(obs, 1200)}
+        obs = self.observe()
+        out = {"status": "done", "action": label, "changed": self._signature(obs) != before, "url": obs["url"],
+               "note": "", "page": self._view(obs, 1200)}
+        wall = self._bot_wall(obs)
+        if wall:
+            out.update(status="blocked", note=BLOCKED_NOTE.format(repr(wall["wall"])), page=self._view(wall, 1200))
+        elif self._refusing():
+            out.update(status="blocked", note=self._refused_note())
+        elif self._dropped(obs["url"]):
+            out.update(status="blocked", note=self._dropped(obs["url"]))
+        elif "didn't keep it" in label:
+            out.update(status="error", note="the field didn't keep the text")
+        opts = [f"[{x['i']}] {describe(x)}" for x in obs["elements"] if x["kind"] == "option"]
+        if opts and tool == "type":
+            out["suggestions"] = opts[:10]
+            out["note"] = (out["note"] + "; " if out["note"] else "") + "pick one with browser.click(i)"
+        return out
+
+    def click(self, i: int, allow_irreversible: bool = False) -> dict:
+        """Click element [i] (from elements() or a do() result's candidates) -> {status, action, changed,
+        url, page, note}. An order, payment, send or delete returns needs_confirmation unless allowed."""
+        e = self._element(i)
+        if e["kind"] in FIELDS:
+            return {"status": "error", "note": f"{describe(e)} is a field: use browser.fill({i}, text)"}
+        if e["kind"] == "dropdown":
+            return {"status": "error", "note": f"{describe(e)} is a dropdown: use browser.select({i}, option)"}
+        label = e.get("label", "")
+        if not allow_irreversible and not self._navigates(e) and not REVERSIBLE.match(label):
+            risky = bool(IRREVERSIBLE.search(label))
+            if not risky and e["kind"] == "button":   # the same Jev check do() makes before a button
+                risky = self._ask({"element": describe(e), "page": {"title": self._last_obs["title"],
+                                                                     "url": self._last_obs["url"]}},
+                                  {"irreversible": noul(Q_IRREV)})["irreversible"].noul >= 0.6
+            if risky:
+                return {"status": "needs_confirmation", "note": f"clicking {describe(e)} looks hard to undo: "
+                        f"confirm with the user, then browser.click({i}, allow_irreversible=True)"}
+        return self._direct("click", e)
+
+    def fill(self, i: int, text: str, enter: bool = False) -> dict:
+        """Type `text` into field [i] (replacing what is there), read back; enter=True presses Enter after.
+        -> {status, action, changed, url, page, note, suggestions (when the field opens a list)}."""
+        e = self._element(i)
+        if e["kind"] not in FIELDS:
+            return {"status": "error", "note": f"{describe(e)} is not a text field"
+                    + (f": use browser.select({i}, option)" if e["kind"] == "dropdown" else "")}
+        if e["kind"] == "password" or CARD_FIELD.search(e.get("label", "") + " " + e.get("name", "")):
+            return {"status": "refused", "note": "passwords and card details aren't typed by hand: a sign-in "
+                    "the user gave you goes through do('sign in', values={...}); payment is the user's"}
+        return self._direct("press_enter" if enter else "type", e, str(text))
+
+    def select(self, i: int, option: str) -> dict:
+        """Choose `option` in dropdown [i] (exact text, else the option containing it)."""
+        e = self._element(i)
+        if e["kind"] != "dropdown":
+            return {"status": "error", "note": f"{describe(e)} is not a dropdown"
+                    + (": its choices are separate elements - browser.click(i)" if e["kind"] in TOGGLES else "")}
+        return self._direct("select", e, str(option))
 
     def html(self, css: str | None = None, max_chars: int = 30000) -> str:
         """The page's HTML (or of each element matching `css`), for scraping what text doesn't show:
         ratings drawn as star icons (books.toscrape: class="star-rating Four"), links, attributes."""
-        self._settle()
+        obs = self.observe()
+        head = f"<!-- jevh note: {CANVAS_NOTE} -->\n" if obs.get("canvas", 0) >= CANVAS_SHARE else ""
         if css:
             parts = self.page.eval_on_selector_all(css, "els => els.map(e => e.outerHTML)")
-            return "\n".join(parts)[:max_chars]
-        return self.page.content()[:max_chars]
+            return head + "\n".join(parts)[:max_chars]
+        return head + self.page.content()[:max_chars]
 
     def press(self, keys: str | list[str], times: int = 1, delay: float = 0.15) -> dict:
         """Press keys on the page: arrow keys for a game, Escape to close a popup, Tab, Enter.
         `keys` is one key ("ArrowLeft") or a list pressed in turn; the whole list repeats `times`."""
         keys = [keys] if isinstance(keys, str) else list(keys)
         before = self.observe()
+        # a canvas repaints without any text changing (live, 2048: a move that merged nothing left the score
+        # alone, "changed" said False, and the worker decided the keys did nothing): compare what it shows
+        canvas = before.get("canvas", 0) >= CANVAS_SHARE
+        pic = hashlib.sha1(self.page.screenshot()).hexdigest() if canvas else ""
         for _ in range(max(1, times)):
             for k in keys:
                 self.page.keyboard.press(k)
                 if delay:
                     self.page.wait_for_timeout(int(delay * 1000))
+        if canvas:
+            self.page.wait_for_timeout(250)   # let the move's animation finish before comparing
         obs = self.observe()
+        changed = self._signature(obs) != self._signature(before) or (
+            canvas and hashlib.sha1(self.page.screenshot()).hexdigest() != pic)
         return {"status": "done", "pressed": keys * max(1, times) if len(keys) * times <= 20 else f"{keys} x{times}",
-                "changed": self._signature(obs) != self._signature(before), "url": obs["url"],
-                "page": self._view(obs, 1200)}
+                "changed": changed, "url": obs["url"], "page": self._view(obs, 1200),
+                "note": CANVAS_NOTE if canvas else ""}
 
     def screenshot(self, name: str = "page.png", full_page: bool = False) -> str:
         ARTIFACTS.mkdir(parents=True, exist_ok=True)
@@ -684,17 +847,28 @@ class Session:
         no_effect = 0
         suggesting = False            # the last typing opened autocomplete suggestions
         last_change = "nothing yet"
+        choice: tuple[dict, dict] | None = None   # (page, Jev's scores) of the last pick
 
         def result(status: str, obs: dict, note: str = "", probs: dict | None = None) -> dict:
             if status not in ("done", "needs_confirmation") and self._refusing():
                 status = "blocked"
             if self._refused_note():
                 note = (note + "; " if note else "") + self._refused_note()
-            return {"status": status, "goal": goal, "url": obs["url"], "title": obs["title"],
-                    "actions": history, "note": note, "page": self._view(obs, 1200),
-                    "p": {k: round(v, 2) for k, v in (probs or {}).items()},
-                    "jev_calls": self.jev_calls - calls0, "jev_seconds": round(self.jev_secs - secs0, 1),
-                    "seconds": round(time.monotonic() - started, 1)}
+            out = {"status": status, "goal": goal, "url": obs["url"], "title": obs["title"],
+                   "actions": history, "note": note, "page": self._view(obs, 1200),
+                   "p": {k: round(v, 2) for k, v in (probs or {}).items()},
+                   "jev_calls": self.jev_calls - calls0, "jev_seconds": round(self.jev_secs - secs0, 1),
+                   "seconds": round(time.monotonic() - started, 1)}
+            # Jev couldn't finish: what it was choosing between, numbered, so the worker can act itself
+            # (live, Booking.com: the worker saw the date it needed and could only reword the goal)
+            if status in ("stuck", "ambiguous", "max_actions", "error") and choice and choice[0] is obs:
+                by_i = {str(e["i"]): e for e in obs["elements"]}
+                top = [k for k in sorted(choice[1], key=choice[1].get, reverse=True) if k in by_i][:6]
+                if top:
+                    out["candidates"] = [f"[{k}] {describe(by_i[k])}" for k in top]
+                    out["note"] += ("; " if out["note"] else "") + ("act yourself if you see the right one: "
+                                                                    "browser.click(i) / fill(i, text) / select(i, option)")
+            return out
 
         obs = self.observe()
         start_url = obs["url"]
@@ -731,6 +905,7 @@ class Session:
                 target_p, ans = self._pick_target(state, els, options, extra)
             probs = {k: ans[k].noul for k in ("done", "error", "blocked", "login") if k in ans}
             best = max(target_p, key=target_p.get)
+            choice = (obs, target_p)
 
             # "... and save/continue": setting the control isn't the end; semif's done check misses that
             if SUBMIT_WORDS.search(goal) and not any(re.match(r"clicked (button|link)|.*pressed Enter", h)
@@ -822,6 +997,7 @@ class Session:
             before = self._signature(obs)
             self._caption = (f"Jev ({target_p[best]:.2f}): {tool.replace('_', ' ')} "
                              f"{describe(target) if target else ''}   |   goal: {goal}")
+            self.navs = []
             try:
                 label = self._act(tool, target, value)
             except Exception as e:  # noqa: BLE001 - a failed action is information, not a crash
@@ -834,6 +1010,8 @@ class Session:
             if target is not None and target["kind"] in TOGGLES:
                 banned.add(target["i"])     # set it once; don't flip it back
             obs = self.observe()
+            if self._dropped(obs["url"]):   # the site threw the search away (Booking.com's Search button)
+                return result("blocked", obs, self._dropped(obs["url"]), probs)
             suggesting = tool == "type" and any(e["kind"] == "option" for e in obs["elements"])
             if self._signature(obs) == before:
                 no_effect += 1
@@ -1085,10 +1263,10 @@ class Session:
             loc.click(timeout=3000)
         except Exception:  # noqa: BLE001 - covered or animating: a DOM click still reaches the handler
             loc.evaluate("el => el.click()", timeout=3000)
-        # a new tab registers a moment after the click: without waiting, the old page looked
-        # unchanged, the click was banned as "no effect", and the next event's link got clicked
-        # (live: Red Rocks' "Buy Tickets" opened three different concerts on AXS)
-        deadline = time.monotonic() + (4.0 if target.get("newtab") else 0.4)
+        # links open in this tab (SAME_TAB_JS); a script's pop-up still opens a tab, a moment after the click:
+        # without waiting, the old page looked unchanged and the click was banned as "no effect" (live: Red
+        # Rocks' "Buy Tickets" opened three different concerts on AXS)
+        deadline = time.monotonic() + 0.4
         while len(self.context.pages) <= tabs and time.monotonic() < deadline:
             page.wait_for_timeout(100)
         if len(self.context.pages) > tabs:
@@ -1138,8 +1316,20 @@ def read(question: str | None = None, max_chars: int = 4000) -> str:
     return _run(Session.read, question, max_chars)
 
 
-def elements() -> list[str]:
-    return _run(Session.elements)
+def elements(match: str | None = None) -> list[str]:
+    return _run(Session.elements, match)
+
+
+def click(i: int, allow_irreversible: bool = False) -> dict:
+    return _run(Session.click, i, allow_irreversible)
+
+
+def fill(i: int, text: str, enter: bool = False) -> dict:
+    return _run(Session.fill, i, text, enter)
+
+
+def select(i: int, option: str) -> dict:
+    return _run(Session.select, i, option)
 
 
 def html(css: str | None = None, max_chars: int = 30000) -> str:
@@ -1148,6 +1338,28 @@ def html(css: str | None = None, max_chars: int = 30000) -> str:
 
 def press(keys: str | list[str], times: int = 1, delay: float = 0.15) -> dict:
     return _run(Session.press, keys, times, delay)
+
+
+_host = None   # set by the worker's REPL: calls into the harness (here: its model, to look at a screenshot)
+_looks = 0
+
+
+def look(question: str, full_page: bool = False) -> dict:
+    """What the page looks like, answered by your own model from a screenshot: a canvas game board, a
+    chart, a seat map, anything drawn rather than written. -> {answer, screenshot}. Costs a model call
+    with an image, so use read()/elements() when the text holds it."""
+    global _looks
+    if _host is None:
+        raise RuntimeError("browser.look() works inside a worker's REPL (it asks the worker's model)")
+    _looks += 1
+    shot = screenshot(f"look-{_looks:02d}.png", full_page)
+    # "right away": asked plainly, Qwen 3.8 thought for 8k tokens (5 min, cut off) over a 2048 board; told
+    # to read it off, 586 tokens in 42 s, every tile right
+    answer = _host("look", shot, "Look at the image and answer right away - no deliberation or double-checking, "
+                   "just read it off. It is a screenshot of the web page open in the browser: answer only from what "
+                   "it shows, exactly (numbers, positions, labels), and say so if something is hidden or can't be "
+                   "seen.\n\n" + question)
+    return {"answer": answer, "screenshot": shot}
 
 
 def screenshot(name: str = "page.png", full_page: bool = False) -> str:

@@ -254,3 +254,30 @@ def test_a_worker_repeating_the_same_result_is_told_to_hand_it_over(cfg):
     assert "printed the same result each time" in told and "hand it over now" in told
     assert "genuinely different approach" not in told
     assert r.answer.startswith("[daily_assistant stopped") and "[[8, 8, 9], [8, 2, 9]]" in r.answer
+
+
+def test_new_pages_count_as_progress_only_when_reached():
+    from jevh.worker import new_pages
+    earlier = [{"role": "tool", "content": "{'url': 'https://www.booking.com/city/us/denver.html'}"},
+               {"role": "assistant", "content": "browser.goto('https://www.booking.com/searchresults.html?x=1')"}]
+    recent = [{"role": "assistant", "content": "browser.goto('https://www.booking.com/guessed.html')"},
+              {"role": "tool", "content": "{'url': 'https://www.booking.com/city/us/denver.html?d=2', "
+                                          "'page': '... https://www.booking.com/searchresults.html ...'}"}]
+    # the city page was seen before (query ignored); searchresults was only typed before, now reached;
+    # the guessed page was only typed
+    assert new_pages(earlier, recent) == ["https://www.booking.com/searchresults.html"]
+
+
+def test_a_worker_reaching_new_pages_is_not_stopped_as_circling(cfg):
+    """Live (Booking.com, BlazeDemo): the first strike came right after real progress - the dates picked, the
+    flight chosen - because a browser task's steps look alike to the progress check."""
+    events = []
+    moving = [py(f"print({{'url': 'https://shop.test/step{i}'}})") for i in range(8)] + [py("final('all done')")]
+    h, _ = harness(cfg, moving, circles=0.95, events=events, progress_every=2)
+    assert h.turn("go through the checkout").answer == "all done"
+    checks = [d for k, d in events if k == "progress_check"]
+    assert checks and all(not c["stuck"] and c["new_pages"] for c in checks), checks
+    events.clear()
+    same = [py("print({'url': 'https://shop.test/cart'})")] * 10
+    h, _ = harness(cfg, same, circles=0.95, events=events, progress_every=2)
+    assert h.turn("go through the checkout").answer.startswith("[daily_assistant stopped")

@@ -1,0 +1,11 @@
+<!doctype html><html><head><title>Stays</title></head><body>
+<!-- Booking.com's pattern toward a headless browser: a search arrives with its terms in the URL, and the
+     page sends it on to the same page without them - no dates, no results, no error text -->
+<script>if (location.search) location.replace("stays.html");</script>
+<h1>Find your next stay</h1>
+<form action="stays.html" method="get">
+  <input name="ss" placeholder="Enter destination"> <input name="checkin" type="date" value="2026-10-14">
+  <input name="checkout" type="date" value="2026-10-16"> <button>Search</button>
+</form>
+<p>Enter your dates to see the latest prices</p>
+</body></html>

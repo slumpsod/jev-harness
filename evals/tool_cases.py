@@ -22,7 +22,8 @@ from jevh.decide import SystemOneClient, noul  # noqa: E402
 from jevh.tools import TOOLS  # noqa: E402
 
 RAW = Path(__file__).with_name("tool_cases_raw.json")
-W, B, P, C = "web", "browser", "project", "comfy"
+W, B, P, C, N = "web", "browser", "project", "comfy", "nango"
+ALL = (W, B, P, C, N)
 
 CASES = [  # (request, needed, either)
     ("What's the weather in Seattle this weekend?", {W}, {B}),
@@ -44,7 +45,7 @@ CASES = [  # (request, needed, either)
     ("Compare the price of the RTX 5090 at three retailers.", {W}, {B}),
     ("What does HTTP status 418 mean?", set(), {W}),
     ("Plan my workouts for this week.", set(), set()),
-    ("Draft an email to my client about the delayed quote.", set(), set()),
+    ("Draft an email to my client about the delayed quote.", set(), {N}),
     ("Look up the ComfyUI docs for the KSampler node and fix my workflow.", {W, C}, {B}),
     ("Research best practices for FastAPI auth and apply them to my project.", {W, P}, {B}),
     ("Build a landing page for my bakery and check it renders correctly in a browser.", {B}, {P}),
@@ -58,15 +59,28 @@ CASES = [  # (request, needed, either)
     ("Tell me a joke.", set(), set()),
     ("How do I center a div in CSS?", set(), {W}),
     ("Create an image of a cat astronaut for my blog post.", {C}, set()),
-    ("Check the status of my GitHub Actions run on the website.", {B}, {W}),
+    ("Check the status of my GitHub Actions run on the website.", {B}, {W, N}),
     ("What's the price of Bitcoin right now?", {W}, {B}),
     ("Write unit tests for utils.py in my project.", {P}, set()),
     ("Is ComfyUI running right now?", {C}, set()),
-    ("Remind me to stretch every hour.", set(), set()),
+    ("Remind me to stretch every hour.", set(), {N}),
     ("Go to en.wikipedia.org and tell me today's featured article.", {W}, {B}),
     ("Add a CSV export button to the dashboard in my project and test it in the browser.", {P, B}, set()),
     ("Take a screenshot of example.com.", {B}, set()),
     ("What are good macros for cutting at 80kg bodyweight?", set(), {W}),
+    # nango: the user's own connected accounts (added 2026-09-29)
+    ("Any unread emails from my accountant this week?", {N}, set()),
+    ("What's on my calendar tomorrow?", {N}, set()),
+    ("Send Sam an email saying I'll be 10 minutes late.", {N}, set()),
+    ("Open a GitHub issue in my repo about the login bug.", {N}, {P, B}),
+    ("Post in the #general Slack channel that the deploy is done.", {N}, set()),
+    ("Find the Q3 budget doc in my Google Drive and summarize it.", {N}, set()),
+    ("Add a meeting with Alex on Friday at 2pm to my calendar.", {N}, set()),
+    ("List my open pull requests on GitHub.", {N}, {B, W}),
+    ("Move the Acme deal to closed-won in HubSpot.", {N}, {B}),
+    ("What did Maria say in my last Slack DM?", {N}, set()),
+    ("How do I use the Gmail API to send an email from Python?", set(), {W}),
+    ("What is OAuth and how does token refresh work?", set(), {W}),
 ]
 
 PHRASINGS = {
@@ -84,8 +98,8 @@ def run_live() -> dict:
         rows = []
         for req, _, _ in CASES:
             r = client.ask({"latest_request": req}, {f"t_{n}": noul({"question": q, "tool": TOOLS[n].description})
-                                                     for n in (W, B, P, C)})
-            rows.append({n: r[f"t_{n}"].noul for n in (W, B, P, C)})
+                                                     for n in ALL})
+            rows.append({n: r[f"t_{n}"].noul for n in ALL})
         raw[name] = rows
         print(f"{name}: {(time.time() - t) / len(CASES):.2f}s per request")
     RAW.write_text(json.dumps(raw, indent=1), encoding="utf-8")

@@ -250,9 +250,10 @@ def test_a_new_tab_link_is_followed_once_and_its_bot_check_reported(session, sit
     try:
         r = session.do("open the tickets for Glass Harbor")
         assert r["status"] == "blocked" and "Just a moment" in r["note"], r
-        assert r["actions"] == ["clicked link 'Buy Tickets'; it opened in a new tab"]
+        # the link would open a new tab; it opens in this one (one page for the agent and the dock)
+        assert r["actions"] == ["clicked link 'Buy Tickets'"], r["actions"]
         assert session.page.url.endswith("ticket.html?e=glass-harbor")
-        assert len(session.context.pages) == 2
+        assert len(session.context.pages) == 1
     finally:
         for p in session.context.pages[1:]:
             p.close()
@@ -400,3 +401,126 @@ def test_filling_a_form_never_submits_it_and_choices_are_clicked(session, site):
     assert "clicked checkbox 'Reading' (value 'Hobbies')" in r["actions"][0], r
     assert session.page.is_checked("#h2") and not session.page.is_checked("#h1")
     assert session.page.evaluate("localStorage.getItem('submitted')") is None, r
+
+
+# -- the worker acting itself when Jev is stuck ------------------------------------------------------
+def _num(listing: list[str], text: str) -> int:
+    return int(next(s for s in listing if text in s).split("]")[0][1:])
+
+
+def test_when_jev_is_stuck_the_worker_gets_candidates_and_clicks_one(session, site):
+    session.jev = picks("nothing matches")               # Jev finds nothing to do
+    session.goto(site + "flights.html")
+    r = session.do("choose the Aer Lingus flight")
+    assert r["status"] == "stuck" and "browser.click(i)" in r["note"], r
+    assert any("9696 Aer Lingus" in c for c in r["candidates"]), r["candidates"]
+    c = session.click(_num(r["candidates"], "9696 Aer Lingus"))
+    assert c["status"] == "done" and c["changed"] and "Flight 9696" in c["page"], c
+
+
+def test_a_direct_click_on_an_order_needs_confirmation(session, site):
+    session.goto(site + "index.html")
+    session.page.evaluate("localStorage.clear(); " + "localStorage.setItem('cart', JSON.stringify([{id:'blue-mug',"
+                          "name:'Blue ceramic mug',size:'Large',qty:1}]))")
+    session.goto(site + "checkout.html")
+    r = session.click(_num(session.elements("Place order"), "Place order"))
+    assert r["status"] == "needs_confirmation" and "allow_irreversible=True" in r["note"]
+    assert session.page.evaluate("localStorage.getItem('order')") is None
+
+
+def test_direct_fill_reads_back_refuses_passwords_and_offers_suggestions(session, site):
+    session.goto(site + "login.html")
+    assert session.fill(_num(session.elements("password"), "password"), "hunter22")["status"] == "refused"
+    session.goto(site + "datepicker.html")
+    r = session.fill(_num(session.elements("Date of Birth"), "Date of Birth"), "12 March 1990")
+    assert r["status"] == "done" and "[as '12 Mar 1990']" in r["action"], r
+    session.goto(site + "reactform.html")
+    session.page.evaluate("localStorage.clear()")
+    r = session.fill(_num(session.elements("Subjects"), "Subjects"), "s")   # several match: the list comes back
+    assert len(r["suggestions"]) == 4 and "pick one with browser.click(i)" in r["note"], r
+    assert session.click(_num(r["suggestions"], "Physics"))["status"] == "done"
+    assert session.page.evaluate("localStorage.getItem('subjects')") == '["Physics"]'
+
+
+def test_numbers_are_checked_and_kinds_are_explained(session, site):
+    session.goto(site + "flights.html")
+    with pytest.raises(ValueError, match="elements\(\) again"):
+        session.click(999)
+    button = _num(session.elements("Choose This Flight"), "Choose This Flight")
+    assert "not a text field" in session.fill(button, "x")["note"]
+    assert "not a dropdown" in session.select(button, "x")["note"]
+
+
+def test_over_the_cap_what_is_on_screen_is_kept(session, tmp_path):
+    """Booking.com: the calendar opens at the end of the page, and the first 300 controls in page order
+    (hotel cards far below) left its days out."""
+    links = "".join(f'<p><a href="#h{n}">Hotel {n}</a></p>' for n in range(400))
+    page = tmp_path / "busy.html"
+    page.write_text(f'<!doctype html><title>Busy</title><div style="margin-top:900px">{links}</div>'
+                    '<div style="position:fixed;top:20px;left:20px;background:#fff"><button>Wednesday, October 14, 2026'
+                    '</button><button>Friday, October 16, 2026</button></div>', encoding="utf-8")
+    session.goto(page.as_uri())
+    days = session.elements("October 1")
+    assert len(days) == 2 and len(session.elements()) == 300, days
+    assert session.click(_num(days, "October 14"))["status"] == "done"
+
+
+def test_a_canvas_page_says_so_and_press_sees_the_board_change(session, site):
+    """play2048.co: the worker searched the HTML for the board for 30 steps, and a move that scored
+    nothing came back changed=False, so it decided the keys did nothing."""
+    r = session.goto(site + "canvasgame.html")
+    assert "drawn on a canvas" in r["note"] and "browser.look" in r["note"]
+    assert "drawn on a canvas" in session.read() and session.html().startswith("<!-- jevh note:")
+    p = session.press("ArrowRight", delay=0)
+    assert p["changed"] and "Score: 0" in p["page"]      # the board moved; no text did
+
+
+def test_look_asks_the_workers_model_about_a_screenshot(site, monkeypatch, shots):
+    import jevh.tools.browser as browser
+    asked = []
+    monkeypatch.setattr(browser, "_host", lambda name, path, q: asked.append((name, path, q)) or "a red tile, 2nd column")
+    try:
+        browser.goto(site + "canvasgame.html")
+        r = browser.look("where is the red tile?")
+    finally:
+        browser.close()
+    assert r["answer"] == "a red tile, 2nd column" and Path(r["screenshot"]).is_file()
+    name, path, q = asked[0]
+    assert name == "look" and path == r["screenshot"] and q.endswith("where is the red tile?") and "right away" in q
+
+
+def test_see_image_sends_the_picture_the_way_each_provider_takes_it(tmp_path):
+    from jevh.llm import AnthropicLLM, LLMResult, see_image
+    img = tmp_path / "s.png"
+    img.write_bytes(b"\x89PNG fake")
+
+    class Local:
+        def chat(self, messages):
+            self.content = messages[0]["content"]
+            return LLMResult(text="4 tiles")
+    local = Local()
+    assert see_image(local, str(img), "how many?") == "4 tiles"
+    assert local.content[1]["image_url"]["url"].startswith("data:image/png;base64,")
+
+    class Claude(AnthropicLLM):
+        def __init__(self):
+            pass
+
+        def chat(self, messages):
+            self.content = messages[0]["content"]
+            return LLMResult(text="ok")
+    claude = Claude()
+    see_image(claude, str(img), "how many?")
+    assert claude.content[0]["type"] == "image" and claude.content[0]["source"]["media_type"] == "image/png"
+
+
+def test_a_search_the_site_throws_away_is_reported_as_blocked(session, site):
+    """Booking.com toward a headless browser: searchresults.html?ss=Denver&checkin=... went on to a page with
+    no query - no dates, no hotels, no error text - and the worker retried for 30 steps."""
+    r = session.goto(site + "stays.html?ss=Denver&checkin=2026-10-14&checkout=2026-10-16")
+    assert r["status"] == "blocked" and "checkin, checkout, ss" in r["note"] and "own browser" in r["note"], r
+    session.goto(site + "stays.html")
+    session.jev = picks("button 'Search'")
+    r = session.do("search for stays in Denver", {"destination": "Denver"})
+    assert r["status"] == "blocked" and "threw the search away" in r["note"], r
+    assert session.goto(site + "search.html?q=mug&page=2")["status"] == "done"     # a kept search is fine

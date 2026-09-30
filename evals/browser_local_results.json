@@ -4,7 +4,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 3.3,
+  "secs": 2.7,
   "calls": 2,
   "actions": [
    "filled search box 'Search products' (value 'query')",
@@ -18,7 +18,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 2.5,
+  "secs": 1.9,
   "calls": 2,
   "actions": [
    "clicked link 'Blue ceramic mug'"
@@ -31,7 +31,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 1.6,
+  "secs": 1.0,
   "calls": 3,
   "actions": [
    "selected 'Large' in dropdown 'Size'"
@@ -44,7 +44,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 3.3,
+  "secs": 2.0,
   "calls": 5,
   "actions": [
    "selected 'Large' in dropdown 'Size'",
@@ -65,7 +65,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 4.0,
+  "secs": 3.3,
   "calls": 3,
   "actions": [
    "filled text field 'Email' (value 'email'), password 'Password' (value 'password')",
@@ -87,13 +87,13 @@
   "ok": true,
   "status": "error",
   "check": true,
-  "secs": 3.5,
+  "secs": 2.8,
   "calls": 3,
   "actions": [
    "filled text field 'Email' (value 'email'), password 'Password' (value 'password')",
    "clicked button 'Sign in'"
   ],
-  "note": "the page shows an error after the last action",
+  "note": "the page shows an error after the last action; act yourself if you see the right one: browser.click(i) / fill(i, text) / select(i, option)",
   "buttons": [
    {
     "goal": "sign in",
@@ -109,7 +109,7 @@
   "ok": true,
   "status": "needs_login",
   "check": true,
-  "secs": 0.8,
+  "secs": 0.4,
   "calls": 1,
   "actions": [],
   "note": "sign-in required: call again with values= for the form",
@@ -120,7 +120,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 3.7,
+  "secs": 2.4,
   "calls": 4,
   "actions": [
    "clicked checkbox 'Email notifications'",
@@ -132,7 +132,7 @@
     "goal": "turn off email notifications and save the settings",
     "element": "button 'Save settings'",
     "wanted": 0.755,
-    "irreversible": 0.004,
+    "irreversible": 0.005,
     "pending": 0.562
    }
   ]
@@ -142,7 +142,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 3.4,
+  "secs": 2.0,
   "calls": 5,
   "actions": [
    "selected 'Dark' in dropdown 'Theme'",
@@ -153,7 +153,7 @@
    {
     "goal": "switch the theme to Dark and save",
     "element": "button 'Save settings'",
-    "wanted": 0.755,
+    "wanted": 0.777,
     "irreversible": 0.003,
     "pending": 0.469
    }
@@ -164,7 +164,7 @@
   "ok": true,
   "status": "needs_confirmation",
   "check": true,
-  "secs": 2.2,
+  "secs": 1.8,
   "calls": 2,
   "actions": [
    "filled text field 'Full name' (value 'name'), text field 'Street address' (value 'address')"
@@ -184,7 +184,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 3.5,
+  "secs": 2.5,
   "calls": 3,
   "actions": [
    "filled text field 'Full name' (value 'name'), text field 'Street address' (value 'address')",
@@ -205,7 +205,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 2.9,
+  "secs": 2.1,
   "calls": 3,
   "actions": [
    "clicked link 'Tidal locking'"
@@ -218,7 +218,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 0.8,
+  "secs": 0.4,
   "calls": 1,
   "actions": [],
   "note": "",
@@ -229,7 +229,7 @@
   "ok": true,
   "status": "needs_value",
   "check": true,
-  "secs": 0.8,
+  "secs": 0.4,
   "calls": 1,
   "actions": [],
   "note": "search box 'Search products' needs text: call again with values={'Search products': '<the text>'}",
@@ -240,7 +240,7 @@
   "ok": true,
   "status": "needs_value",
   "check": true,
-  "secs": 0.8,
+  "secs": 0.4,
   "calls": 1,
   "actions": [],
   "note": "search box 'Search products' needs text: call again with values={'Search products': '<the text>'}",
@@ -251,7 +251,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 2.4,
+  "secs": 1.8,
   "calls": 2,
   "actions": [
    "clicked link 'Cart (1)'"
@@ -264,7 +264,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 2.5,
+  "secs": 1.6,
   "calls": 3,
   "actions": [
    "clicked button 'Add to cart'"
@@ -275,7 +275,7 @@
     "goal": "add the coconut berry energy drink 12 pack to the cart",
     "element": "button 'Add to cart'",
     "wanted": 0.947,
-    "pending": 0.5
+    "pending": 0.562
    }
   ]
  },
@@ -284,7 +284,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 3.4,
+  "secs": 2.2,
   "calls": 5,
   "actions": [
    "selected '3' in dropdown 'Quantity:'",
@@ -295,7 +295,7 @@
    {
     "goal": "add 3 of these to my cart",
     "element": "button 'Add to cart'",
-    "wanted": 0.593,
+    "wanted": 0.651,
     "pending": 0.349
    }
   ]
@@ -305,7 +305,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 3.7,
+  "secs": 2.4,
   "calls": 4,
   "actions": [
    "clicked link '0 items in cart'"
@@ -325,7 +325,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 3.1,
+  "secs": 2.3,
   "calls": 3,
   "actions": [
    "filled text field 'New todo' (value 'todo')",
@@ -336,9 +336,9 @@
    {
     "goal": "add a todo to water the plants",
     "element": "button 'Add'",
-    "wanted": 0.852,
+    "wanted": 0.867,
     "irreversible": 0.037,
-    "pending": 0.593
+    "pending": 0.623
    }
   ]
  },
@@ -347,7 +347,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 1.9,
+  "secs": 1.3,
   "calls": 2,
   "actions": [
    "clicked checkbox 'Call mom'"
@@ -360,7 +360,7 @@
   "ok": true,
   "status": "needs_confirmation",
   "check": true,
-  "secs": 1.1,
+  "secs": 0.6,
   "calls": 2,
   "actions": [],
   "note": "next: click button 'Delete Book dentist', which looks hard to undo; call again with allow_irreversible=True if the user wants it",
@@ -378,7 +378,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 1.7,
+  "secs": 1.3,
   "calls": 2,
   "actions": [
    "clicked tab 'Reviews (42)'"
@@ -391,7 +391,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 1.9,
+  "secs": 1.3,
   "calls": 2,
   "actions": [
    "clicked tab 'Specifications'"
@@ -404,7 +404,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 2.1,
+  "secs": 1.5,
   "calls": 3,
   "actions": [
    "clicked button 'Reject non-essential'"
@@ -415,7 +415,7 @@
     "goal": "dismiss the cookie banner without accepting tracking",
     "element": "button 'Reject non-essential'",
     "wanted": 0.755,
-    "irreversible": 0.005
+    "irreversible": 0.004
    }
   ]
  },
@@ -424,7 +424,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 4.9,
+  "secs": 3.0,
   "calls": 6,
   "actions": [
    "clicked radio 'Overnight ($25)'",
@@ -435,16 +435,16 @@
    {
     "goal": "choose overnight shipping and continue",
     "element": "button 'Continue to payment'",
-    "wanted": 0.407,
-    "irreversible": 0.294,
-    "pending": 0.984
+    "wanted": 0.438,
+    "irreversible": 0.269,
+    "pending": 0.986
    },
    {
     "goal": "choose overnight shipping and continue",
     "element": "button 'Continue to payment'",
     "wanted": 0.818,
     "irreversible": 0.349,
-    "pending": 0.407
+    "pending": 0.438
    }
   ]
  },
@@ -453,7 +453,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 5.0,
+  "secs": 3.1,
   "calls": 6,
   "actions": [
    "clicked checkbox 'This is a gift (add a gift receipt)'",
@@ -464,14 +464,14 @@
    {
     "goal": "mark the order as a gift and continue to payment",
     "element": "button 'Continue to payment'",
-    "wanted": 0.593,
+    "wanted": 0.623,
     "irreversible": 0.269,
-    "pending": 0.991
+    "pending": 0.992
    },
    {
     "goal": "mark the order as a gift and continue to payment",
     "element": "button 'Continue to payment'",
-    "wanted": 0.905,
+    "wanted": 0.915,
     "irreversible": 0.407,
     "pending": 0.269
    }
@@ -482,7 +482,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 2.5,
+  "secs": 1.8,
   "calls": 2,
   "actions": [
    "clicked link '3'"
@@ -495,10 +495,10 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 2.5,
+  "secs": 1.8,
   "calls": 2,
   "actions": [
-   "clicked link 'Next'"
+   "clicked link '3'"
   ],
   "note": "",
   "buttons": []
@@ -508,7 +508,7 @@
   "ok": true,
   "status": "error",
   "check": true,
-  "secs": 6.3,
+  "secs": 4.8,
   "calls": 6,
   "actions": [
    "filled text field 'Work email' (value 'email'), password 'Choose a password' (value 'password')",
@@ -516,21 +516,21 @@
    "clicked button 'Create account'",
    "clicked button 'Create account'"
   ],
-  "note": "the page shows an error after the last action",
+  "note": "the page shows an error after the last action; act yourself if you see the right one: browser.click(i) / fill(i, text) / select(i, option)",
   "buttons": [
    {
     "goal": "create an account",
     "element": "button 'Create account'",
-    "wanted": 0.963,
+    "wanted": 0.967,
     "irreversible": 0.01,
-    "pending": 0.294
+    "pending": 0.349
    },
    {
     "goal": "create an account",
     "element": "button 'Create account'",
-    "wanted": 0.963,
+    "wanted": 0.967,
     "irreversible": 0.01,
-    "pending": 0.294
+    "pending": 0.349
    }
   ]
  },
@@ -539,7 +539,7 @@
   "ok": true,
   "status": "done",
   "check": true,
-  "secs": 4.7,
+  "secs": 3.6,
   "calls": 4,
   "actions": [
    "filled text field 'Work email' (value 'email'), password 'Choose a password' (value 'password')",
@@ -552,7 +552,7 @@
     "goal": "create an account and accept the terms",
     "element": "button 'Create account'",
     "wanted": 0.893,
-    "irreversible": 0.01,
+    "irreversible": 0.011,
     "pending": 0.349
    }
   ]

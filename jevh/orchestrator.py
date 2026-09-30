@@ -26,13 +26,14 @@ from .decide import SystemOneError, noul
 from .errors import Cancelled
 from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision
 from .learn import Learner, seen_text, work_log
-from .llm import LLM, make_llm
+from .llm import LLM, make_llm, see_image
 from .lmstudio import gate_for
 from .mcp import McpHub
 from .memory import Memory
 from .personas import Persona, load_personas
 from .skills import load_roster
 from .tools import TOOLS
+from .tools import nango
 from .usage import Metered, Usage
 from .verify import Verifier
 from .worker import Worker, WorkerResult, build_system
@@ -195,7 +196,8 @@ class Harness:
                     self.on_event("swap", {"unloaded": dropped, "loaded": model, "seconds": secs}),
                     self._record(kind="swap", model=model, seconds=secs, calls=1))
         for key, env in (("comfy_url", "JEVH_COMFY_URL"), ("comfy_workflows", "JEVH_COMFY_WORKFLOWS"),
-                         ("tools_jev", "JEVH_TOOLS_JEV")):
+                         ("tools_jev", "JEVH_TOOLS_JEV"), ("nango_url", "JEVH_NANGO_URL"),
+                         ("nango_writes", "JEVH_NANGO_WRITES")):
             if self.cfg.tools.get(key):  # REPL children inherit these
                 os.environ.setdefault(env, str(self.cfg.tools[key]))
         os.environ.setdefault("JEVH_JEV_URL", str(self.cfg.jev.get("url", "http://127.0.0.1:33001")))
@@ -428,8 +430,9 @@ class Harness:
         self.on_event("tools", {"task": task, "decision": tools})
         catalog = self.mcp.catalog() if tools.mcp else {}
         picked = [self.roster[s] for s in skills.skills]
+        notes = {"nango": nango.summary()} if "nango" in tools.tools else {}
         system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
-                              [catalog[k] for k in tools.mcp if k in catalog])
+                              [catalog[k] for k in tools.mcp if k in catalog], tool_notes=notes)
         ctx = {"request": task.text, "memory": mem.kept, "inputs": task.inputs,
                "skills": {s.name: s.body for s in picked}}
         env = {}
@@ -449,12 +452,14 @@ class Harness:
         llm = self._llm(persona, tier.tier)
         if getattr(llm, "native_tools", False):   # acting is a `python` tool call, not a fenced block
             system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
-                                  [catalog[k] for k in tools.mcp if k in catalog], native=True)
+                                  [catalog[k] for k in tools.mcp if k in catalog], native=True, tool_notes=notes)
         handles = Handles(self._start_request, task, goal, requestable)
         handlers = {
             "llm_query": lambda prompt, data=None: llm.chat([{"role": "user", "content": (
                 prompt if data is None else f"{prompt}\n\n---\n{data}")}]).text,
             "jev": lambda state, questions: self.jev._ask("worker_jev", state, questions).as_dict(),
+            # browser.look(): the worker's own model looks at a screenshot (canvas games, charts, boards)
+            "look": lambda path, question: see_image(llm, path, question),
             "request": lambda to, text, inputs=None: handles.wait(handles.start(to, text, inputs)),
             "request_async": lambda to, text, inputs=None: handles.start(to, text, inputs),
             "wait": lambda h, timeout=None: handles.wait(h, timeout),
@@ -586,7 +591,9 @@ class Harness:
         if not persona.code:
             return ToolDecision([])
         own = {t: TOOLS[t].description for t in persona.tools
-               if t in TOOLS and (t != "project" or self.project)}
+               if t in TOOLS and (t != "project" or self.project) and (t != "nango" or nango.configured())}
+        if "nango" in own and (accounts := nango.summary()):   # Jev judges "my email" knowing Gmail is connected
+            own["nango"] += f" ({accounts.rstrip('.')})"
         mcp = {}
         if persona.mcp and self.mcp:
             mcp = {k: t.description for k, t in self.mcp.catalog().items() if persona.allows_mcp(k)}
