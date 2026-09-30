@@ -341,7 +341,7 @@ def test_the_writer_keeps_the_settings_the_harness_runs_its_model_with(cfg, repo
     fixer = {"provider": "lmstudio", "model": "q@q6", "think": "unlimited", "temperature": 0.3}
     monkeypatch.setattr("jevh.personas.load_personas", lambda d: {ref.s["fixer_persona"]: SimpleNamespace(model=fixer)})
     ref.cfg.models = {k: v for k, v in ref.cfg.models.items() if k != "strong"}
-    want = {"provider": "lmstudio", "model": "q@q6", "temperature": 0.3, "max_tokens": 32768}   # a budget, not unlimited
+    want = {"provider": "lmstudio", "model": "q@q6", "temperature": 0.3, "max_tokens": 65536}   # a budget, not unlimited
     ref.s["model"] = None
     assert ref.model_block() == want                                   # the fixer persona's block
     ref.s["model"] = "lmstudio:q@q6"

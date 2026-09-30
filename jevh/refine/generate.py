@@ -62,6 +62,9 @@ Reply with ONLY a JSON list: [{{"request": "...", "checker": {{...}}, "good_answ
 that passes the checker", "bad_answer": "an answer that shows the same failure and must fail the checker"}}, ...]"""
 
 
+BATCH = 6   # variants asked for per reply
+
+
 def parse_json(text: str, kind: str = "[") -> Any:
     """The first JSON list/object in a model's reply (code fences and chatter around it allowed)."""
     text = re.sub(r"```(?:json)?", "", text or "")
@@ -118,7 +121,8 @@ class Generator:
     def variants(self, failure: dict, persona: str | None = None) -> list[Case]:
         kept: list[Case] = []
         seen = {_norm(failure["request"])}
-        for _ in range(self.rounds):
+        # a few per reply: 12 cases in one went past 32k tokens with a thinking model (live, Qwen 3.8 27B)
+        for _ in range(self.rounds + self.n // BATCH):
             if len(kept) >= self.n:
                 break
             avoid = ""
@@ -129,7 +133,7 @@ class Generator:
                     "\n".join(f"  - {d['request'][:80]}: {d['why'][:120]}"
                               for d in [d for d in self.dropped if not d.get("reply")][-5:])
             text = self.ask(VARIANTS_PROMPT.format(
-                n=self.n - len(kept) + 2, request=failure["request"][:3000],
+                n=min(self.n - len(kept) + 2, BATCH), request=failure["request"][:3000],
                 answer=(failure.get("answer") or "(no answer)")[:1500], kind=failure["kind"],
                 source=failure.get("source", ""), summary=failure["summary"], detail=_detail(failure),
                 log=(failure.get("work_log") or "(no code was run)")[-2500:], avoid=avoid, types=CHECKER_TYPES),

@@ -35,7 +35,7 @@ from .generate import Generator
 
 DEFAULTS: dict[str, Any] = {
     "model": None,              # "provider:model" that writes tests and fixes (local only)
-    "max_tokens": 32768,        # per test-writing reply, thinking included (the fixer's turn uses its persona's)
+    "max_tokens": 65536,        # per test-writing reply, thinking included (the fixer's turn uses its persona's)
     "models": None,             # models the cases run on (default: every local model in the config)
     "discover": False,          # also every chat model LM Studio lists
     "cases": 10,                # variants to write per failure (plus the replayed failure itself)
@@ -87,9 +87,10 @@ class Refiner:
     def model_block(self) -> dict[str, Any]:
         """The writer's model with its settings: refine.model as a block, or the block the harness already
         runs that model with (models.strong / the personas'), with refine.max_tokens as its budget.
-        Live: a bare "provider:model" got the 8192-token default, and Qwen spent all of it thinking - no
-        variant list came back in 3 rounds and the attempt was dropped with 1 test case. `think: unlimited`
-        isn't kept either: nothing watches these calls, and one thought for 30+ minutes on a single reply."""
+        Live (Qwen 3.8 27B, ~30 tok/s): a bare "provider:model" got the 8192-token default and every variant
+        reply was cut off, so the attempt was dropped with 1 test case. Unlimited, its replies took 18-21k
+        tokens (~11 min each); a 32k cap cut two 12-case variant replies off. The budget stays finite because
+        nothing watches these calls the way a worker's thinking is watched."""
         from ..personas import load_personas
         m = self.s["model"]
         if isinstance(m, dict):
