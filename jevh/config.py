@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -46,10 +47,37 @@ DEFAULT_LIMITS = {"max_mcp_tools": 3, "memory_search": 10, "memory_facts": 6, "f
                   "keep_reasoning": 40000, "thinking_watch": 0, "watch_every": 4000, "watch_after": 6000}
 
 
+def shell_env(env: dict[str, str] | None = None) -> dict[str, str]:
+    """`env` (default os.environ) with this Python's folder first on PATH, so a shell command's `python`
+    is the harness's own interpreter. On macOS and Linux outside an activated venv there is often no
+    `python` at all (only python3): project.sh("python -m pytest") failed with "python: not found"."""
+    env = dict(os.environ if env is None else env)
+    here = os.path.dirname(sys.executable)
+    env["PATH"] = here + os.pathsep + env.get("PATH", "") if here else env.get("PATH", "")
+    return env
+
+
+def merged(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
+    """`base` with `over` laid on top, nested dicts merged key by key (a None value removes the key)."""
+    out = dict(base)
+    for k, v in over.items():
+        if v is None:
+            out.pop(k, None)
+        elif isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = merged(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
 def load_config(path: str | os.PathLike | None = None) -> Config:
     path = Path(path or os.environ.get("JEVH_CONFIG") or ROOT / "config.yaml")
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     base = path.resolve().parent
+    # this machine's own settings (models, Jev, paths), kept out of git: config.local.yaml next to it
+    local = base / "config.local.yaml"
+    if local.is_file() and not os.environ.get("JEVH_NO_LOCAL_CONFIG"):
+        raw = merged(raw, yaml.safe_load(local.read_text(encoding="utf-8")) or {})
 
     def rel(p: str) -> Path:
         q = Path(os.path.expandvars(os.path.expanduser(p)))

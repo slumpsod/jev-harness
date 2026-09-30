@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+from .config import shell_env
 from .decide import noul
 
 # Wording chosen on evals/verify_cases.py (semif), 12 bad / 10 ok answers: "claims >= .8 or
@@ -309,7 +310,7 @@ class Verifier:
             # user's project free of __pycache__ folders
             r = subprocess.run(cmd, shell=True, cwd=project, capture_output=True, text=True, encoding="utf-8",
                                errors="replace", timeout=float(self.settings.get("project_timeout", 600)),
-                               env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+                               env={**shell_env(), "PYTHONDONTWRITEBYTECODE": "1"})
         except subprocess.TimeoutExpired:
             return [f"The project's tests ({cmd}) didn't finish within the time limit."], "fail: timeout"
         if r.returncode == 0 or (r.returncode == 5 and "pytest" in cmd):  # 5 = no tests collected

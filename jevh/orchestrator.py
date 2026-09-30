@@ -690,6 +690,10 @@ class Harness:
             swap = {"provider": provider, "model": model}
         elif tier == "fast" and self.cfg.models.get("fast"):
             swap = dict(self.cfg.models["fast"])
+        elif self.cfg.models.get("strong"):
+            # another machine's models (config.local.yaml): every persona's own model is replaced, its
+            # thinking and sampling settings kept
+            return {**{k: v for k, v in persona.model.items() if k != "fallback"}, **self.cfg.models["strong"]}
         else:
             return persona.model
         cfg = {k: v for k, v in persona.model.items() if k not in ("fallback", "effort", "thinking", "think",

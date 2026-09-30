@@ -5,6 +5,7 @@ Workers never talk to Jev about routing; they only see the result.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
@@ -140,9 +141,15 @@ def _clip(text: str, n: int) -> str:
 class Jev:
     def __init__(self, cfg: Config, client: SystemOneClient | None = None):
         self.cfg = cfg
+        # the hosted Jev (url: https://api.typesafe.ai) takes a key; the local adapter doesn't
+        key_env = cfg.jev.get("api_key_env")
+        api_key = os.environ.get(key_env) if key_env else None
+        if client is None and key_env and not api_key:
+            raise RuntimeError(f"config jev.api_key_env: set the {key_env} environment variable to your Jev API key")
         self.client = client or SystemOneClient(cfg.jev.get("url", "http://127.0.0.1:33001"),
                                                 backend=cfg.jev.get("backend", "laya"),
-                                                timeout=float(cfg.jev.get("timeout", 300)))
+                                                timeout=float(cfg.jev.get("timeout", 300)), api_key=api_key)
+        self.choice_max = int(cfg.jev.get("choice_max", CHOICE_MAX))   # options per Choice the backend takes
         self.trace: list[dict[str, Any]] = []
         self.on_call = None   # (step, response, n_questions): usage tracking
 
@@ -227,12 +234,13 @@ class Jev:
         whose top few go to a final round. `final_extra` options (e.g. a "none" outcome) join
         the final round only. Options knocked out early get probability 0."""
         names = list(options)
-        if len(names) + len(final_extra or {}) <= CHOICE_MAX:
+        cap = getattr(self, "choice_max", CHOICE_MAX)   # hosted Jev takes far more options than semif
+        if len(names) + len(final_extra or {}) <= cap:
             r = self._ask(step, state, {"pick": choice(question, {**options, **(final_extra or {})})})
             return r["pick"].probabilities
-        groups = -(-len(names) // (CHOICE_MAX - 1))            # ceil, leaving room in each round
+        groups = -(-len(names) // (cap - 1))            # ceil, leaving room in each round
         size = -(-len(names) // groups)                         # balanced round sizes
-        keep = max(1, (CHOICE_MAX - len(final_extra or {})) // groups)
+        keep = max(1, (cap - len(final_extra or {})) // groups)
         finalists: list[str] = []
         for start in range(0, len(names), size):
             chunk = names[start:start + size]

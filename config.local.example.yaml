@@ -1,0 +1,29 @@
+# This machine's settings, laid over config.yaml. Copy this file to config.local.yaml (git ignores
+# that one) and edit it. Anything config.yaml has can be overridden here; `null` removes a setting.
+#
+# This example: a Mac with LM Studio for the workers and the hosted Jev (Typesafe API) for every
+# decision - no local Jev adapter needed. See SETUP.md.
+
+jev:
+  url: https://api.typesafe.ai
+  backend: jev-latest              # the hosted Jev model
+  api_key_env: TYPESAFE_API_KEY    # the harness reads your key from this environment variable
+  choice_max: 240                  # options per Choice the hosted Jev takes (the local one: 16)
+  timeout: 60
+  backend_health: null             # the local adapter's health URL: not used with the hosted Jev
+
+tools:
+  tools_jev: cloud                 # the browser/web/project tools use the hosted Jev too (same key)
+  comfy_url: null                  # no ComfyUI on this machine (remove this line if you run one)
+
+# Your LM Studio models: use the ids LM Studio shows (Developer tab, or `lms ls`).
+#   strong: every persona's own model (hard tasks, planning, big builds)
+#   fast:   quick tasks, when Jev judges a task easy (delete `fast` to use `strong` for everything)
+# With about 32 GB of unified memory, pick models that fit one at a time (the harness keeps one
+# loaded); a ~30B mixture-of-experts or a 12-14B dense model is a good start.
+models:
+  strong: {provider: lmstudio, model: qwen3.8-27b}
+  fast: {provider: lmstudio, model: google/gemma-4-12b-qat}
+
+# Skills: this repo's own folder only (config.yaml also lists a folder that only exists on Jed's PC).
+skills_dirs: [skills]

@@ -5,6 +5,7 @@ import collections
 import json
 import os
 import queue
+import signal
 import subprocess
 import sys
 import threading
@@ -13,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from ..config import ROOT
+from ..config import ROOT, shell_env
 
 Handler = Callable[..., Any]
 
@@ -41,6 +42,11 @@ def _kill_tree(proc: subprocess.Popen) -> None:
     if os.name == "nt":
         subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    else:   # macOS / Linux: the REPL leads its own process group (start_new_session), children included
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
     if proc.poll() is None:
         proc.kill()
 
@@ -64,13 +70,14 @@ class Repl:
     def start(self) -> None:
         self.cwd.mkdir(parents=True, exist_ok=True)
         self.artifacts.mkdir(parents=True, exist_ok=True)
-        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1",
+        env = dict(shell_env(), PYTHONIOENCODING="utf-8", PYTHONUTF8="1",
                    JEVH_ARTIFACTS=str(self.artifacts),
                    PYTHONPATH=os.pathsep.join([str(ROOT), os.environ.get("PYTHONPATH", "")]), **self.extra_env)
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         self.proc = subprocess.Popen([sys.executable, "-u", "-m", "jevh.repl.server"], cwd=self.cwd,
                                      env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE, creationflags=flags)
+                                     stderr=subprocess.PIPE, creationflags=flags,
+                                     start_new_session=os.name != "nt")
         self._q = queue.Queue()
         threading.Thread(target=self._read_stdout, args=(self.proc, self._q), daemon=True).start()
         threading.Thread(target=self._read_stderr, args=(self.proc,), daemon=True).start()

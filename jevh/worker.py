@@ -1078,8 +1078,11 @@ class Worker:
         self.artifacts.mkdir(parents=True, exist_ok=True)
         for p in sorted(self.workdir.rglob("*")):
             rel = p.relative_to(self.workdir)
-            if p.is_file() and p.stat().st_size and p not in (self.checkpoint, self._state_path) and not any(
-                    part.startswith((".", "__")) for part in rel.parts):
+            # thinking/ is the harness's own log of each step, not the worker's work: shipped as artifacts, the
+            # final() gate checked them for placeholders ("example" in sam@example.com) and the worker then
+            # edited its own logs to get past the check (live, the demoqa form)
+            if p.is_file() and p.stat().st_size and p not in (self.checkpoint, self._state_path) and \
+                    rel.parts[0] != "thinking" and not any(part.startswith((".", "__")) for part in rel.parts):
                 dest = self.artifacts / f"{self.persona.name}_{'_'.join(rel.parts)}"
                 shutil.copyfile(p, dest)
                 out.append(str(dest))

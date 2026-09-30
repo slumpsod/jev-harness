@@ -173,13 +173,16 @@ def test_cli_imports_and_runs_one_shot(cfg, monkeypatch, capsys):
 
 
 def test_step_limit_warns_and_harvests_files(cfg):
-    step = py("open('app.html', 'w').write('<html>hi</html>')")
+    # the harness streams each step's thinking to thinking/: its own log, never the worker's work
+    step = py("import os; os.makedirs('thinking', exist_ok=True); open('thinking/step-01.txt', 'w').write('hmm')\n"
+              "open('app.html', 'w').write('<html>hi</html>')")
     scripts = {"high_end_dev": [step] * 30}
     h, llms = harness(cfg, team_rules("high_end_dev"), scripts)
     h.personas["high_end_dev"].max_steps = 4
     r = h.turn("build a page")
     assert "step limit" in r.answer
-    assert r.artifacts and r.artifacts[0].endswith("high_end_dev_app.html")
+    assert [a for a in r.artifacts] and r.artifacts[0].endswith("high_end_dev_app.html")
+    assert not any("thinking" in a for a in r.artifacts), r.artifacts
     prompts = [m["content"] for m in llms["high_end_dev"].seen[-1] if m["role"] == "user"]
     assert any("2 steps left" in c for c in prompts)
 

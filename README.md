@@ -21,6 +21,9 @@ Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 
 ## Run
 
+On a Mac, Linux, or with the hosted Jev instead of a local one: see [SETUP.md](SETUP.md). A machine's own
+settings (models, Jev, paths) go in `config.local.yaml`, laid over `config.yaml` and ignored by git.
+
 ```bash
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
 python -m jevh.cli                   # chat; /help for commands
@@ -365,7 +368,11 @@ missed pick costs one `help(name)`, not the capability. The Inspector shows the 
     blocked it, instead of the user getting raw REPL output ("105 / Are You Human?").
 
   Most browser tasks go to the fast tier; its slips (retyped URLs, guessed URLs, reloading a half-filled
-  form) are much of what still fails. `--tier strong` runs every task on the strong model.
+  form) are much of what still fails. `--tier strong` runs every task on the strong model. Last runs
+  (2026-09-29): fast tier (ornith) 6/10 plus a partial, strong tier (Qwen 3.8 27B) 8/10 - the strong
+  model also filled and submitted the whole demoqa form and BlazeDemo's passenger details. Both miss
+  play2048 (a canvas game) and Booking.com (its search button didn't take the chosen dates); every miss
+  was reported as one, with where it stopped.
 - **project**: the user's folder (dashboard "Project" field, `--project`, `/project`).
   - `tree`, `grep` and `read` (numbered lines).
   - `find(question)`: Jev ranks the files by path and first line.

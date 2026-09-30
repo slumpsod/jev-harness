@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import os
 import re
 from typing import Any, Callable
 
 import pytest
+
+# the tests run on config.yaml alone: a machine's config.local.yaml (its models, a hosted Jev) stays out
+os.environ["JEVH_NO_LOCAL_CONFIG"] = "1"
 
 from jevh.config import ROOT, load_config
 from jevh.decide import Answer, Response
