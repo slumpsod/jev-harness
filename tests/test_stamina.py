@@ -137,9 +137,34 @@ def test_going_in_circles_is_flagged_then_stopped(cfg):
     r = h.turn("fix the build")
     assert r.answer.startswith("[daily_assistant stopped: its recent steps kept repeating")
     checks = [d for k, d in events if k == "progress_check"]
-    assert [c["stuck"] for c in checks] == [True, True] and len(llm.seen) == 4
+    assert [c["stuck"] for c in checks] == [True, True] and len(llm.seen) == 5
     assert "The harness's progress check" in llm.seen[2][-1]["content"]   # warned once before stopping
+    assert "This is your last step" in llm.seen[4][-1]["content"]         # then one step to report
     assert r.checkpoint and Path(r.checkpoint).exists()                  # ...and it can be resumed
+
+
+def test_a_stopped_worker_reports_on_its_last_step(cfg):
+    """Live (browser tasks): a stalled worker was cut off and the user got raw REPL output ("105 /
+    Are You Human?"); given one step, it says what it found and what blocked it."""
+    events = []
+    h, llm = harness(cfg, steps(4, final=False) + [py("final('The ticket site shows a bot check; stopped at "
+                                                          "https://www.axs.com/events/1')")],
+                     circles=0.95, events=events, progress_every=2)
+    r = h.turn("get me two tickets")
+    assert r.answer.startswith("The ticket site shows a bot check"), r.answer
+
+
+def test_the_last_step_report_is_not_sent_back(cfg):
+    """Live (Target): the report ended with an offer, the final() gate bounced it as "says it will do
+    more", and the worker went back to working around the site's bot block."""
+    events = []
+    cfg.raw = {**cfg.raw, "verify": {**(cfg.raw.get("verify") or {}), "enabled": True}}   # the gate is what's tested
+    h, llm = harness(cfg, steps(4, final=False) + [py("final('Target blocks automated browsers. Next I will try "
+                                                          "again if you open the window.')"), py("print('more')")],
+                     circles=0.95, events=events, progress_every=2)
+    r = h.turn("add the coffee to my cart")
+    assert r.answer.startswith("Target blocks automated browsers"), r.answer
+    assert len(llm.seen) == 5 and not any(d.get("bounced") for k, d in events if k == "verify")
 
 
 def test_healthy_progress_is_left_alone(cfg):
@@ -223,7 +248,7 @@ def test_a_worker_repeating_the_same_result_is_told_to_hand_it_over(cfg):
     check said 'try a different approach' and then stopped it, and the grid was lost."""
     same = "print([[8, 8, 9], [8, 2, 9]])"
     events = []
-    h, llm = harness(cfg, [py(same)] * 6, circles=0.95, events=events, progress_every=3)
+    h, llm = harness(cfg, [py(same)] * 7, circles=0.95, events=events, progress_every=3)
     r = h.turn("solve the puzzle")
     told = llm.seen[3][-1]["content"]
     assert "printed the same result each time" in told and "hand it over now" in told

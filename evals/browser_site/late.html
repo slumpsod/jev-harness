@@ -1,0 +1,14 @@
+<!doctype html><html><head><title>Stays</title></head><body>
+<!-- Booking.com's pattern: the search form appears a moment after the page loads, next to promo links -->
+<h1>Find your next stay</h1>
+<p><a href="city.html?c=denver">Denver hotels</a> <a href="city.html?c=miami">Miami hotels</a></p>
+<div id="slot"></div>
+<p>Score: <span id="score">0</span></p>
+<script>
+setTimeout(() => {
+  document.getElementById("slot").innerHTML = '<form onsubmit="event.preventDefault()"><input name="ss" placeholder="Enter destination"> <button>Search</button></form>';
+}, 900);
+document.addEventListener("keydown", e => {   // a keyboard game: arrows score points
+  if (e.key.startsWith("Arrow")) document.getElementById("score").textContent = +document.getElementById("score").textContent + 4;
+});
+</script></body></html>

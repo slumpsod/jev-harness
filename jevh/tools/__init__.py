@@ -23,18 +23,34 @@ TOOLS: dict[str, ToolInfo] = {
     "browser": ToolInfo(
         "operate a real web browser: click through websites, fill in and submit forms, sign in, "
         "or test a web page or app",
-        """browser (a real Chromium; you state outcomes, Jev picks each click in ~1-2s):
+        """browser (a real Chromium; you state outcomes, Jev picks each click in ~1-2s). It is already
+imported: use it, don't start Playwright/Selenium yourself.
 - browser.goto(url); r = browser.do("one observable outcome", values={"email": ...}) -> {status, page, actions, note}
   status: done | likely_done | needs_confirmation | needs_value | needs_login | ambiguous | error | stuck | ...
   One outcome per do() ("open the pricing page", "add the blue mug in size L to the cart"). If it is not
   done, read `note`/`page`, then rephrase or split the step. On needs_confirmation (an order, payment,
   sending, deleting) confirm first: ask_user("Place the order for $51.25?", ["Yes", "No"]), and pass
   allow_irreversible=True only after a yes. needs_value / needs_login: ask_user for the details.
+  blocked (goto too): the site is refusing automated browsers or shows a bot check. Don't retry, rephrase
+  or work around it: if browser.visible(), ask_user to take over in the window; otherwise final() saying
+  which site blocked you and what you had found before it.
+- Fields: pass the text as values={"First name": "Sam", "Email": ...} (keys like the field labels). A field
+  that suggests options as you type (airports, cities, subjects): do("choose Boston Logan in From",
+  values={"From": "Boston"}) - it types, then picks the matching suggestion.
+- Many identical buttons ("Select", "Add to cart" per row): name the row: do("choose the Aer Lingus flight").
+- browser.read() (no question) ends with the form fields and what they hold: check a form with it.
+  browser.goto() reloads the page and loses what was typed: don't use it to "refresh" a form.
+- Keys: browser.press("ArrowLeft", times=1) or press(["ArrowUp", "ArrowLeft"], times=20) -> {changed, page}
+  for games and keyboard-driven pages; press("Escape") closes a popup. A game drawn on a canvas can't be
+  read (not in text or HTML): play by keys, and go by the page text (score) and `changed` (False: that key
+  did nothing - try another).
 - Buying or booking something the user asked for is the job, not something to decline: find it, choose
   it, fill in what you know (ask_user for names, dates or choices you don't have) and go up to payment.
   Never type card numbers or passwords yourself. If browser.visible(): ask_user("It's at the payment
   step in the browser window - pay there, then reply done", ["done", "cancel"]) and confirm the result
   after; if not, say where you stopped and give the page URL.
+- Scraping: browser.html(css=None) -> the HTML (of the elements matching `css`), for what the text doesn't
+  show (star ratings as icons, links, attributes); parse it in Python. Navigate by do(), not guessed URLs.
 - browser.read(question=None) -> text (only the passages that answer `question`);
   browser.screenshot(name) -> artifact path; browser.elements() -> list; browser.url().
 - Local files: browser.goto("file:///C:/path/page.html") to check a page you built.

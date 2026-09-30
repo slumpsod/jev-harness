@@ -180,6 +180,9 @@ def test_grounding_tolerates_rounding_but_not_new_numbers():
     assert grounding("About 41.8 million", "estimated at 41,828,000") == ({"41.8"}, set())
     assert grounding("It costs $1,999 in 2026", "Regular price $1,999.00") == ({"1,999"}, set())
     assert grounding("United at $1,099", "United $1,317") == (set(), {"1,099"})
+    # a printed dict shows a page's line breaks as "\n": "\n110 points" is still 110 (live, Hacker News)
+    assert grounding("110 points, 57 comments", r"{'page': '1.\nStory\n110 points by x | 57 comments'}") == \
+        ({"110", "57"}, set())
 
 
 def test_follow_up_to_an_escalated_turn_starts_strong(cfg):

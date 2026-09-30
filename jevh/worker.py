@@ -465,6 +465,7 @@ class Worker:
         self.progress = progress        # (recent work log) -> P(going in circles); None = no check
         self.stall_at, self.progress_every = stall_at, progress_every
         self._stalls = 0
+        self._wrap_step: int | None = None   # the step told to report and stop (after two stall strikes)
         self.compact_tokens, self.keep_steps = compact_tokens, keep_steps
         self.checkpoint = checkpoint    # json of the conversation after every step (for resume)
         self._task_idx = 0              # index of the task message (compaction rewrites everything after it)
@@ -675,7 +676,7 @@ class Worker:
                 messages += self._replies(call_ids, (ex.output or "(no output)") + note
                                           + self._stuck_note(ex.output, ex.error) + self._steps_left_note(step))
                 self._save(messages, step, False)
-                if self._stalled(messages, step):
+                if (self._wrap_step is not None and step > self._wrap_step) or self._stalled(messages, step):
                     res.artifacts = self._harvest()
                     same = repeated_result(messages)
                     res.answer = (f"[{self.persona.name} stopped: its recent steps kept repeating the same attempt "
@@ -866,7 +867,16 @@ class Worker:
             return False
         self._stalls += 1
         if self._stalls >= 2:
-            return True
+            if self._wrap_step is not None:
+                return True
+            # one last step to report: stopping outright handed the user raw REPL output ("105 / Are You
+            # Human?") where the worker knew what it had found and what blocked it (live, browser tasks)
+            self._wrap_step = step
+            messages[-1] = {**messages[-1], "content": messages[-1]["content"] + (
+                "\n\n[The harness is stopping this task: your steps keep repeating without progress. This is "
+                "your last step. Do not try anything else: call final() now with what you found, what blocked "
+                "you, and exactly where you stopped (the page URL, if you were in a browser).]")}
+            return False
         same = repeated_result(messages)
         if same:   # done but not handing it over (live, Gemma 4: a correct grid printed 3 times, then stopped)
             note = (f"\n\n[The harness's progress check: your last steps printed the same result each time:\n"
@@ -934,7 +944,10 @@ class Worker:
         except TypeError:   # a verify callable from before task_idx
             verdict = self.verify(answer, artifacts, seen, changed)
         self._verdict = verdict
-        can_retry = self._bounces < self.max_bounces and step < self.persona.max_steps
+        # the last-step report of a stalled worker is taken as it is, problems listed under it: sent back,
+        # it went on trying (live: a report on Target's bot block bounced for "says it will do more", and the
+        # worker then tried Target's API with a faked browser header)
+        can_retry = self._bounces < self.max_bounces and step < self.persona.max_steps and self._wrap_step is None
         self.on_step("verify", {"persona": self.persona.name, "step": step, "ok": verdict.ok,
                                 "problems": verdict.problems, "checks": verdict.checks, "scores": verdict.scores,
                                 "bounced": (not verdict.ok) and can_retry})
@@ -974,7 +987,10 @@ class Worker:
         return "call the python tool with your code" if self.native else "reply with ONE ```python block"
 
     def _llm(self, messages):
-        kw = {"tools": [PYTHON_TOOL, FINAL_TOOL]} if self.native else {}
+        # the last step of a stalled worker offers only `final`: told to report, the fast model ran more
+        # code instead and the user got raw output (live, Booking.com)
+        kw = {"tools": [FINAL_TOOL] if self._wrap_step is not None else [PYTHON_TOOL, FINAL_TOOL]} \
+            if self.native else {}
         if self._llm_cancel:
             kw["cancel"] = self.cancel
         try:

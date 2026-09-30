@@ -114,6 +114,12 @@ def test_final_tool_hands_over_a_variable_exactly(cfg):
     assert "never retype data" in llm.seen[0][0]["content"]
 
 
+def test_final_in_code_takes_answer_var_too(cfg):
+    """Live (Booking.com task): final(answer_var="summary") in code raised TypeError, so the report was lost."""
+    llm = NativeLLM([call("summary = 'Cheapest 8+ hotel: X'\nfinal(answer_var='summary')")])
+    assert harness(cfg, llm).turn("go", force="high_end_dev").answer == "Cheapest 8+ hotel: X"
+
+
 def test_final_in_code_sends_a_list_as_json(cfg):
     llm = NativeLLM([call("final({'total': 3, 'items': ['a', 'b']})")])
     assert harness(cfg, llm).turn("go", force="high_end_dev").answer == '{"total": 3, "items": ["a", "b"]}'
@@ -181,3 +187,15 @@ def test_a_broken_call_is_stored_as_valid_json(cfg):
                      call(name="final", answer="done", cid="c2")])
     assert harness(cfg, llm).turn("go", force="high_end_dev").answer == "done"
     json.loads(llm.seen[1][-2]["tool_calls"][0]["function"]["arguments"])     # what went back is valid
+
+
+def test_a_stalled_worker_is_offered_only_final_on_its_last_step(cfg):
+    """Live (Booking.com): told "this is your last step: call final()", the fast model ran more code and the
+    user got raw output. The last step now offers only the final tool; a plain reply is the answer."""
+    from conftest import noul_ans
+    cfg.limits.update(progress_every=2)
+    llm = NativeLLM([call("print('try')")] * 4 + ["Booking.com's results would not load; I stopped at the search page."])
+    r = harness(cfg, llm, rules=lambda k, q, s: noul_ans(0.95) if k == "circles" else None).turn(
+        "find a hotel", force="daily_assistant")
+    assert [t["function"]["name"] for t in llm.tools_seen[4]] == ["final"]
+    assert r.answer.startswith("Booking.com's results would not load"), r.answer

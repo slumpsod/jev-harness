@@ -8,6 +8,7 @@ from __future__ import annotations
 import itertools
 import json
 import os
+import re
 import sys
 from pathlib import Path
 import threading
@@ -434,6 +435,9 @@ class Harness:
         env = {}
         if "browser" in persona.tools:
             env["JEVH_BROWSER_HEADED"] = "1" if self.watch_browser else "0"
+            # the sites the request names: goto() points out a mistyped one (live: "blavedemo.com")
+            env["JEVH_TASK_HOSTS"] = " ".join(dict.fromkeys(
+                re.findall(r"(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?=[/:\s)\"',]|$)", task.text.lower())))[:2000]
             if self.watch_browser and self.browser_dock:
                 env["JEVH_BROWSER_DOCK"] = str(self.session_dir / "browsers")
         if self.project and "project" in persona.tools:

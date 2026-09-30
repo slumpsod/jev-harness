@@ -32,6 +32,7 @@ python evals/memory_cases.py           # live memory-gating accuracy + sweep
 python evals/tier_cases.py             # live fast/strong tier accuracy + sweep
 python evals/tool_cases.py             # live tool-guide picking accuracy + sweep
 python evals/browser_cases.py --live   # Jev browser agent on a local test shop (+ Wikipedia)
+python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness turns (flights, tickets, forms...)
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 ```
@@ -337,6 +338,34 @@ missed pick costs one `help(name)`, not the capability. The Inspector shows the 
   ~2s per goal on semif and ~5s on big Wikipedia pages. `browser.read(question)` works like
   `web.read`. Set `tools_jev: cloud` (and TYPESAFE_API_KEY) to use the hosted Jev instead: 255
   options per Choice, but page text leaves the machine.
+
+  **Real websites** (`evals/bench/browser_tasks.py`): 10 full harness turns on live sites - Google
+  Flights, BlazeDemo, Red Rocks -> AXS tickets, Target, the demoqa form, books/quotes.toscrape, play2048,
+  Booking.com, Hacker News. Nothing is bought, booked or signed into: tasks stop at sign-in or payment,
+  and a simulated user says "stop here" to confirmations. The local eval never exercised most of what
+  failed there, all fixed and covered by tests:
+  - A worker that started Playwright itself broke every later `browser` call ("Sync API inside the
+    asyncio loop"). The shared session now runs on its own thread.
+  - Links opening a new tab: the tab registered after the check, the click was banned as "no effect",
+    and the next event's link was clicked (three wrong concerts). New tabs are now waited for and followed.
+    A link is never "irreversible" ("Buy Tickets" only goes to the ticket site).
+  - Bot walls (AXS's "Just a moment...", Target answering its own APIs with HTTP 435 so search said "no
+    match") are reported as `blocked`. The agent does not get past them: no stealth, no faked headers.
+  - React forms: labels in the next column, placeholders that are examples ("name@example.com"),
+    autocomplete suggestions as plain divs (picked when one matches what was typed), date pickers that
+    silently revert a format ("12 March 1990" -> retried as "12 Mar 1990" and read back), radio/checkbox
+    choices given as values ({"Hobbies": "Reading"}), forms that render a second after load (Booking.com).
+  - `do()` never submits a form the goal didn't ask to send (it clicked Submit after "fill name and email"),
+    never presses Enter in a form field, and tells identical buttons apart by their row ("Choose This
+    Flight" x5 -> "(in: 9696 Aer Lingus $200.98)").
+  - A mistyped site the request names is corrected ("blavedemo.com"); a 404 is an error, not "done".
+  - New: `browser.press(keys)` (games, Escape), `browser.html(css)` (scraping what text doesn't show);
+    `read()` lists what the form fields hold, so a worker can check its form without reloading it.
+  - A stalled worker gets one last step with only the `final` tool to report what it found and what
+    blocked it, instead of the user getting raw REPL output ("105 / Are You Human?").
+
+  Most browser tasks go to the fast tier; its slips (retyped URLs, guessed URLs, reloading a half-filled
+  form) are much of what still fails. `--tier strong` runs every task on the strong model.
 - **project**: the user's folder (dashboard "Project" field, `--project`, `/project`).
   - `tree`, `grep` and `read` (numbered lines).
   - `find(question)`: Jev ranks the files by path and first line.

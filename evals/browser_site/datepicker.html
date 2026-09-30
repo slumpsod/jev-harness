@@ -1,0 +1,18 @@
+<!doctype html><html><head><title>Date picker</title></head><body>
+<!-- react-datepicker's behaviour (demoqa): it keeps a date it can parse as "dd Mon yyyy", ISO or m/d/y,
+     and on blur puts back the old date for anything else ("12 March 1990") -->
+<label for="dob">Date of Birth</label> <input id="dob" value="29 Sep 2026">
+<script>
+const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const dob = document.getElementById("dob");
+let good = dob.value;
+dob.addEventListener("blur", () => {
+  const v = dob.value.trim();
+  let m = v.match(/^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$/), d = null;
+  if (m && M.includes(m[2])) d = [+m[1], M.indexOf(m[2]), +m[3]];
+  else if ((m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/))) d = [+m[3], +m[2] - 1, +m[1]];
+  else if ((m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/))) d = [+m[2], +m[1] - 1, +m[3]];
+  good = d ? `${String(d[0]).padStart(2, "0")} ${M[d[1]]} ${d[2]}` : good;
+  dob.value = good;
+});
+</script></body></html>

@@ -211,9 +211,18 @@ def _resolve_artifact(a) -> str:
     return str(p)
 
 
-def final(answer: str, artifacts: list | None = None) -> str:
-    """Finish the task. `answer` goes back to whoever asked (user or another assistant)."""
+def final(answer: str | None = None, artifacts: list | None = None, answer_var: str | None = None) -> str:
+    """Finish the task. `answer` goes back to whoever asked (user or another assistant);
+    answer_var="name" hands over that REPL variable instead (as the final tool's answer_var does)."""
     global _FINAL
+    if answer is None and answer_var:
+        # the tool's argument written in code (live: final(answer_var="summary") raised TypeError,
+        # so a worker's last-step report never arrived)
+        if answer_var not in G:
+            raise NameError(f"answer_var={answer_var!r}: no such variable in the REPL")
+        answer = G[answer_var]
+    if answer is None:
+        raise TypeError("final() needs the answer: final(text) or final(answer_var='name')")
     proj = sys.modules.get("jevh.tools.project")
     changed = proj.changed() if proj is not None and getattr(proj, "root", None) else []
     if not isinstance(answer, str):   # a computed list / dict / grid goes back as JSON, not Python's repr

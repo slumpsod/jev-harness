@@ -215,3 +215,188 @@ def test_docked_browser_is_mirrored_and_takes_the_users_input(tmp_path, monkeypa
         run(s.close)
         own.shutdown()
     assert not list(tmp_path.glob("*.json")) and dock.frame() is None
+
+
+# -- live failures on real sites (evals/bench/browser_tasks.py), replayed on local pages -----------
+def picks(*labels: str, done_when: str = "never"):
+    """Jev that acts on the first element whose description contains one of `labels` (in order),
+    and says done once the page text has `done_when`."""
+    def rules(k, q, s):
+        if k == "done":
+            return noul_ans(0.97 if done_when in s["page"]["text"] else 0.02)
+        if k == "wanted":
+            return noul_ans(0.95)
+        if q["type"] == "choice":
+            for lab in labels:
+                hit = next((key for key, d in q["criteria"].items() if d and lab in d), None)
+                if hit:
+                    return choice_ans(hit, 0.9, q["criteria"])
+            return choice_ans("none", 0.9, q["criteria"])
+        if q["type"] == "noul":
+            return noul_ans(0.02)
+    return FakeSystemOne(rules)
+
+
+def test_a_new_tab_link_is_followed_once_and_its_bot_check_reported(session, site, monkeypatch):
+    """Red Rocks: "Buy Tickets" opens AXS in a new tab. The tab registers after the click returned, so
+    the old page looked unchanged, the click was banned as "no effect" and the next concert's link
+    was clicked; "Buy" in the label also stopped it as if it were a payment."""
+    import jevh.tools.browser as browser
+    monkeypatch.setattr(browser, "WALL_WAIT", 0)
+    session.jev = picks("glass-harbor")
+    session.goto(site + "events.html")
+    assert "link 'Buy Tickets' (in: Tue, Sep 29, 7:00 pm - Glass Harbor) (opens ticket.html?e=glass-harbor)" in \
+        [browser.describe(e) for e in session.observe()["elements"]]
+    try:
+        r = session.do("open the tickets for Glass Harbor")
+        assert r["status"] == "blocked" and "Just a moment" in r["note"], r
+        assert r["actions"] == ["clicked link 'Buy Tickets'; it opened in a new tab"]
+        assert session.page.url.endswith("ticket.html?e=glass-harbor")
+        assert len(session.context.pages) == 2
+    finally:
+        for p in session.context.pages[1:]:
+            p.close()
+        session.page = session.context.pages[0]
+
+
+def test_labels_beside_react_fields_and_autocomplete_suggestions(session, site):
+    """demoqa: the label is in the next column (so the field was named 'subjectsInput'), and a
+    suggestion must be clicked - "done" with 'Maths' only typed selected nothing."""
+    session.goto(site + "reactform.html")
+    session.page.evaluate("localStorage.clear()")
+    labels = {e["label"] for e in session.observe()["elements"] if e["kind"] == "text field"}
+    assert {"First Name", "Date of Birth", "Subjects"} <= labels, labels
+    session.jev = picks("option 'Maths'", "text field 'Subjects'", done_when="Maths")   # semif: done once it shows
+    r = session.do("choose Maths as a subject", {"subject": "Maths"})
+    # the one suggestion matching what was typed is picked right away, no Jev decision needed
+    assert r["actions"][0] == "typed into text field 'Subjects'; picked suggestion 'Maths' (value 'subject')", r
+    assert session.page.evaluate("localStorage.getItem('subjects')") == '["Maths"]'
+
+
+def test_enter_is_never_pressed_in_a_filled_form_field(session, site):
+    session.goto(site + "reactform.html")
+    session.page.evaluate("localStorage.clear()")
+    session.page.fill("#firstName", "Sam")
+    session.jev = picks("text field 'First Name'")
+    session.do("put Sam in the first name")
+    assert session.page.evaluate("localStorage.getItem('submitted')") is None   # Enter would submit the form
+
+
+def test_a_quoted_value_in_the_goal_is_typed(session, site):
+    session.goto(site + "reactform.html")
+    session.jev = picks("text field 'First Name'")
+    r = session.do("type 'Rivera' into the first name field", max_actions=1)
+    assert session.page.input_value("#firstName") == "Rivera", r
+
+
+def test_a_mistyped_host_becomes_the_site_the_request_names(monkeypatch):
+    from jevh.tools.browser import corrected_url
+    monkeypatch.setenv("JEVH_TASK_HOSTS", "blazedemo.com www.target.com")
+    assert corrected_url("https://blavedemo.com/reserve.php") == "https://blazedemo.com/reserve.php"
+    assert corrected_url("https://blazemo.com") == "https://blazedemo.com"
+    assert corrected_url("https://www.targt.com/s?x=1") == "https://www.target.com/s?x=1"
+    assert corrected_url("https://example-nothing.com") is None
+
+
+def test_identical_buttons_are_told_apart_by_their_row(session, site):
+    """BlazeDemo: one 'Choose This Flight' per row, and Jev couldn't tell which was Aer Lingus's."""
+    session.goto(site + "flights.html")
+    chosen = [e for e in session.observe()["elements"] if e["label"] == "Choose This Flight"]
+    assert [e["context"] for e in chosen] == ["43 Virgin America $472.56", "9696 Aer Lingus $200.98"]
+    session.jev = picks("Aer Lingus", done_when="Flight 9696")
+    r = session.do("choose the Aer Lingus flight")
+    assert r["status"] == "done" and "Flight 9696" in r["page"], r
+
+
+def test_refused_data_requests_are_reported(session, site):
+    session.goto(site + "index.html")
+    session.refused = [("127.0.0.1", 435)]
+    assert session._refused_note() == "" and not session._refusing()     # one refusal can be anything
+    session.refused += [("127.0.0.1", 435), ("127.0.0.1", 403), ("ads.example", 403)]
+    assert "refused 3" in session._refused_note() and "HTTP 403, 435" in session._refused_note()
+    assert session._refusing()
+    session.refused = [("other.com", 435)] * 5                            # another site's refusals
+    assert not session._refusing()
+    session.refused = []
+
+
+def test_the_module_works_after_the_worker_started_playwright_itself(site, tmp_path):
+    """A worker that runs sync_playwright().start() in the REPL leaves an asyncio loop running there;
+    every browser.goto() then raised "Sync API inside the asyncio loop" (live, Google Flights)."""
+    import subprocess
+    import sys
+    code = ("from playwright.sync_api import sync_playwright\n"
+            "pw = sync_playwright().start()\n"
+            "import jevh.tools.browser as browser\n"
+            f"print(browser.goto({site + 'events.html'!r})['title'])\n"
+            "browser.close()\n")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120,
+                         cwd=str(Path(__file__).resolve().parent.parent))
+    assert out.stdout.strip() == "Venue events", out.stderr[-800:]
+
+
+def test_a_form_that_appears_after_load_is_waited_for(session, site):
+    """Booking.com: the search form rendered 1.5 s after load; the destination value had no field yet
+    and Jev clicked the 'Denver hotels' promo link instead."""
+    session.jev = picks("link 'Denver hotels'")          # what Jev did when the field wasn't there
+    session.goto(site + "late.html")
+    r = session.do("choose Denver as the destination", {"destination": "Denver"}, max_actions=1)
+    assert r["actions"] == ["filled text field 'Enter destination' (value 'destination')"], r
+
+
+def test_press_keys_for_games(session, site):
+    session.goto(site + "late.html")
+    r = session.press(["ArrowUp", "ArrowLeft"], times=3, delay=0)
+    assert r["changed"] and "Score: 24" in session.read()
+
+
+def test_read_shows_what_the_fields_hold_and_a_prefilled_field_is_replaced(session, site):
+    session.goto(site + "reactform.html")
+    session.jev = picks("nothing")
+    r = session.do("fill in the date of birth", {"Date of Birth": "12 Mar 1990", "First Name": "Sam"})
+    assert r["status"] == "done", r          # both values went in; nothing asks to submit
+    text = session.read()
+    assert "text field 'Date of Birth' = '12 Mar 1990'" in text and "text field 'First Name' = 'Sam'" in text
+
+
+def test_set_x_to_y_types_y():
+    from jevh.tools.browser import SET_TO
+    assert SET_TO.match("Set the Date of Birth to 12 March 1990").group(1) == "12 March 1990"
+    assert SET_TO.match("change my phone number to 217-555-0142").group(1) == "217-555-0142"
+    assert SET_TO.match("add this to the cart") is None
+
+
+def test_a_date_the_picker_rejects_is_retried_in_another_format(session, site):
+    """demoqa's picker turned "12 March 1990" back into today's date on blur, and do() said done."""
+    session.goto(site + "datepicker.html")
+    session.jev = picks("nothing")
+    r = session.do("set the date of birth", {"Date of Birth": "12 March 1990"})
+    assert session.page.input_value("#dob") == "12 Mar 1990", r
+    assert "[as '12 Mar 1990']" in r["actions"][0] and r["status"] == "done"
+
+
+def test_a_missing_page_is_an_error_and_html_is_there_for_scraping(session, site):
+    r = session.goto(site + "no-such-page.html")
+    assert r["status"] == "error" and "HTTP 404" in r["note"]
+    session.goto(site + "flights.html")
+    rows = session.html("tr")
+    assert rows.count("<tr>") == 3 and "Aer Lingus" in rows
+
+
+def test_a_lone_value_goes_into_the_only_empty_field(session, site):
+    session.goto(site + "late.html")
+    session.jev = picks("link 'Denver hotels'")
+    r = session.do("search for Denver", {"From": "Denver"}, max_actions=1)
+    assert r["actions"][0].startswith("filled text field 'Enter destination' (value 'From', the only empty field)"), r
+
+
+def test_filling_a_form_never_submits_it_and_choices_are_clicked(session, site):
+    """demoqa: "fill name, email, gender and mobile" filled them and then clicked Submit; "Hobbies":
+    "Reading" was typed into a text box instead of ticking the checkbox."""
+    session.goto(site + "reactform.html")
+    session.page.evaluate("localStorage.clear()")
+    session.jev = picks("button 'Submit'")               # Jev reaching for the form's button
+    r = session.do("fill in the first name and hobby", {"First Name": "Sam", "Hobbies": "Reading"})
+    assert "clicked checkbox 'Reading' (value 'Hobbies')" in r["actions"][0], r
+    assert session.page.is_checked("#h2") and not session.page.is_checked("#h1")
+    assert session.page.evaluate("localStorage.getItem('submitted')") is None, r

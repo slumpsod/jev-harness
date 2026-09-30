@@ -126,7 +126,8 @@ def grounding(answer: str, evidence: str) -> tuple[set[str], set[str]]:
     appear anywhere in what the worker saw or was told. A price, fare, date or count the
     tools never returned is the typical made-up detail; plain code catches it reliably where
     semif's 'accurate' question does not (evals/verify_evidence_cases.py)."""
-    seen = [v for _, v, _ in _nums(evidence)]
+    # printed dicts show newlines as "\n": "\n110 points" (a browser page line) is still 110
+    seen = [v for _, v, _ in _nums(re.sub(r"\\[ntr]", " ", evidence))]
     supported, unsupported = set(), set()
     for digits, value, slack in _nums(answer):
         year = re.fullmatch(r"(19|20)\d\d", digits) is not None   # "2026" yes, "$1,999" no

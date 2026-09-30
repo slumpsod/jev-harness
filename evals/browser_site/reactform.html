@@ -1,0 +1,36 @@
+<!doctype html><html><head><title>Student Registration Form</title>
+<style>.row{display:flex;gap:12px;margin:8px 0}.col-3{width:160px}.menu div{padding:4px;cursor:pointer}
+.chip{display:inline-block;background:#ddd;padding:2px 6px;margin-right:4px}</style>
+</head><body>
+<!-- demoqa's patterns: labels sit in the next column (not tied to the input), and Subjects is a
+     react-select: typing shows plain-div suggestions, and only clicking one selects it -->
+<h1>Student Registration Form</h1>
+<form id="f" onsubmit="event.preventDefault(); localStorage.setItem('submitted', '1'); document.getElementById('done').hidden = false">
+  <div class="row"><div class="col-3"><label id="name-label">Name</label></div>
+    <div><input id="firstName" placeholder="First Name"></div></div>
+  <div class="row"><div class="col-3"><label id="dob-label">Date of Birth</label></div>
+    <div><div class="wrap"><input id="dateOfBirthInput" value="29 Sep 2026"></div></div></div>
+  <div class="row"><div class="col-3"><label id="subjects-label">Subjects</label></div>
+    <div><div id="chips"></div><div class="control"><div class="value-container"><input id="subjectsInput" autocomplete="off"></div></div>
+      <div class="menu" id="menu"></div></div></div>
+  <div class="row"><div class="col-3"><label id="hobbies-label">Hobbies</label></div>
+    <div><input type="checkbox" id="h1"><label for="h1">Sports</label> <input type="checkbox" id="h2"><label for="h2">Reading</label></div></div>
+  <button type="submit">Submit</button>
+</form>
+<p id="done" hidden>Thanks for submitting the form</p>
+<script>
+const SUBJECTS = ["Maths", "Physics", "Chemistry", "Computer Science"];
+const input = document.getElementById("subjectsInput"), menu = document.getElementById("menu");
+input.addEventListener("input", () => {
+  const q = input.value.toLowerCase();
+  menu.innerHTML = q ? SUBJECTS.filter(s => s.toLowerCase().includes(q))
+    .map((s, i) => `<div id="react-select-2-option-${i}" tabindex="-1">${s}</div>`).join("") : "";
+  menu.querySelectorAll("div").forEach(d => d.onclick = () => {
+    const picked = JSON.parse(localStorage.getItem("subjects") || "[]");
+    picked.push(d.textContent);
+    localStorage.setItem("subjects", JSON.stringify(picked));
+    document.getElementById("chips").insertAdjacentHTML("beforeend", `<span class="chip">${d.textContent}</span>`);
+    input.value = ""; menu.innerHTML = "";
+  });
+});
+</script></body></html>

@@ -1,0 +1,9 @@
+<!doctype html><html><head><title>Flights</title></head><body>
+<!-- BlazeDemo's results: every row has the same "Choose This Flight" button -->
+<h2>Flights from Boston to London</h2>
+<table id="t"><tr><th>Choose</th><th>Flight #</th><th>Airline</th><th>Price</th></tr>
+<tr><td><button onclick="pick(43)">Choose This Flight</button></td><td>43</td><td>Virgin America</td><td>$472.56</td></tr>
+<tr><td><button onclick="pick(9696)">Choose This Flight</button></td><td>9696</td><td>Aer Lingus</td><td>$200.98</td></tr>
+</table>
+<script>function pick(n) { document.body.innerHTML = "<h2>Your flight: Flight " + n + "</h2>"; }</script>
+</body></html>
