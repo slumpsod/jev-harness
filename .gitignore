@@ -7,3 +7,7 @@ evals/bench/runs/
 config.local.yaml
 *.egg-info/
 nango/.env
+# written by the learning step at runtime (jevh/learn.py); reviewed in the dashboard, not committed
+skills/learned/
+skills/_lessons/*
+!skills/_lessons/web-research-workflow.md
