@@ -196,3 +196,14 @@ def test_a_new_turn_drops_background_learning(cfg):
     assert _time.time() - started < 4
     assert any(k == "learn_error" and "new turn" in d["error"] for k, d in events)
     assert h.memory.facts(None) == []
+
+
+def test_a_long_output_line_keeps_the_part_with_the_answers_number():
+    from jevh.learn import evidence_lines, evidence_terms
+    para = ("On the WMT 2014 English-to-German translation task, the big transformer model (Transformer (big) in "
+            "Table 2) outperforms the best previously reported models (including ensembles) by more than 2.0 BLEU, "
+            "establishing a new state-of-the-art BLEU score of 28.4. The configuration of this model is listed in "
+            "the bottom line of Table 3. Training took 3.5 days on 8 P100 GPUs.")
+    kept = evidence_lines("Model\nBLEU\n" + para, evidence_terms("28.4"))
+    assert "score of 28.4" in kept and kept.startswith("...") and len(kept) < 220   # live: cut at char 200 before
+    assert evidence_lines("short line with 28.4 in it", evidence_terms("28.4")) == "short line with 28.4 in it"

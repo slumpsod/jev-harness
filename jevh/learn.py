@@ -124,7 +124,7 @@ def evidence_lines(text: str, terms: tuple[set[str], set[str]], budget: int = 60
         found = {n.replace(",", "") for n in NUMBER.findall(line)}
         score = 3 * len(found & nums) + len({w.lower() for w in re.findall(r"[A-Za-z][A-Za-z'-]{4,}", line)} & words)
         if score:
-            scored.append((score, i, line[:200]))
+            scored.append((score, i, _around(line, nums, words)))
     keep, used = [], 0
     for score, i, line in sorted(scored, key=lambda x: (-x[0], x[1])):
         if used + len(line) > budget:
@@ -132,6 +132,19 @@ def evidence_lines(text: str, terms: tuple[set[str], set[str]], budget: int = 60
         keep.append((i, line))
         used += len(line) + 3
     return " / ".join(line for _, line in sorted(keep))
+
+
+def _around(line: str, nums: set[str], words: set[str], width: int = 200) -> str:
+    """`line`, or for a long one the `width` chars around the answer's first number in it (else its first
+    word). Live: a paragraph's first 200 chars were kept, and the 28.4 the answer gave sat after them, so
+    the final() gate judged a correct answer against a log that didn't show it."""
+    if len(line) <= width:
+        return line
+    at = next((m.start() for m in NUMBER.finditer(line) if m.group(0).replace(",", "") in nums), None)
+    if at is None:
+        at = next((m.start() for m in re.finditer(r"[A-Za-z][A-Za-z'-]{4,}", line) if m.group(0).lower() in words), 0)
+    start = max(0, min(at - width // 3, len(line) - width))
+    return ("..." if start else "") + line[start:start + width] + ("..." if start + width < len(line) else "")
 
 
 def seen_text(transcript: list[dict[str, str]], task_idx: int | None = None) -> str:

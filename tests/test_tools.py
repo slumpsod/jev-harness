@@ -37,6 +37,17 @@ def test_web_html_to_text_skips_chrome():
     assert "menu" not in text and "evil" not in text and "foot" not in text and p.title == "T"
 
 
+def test_web_html_to_text_keeps_a_formula_once():
+    """Live (ar5iv): MathML's TeX annotation doubled every number - "28.4" read as "28.428.4"."""
+    p = web._Text()
+    p.feed('<p>a new state-of-the-art BLEU score of <math alttext="28.4"><semantics><mn>28.4</mn>'
+           '<annotation encoding="application/x-tex">28.4</annotation></semantics></math>. Training took '
+           '<math><semantics><mn>3.5</mn><annotation-xml encoding="MathML-Content"><cn>3.5</cn></annotation-xml>'
+           '</semantics></math> days.</p>')
+    text = "".join(p.out)
+    assert "score of 28.4." in text and "took 3.5 days" in text and "28.428.4" not in text
+
+
 def test_project_tool_edits_inside_the_folder_and_undoes(tmp_path):
     proj = tmp_path / "proj"
     (proj / "src").mkdir(parents=True)

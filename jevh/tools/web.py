@@ -61,7 +61,11 @@ def search(query: str, n: int = 8) -> list[dict]:
 
 
 class _Text(HTMLParser):
-    SKIP = {"script", "style", "noscript", "svg", "nav", "footer", "header", "form", "aside", "template"}
+    # MathML keeps each formula twice: shown (<mn>28.4</mn>) and as TeX in <annotation>. Both as text made
+    # "28.428.4" (live: an ar5iv paper), so the number the answer gave was in no output it could be matched to,
+    # and the final() gate sent a correct 28.4 back as made up.
+    SKIP = {"script", "style", "noscript", "svg", "nav", "footer", "header", "form", "aside", "template",
+            "annotation", "annotation-xml"}
     BLOCK = {"p", "div", "br", "li", "h1", "h2", "h3", "h4", "h5", "h6", "tr", "section", "article",
              "blockquote", "pre", "table", "ul", "ol", "dd", "dt"}
 
