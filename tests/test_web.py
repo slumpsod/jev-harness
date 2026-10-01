@@ -230,3 +230,20 @@ def test_failures_api_lists_and_triages(cfg):
     assert client.post("/api/failures/status", json={"id": f["id"], "status": "fixed", "note": "timeout added"},
                        headers=auth()).json() == {"ok": True}
     assert client.get("/api/failures?status=fixed", headers=auth()).json()["failures"][0]["note"] == "timeout added"
+
+
+def test_thumbs_down_logs_the_turn_as_a_failure(cfg):
+    client, app = make_client(cfg, [py("x = 3 + 4\nprint(x)"), py("final('3 + 4 = 8')")])
+    client.post("/api/chat", json={"message": "what is 3 + 4?"}, headers=auth())
+    turn = wait_done(client)
+    r = client.post("/api/failures/flag", json={"turn": turn["id"], "note": "it's 7, the log even printed 7"},
+                    headers=auth(Origin=BASE))
+    assert r.status_code == 200
+    f = app.state.hub.harness.failures.get(r.json()["id"])
+    assert (f["source"], f["kind"], f["persona"], f["status"]) == ("user", "user_flagged", "daily_assistant", "open")
+    assert f["summary"] == "it's 7, the log even printed 7" and f["request"] == "what is 3 + 4?"
+    assert f["answer"] == "3 + 4 = 8" and "x = 3 + 4" in f["work_log"] and "OUTPUT: 7" in f["work_log"]
+    assert f["workdir"] and f["turn"] == 1
+    assert client.get("/api/state", headers=auth()).json()["turns"][0]["flagged"] == f["id"]
+    assert any(e["kind"] == "failure" and e["data"]["failure"]["kind"] == "user_flagged" for e in app.state.hub.events)
+    assert client.post("/api/failures/flag", json={"turn": 9}, headers=auth()).status_code == 404

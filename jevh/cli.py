@@ -8,6 +8,7 @@ asked right here in the terminal.
 Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
 /project <path> (open a project folder; "/project off" closes it), /watch [on|off] (see the
 browser tool work in a visible window), /facts, /forget <id>, /usage, /failures [n|kind],
+/bad [what was wrong] (the last answer was wrong: logged as a failure for refinement),
 /resume [n|list] (continue an interrupted task: stopped, step limit, stalled, crashed),
 /personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
 """
@@ -305,6 +306,11 @@ def main(argv: list[str] | None = None) -> None:
                 for m, v in s["by_model"].items():
                     console.print(f"  [dim]{esc(m)}: {v['calls']} calls, {v['input']:,} in / {v['output']:,} out "
                                   f"({v['thinking']:,} thinking), {v['seconds']:.0f}s[/]")
+            elif cmd == "bad":
+                # /bad [what was wrong]: the last answer was wrong - logged as a failure for the refinement loop
+                row = h.flag(arg)
+                console.print(f"logged as failure #{row['id']} (user_flagged); `python -m jevh.refine groups` lists it"
+                              if row else "no answer to flag yet")
             elif cmd == "failures":
                 # /failures [n | kind]: the latest logged failures (python -m jevh.failures exports them)
                 n, kind = (int(arg), None) if arg.strip().isdigit() else (15, arg.strip() or None)

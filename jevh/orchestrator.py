@@ -217,6 +217,7 @@ class Harness:
         self.verifier = Verifier(self.jev, self.cfg)
         self.usage = Usage(self.cfg.workspace / "usage.db", self.cfg.raw.get("prices"))
         self.turn_no = 0
+        self.turns_seen: dict[int, dict[str, Any]] = {}   # turn -> request, answer, lead task's folder (for flag())
         self._tl = threading.local()                 # which turn/task/persona this thread works for
         self.jev.on_call = lambda step, resp, n: self._record(
             kind="jev", model=resp.model, input_tokens=resp.input_tokens, seconds=resp.latency_s,
@@ -276,6 +277,12 @@ class Harness:
         elif cancelled:  # kept, so a redirect ("no, just the USPS part") has the request as context
             self.memory.append(route.persona, message, STOPPED_NOTE, self.session)
         self.current = route.persona
+        self.turns_seen[self.turn_no] = {   # what flag() needs to log this turn as wrong later
+            "request": message, "answer": result.answer, "persona": route.persona, "task": root.id,
+            "artifacts": list(result.artifacts), "workdir": str(root.checkpoint.parent) if root.checkpoint else "",
+            "model": self.failure_watch._models.get((self.turn_no, root.id), "")}
+        for old in [k for k in self.turns_seen if k <= self.turn_no - 200]:
+            del self.turns_seen[old]
         return TurnResult(route.persona, result.answer, result.artifacts, self.board.tasks,
                           list(self.jev.trace), time.time() - started, cancelled,
                           self.usage.summary(self.session, self.turn_no),
@@ -387,6 +394,32 @@ class Harness:
         else:
             self.project = None
         return self.project
+
+    def flag(self, note: str = "", turn: int | None = None) -> dict[str, Any] | None:
+        """The user says a turn's answer was wrong (dashboard thumbs-down, CLI /bad): log it as a failure,
+        with the lead task's work log from its checkpoint, so the refinement loop can work on it. Confident
+        wrong answers are the failures no detector logs (live: a regex test summary that miscounted its own
+        cases, a handed-over CSV that held only its file name). -> the failure row, or None (no such turn)."""
+        t = turn or self.turn_no
+        seen = self.turns_seen.get(t)
+        if seen is None:
+            return None
+        from .failures import from_workdir
+        task = {}
+        if seen["workdir"] and (Path(seen["workdir"]) / "checkpoint.json").is_file():
+            try:
+                task = from_workdir(Path(seen["workdir"]))
+            except (OSError, ValueError):
+                task = {}
+        note = str(note or "").strip()
+        files = ", ".join(Path(a).name for a in seen["artifacts"])
+        row = self.failures.record(
+            source="user", kind="user_flagged", summary=(note or "the user marked this answer as wrong")[:500],
+            session=self.session, turn=t, task=seen["task"], persona=seen["persona"], model=seen["model"],
+            request=seen["request"], answer=seen["answer"], work_log=task.get("work_log", ""), workdir=seen["workdir"],
+            detail=(f"The user's note: {note}\n" if note else "") + (f"Files handed over: {files}" if files else ""))
+        self.on_event("failure", {"failure": {k: row[k] for k in ("id", "source", "kind", "summary", "persona", "task")}})
+        return row
 
     def wait_learning(self, timeout: float | None = None) -> None:
         for t in list(self._learn_threads):

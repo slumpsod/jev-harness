@@ -104,7 +104,7 @@ class Hub:
         def run() -> None:
             try:
                 r = self.harness.resume(resume) if resume else self.harness.turn(message, force=self.pin)
-                turn.update(usage=r.usage, checkpoint=r.checkpoint)
+                turn.update(usage=r.usage, checkpoint=r.checkpoint, harness_turn=self.harness.turn_no)
                 turn.update(status="cancelled" if r.cancelled else "done", persona=r.persona, answer=r.answer, artifacts=r.artifacts,
                             seconds=r.seconds, trace=jsonable(r.trace), tasks=[task_json(t) for t in r.tasks])
                 self.publish("turn_done", {"turn": dict(turn)})
@@ -345,6 +345,19 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         if not ok:
             raise HTTPException(404, "no such failure")
         return {"ok": True}
+
+    @app.post("/api/failures/flag")
+    async def failure_flag(request: Request) -> dict:
+        """Thumbs-down on an answer: log the turn as a failure (the user's note says what was wrong)."""
+        body = await request.json()
+        turn = next((t for t in hub.turns if t["id"] == int(body.get("turn", 0))), None)
+        if turn is None or turn.get("status") != "done" or not turn.get("harness_turn"):
+            raise HTTPException(404, "no finished turn with that id")
+        row = hub.harness.flag(str(body.get("note") or ""), turn["harness_turn"])
+        if row is None:
+            raise HTTPException(404, "that turn is no longer in this session")
+        turn["flagged"] = row["id"]
+        return {"id": row["id"]}
 
     @app.get("/api/thinking")
     def thinking() -> dict:
