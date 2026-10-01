@@ -2,7 +2,7 @@
 
 These pages map every part of the harness and show what data crosses between its loops. Each
 diagram is Mermaid (GitHub renders it), and every arrow names the function that sends the data
-as `file:line`. Line numbers are for commit `df56020`. If they drift, search for the function
+as `file:line`. Line numbers are for commit `74d71b7`. If they drift, search for the function
 name.
 
 | Page | What it covers |
@@ -18,6 +18,9 @@ name.
 | [08 Tools](08-tools.md) | browser, web, project (+ rule enforcer), nango, comfy, MCP: their own Jev loops |
 | [09 Memory and learning](09-memory-learning.md) | Storage, candidates, the memory gate, recall, follow-ups, facts and skills after a turn |
 | [10 Control and observability](10-observability.md) | Stop, ask_user, the event bus, usage.db, the dashboard, and where to watch every part live |
+| [11 The failure log](11-failure-log.md) | Every way a task fails, detected from events, a Jev check, `report_failure()` and your hooks, kept in failures.db |
+| [12 Session review](12-session-review.md) | Flag a session, write notes, a model judges it; a failure verdict joins the failure log |
+| [13 Refinement](13-refine.md) | Logged failures → tests → a local model's fix in a worktree → old vs new on every local model → your approval |
 
 ## The one idea everything follows
 
@@ -50,6 +53,13 @@ flowchart LR
     LR["Learner<br/>learn.py"]
     U["Usage<br/>usage.py"]
     MH["McpHub<br/>mcp.py"]
+    FW["Failure watch<br/>failures.py"]
+    RVW["Reviewer<br/>review.py"]
+  end
+
+  subgraph RF["Refinement (python -m jevh.refine)"]
+    RFL["Refiner<br/>refine/loop.py"]
+    RFR["run_case processes<br/>old + new worktrees"]
   end
 
   subgraph RP["REPL subprocess, one per worker"]
@@ -76,6 +86,8 @@ flowchart LR
     SES[("sessions/&lt;id&gt;/<br/>task folders, artifacts")]
     SK[("skills/<br/>learned/, _lessons/")]
     PRJ[("user project")]
+    FDB[("failures.db<br/>reviews.db")]
+    RDIR[("refine/&lt;id&gt;/<br/>cases, results, report")]
   end
 
   CLI -- "h.turn() on a thread<br/>on_event printer" --> H
@@ -116,7 +128,20 @@ flowchart LR
   RS -- "save_artifact" --> SES
   TW -- "project.edit/write" --> PRJ
   Hub -- "CDP mirror" --> CH
+  H -- "every event" --> FW
+  FW -- "failure rows" --> FDB
+  RVW -- "verdicts" --> FDB
+  FDB -- "open failures" --> RFL
+  RFL --> RFR
+  RFL --> RDIR
+  RFL -- "approve: git merge" --> PRJ
 ```
+
+The last four arrows are the improvement loop that landed after the first version of these docs:
+every event passes the failure watch ([11](11-failure-log.md)), you can flag a session for a model
+review ([12](12-session-review.md)), and refinement turns open failures into a tested change
+([13](13-refine.md)). Here "user project" stands for the harness's own checkout, which approval
+merges into.
 
 Two paths to Jev are easy to miss:
 
@@ -124,13 +149,13 @@ Two paths to Jev are easy to miss:
   `jev.trace` and in `usage.db` as kind `jev`.
 - The tool modules inside the REPL (browser, web, project.find, the rule enforcer) build their own
   `SystemOneClient` from environment variables the harness set (`JEVH_JEV_URL`,
-  `JEVH_JEV_BACKEND`, `JEVH_TOOLS_JEV`; `orchestrator.py:198-204`, `tools/_pick.py:19`). They talk
+  `JEVH_JEV_BACKEND`, `JEVH_TOOLS_JEV`; `orchestrator.py:211-217`, `tools/_pick.py:19`). They talk
   to the adapter directly, not through the harness. After each exec the REPL reports how many
-  calls they made (`repl/server.py:394-400`), and the harness records that as kind `jev_tools`
-  (`orchestrator.py:582`).
+  calls they made (`repl/server.py:404-410`), and the harness records that as kind `jev_tools`
+  (`orchestrator.py:598`).
 
 A worker's own `jev(state, questions)` helper is different again: it goes back to the harness
-over the REPL's callback channel and becomes a `worker_jev` step (`orchestrator.py:460`).
+over the REPL's callback channel and becomes a `worker_jev` step (`orchestrator.py:475`).
 
 ## Threads
 
@@ -139,15 +164,15 @@ flowchart TB
   subgraph main["Harness process"]
     T0["UI thread<br/>(CLI input loop / uvicorn)"]
     TT["turn thread<br/>Harness.turn → run_task(root)"]
-    TK["task-N-persona threads<br/>one per approved hand-off<br/>orchestrator.py:565"]
-    TL["learn thread<br/>orchestrator.py:401"]
+    TK["task-N-persona threads<br/>one per approved hand-off<br/>orchestrator.py:581"]
+    TL["learn thread<br/>orchestrator.py:416"]
     TC["LLM side threads per call<br/>_close_on_cancel, _watch_thinking<br/>llm.py:88, :100"]
     TR["REPL reader threads<br/>stdout → queue, stderr tail<br/>repl/client.py:82-83"]
     TM["mcp-server reader threads<br/>mcp.py:63"]
-    TD["browser-dock thread (dashboard)<br/>web/server.py:177"]
+    TD["browser-dock thread (dashboard)<br/>web/server.py:154"]
   end
   subgraph repl["Each REPL process"]
-    RM["main: JSON-line op loop<br/>repl/server.py:364"]
+    RM["main: JSON-line op loop<br/>repl/server.py:374"]
     RB["jevh-browser thread<br/>tools/browser.py:1283"]
   end
   T0 --> TT
@@ -160,28 +185,31 @@ flowchart TB
   TK --> TR
 ```
 
-The Harness uses a `threading.local` (`self._tl`, `orchestrator.py:208`) so any thread knows
+The Harness uses a `threading.local` (`self._tl`, `orchestrator.py:223`) so any thread knows
 which turn, task and persona it works for, and whether it's doing `llm` or `learn` work. Every
-usage row and model call is tagged from it (`_where`, `orchestrator.py:569`).
+usage row and model call is tagged from it (`_where`, `orchestrator.py:585`).
 
 ## Where state lives
 
 | State | Where | Written by | Read by |
 |---|---|---|---|
 | Conversation turns (full-text indexed) | `workspace/memory/memory.db` table `turns` + `turns_fts` | `Memory.append` (`memory.py:111`) after a successful turn | candidates, `recall`, follow-ups |
-| What a turn's answer was based on | `memory.db` table `turn_notes` | `turn_notes()` (`orchestrator.py:76`) via `Memory.append` | follow-up history (`session_turns`) |
+| What a turn's answer was based on | `memory.db` table `turn_notes` | `turn_notes()` (`orchestrator.py:78`) via `Memory.append` | follow-up history (`session_turns`) |
 | Remembered facts | `memory.db` tables `facts` + `facts_fts` | Learner, `remember()` | candidates, `recall` |
 | Human-readable logs | `workspace/memory/<persona>.jsonl`, `timeline.jsonl` | `Memory.append` | you |
-| Every model, Jev and swap cost | `workspace/usage.db` table `usage` | `Harness._record` (`orchestrator.py:573`) | CLI footer, `/usage`, dashboard Usage tab |
+| Every model, Jev and swap cost | `workspace/usage.db` table `usage` | `Harness._record` (`orchestrator.py:589`) | CLI footer, `/usage`, dashboard Usage tab |
 | A task's working folder | `workspace/sessions/<session>/u<turn>t<task>-<persona>/` | the worker's REPL (its cwd) | the worker, `_harvest` |
-| Worker conversation after each step | `…/checkpoint.json` | `Worker._save` (`worker.py:940`) | `resume` |
-| REPL variables, imports, defs | `…/repl_state.pkl` | `repl.snapshot` (`repl/server.py:279`) | `repl.restore` on resume |
+| Worker conversation after each step | `…/checkpoint.json` | `Worker._save` (`worker.py:944`) | `resume` |
+| REPL variables, imports, defs | `…/repl_state.pkl` | `repl.snapshot` (`repl/server.py:289`) | `repl.restore` on resume |
 | Each step's live reasoning and reply | `…/thinking/step-NN.txt` | `_LiveFeed` (`llm.py:139`) | dashboard `/api/thinking`, you |
-| Background job logs | `…/.jobs/<id>.log` | `start_job` (`repl/server.py:102`) | `job_status` |
+| Background job logs | `…/.jobs/<id>.log` | `start_job` (`repl/server.py:108`) | `job_status` |
 | Originals of edited project files | `…/.project_backups/` | `project._backup` (`tools/project.py:162`) | `project.undo`, the gate's review diffs |
 | Deliverables | `workspace/sessions/<session>/artifacts/` | `save_artifact`, `_resolve_artifact`, `_harvest` | the gate, the user, other workers (`inputs=`) |
 | Docked browser ports | `workspace/sessions/<session>/browsers/<pid>.json` | browser `Session` (`tools/browser.py:440`) | dashboard BrowserDock |
 | Learned skills and lessons | `skills/learned/learned-*/SKILL.md`, `skills/_lessons/<name>.md` | Learner | `load_roster` (next turn) |
+| Failures | `workspace/failures.db` table `failures` | `FailureLog.record` (`failures.py:72`) | `/failures`, dashboard, `python -m jevh.failures`, refine |
+| Flagged sessions, notes, verdicts | `workspace/reviews.db` tables `flags`, `notes` | `ReviewLog` (`review.py:51`) | `/flags`, dashboard, `python -m jevh.review` |
+| Refinement attempts | `workspace/refine/<id>/`: state, `cases.json`, `results.jsonl`, `try<k>.diff`, `report.md`; `rejections.jsonl` | `Refiner` (`refine/loop.py:117`) | `python -m jevh.refine status / report` |
 | Config | `config.yaml` + `config.local.yaml` | you | `load_config` (`config.py:73`) |
 
 ## Glossary

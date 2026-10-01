@@ -1,7 +1,7 @@
 # 07 · The final() gate
 
 When a worker calls `final()`, or replies with plain text and no code, `Worker._bounce`
-(`worker.py:962`) runs the verifier before accepting. Problems go back to the worker as a new
+(`worker.py:966`) runs the verifier before accepting. Problems go back to the worker as a new
 message ("Not accepted yet: …"), with its REPL state intact. After `verify.max_bounces` (2), or
 on a stalled worker's wrap-up step, the answer is accepted with the unresolved problems listed
 under it. It is never accepted silently.
@@ -10,7 +10,7 @@ under it. It is never accepted silently.
 sequenceDiagram
   autonumber
   participant W as Worker._bounce
-  participant VF as _verify_fn (orchestrator.py:637)
+  participant VF as _verify_fn (orchestrator.py:653)
   participant V as Verifier.check
   participant FS as files / headless Chromium
   participant PT as project tests
@@ -53,14 +53,14 @@ sequenceDiagram
   end
 ```
 
-## Answer rules (`answer_rules`, `verify.py:141`)
+## Answer rules (`answer_rules`, `verify.py:154`)
 
 | Problem raised | Condition |
 |---|---|
-| Unsupported numbers | the answer has 2+ digit numbers (not years) that appear nowhere in the request, prior turns, or tool outputs (`grounding`, `verify.py:125`); only once tools ran |
+| Unsupported numbers | the answer has 2+ digit numbers (not years) that appear nowhere in the request, prior turns, or tool outputs (`grounding`, `verify.py:138`); only once tools ran |
 | Claims not in the log (first of these three that applies) | `claims ≥ verify_claims 0.80` |
 | … else doesn't deliver | `delivers < 0.80` and not `honest ≥ 0.80` |
-| … else inaccurate report | `accurate < verify_accurate 0.40`, not honest, and the numbers aren't grounded (2+ supported, none unsupported) |
+| … else inaccurate report | code was run (the log isn't empty), `accurate < verify_accurate 0.40`, not honest, and the numbers aren't grounded (2+ supported, none unsupported) (`verify.py:177`) |
 | Too few deliverables | the request says "three logos" (2 to 20) and fewer files came, unless honest |
 | Browser claim without browser use | "checked … in the browser" and no `browser.` in the log |
 | Promise instead of work | "next I'll …" and not a question to the user |
@@ -69,16 +69,16 @@ sequenceDiagram
 the output lines that mention the answer's numbers and words. `seen_text` (`learn.py:137`) is the
 uncut evidence for grounding: everything the worker was shown, but not its own replies.
 
-## File checks (`Verifier._file`, `verify.py:239`)
+## File checks (`Verifier._file`, `verify.py:254`)
 
 | Type | Checks |
 |---|---|
-| any | exists; not empty |
+| any | exists; not empty; its whole content isn't just a file name (`save_artifact("planets.csv", "planets.csv")` once handed over an 11-byte file; `_names_a_file`, `verify.py:93`) |
 | `.png .jpg .jpeg .gif .webp` | magic bytes match |
 | `.py` | compiles |
 | `.json` | parses |
 | `.html .htm .svg .md .txt .css .js .csv` | no placeholder text (lorem ipsum, TODO, `[Your Company]`, `{{ x }}`, example.com…); HTML visible text only |
-| `.html .htm` | no `src`/`href` to local files that don't exist; renders without script errors or a blank body (`_render`, `verify.py:274`) |
+| `.html .htm` | no `src`/`href` to local files that don't exist; renders without script errors or a blank body (`_render`, `verify.py:292`) |
 
 ## Risky project changes
 

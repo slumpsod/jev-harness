@@ -3,8 +3,9 @@
 ## The event bus
 
 Every part of the harness reports what it does through one callback, `on_event(kind, data)`. It
-is wrapped by `_shielded` (`orchestrator.py:84`), so a bug in a display handler can never stop the
-work. Worker events go through `Worker.on_step` → `Harness._on_worker` (`orchestrator.py:582`),
+sends each event to the UI callback, wrapped by `_shielded` (`orchestrator.py:86`) so a bug in a
+display handler can never stop the work, and then to the failure watch, which logs what went wrong
+(`emit`, `orchestrator.py:189`; [11](11-failure-log.md)). Worker events go through `Worker.on_step` → `Harness._on_worker` (`orchestrator.py:598`),
 which adds `task_id` and turns `tool_usage` into a usage row instead of an event.
 
 ```mermaid
@@ -16,10 +17,13 @@ flowchart LR
   end
   W --> OW["Harness._on_worker<br/>+ task_id"]
   OW -- "tool_usage" --> U[("usage.db<br/>kind jev_tools")]
-  OW --> SH["_shielded on_event"]
-  H --> SH
-  L --> SH
-  SH -- "CLI" --> PR["Printer<br/>cli.py:55"]
+  OW --> EM["emit(kind, data)"]
+  H --> EM
+  L --> EM
+  EM --> SH["_shielded UI callback"]
+  EM --> FW["FailureWatch<br/>→ failures.db, hooks"]
+  FW -- "failure, hook_error" --> SH
+  SH -- "CLI" --> PR["Printer<br/>cli.py:59"]
   SH -- "dashboard" --> HUB["Hub.publish<br/>seq, ts, kind, turn, data<br/>last MAX_EVENTS kept"]
   HUB --> SSE["GET /api/events (SSE)<br/>backlog since seq, then live"]
   SSE --> UI["Timeline · Inspector ·<br/>Artifacts · Status · Usage"]
@@ -29,7 +33,7 @@ flowchart LR
 
 | Event | Emitted by | Data | Shown in |
 |---|---|---|---|
-| `turn_start` / `turn_done` / `turn_error` | `Hub.start_turn` (`web/server.py:120`) | turn record (answer, tasks, trace, usage) | chat, timeline |
+| `turn_start` / `turn_done` / `turn_error` | `Hub.start_turn` (`web/server.py:97`) | turn record (answer, tasks, trace, usage) | chat, timeline |
 | `route` | `_turn` | `RouteDecision` (probabilities, continues, replies, follows, reason) | Inspector, CLI |
 | `skills` | `run_task` | `SkillDecision` (probs, none, fits, picked) | Inspector |
 | `memory` | `run_task` | `MemoryDecision` (kept, scores) + candidate count | Inspector |
@@ -53,6 +57,9 @@ flowchart LR
 | `cancel` | `Harness.cancel` | number of workers | chat |
 | `jev_error` | `_safe` | step, error | CLI, Inspector |
 | `learned` / `learn_error` | Learner | facts, retired, skill, scores / error | Memory tab, CLI |
+| `failure` | FailureWatch | id, source, kind, summary, persona, task | CLI, Failures view |
+| `hook_error` | FailureWatch | hook, event, error (a broken hook, not a task failure) | CLI |
+| `review_flag` / `review_start` / `review_done` / `review_error` | Hub (session review) | flag id, session, review | Review view |
 | `review_flag` / `review_start` / `review_done` / `review_error` | dashboard review API (`web/server.py`) | flag id and session; verdict / error | Review tab |
 
 ## Stop: one flag reaches everything
@@ -77,7 +84,7 @@ sequenceDiagram
 ## ask_user: a worker waits for the user
 
 `ask_user(question, options)` in the REPL → callback → `Harness._ask_user`
-(`orchestrator.py:345`). This registers a `PendingQuestion` (up to 8 options), emits `question`,
+(`orchestrator.py:360`). This registers a `PendingQuestion` (up to 8 options), emits `question`,
 and waits in 0.5s ticks for `answer()` (dashboard `/api/answer`, or the CLI prompt), up to
 `limits.ask_timeout` (30 min). On timeout the worker gets "(no answer from the user … continue
 with your best judgement)". Its REPL (variables, an open browser page) stays alive the whole time.
@@ -111,6 +118,9 @@ Cost is computed only for models priced under `prices:` in config.
 | The browser tool | "Watch browser": a window, or docked in the dashboard's Browser panel (CDP mirror, `/api/browser/frame`, `/api/browser/input`) |
 | LM Studio, Jev adapter, semif, ComfyUI, GPU | dashboard **Status** (`/api/status`); CLI `/jev` |
 | Deliverables | dashboard **Artifacts** (`/api/artifacts`, `/api/file`: HTML in a CSP sandbox) |
+| Failures | CLI `/failures`; dashboard Failures view (`/api/failures`); `python -m jevh.failures` |
+| Flagged sessions and model reviews | CLI `/flag`, `/note`, `/flags`, `/review`; dashboard review (`/api/reviews…`); `python -m jevh.review` |
+| Refinement attempts | `python -m jevh.refine status`, `report <id>`; `workspace/refine/<id>/` |
 | Memory, facts, learned skills | dashboard **Memory** tab (`/api/memory`, `/api/skills/review`, `/api/memory/forget`); CLI `/facts`, `/forget` |
 | Cost and time | footer line, CLI `/usage`, dashboard **Usage** tab |
 | A task's full conversation | `…/task folder/checkpoint.json` |
