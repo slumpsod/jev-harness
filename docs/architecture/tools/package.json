@@ -1,0 +1,2 @@
+{ "name": "jev-harness-atlas", "private": true, "description": "Builds the Atlas page and checks the Mermaid diagrams",
+  "dependencies": { "marked": "^14.1.4", "mermaid": "^11.17.0", "playwright-core": "^1.63.0" } }

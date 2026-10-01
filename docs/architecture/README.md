@@ -22,6 +22,10 @@ name.
 | [12 Session review](12-session-review.md) | Flag a session, write notes, a model judges it; a failure verdict joins the failure log |
 | [13 Refinement](13-refine.md) | Logged failures → tests → a local model's fix in a worktree → old vs new on every local model → your approval |
 
+Keeping them current: [tools/](tools/README.md) re-anchors every `file:line` after the code moves, checks
+every diagram, and builds the interactive Atlas page. A narrated walkthrough video of the same material is
+built by [../walkthrough](../walkthrough/README.md).
+
 ## The one idea everything follows
 
 Jev (a small System One model behind `/v1/systemone`) decides **what a worker model gets to
