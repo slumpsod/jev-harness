@@ -230,3 +230,58 @@ def test_failures_api_lists_and_triages(cfg):
     assert client.post("/api/failures/status", json={"id": f["id"], "status": "fixed", "note": "timeout added"},
                        headers=auth()).json() == {"ok": True}
     assert client.get("/api/failures?status=fixed", headers=auth()).json()["failures"][0]["note"] == "timeout added"
+
+
+def test_review_flag_notes_model_review_and_verdict(cfg):
+    import json as _json
+    client, app = make_client(cfg)
+    client.post("/api/chat", json={"message": "build a page"}, headers=auth())
+    wait_done(client)
+    h = app.state.hub.harness
+    reply = _json.dumps({"verdict": "failure", "confidence": 0.7, "summary": "the page is a stub",
+                         "problems": [{"what": "only a heading", "turn": 1, "note": 1, "severity": "high"}]})
+    h.review._factory = lambda block: ScriptedLLM([reply], name="judge")
+    assert client.get("/api/reviews", headers=auth()).json()["current"] is None
+    f = client.post("/api/reviews/flag", json={"note": "the page is empty", "turn": 1}, headers=auth()).json()["flag"]
+    assert (f["session"], f["title"], f["notes"][0]["turn"]) == (h.session, "build a page", 1)
+    assert client.post("/api/reviews/flag", json={"session": "nope"}, headers=auth()).status_code == 404
+    assert client.post("/api/reviews/note", json={"id": f["id"], "text": " "}, headers=auth()).status_code == 400
+    client.post("/api/reviews/note", json={"id": f["id"], "text": "no styling either"}, headers=auth())
+    got = client.get("/api/reviews", headers=auth()).json()
+    assert got["current"]["id"] == f["id"] and len(got["current"]["notes"]) == 2 and got["counts"] == {"open": 1}
+    assert [s["flag"] for s in client.get("/api/sessions", headers=auth()).json()] == [f["id"]]
+    detail = client.get(f"/api/reviews/{f['id']}", headers=auth()).json()
+    assert detail["record"]["turns"][0]["assistant"] == "built it" and "save_artifact" in detail["record"]["tasks"][0]["work_log"]
+    assert client.get("/api/reviews/999", headers=auth()).status_code == 404
+
+    assert client.post("/api/reviews/run", json={"id": f["id"]}, headers=auth()).json() == {"running": True}
+    deadline = time.time() + 10
+    while time.time() < deadline and not any(e["kind"] == "review_done" for e in app.state.hub.events):
+        time.sleep(0.05)
+    out = client.get(f"/api/reviews/{f['id']}", headers=auth()).json()["flag"]
+    assert (out["verdict"], out["verdict_by"], out["review"]["model"], out["running"]) == ("failure", "model", "judge", False)
+    assert h.failures.get(out["failure_id"])["kind"] == "review_failure"
+
+    assert client.post("/api/reviews/verdict", json={"id": f["id"], "verdict": "meh"}, headers=auth()).status_code == 400
+    v = client.post("/api/reviews/verdict", json={"id": f["id"], "verdict": "not_failure", "reason": "fine"},
+                    headers=auth()).json()["flag"]
+    assert (v["verdict"], v["verdict_by"]) == ("not_failure", "user")
+    assert h.failures.get(out["failure_id"])["status"] == "ignored"
+    assert client.post("/api/reviews/status", json={"id": f["id"], "status": "decided"}, headers=auth()).status_code == 400
+    assert client.post("/api/reviews/status", json={"id": f["id"], "status": "dismissed"}, headers=auth()).json()["flag"]["status"] == "dismissed"
+    assert client.post("/api/reviews/status", json={"id": f["id"], "status": "open"}, headers=auth()).json()["flag"]["status"] == "decided"
+
+
+def test_a_failed_model_review_is_reported_as_an_event(cfg):
+    client, app = make_client(cfg)
+    client.post("/api/chat", json={"message": "build a page"}, headers=auth())
+    wait_done(client)
+    app.state.hub.harness.review._factory = lambda block: ScriptedLLM(["can't tell"])
+    fid = client.post("/api/reviews/flag", json={}, headers=auth()).json()["flag"]["id"]
+    client.post("/api/reviews/run", json={"id": fid}, headers=auth())
+    deadline = time.time() + 10
+    while time.time() < deadline and not any(e["kind"] == "review_error" for e in app.state.hub.events):
+        time.sleep(0.05)
+    err = next(e for e in app.state.hub.events if e["kind"] == "review_error")
+    assert err["data"]["flag"]["id"] == fid and "no JSON" in err["data"]["error"]
+    assert client.get(f"/api/reviews/{fid}", headers=auth()).json()["flag"]["status"] == "open"
