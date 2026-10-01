@@ -382,3 +382,19 @@ def test_a_tool_call_written_as_the_answer_goes_back(cfg):
         assert not got.ok and f"a {name} tool call written out as text" in got.problems[0], leaked
     data = v.check("Convert this CSV to JSON", '[{"name": "Ana", "age": 31}, {"name": "Bo", "age": 27}]', [], "")
     assert data.ok and data.checks["answer"] == "skipped: the answer is JSON data"   # real data still passes
+
+
+def test_one_number_from_the_wrong_row_and_an_aspect_ratio():
+    from jevh.verify import answer_rules
+    t = {"verify_claims": .8, "verify_delivers": .8, "verify_honest": .8, "verify_accurate": .6}.get
+    fares = "CODE:\nprint(browser.read())\nOUTPUT: TAP $412 09:40 nonstop\nUnited $455 18:05 nonstop"
+    low = {"claims": .1, "delivers": .99, "honest": .02, "accurate": .13}   # Jev on the live set's wrong row
+    wrong = answer_rules("cheapest flight JFK-LIS?", "United at $455, departing 18:05.", [], fares, low, t)
+    assert any("doesn't match what the work log shows" in p for p in wrong)   # 3 numbers in the log: still caught
+    # on a long, noisy log 'accurate' can't tell right from wrong: 2+ grounded numbers overrule it there
+    page = fares + "\n" + "Menu item\n" * 200 + "Sale price $2,999.99 Regular price $4,999.99"
+    assert not answer_rules("price of the lounge set?", "$2,999.99, down from $4,999.99.", [], page,
+                            dict(low, accurate=.18), t)
+    deck = "CODE:\nprs.save('Solar_System.pptx')\nOUTPUT: saved"
+    ok = {"claims": .1, "delivers": .99, "honest": .02, "accurate": .85}
+    assert not answer_rules("make a 3-slide deck", "Your 3-slide deck (16:9 widescreen) is ready.", [], deck, ok, t)

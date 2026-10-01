@@ -39,7 +39,7 @@ class Config:
 DEFAULT_THRESHOLDS = {"tool": 0.65, "mcp_fits": 0.5, "fact": 0.88, "same_fact": 0.5, "learn_skill": 0.5,
                       "follow_topic": 0.25, "follow_reply": 0.4,
                       "verify_claims": 0.8, "verify_delivers": 0.8, "verify_honest": 0.8,
-                      "verify_accurate": 0.4, "stall": 0.6, "testable": 0.55, "searching": 0.25,
+                      "verify_accurate": 0.6, "stall": 0.6, "testable": 0.55, "searching": 0.25,
                       "compact_keep": 0.8, "rule_block": 0.8,
                       "review_risk": 0.65, "review_severe": 0.2, "failure_gave_up": 0.85, "failure_missed": 0.85}
 DEFAULT_LIMITS = {"max_mcp_tools": 3, "memory_search": 10, "memory_facts": 6, "follow_turns": 2,

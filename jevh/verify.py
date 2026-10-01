@@ -88,6 +88,8 @@ PROMISE = re.compile(r"\bnext,? I(?:'ll| will)\b|\bI(?:'ll| will) (?:now |next |
 BROWSER_CLAIM = re.compile(r"\b(?:checked|tested|verified|opened|previewed|confirmed)\b[^.\n]{0,60}"
                            r"\b(?:browser|renders?|rendering|in chrome|on the page)\b", re.I)
 IMAGE_MAGIC = {".png": b"\x89PNG", ".jpg": b"\xff\xd8", ".jpeg": b"\xff\xd8", ".gif": b"GIF8", ".webp": b"RIFF"}
+LONG_LOG = 1500   # chars of work log from which grounded numbers overrule 'accurate' (see answer_rules)
+ASPECT = re.compile(r"\b(?:16:9|9:16|4:3|3:4|21:9|16:10|3:2|2:3|1:1|2:1)\b")   # aspect ratios
 OOXML = {".xlsx": "xl/", ".docx": "word/", ".pptx": "ppt/"}   # an Office file is a zip with this part inside
 # A file the request asks to be made, by name: "create a CSV file named squares.csv", "write leap.py", "hand it over as
 # index.html". Only after a making verb, so an input ("read notes.txt", "download rfc2324.txt") isn't one.
@@ -152,7 +154,8 @@ def grounding(answer: str, evidence: str) -> tuple[set[str], set[str]]:
     # printed dicts show newlines as "\n": "\n110 points" (a browser page line) is still 110
     seen = [v for _, v, _ in _nums(re.sub(r"\\[ntr]", " ", evidence))]
     supported, unsupported = set(), set()
-    for digits, value, slack in _nums(answer):
+    # an aspect ratio is a format, not a figure a tool returns (live: a "16:9 widescreen" deck was sent back)
+    for digits, value, slack in _nums(ASPECT.sub(" ", answer)):
         year = re.fullmatch(r"(19|20)\d\d", digits) is not None   # "2026" yes, "$1,999" no
         if len(digits.replace(",", "").replace(".", "")) < 2 or year:
             continue
@@ -172,9 +175,13 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
         problems.append(f"These numbers in your answer appear in none of your outputs or the request: {shown}. "
                         "Check them against what the tools returned and correct them; if one is your own "
                         "arithmetic, compute it in code so the result is in the log.")
-    # every number grounded in the outputs: semif's 'accurate' misfires on long real logs, so it
-    # doesn't get to overrule that (it scored a correct price 0.01-0.18 against the real page)
-    grounded = len(supported) >= 2 and not unsupported
+    # Grounded numbers overrule 'accurate' only on a long log. There semif's 'accurate' stops telling right from
+    # wrong (a real shop page: the right price 0.18, a wrong one 0.13), so 2+ numbers found in the outputs are
+    # the better signal. On a short log 'accurate' does tell them apart (live set: wrong rows 0.13-0.53, right
+    # answers 0.82+), while numbers found in the log say nothing about which row they came from ("United at
+    # $455, 18:05": three numbers, all in the log, the wrong flight). Any cut-off from 600 to 2000 chars gave
+    # the same result on both sets (evals/verify_cases.py --live, evals/verify_evidence_cases.py).
+    grounded = len(log) >= LONG_LOG and len(supported) >= 2 and not unsupported
     if scores.get("claims", 0.0) >= t("verify_claims"):
         problems.append("Your answer claims things the work log doesn't show happening (e.g. tests passing, "
                         "files saved, something sent or checked). Do them, or correct the answer.")
@@ -183,7 +190,7 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
                         "unfinished work presented as done). Finish the work, or say plainly what is not done.")
     # like the numbers rule above: with an empty log "accurate" judges a knowledge / hand-math answer
     # against "(no code was run)" and misfires (live: arXiv 28.4 BLEU, a train arrival time, a date)
-    elif (log.strip() and scores.get("accurate", 1.0) < t("verify_accurate") and not honest and not grounded):
+    elif log.strip() and scores.get("accurate", 1.0) < t("verify_accurate") and not honest and not grounded:
         problems.append("Your answer doesn't match what the work log shows (numbers, items or results differ, "
                         "or it reports steps that didn't happen). Check it against your outputs and correct it.")
     m = re.search(rf"\b(\d+|{'|'.join(NUMBERS)})\s+(?:\w+\s+){{0,3}}?{COUNTED}\b", request, re.I)

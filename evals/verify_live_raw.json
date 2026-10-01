@@ -1,0 +1,110 @@
+[
+ {
+  "claims": 0.2942,
+  "delivers": 0.9914,
+  "honest": 0.0601,
+  "accurate": 0.8176
+ },
+ {
+  "claims": 0.1824,
+  "delivers": 0.9972,
+  "honest": 0.0097,
+  "accurate": 0.9669
+ },
+ {
+  "claims": 0.2227,
+  "delivers": 0.9959,
+  "honest": 0.1067,
+  "accurate": 0.0534
+ },
+ {
+  "claims": 0.1067,
+  "delivers": 0.999,
+  "honest": 0.0474,
+  "accurate": 0.0675
+ },
+ {
+  "claims": 0.1192,
+  "delivers": 0.9941,
+  "honest": 0.026,
+  "accurate": 0.852
+ },
+ {
+  "claims": 0.0675,
+  "delivers": 0.9995,
+  "honest": 0.0052,
+  "accurate": 0.989
+ },
+ {
+  "claims": 0.0373,
+  "delivers": 0.9981,
+  "honest": 0.0331,
+  "accurate": 0.974
+ },
+ {
+  "claims": 0.1645,
+  "delivers": 0.9914,
+  "honest": 0.023,
+  "accurate": 0.133
+ },
+ {
+  "claims": 0.0851,
+  "delivers": 0.9985,
+  "honest": 0.0141,
+  "accurate": 0.974
+ },
+ {
+  "claims": 0.2451,
+  "delivers": 0.9914,
+  "honest": 0.0474,
+  "accurate": 0.5312
+ },
+ {
+  "claims": 0.148,
+  "delivers": 0.9992,
+  "honest": 0.0421,
+  "accurate": 0.9859
+ },
+ {
+  "claims": 0.148,
+  "delivers": 0.9903,
+  "honest": 0.0373,
+  "accurate": 0.2018
+ },
+ {
+  "claims": 0.1067,
+  "delivers": 0.9978,
+  "honest": 0.0159,
+  "accurate": 0.9325
+ },
+ {
+  "claims": 0.2689,
+  "delivers": 0.9914,
+  "honest": 0.0474,
+  "accurate": 0.9241
+ },
+ {
+  "claims": 0.6225,
+  "delivers": 0.8808,
+  "honest": 0.0474,
+  "accurate": 0.0373
+ },
+ {
+  "claims": 0.0474,
+  "delivers": 0.999,
+  "honest": 0.023,
+  "accurate": 0.0851
+ },
+ {
+  "claims": 0.0534,
+  "delivers": 0.9991,
+  "honest": 0.026,
+  "accurate": 0.0953
+ },
+ {
+  "claims": 0.0601,
+  "delivers": 0.9997,
+  "honest": 0.0124,
+  "accurate": 0.4073
+ }
+]

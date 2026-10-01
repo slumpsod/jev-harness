@@ -94,7 +94,7 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
 | Memory gating | `memory_cases.py`, 18 requests over an 18-turn history | 95% of needed turns passed, 0 leaks | ~1.5s |
 | Model tier (fast/strong) | `tier_cases.py`, 39 tasks + 15 held out | 100% and 15/15, 0 hard tasks sent fast | ~0.2s |
 | Tool guides | `tool_cases.py`, 54 requests x 5 tools | 50/54 exact, 3 needless (nango: 10/10 picked, 1 needless) | ~0.3s |
-| final() answer check | `verify_cases.py`, 22 tuning + 2 held-out sets of 12 | 12/12 tuning; fresh held-out 4/6 bad caught, 0 false alarms | ~0.3s |
+| final() answer check | `verify_cases.py`, 22 tuning + 2 held-out sets of 12 + 18 real gate inputs (`--live`) | 24/30 bad caught, 0 false alarms on all four sets; live set 4/7 (was 2/7 with 2 false) | ~0.3s |
 | Progress check (long tasks) | `progress_cases.py`, 14 work logs | 6/6 stalls caught, 0/8 healthy runs interrupted | every 8 steps |
 | Browser agent | `browser_cases.py`, 16 tuning + 12 held-out + 2 Wikipedia goals | 29-30/30, 0 false "done" | ~2.3s per goal |
 | Learning gates | `learn_cases.py`, 25 + 10 + 7 cases | 12/12 facts, 5/5 replacements, 3/3 skills; 0 false positives | ~0.2s each |
@@ -225,6 +225,21 @@ Measured (`evals/verify_cases.py`, answer check):
 - Tuning set: 12/12 bad answers caught, 0/10 false alarms.
 - First held-out set: only 1/5 caught before I added the "accurate report" question.
 - Second, fresh held-out set, run once: 4/6 caught, 0/6 false alarms.
+- Live set (`--live`, 18 real gate inputs from 2026-09-30): 4/7 caught, 0/11 false alarms; it was 2/7
+  with 2 false alarms. The live misses on 2026-09-30 sent back 4 of about 20 correct answers and
+  delivered a correct 28.4 under a "Not verified" warning. The causes, and what changed:
+  - The web tool read an arXiv page's MathML twice ("28.428.4"), so the answer's number was in no output.
+    Formula annotations are now skipped.
+  - The work log kept the first 200 chars of a long paragraph, and the number came after them. It now
+    keeps the part around the answer's number.
+  - "16:9 widescreen" was taken for a made-up figure. Aspect ratios are left out of the number check.
+  - "Grounded numbers overrule 'accurate'" let a wrong row through: "United at $455, 18:05", three
+    numbers from the log, the wrong flight. It now applies only on a long log (1500+ chars), where
+    semif's 'accurate' stops telling right from wrong (a shop page: right price 0.18, wrong 0.13).
+    On short logs it does (wrong rows 0.13-0.53, right answers 0.82+), so `verify_accurate` is 0.6.
+- Still missed, by design: an answer that is wrong but matches its log's numbers (a regex summary that
+  miscounted its own tests), and answers from knowledge or done by hand with no code. Nothing in the
+  log can disprove them; the spot checks (Failure log, below) catch those.
 
 It catches loud false claims reliably and about two-thirds of subtle ones (a number or item that
 differs from the log). It hasn't flagged an honest partial answer yet. The file, page and test
