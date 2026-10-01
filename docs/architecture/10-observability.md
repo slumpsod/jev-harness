@@ -53,6 +53,7 @@ flowchart LR
 | `cancel` | `Harness.cancel` | number of workers | chat |
 | `jev_error` | `_safe` | step, error | CLI, Inspector |
 | `learned` / `learn_error` | Learner | facts, retired, skill, scores / error | Memory tab, CLI |
+| `review_flag` / `review_start` / `review_done` / `review_error` | dashboard review API (`web/server.py`) | flag id and session; verdict / error | Review tab |
 
 ## Stop: one flag reaches everything
 

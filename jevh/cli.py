@@ -9,6 +9,9 @@ Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
 /project <path> (open a project folder; "/project off" closes it), /watch [on|off] (see the
 browser tool work in a visible window), /facts, /forget <id>, /usage, /failures [n|kind],
 /resume [n|list] (continue an interrupted task: stopped, step limit, stalled, crashed),
+/flag [note] (flag this session for review), /note <text> (add a note to its flag),
+/flags [all] (flagged sessions), /review [id] (a model reviews the flagged session against the notes
+and says whether it failed), /verdict failure|not_failure [why] (your own verdict on it),
 /personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
 """
 from __future__ import annotations
@@ -26,6 +29,7 @@ from rich.panel import Panel
 
 from .config import load_config
 from .orchestrator import Harness
+from .review import ReviewError, describe, show
 from .usage import brief
 
 console = Console()
@@ -316,6 +320,45 @@ def main(argv: list[str] | None = None) -> None:
                 counts = h.failures.counts()["by_kind"]
                 console.print(("open: " + ", ".join(f"{k} {v}" for k, v in counts.items())) if counts
                               else "no failures logged")
+            elif cmd in ("flag", "note"):
+                if cmd == "note" and not arg.strip():
+                    console.print("usage: /note <what went wrong>")
+                    continue
+                f = h.review.flag(h.session, arg.strip())
+                console.print((f"note added to this session's flag (#{f['id']}, {len(f['notes'])} notes)" if cmd == "note"
+                               else f"session {h.session} flagged for review (#{f['id']}, {len(f['notes'])} notes)")
+                              + ("" if arg.strip() else "; /note <text> to say what went wrong"))
+            elif cmd == "flags":
+                flags = h.review.reviews.list(status=None if arg.strip() == "all" else "open") + \
+                    ([] if arg.strip() == "all" else h.review.reviews.list(status="decided"))
+                for f in sorted(flags, key=lambda f: -f["updated"]):
+                    console.print(esc(describe(f)))
+                if not flags:
+                    console.print("no flagged sessions (/flag to flag this one)")
+            elif cmd == "review":
+                f = h.review.reviews.resolve(arg) if arg.strip() else h.review.reviews.find(h.session)
+                if f is None:
+                    console.print("not flagged: /flag [note] first" if not arg.strip() else f"no flag {esc(arg)}")
+                    continue
+                try:
+                    with console.status(f"reviewing session {f['session']}..."):
+                        f = h.review.run(f["id"])
+                    console.print(esc(show(f)))
+                except (ReviewError, ValueError, KeyError) as e:
+                    console.print(f"[red]review failed: {esc(str(e))}[/]")
+                except KeyboardInterrupt:
+                    console.print("[yellow]review abandoned[/]")
+                except Exception as e:  # noqa: BLE001 - a model error must not end the chat
+                    console.print(f"[red]review failed: {type(e).__name__}: {esc(str(e)[:300])}[/]")
+            elif cmd == "verdict":
+                verdict, _, why = arg.strip().partition(" ")
+                f = h.review.reviews.find(h.session)
+                if verdict not in ("failure", "not_failure"):
+                    console.print("usage: /verdict failure|not_failure [why]")
+                elif f is None:
+                    console.print("not flagged: /flag [note] first")
+                else:
+                    console.print(esc(show(h.review.decide(f["id"], verdict, why.strip()))))
             elif cmd == "facts":
                 for f in h.memory.facts(None, 50):
                     console.print(f"[bold]{f.id}[/] {esc(f.chunk())}")

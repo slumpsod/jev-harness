@@ -43,9 +43,11 @@ python evals/learn_cases.py            # the three learning gates (fact / same f
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
 python -m jevh.failures                # logged failures; `export out.jsonl` to study them
+python -m jevh.review                  # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
 ```
 
 CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`,
+`/flag [note]`, `/note <text>`, `/flags`, `/review`, `/verdict failure|not_failure [why]` (see Session review),
 `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
 `/jev` (adapter health), `/reset`, `/quit`.
 
@@ -143,6 +145,7 @@ The chat is on the left, and every event streams in live on the right:
 - **Timeline**: one lane per task, positioned in time and coloured by tier (fast/strong). It shows nested hand-offs, refused requests, LM Studio swap markers, and "parallel saved Xs".
 - **Inspector**: every Jev decision for the selected turn, with probabilities and threshold markers: routing, tier, skill Choice + fits, memory kept/checked, collaborators and hand-off approvals.
 - **Artifacts**: files produced in this session. HTML is previewed live in a sandboxed iframe, images and video inline, and code or text as source.
+- **Review**: sessions flagged for review (see below), with their notes, a model's review and your verdict.
 - **Status**: which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
 
 In the header you can pin a persona and set the tier (Jev decides / fast / strong). Click an answer to inspect that turn,
@@ -151,6 +154,19 @@ and reload any time: the event history replays. **Security:** the agent executes
 - Every API call needs a per-launch token embedded in the page.
 - It refuses POSTs from other origins, which blocks CSRF from websites you visit.
 - It serves files only from the workspace. HTML artifacts get a CSP sandbox, so a generated page can't reach the dashboard.
+
+### Session review
+
+When a session went wrong in a way no detector caught, flag it: **Flag for review** above the chat (or the
+**flag** on any answer, to point a note at that turn), or `/flag <note>` in the CLI. Add as many notes as you
+like on what looked wrong. In the **Review** tab, **Ask a model to review** has a model (config
+`review.model`, else `models.strong`) read the whole session against your notes: the conversation, every
+task's work log, and the failures already logged. It lists the problems it found (severity, turn, the note
+each bears on, the evidence) and says **failure** or **not a failure**; you can overrule it either way. A
+failure verdict is written to the failure log as `review_failure` (source `review`), so `jevh.refine` can
+work on it; overruling it with "not a failure" marks that row ignored. Flags and notes live in
+`workspace/reviews.db`; `python -m jevh.review` does the same from a terminal, for any session
+(`sessions` lists them).
 
 ## Fast tier: Jev picks the model per task
 
