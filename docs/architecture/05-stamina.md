@@ -3,7 +3,7 @@
 These are the parts that let a worker run 20 to 60 steps without overflowing its context, going
 in circles, or losing work when something stops it.
 
-## Compaction (`Worker._compact`, `worker.py:750`)
+## Compaction (`Worker._compact`, `worker.py:754`)
 
 Compaction runs at the start of every step, before the model call. It only fires when the
 conversation is past `limits.compact_tokens` (60k estimated tokens at 3.2 chars per token). It
@@ -17,13 +17,13 @@ flowchart TD
   C --> D{"old part ≥ 10% of<br/>compact_tokens?"}
   D -- no --> X
   D -- yes --> E["group old messages into steps<br/>_steps() worker.py:115"]
-  E --> F["each step → entry<br/>brief: _condense() one-line notes<br/>full: _full() THOUGHT 400 / CODE 1500 / OUTPUT 2000<br/>worker.py:839, 854"]
+  E --> F["each step → entry<br/>brief: _condense() one-line notes<br/>full: _full() THOUGHT 400 / CODE 1500 / OUTPUT 2000<br/>worker.py:843, 854"]
   F --> G["now = condensed recent steps (last 2k)"]
-  G --> H["_score: Jev compact per step<br/>'holds info finishing the task will use again?'<br/>cached by step text<br/>worker.py:797 → orchestrator.py:612"]
+  G --> H["_score: Jev compact per step<br/>'holds info finishing the task will use again?'<br/>cached by step text<br/>worker.py:801 → orchestrator.py:628"]
   H --> I["keep in full if P ≥ compact_keep 0.8"]
   I --> J["entries = earlier entries + new ones"]
   J --> K["soft = max(8,000 chars,<br/>0.6 × compact_tokens × 3.2 − system/task/recent)"]
-  K --> L["_fit worker.py:813<br/>1. over min(soft, 16k): re-score full steps fresh,<br/>demote the least needed to notes<br/>2. over 16k (PROGRESS_CHARS): drop the<br/>lowest-scored entries"]
+  K --> L["_fit worker.py:817<br/>1. over min(soft, 16k): re-score full steps fresh,<br/>demote the least needed to notes<br/>2. over 16k (PROGRESS_CHARS): drop the<br/>lowest-scored entries"]
   L --> M{"new log ≥ 90% of<br/>what it replaces?"}
   M -- yes --> X2["skip: would barely save<br/>(scores stay cached)"]
   M -- no --> N["task message :=<br/>task text + '[Progress so far …]' + log<br/>messages = system + prior + task msg + recent"]
@@ -43,10 +43,10 @@ What survives compaction, and where:
 
 The compaction state (`_entries`, `_dropped`) is saved in `checkpoint.json` so a resumed task
 keeps its log. The dashboard's **context ring** comes from the `context` event
-(`_report_context`, `worker.py:722`). It is sent every step and splits the estimated prompt into
+(`_report_context`, `worker.py:726`). It is sent every step and splits the estimated prompt into
 instructions, tools, skills, task, work and output, out of `compact_tokens`.
 
-## Progress check (`Worker._stalled`, `worker.py:871`)
+## Progress check (`Worker._stalled`, `worker.py:875`)
 
 ```mermaid
 stateDiagram-v2
@@ -71,12 +71,12 @@ stateDiagram-v2
 
 | Guard | Code | Effect |
 |---|---|---|
-| Same error 3× | `worker.py:1091` | "Stop retrying it. Try a genuinely different approach, or call final()" |
-| 2 steps / 1 step left | `worker.py:1080` | "save your deliverables… call final()" / "LAST STEP" |
+| Same error 3× | `worker.py:1095` | "Stop retrying it. Try a genuinely different approach, or call final()" |
+| 2 steps / 1 step left | `worker.py:1084` | "save your deliverables… call final()" / "LAST STEP" |
 | Repetition in a reply | `worker.py:93` | the stream is stopped and the worker told to do what it keeps saying it will do |
-| Thinking watch | `orchestrator.py:622` | see [04](04-llm-streaming.md#the-watcher-thread-_watch_thinking-llmpy100) |
-| Step limit | `worker.py:710` | files harvested, the last output quoted, resumable |
-| Hidden reasoning kept | `worker.py:514` | the last 40k chars of each step's reasoning go back as `reasoning_content` (`limits.keep_reasoning`) |
+| Thinking watch | `orchestrator.py:638` | see [04](04-llm-streaming.md#the-watcher-thread-_watch_thinking-llmpy100) |
+| Step limit | `worker.py:714` | files harvested, the last output quoted, resumable |
+| Hidden reasoning kept | `worker.py:518` | the last 40k chars of each step's reasoning go back as `reasoning_content` (`limits.keep_reasoning`) |
 
 ## Checkpoint and resume
 
@@ -104,5 +104,5 @@ sequenceDiagram
   H->>D: old checkpoint: resumed_by = session
 ```
 
-Code: `_save` `worker.py:940`, `resumable` `orchestrator.py:274`, `resume` `orchestrator.py:294`,
-`_add_resume_note` `worker.py:926`, `snapshot` / `restore` `repl/server.py:279`, `:306`.
+Code: `_save` `worker.py:944`, `resumable` `orchestrator.py:289`, `resume` `orchestrator.py:309`,
+`_add_resume_note` `worker.py:930`, `snapshot` / `restore` `repl/server.py:289`, `:316`.

@@ -1,6 +1,6 @@
 # 03 · Worker step loop and REPL
 
-`Worker.run` (`worker.py:535`) is the heart of every task. Each **step** has three parts: build
+`Worker.run` (`worker.py:539`) is the heart of every task. Each **step** has three parts: build
 the context, call the model, and act on the reply (run its code, or accept an answer). The
 conversation is a plain `messages` list, and the harness rewrites it in a few places
 (compaction, pauses, notes).
@@ -9,64 +9,64 @@ conversation is a plain `messages` list, and the harness rewrites it in a few pl
 
 ```mermaid
 flowchart TD
-  START["run(task, ctx, system, history, resume)<br/>worker.py:535"] --> MSG
-  MSG["messages = system + prior turns + task message<br/>task = request + (In your REPL: ctx keys) + FIRST_STEP_NUDGE*<br/>worker.py:558-562"] --> REPL
-  REPL["Repl start: spawn jevh.repl.server<br/>init tools, set ctx<br/>worker.py:565-568"] --> RES{"resume?"}
-  RES -- yes --> RN["restore repl_state.pkl<br/>add resume note<br/>worker.py:926"]
+  START["run(task, ctx, system, history, resume)<br/>worker.py:539"] --> MSG
+  MSG["messages = system + prior turns + task message<br/>task = request + (In your REPL: ctx keys) + FIRST_STEP_NUDGE*<br/>worker.py:562-566"] --> REPL
+  REPL["Repl start: spawn jevh.repl.server<br/>init tools, set ctx<br/>worker.py:569-572"] --> RES{"resume?"}
+  RES -- yes --> RN["restore repl_state.pkl<br/>add resume note<br/>worker.py:930"]
   RES -- no --> LOOP
   RN --> LOOP
-  LOOP["for step in 1..max_steps<br/>worker.py:571"] --> CK["_check: cancel?<br/>worker.py:1005"]
-  CK --> CP["_compact(messages)<br/>see 05<br/>worker.py:750"]
-  CP --> CTX["_report_context → event context<br/>worker.py:722"]
-  CTX --> CALL["_llm(messages) → LLMResult<br/>see 04<br/>worker.py:1017"]
-  CALL --> APP["append assistant msg<br/>(+ reasoning_content, last 40k chars)<br/>worker.py:514, 579"]
+  LOOP["for step in 1..max_steps<br/>worker.py:575"] --> CK["_check: cancel?<br/>worker.py:1009"]
+  CK --> CP["_compact(messages)<br/>see 05<br/>worker.py:754"]
+  CP --> CTX["_report_context → event context<br/>worker.py:726"]
+  CTX --> CALL["_llm(messages) → LLMResult<br/>see 04<br/>worker.py:1021"]
+  CALL --> APP["append assistant msg<br/>(+ reasoning_content, last 40k chars)<br/>worker.py:518, 579"]
   APP --> INT{"interrupted by<br/>the watcher?"}
-  INT -- yes --> PAUSE["replace reply, add pause note<br/>(testable / searching / repeating)<br/>worker.py:581-615"] --> LOOP
+  INT -- yes --> PAUSE["replace reply, add pause note<br/>(testable / searching / repeating)<br/>worker.py:585-619"] --> LOOP
   INT -- no --> PARSE{"what came back?"}
-  PARSE -- "native tool_calls" --> NT["call_to_code per call<br/>python→code, final→print(final(..)),<br/>web(search=q)→web.search(q)<br/>worker.py:619-633"]
-  PARSE -- "fenced python /<br/>tool_call text" --> FB["CODE_RE or TOOL_CALL_RE,<br/>XML calls translated<br/>worker.py:635-646"]
-  PARSE -- "cut off at max_tokens /<br/>open fence" --> CUT["'work in smaller steps'<br/>worker.py:647"] --> LOOP
-  PARSE -- "empty (only thinking)" --> EMP["'continue from your reasoning'<br/>worker.py:657"] --> LOOP
-  PARSE -- "plain text, no code" --> PL["final() gate on the text<br/>worker.py:669"]
+  PARSE -- "native tool_calls" --> NT["call_to_code per call<br/>python→code, final→print(final(..)),<br/>web(search=q)→web.search(q)<br/>worker.py:623-637"]
+  PARSE -- "fenced python /<br/>tool_call text" --> FB["CODE_RE or TOOL_CALL_RE,<br/>XML calls translated<br/>worker.py:639-650"]
+  PARSE -- "cut off at max_tokens /<br/>open fence" --> CUT["'work in smaller steps'<br/>worker.py:651"] --> LOOP
+  PARSE -- "empty (only thinking)" --> EMP["'continue from your reasoning'<br/>worker.py:661"] --> LOOP
+  PARSE -- "plain text, no code" --> PL["final() gate on the text<br/>worker.py:673"]
   PL -- bounced --> LOOP
   PL -- accepted --> DONE1["stopped = plain"]
   NT --> RUN
   FB --> RUN
-  RUN["repl.run(code)<br/>event code, output<br/>worker.py:676"] --> FIN{"ex.final set?"}
-  FIN -- yes --> GATE["_bounce: final() gate<br/>see 07<br/>worker.py:962"]
+  RUN["repl.run(code)<br/>event code, output<br/>worker.py:680"] --> FIN{"ex.final set?"}
+  FIN -- yes --> GATE["_bounce: final() gate<br/>see 07<br/>worker.py:966"]
   GATE -- bounced --> LOOP
   GATE -- accepted --> DONE2["stopped = final<br/>answer + artifacts (or harvested files)"]
-  FIN -- no --> REP["append output as tool result or<br/>'Output:' user msg + notes<br/>worker.py:696"]
-  REP --> SAVE["_save checkpoint + REPL snapshot<br/>worker.py:698, 940"]
+  FIN -- no --> REP["append output as tool result or<br/>'Output:' user msg + notes<br/>worker.py:700"]
+  REP --> SAVE["_save checkpoint + REPL snapshot<br/>worker.py:702, 940"]
   SAVE --> ST{"_stalled?<br/>see 05"}
   ST -- "stop (2nd strike, after wrap-up step)" --> DONE3["stopped = stalled<br/>files harvested"]
   ST -- no --> LOOP
   LOOP -- "max_steps reached" --> DONE4["stopped = max_steps<br/>files harvested"]
 ```
 
-`*` The first-step nudge is skipped for `think: unlimited` models (`worker.py:559`).
+`*` The first-step nudge is skipped for `think: unlimited` models (`worker.py:563`).
 
 ### Notes the harness adds to a step's output
 
-These are appended to the text the model gets back after running code (`worker.py:696`):
+These are appended to the text the model gets back after running code (`worker.py:700`):
 
 | Note | Trigger | Code |
 |---|---|---|
-| "Not run: there is no `x` tool…" | a native call to an unknown tool | `worker.py:628` |
-| "Your <tool_call> text ran as Python: …" | XML-style calls written as text | `worker.py:638` |
-| "The same error has now happened 3 times in a row…" | same last error line 3× | `_stuck_note`, `worker.py:1091` |
-| "[2 steps left…]" / "[LAST STEP…]" | 2 or 1 steps left | `_steps_left_note`, `worker.py:1080` |
-| Progress-check nudge / wrap-up order | see [05](05-stamina.md) | `worker.py:871` |
+| "Not run: there is no `x` tool…" | a native call to an unknown tool | `worker.py:632` |
+| "Your <tool_call> text ran as Python: …" | XML-style calls written as text | `worker.py:642` |
+| "The same error has now happened 3 times in a row…" | same last error line 3× | `_stuck_note`, `worker.py:1095` |
+| "[2 steps left…]" / "[LAST STEP…]" | 2 or 1 steps left | `_steps_left_note`, `worker.py:1084` |
+| Progress-check nudge / wrap-up order | see [05](05-stamina.md) | `worker.py:875` |
 
 ### How a result becomes a message
 
 - **Native tools** (`native_tools: true`): the assistant message carries `tool_calls` (arguments
-  re-encoded as valid JSON, `valid_args`, `worker.py:262`). The output goes back as a `tool`
+  re-encoded as valid JSON, `valid_args`, `worker.py:263`). The output goes back as a `tool`
   message with the first call's id. Extra calls get "(ran together with the first call)"
-  (`_replies`, `worker.py:1071`).
+  (`_replies`, `worker.py:1075`).
 - **Text mode**: one `user` message, `Output:\n…`.
 - On the last step of a stalled worker, the model is offered only the `final` tool
-  (`worker.py:1020`).
+  (`worker.py:1024`).
 
 ### Ways a task ends (`WorkerResult.stopped`)
 
@@ -74,7 +74,7 @@ These are appended to the text the model gets back after running code (`worker.p
 |---|---|---|
 | `final` | `final()` was called and passed the gate, or was accepted with problems listed | no |
 | `plain` | a reply with no code, accepted as the answer | no |
-| `max_steps` | step limit hit; files the worker wrote are copied to artifacts (`_harvest`, `worker.py:1102`) | yes |
+| `max_steps` | step limit hit; files the worker wrote are copied to artifacts (`_harvest`, `worker.py:1106`) | yes |
 | `stalled` | two progress strikes and the wrap-up step used | yes |
 | `cancelled` / `error` | Stop pressed, or an exception (e.g. the model server died) | yes |
 
@@ -118,21 +118,22 @@ sequenceDiagram
 | Round trip | `repl/client.py:141` | restarts a dead REPL; on timeout (`limits.repl_timeout`, 1800s) kills the process tree and restarts: "[timed out…all variables were lost]" |
 | Callbacks | `repl/client.py:160`, `:166` | any `{"type":"call"}` is dispatched to `handlers[name]`; exceptions come back as `RuntimeError` in the worker's code |
 | Output cap | `repl/client.py:31` | 60% head + 40% tail, "… [N chars omitted; use peek() or slice] …" |
-| Tool Jev usage | `repl/server.py:394-400` | `decide.TOTALS` delta per exec → `ExecResult.usage` → event `tool_usage` → usage.db `jev_tools` |
+| Tool Jev usage | `repl/server.py:404-410` | `decide.TOTALS` delta per exec → `ExecResult.usage` → event `tool_usage` → usage.db `jev_tools` |
 | Kill | `repl/client.py:39` | process group (POSIX) or `taskkill /T` (Windows): Chromium and jobs go with it |
 | `input()` | `repl/server.py:62` | disabled: "ask the user by finishing with final()" (the worker has `ask_user` instead) |
 
-### What the worker's code can call (`repl/server.py:238`)
+### What the worker's code can call (`repl/server.py:248`)
 
 | Helper | Runs where | Goes to |
 |---|---|---|
-| `peek`, `save_artifact`, `load_artifact`, `list_artifacts`, `start_job`, `job_status`, `job_wait` | in the REPL | local files, subprocesses |
+| `peek`, `save_artifact` (a `data=` string that is only an existing file's name is treated as `path=`, `repl/server.py:178`), `load_artifact`, `list_artifacts`, `start_job`, `job_status`, `job_wait` | in the REPL | local files, subprocesses |
 | `final(answer, artifacts, answer_var)` | in the REPL | sets `_FINAL`; non-string answers become JSON; bare artifact names resolve into the store; `changed` = files `project` touched |
 | `llm_query(prompt, data)` | callback | the task's own model, one message (data clipped to 60k) |
 | `jev(state, questions)` | callback | `Jev._ask("worker_jev")` |
 | `request`, `request_async`, `wait`, `request_all` | callback | `Handles`, see [06](06-handoffs.md) |
 | `ask_user(question, options)` | callback | `Harness._ask_user`, see [10](10-observability.md) |
 | `recall(query, k)`, `remember(fact)` | callback | Memory FTS + Jev gate; Learner fact store |
+| `report_failure(what, detail)` | callback | `FailureWatch.report`: a `model` row in the failure log; the worker carries on ([11](11-failure-log.md)) |
 | `mcp(tool, **args)` | callback | `McpHub.call` (only tools the persona's `mcp` globs allow) |
 | `browser.look(q)` (through `_host`) | callback `look` | `see_image(llm, screenshot, q)`: the worker's own model looks at the image |
 | `web`, `browser`, `project`, `nango`, `comfy` | in the REPL | see [08](08-tools.md) |
@@ -140,7 +141,7 @@ sequenceDiagram
 ### Snapshot and restore
 
 After every step, `_save` asks the REPL to `snapshot` its user variables
-(`repl/server.py:279`). Imports and top-level `def` / `class` sources are kept as source text.
+(`repl/server.py:289`). Imports and top-level `def` / `class` sources are kept as source text.
 Values are pickled (dill if installed); anything over 16 MB or unpicklable is skipped. On resume,
 `restore` replays imports, then defs, then values, and the worker is told which came back
 (`RESTORED_NOTE`).

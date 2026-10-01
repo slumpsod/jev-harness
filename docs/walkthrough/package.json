@@ -1,0 +1,2 @@
+{ "name": "jev-harness-walkthrough", "private": true, "description": "Renders the narrated walkthrough video",
+  "dependencies": { "playwright-core": "^1.63.0" } }
