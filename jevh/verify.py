@@ -242,7 +242,14 @@ class Verifier:
                 probs, note = self._review(request, project, changed, backups, review)
                 v.problems += probs
                 v.checks["review"] = note
-        if _json_data(answer):
+        leaked = _leaked_call(answer)
+        if leaked:
+            # live (ornith, 2 of 6 runs of a CSV -> JSON task): the model wrote its python / final() call out as
+            # text, the text became the answer - a JSON list, so the JSON skip below waved it through
+            v.problems.append(f"Your answer is a {leaked} tool call written out as text, not its result. Make the "
+                              f"call instead (final(answer) to hand over the answer).")
+            v.checks["answer"] = f"fail: a {leaked} call written as the answer"
+        elif _json_data(answer):
             # a bare JSON value (a grid, a list, a record) makes no claims for Jev to check; and its digits
             # can't be grounded (single digits are skipped), so the unreliable "accurate" question decided
             # alone. Live (Gemma 4, ARC): a correct grid - printed by its verified solve() - was bounced
@@ -430,6 +437,27 @@ class Verifier:
             except Exception:  # noqa: BLE001 - Jev down: the careful choice
                 return "strong"
         return "fast"
+
+
+CALLS = {"python", "final", "ask_user", "request", "save_artifact", "load_artifact", "recall", "remember", "peek",
+         "report_failure"}
+CALL_ARGS = {"arguments", "parameters", "tools", "code", "answer", "answer_var", "artifacts"}
+
+
+def _leaked_call(answer: str) -> str | None:
+    """The tool the whole answer is a call to, written out as JSON text ([{"name": "final", "answer": ...}]),
+    or None. A data answer that happens to have a "name" key has no call's arguments next to it."""
+    text = answer.strip()
+    if not text or text[0] not in "[{":
+        return None
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    for item in data if isinstance(data, list) else [data]:
+        if isinstance(item, dict) and item.get("name") in CALLS and CALL_ARGS & set(item):
+            return str(item["name"])
+    return None
 
 
 def _json_data(answer: str) -> bool:

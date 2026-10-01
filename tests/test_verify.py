@@ -370,3 +370,15 @@ def test_a_json_data_answer_is_not_judged_as_prose(cfg):
     assert verdict.ok and verdict.checks["answer"] == "skipped: the answer is JSON data"
     prose = v.check("solve the puzzle", "Done - all tests pass.", [], "CODE: print(1)\nOUTPUT: 1")
     assert not prose.ok                                 # prose is still checked
+
+
+def test_a_tool_call_written_as_the_answer_goes_back(cfg):
+    v = verifier(cfg)
+    for leaked, name in ((json.dumps([{"name": "python", "tools": {"py": "import csv, json\nprint(1)"}}]), "python"),
+                         (json.dumps([{"name": "final", "answer": '[{"name": "Ana", "age": 31}]', "artifacts": []}]),
+                          "final"),   # both live (ornith, CSV -> JSON)
+                         (json.dumps({"name": "final", "arguments": {"answer": "42"}}), "final")):
+        got = v.check("Convert this CSV to JSON", leaked, [], "CODE:\nx")
+        assert not got.ok and f"a {name} tool call written out as text" in got.problems[0], leaked
+    data = v.check("Convert this CSV to JSON", '[{"name": "Ana", "age": 31}, {"name": "Bo", "age": 27}]', [], "")
+    assert data.ok and data.checks["answer"] == "skipped: the answer is JSON data"   # real data still passes
