@@ -80,6 +80,10 @@ verify:
 failures:
   enabled: true
   jev_check: true          # after each task, Jev judges the answer: gave up / doesn't deliver what was asked
+  audit: 0.25              # spot checks: share of finished tasks a model rereads in the background (request, answer,
+                           # files, work log) for confident wrong answers -> wrong_answer. evals/audit_cases.py, 8
+                           # wrong / 12 right: Qwen 3.8 27B 8/8 caught, 0 false, 50s; ornith 7/8, 0 false, 14s
+  audit_model: same        # same: the task's own model (no swap) | strong: the persona's strong-tier model
   hooks: []                # your own checks, run on harness events (see jevh/failures.py), e.g.
   #  - name: no_sources
   #    on: [done]                           # event kinds; "*" = every event

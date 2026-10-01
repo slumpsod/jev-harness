@@ -87,4 +87,6 @@ def cfg(tmp_path):
     # the final() gate asks Jev about every answer; tests about other things use scripted workers
     # and a fake Jev, so it is off here and switched on in tests/test_verify.py
     c.raw = {**c.raw, "verify": {**(c.raw.get("verify") or {}), "enabled": False}}
+    # spot checks sample tasks at random and spend a model reply: off unless a test turns them on
+    c.raw = {**c.raw, "failures": {**(c.raw.get("failures") or {}), "audit": 0}}
     return c

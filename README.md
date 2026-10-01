@@ -42,10 +42,11 @@ python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness t
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
+python evals/audit_cases.py            # spot checks: does a model rereading a task catch a wrong answer (--model)
 python -m jevh.failures                # logged failures; `export out.jsonl` to study them
 ```
 
-CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`,
+CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`, `/bad [note]`,
 `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
 `/jev` (adapter health), `/reset`, `/quit`.
 
@@ -444,15 +445,27 @@ Seen live (ornith as every worker, semif as Jev):
 
 Every way a task goes wrong is written to `workspace/failures.db` (`jevh/failures.py`), to improve
 the harness from later. Logging only watches the harness's events; it never changes how a task runs.
-Failures come from five sources:
+Failures come from seven sources:
 - **harness**: a crash, the step limit, a stall, going in circles (progress check), a reply cut
   off or empty, Jev unreachable, a hand-off refused, the user pressing Stop.
 - **gate**: the final() gate sent work back (`gate_bounce`, with the answer it rejected), or
-  accepted it with problems still listed (`gate_unresolved`).
+  accepted it with problems still listed (`gate_unresolved`). Besides Jev's questions it checks in plain
+  code: handed-over files exist and aren't empty, open as what they claim (images, Office files, PDFs),
+  parse (Python, JSON, CSV rows the header's width), hold more than their own file name; a file the
+  request names ("write leap.py") is among them; and the answer isn't a tool call written out as text.
 - **jev**: after every task that ended normally, one Jev call reads the request, the answer and the
   work log: does the answer say it couldn't (fully) do it (`gave_up`), or does it not deliver what
-  was asked (`missed_request`)? `failures.jev_check: false` turns it off. The questions aren't
-  tuned yet: run `evals/failure_cases.py` and set `failure_gave_up` / `failure_missed` from its sweep.
+  was asked (`missed_request`)? It sees the names of the files handed over. `failures.jev_check: false`
+  turns it off. `evals/failure_cases.py`: 11/11 failures caught, 0/10 good answers flagged at 0.60-0.90.
+- **audit** (spot checks): a sample of finished tasks (`failures.audit`, 0.25) is reread in the
+  background by a model - the request, the answer as delivered, the files handed over (their text) and
+  the work log - for confident wrong answers, which read fine and pass every check of the answer's text
+  (`wrong_answer`). `failures.audit_model`: `same` (the task's own model: no swap) or `strong`.
+  `evals/audit_cases.py` (8 wrong, 12 right, mostly real runs: a CSV holding its own name, "Ana" turned
+  into "name", a leaked tool call, a regex summary that miscounted its own tests, the wrong row's price):
+  Qwen 3.8 27B caught 8/8 with 0 false alarms (50s a check), ornith 7/8 with 0 (14s).
+- **user**: the dashboard's "wrong" button on an answer, or `/bad [what was wrong]` in the CLI, logs the
+  turn (`user_flagged`) with the note, the answer and the lead task's work log - for what nothing caught.
 - **model**: a worker calls `report_failure(what, detail)` in its REPL: a tool that misbehaved, a
   skill or instruction that was wrong. It's logged and the worker carries on.
 - **hook**: your own checks in `failures.hooks`, run on any harness event. A hook is a shell

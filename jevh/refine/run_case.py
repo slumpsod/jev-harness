@@ -25,7 +25,8 @@ def run_one(case: dict[str, Any], cfg, model: str | None, jev=None, llm_factory=
     from jevh.orchestrator import Harness
 
     cfg.limits["ask_timeout"] = ASK_TIMEOUT
-    cfg.raw = {**cfg.raw, "learning": False}
+    # no learning (it would write skills into the tree) and no spot checks (scored by the case's checker)
+    cfg.raw = {**cfg.raw, "learning": False, "failures": {**(cfg.raw.get("failures") or {}), "audit": 0}}
     kw = {"jev": jev} if jev is not None else {}
     if llm_factory is not None:
         kw["llm_factory"] = llm_factory

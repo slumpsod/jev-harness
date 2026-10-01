@@ -1,0 +1,144 @@
+[
+ {
+  "id": "old-ornith-replay-r2",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 23.8
+ },
+ {
+  "id": "old-ornith-control-3-r0",
+  "verdict": "wrong",
+  "problems": [
+   "The first object has \"name\": \"name\" instead of \"Ana\". The answer is [{\"name\": \"name\",\"age\": 31},{\"name\": \"Bo\",\"age\": 27}] but the CSV's first data row is 'Ana,31', so it should be {\"name\": \"Ana\",\"age\": 31}. The header row appears to have been wrongly used as a data row (name value became 'name') while its age was pulled from the first data row."
+  ],
+  "seconds": 4.9
+ },
+ {
+  "id": "new1-ornith-control-3-r1",
+  "verdict": "wrong",
+  "problems": [
+   "The answer did not reply with the JSON as requested. Instead of the expected [{\"name\": \"Ana\", \"age\": 31}, {\"name\": \"Bo\", \"age\": 27}], the user received a malformed structure containing a Python code snippet embedded in a \"tools\" field. The request asked to reply with only the JSON, but the response gave a never-executed code tool call.",
+   "No code was actually run (per the work log), so the actual JSON output was never produced for the user. The user never received the requested conversion result."
+  ],
+  "seconds": 4.3
+ },
+ {
+  "id": "new1-ornith-control-3-r1-b",
+  "verdict": "wrong",
+  "problems": [
+   "The request asked to 'reply with only the JSON' — a JSON list of objects. Instead, the answer is a wrapper object with keys 'name' (\"final\"), 'answer' (the JSON embedded as a *string*), and 'artifacts' ([]). The actual expected output [{\"name\":\"Ana\",\"age\":31},{\"name\":\"Bo\",\"age\":27}] is not delivered as the top-level JSON list the user requested; it's buried as a string inside the 'answer' field.",
+   "The data itself (Ana/31, Bo/27, ages as numbers) is correct, but the format does not match the requested output, so the user did not get a usable 'only the JSON' result."
+  ],
+  "seconds": 7.3
+ },
+ {
+  "id": "old-ornith-replay-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 7.0
+ },
+ {
+  "id": "old-ornith-v9-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 17.7
+ },
+ {
+  "id": "old-ornith-v1-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 13.8
+ },
+ {
+  "id": "old-ornith-control-5-r0",
+  "verdict": "unsure",
+  "problems": [],
+  "reply": "\n[output cut off at max_tokens: ~8192 thinking + ~2 answer tokens]",
+  "seconds": 59.3
+ },
+ {
+  "id": "old-qwen-replay-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 5.3
+ },
+ {
+  "id": "old-ornith-v6-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 1.4
+ },
+ {
+  "id": "b4",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 14.7
+ },
+ {
+  "id": "b6",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 5.9
+ },
+ {
+  "id": "b3",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 7.7
+ },
+ {
+  "id": "b1",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 10.9
+ },
+ {
+  "id": "b7",
+  "verdict": "unsure",
+  "problems": [],
+  "reply": "\n[output cut off at max_tokens: ~8192 thinking + ~2 answer tokens]",
+  "seconds": 58.5
+ },
+ {
+  "id": "regex-miscount",
+  "verdict": "wrong",
+  "problems": [
+   "The answer states '4 valid, 2 invalid', but the work log shows only 3 valid (\"12345\", \"12345-6789\", \"00043\") and 3 invalid (\"1234\", \"123456\", \"abcde\"). The valid/invalid counts do not match the evidence.",
+   "The request asked for 6 examples 'including 2 invalid ones'; the answer claims to have matched this ('4 valid, 2 invalid'), but the actual run used 3 invalid examples, so the reported breakdown is inaccurate relative to both the request and the log."
+  ],
+  "seconds": 11.7
+ },
+ {
+  "id": "bitcoin",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 4.2
+ },
+ {
+  "id": "flight-wrong-row",
+  "verdict": "wrong",
+  "problems": [
+   "The answer identifies United at $455 as the cheapest flight, but the work log's data shows TAP Air Portugal at $412 (09:40, nonstop) is actually the cheapest. The assistant picked the wrong (second-cheapest) row despite the data being sorted by price and clearly listing TAP Air Portugal below and cheaper than United."
+  ],
+  "seconds": 3.4
+ },
+ {
+  "id": "capitals-missing-row",
+  "verdict": "wrong",
+  "problems": [
+   "The request asked for exactly three rows including 'Canada,Ottawa', but the file only contains two rows (France,Paris and Japan,Tokyo). The Canada,Ottawa row is missing.",
+   "The work log shows only 'country,capital\\nFrance,Paris\\nJapan,Tokyo\\n' was written — no 'Canada,Ottawa' line was ever included.",
+   "The answer claims it delivered 'the three countries and their capitals', but only two countries are actually present in the file.",
+   "File header states '44 bytes' but the written content is 41 bytes (matches the work log output of 41), indicating a further inconsistency."
+  ],
+  "seconds": 6.9
+ },
+ {
+  "id": "count-off",
+  "verdict": "wrong",
+  "problems": [
+   "The answer states 'model' appears 52 times, but the work log's actual code output shows the count is 50: `[('model', 50), ...]`. The count does not match exactly. The word 'model' is correct per the work log, but the reported count is wrong."
+  ],
+  "seconds": 3.9
+ }
+]

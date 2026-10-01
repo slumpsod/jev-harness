@@ -1,0 +1,142 @@
+[
+ {
+  "id": "old-ornith-replay-r2",
+  "verdict": "wrong",
+  "problems": [
+   "The answer claims the CSV file was handed over, but the handed-over file planets.csv is shown as 11 bytes with content only 'planets.csv', not the displayed CSV. The displayed CSV is much larger than 11 bytes, so the delivered file does not contain the requested CSV data."
+  ],
+  "seconds": 134.2
+ },
+ {
+  "id": "old-ornith-control-3-r0",
+  "verdict": "wrong",
+  "problems": [
+   "The first JSON object incorrectly includes the CSV header as data: it has \"name\": \"name\" with age 31, while the first CSV data row should be {\"name\": \"Ana\", \"age\": 31}."
+  ],
+  "seconds": 9.1
+ },
+ {
+  "id": "new1-ornith-control-3-r1",
+  "verdict": "wrong",
+  "problems": [
+   "The answer is not the requested JSON conversion of the CSV; it should be [{\"name\": \"Ana\", \"age\": 31}, {\"name\": \"Bo\", \"age\": 27}] but instead contains an unrelated object with a Python code string.",
+   "It omits the CSV rows Ana and Bo entirely and does not provide their ages as numbers in the JSON objects.",
+   "No work log or files back up the answer, and the code was not run, so there is no evidence the intended CSV-to-JSON result was produced."
+  ],
+  "seconds": 19.9
+ },
+ {
+  "id": "new1-ornith-control-3-r1-b",
+  "verdict": "wrong",
+  "problems": [
+   "The reply is not the requested bare JSON list of the CSV records; it is an extra wrapper array/object containing fields like \"name\": \"final\", \"answer\", and \"artifacts\".",
+   "The correct converted JSON is only embedded inside the string value of \"answer\", so the user did not receive the final response in the requested format."
+  ],
+  "seconds": 22.1
+ },
+ {
+  "id": "old-ornith-replay-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 51.9
+ },
+ {
+  "id": "old-ornith-v9-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 13.4
+ },
+ {
+  "id": "old-ornith-v1-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 24.1
+ },
+ {
+  "id": "old-ornith-control-5-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 169.5
+ },
+ {
+  "id": "old-qwen-replay-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 7.7
+ },
+ {
+  "id": "old-ornith-v6-r0",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 6.1
+ },
+ {
+  "id": "b4",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 87.9
+ },
+ {
+  "id": "b6",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 41.9
+ },
+ {
+  "id": "b3",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 16.9
+ },
+ {
+  "id": "b1",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 17.6
+ },
+ {
+  "id": "b7",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 169.1
+ },
+ {
+  "id": "regex-miscount",
+  "verdict": "wrong",
+  "problems": [
+   "The answer says it tested 4 valid and 2 invalid examples, but the work log's examples list contains 3 valid (12345, 12345-6789, 00043) and 3 invalid (1234, 123456, abcde)."
+  ],
+  "seconds": 154.8
+ },
+ {
+  "id": "bitcoin",
+  "verdict": "right",
+  "problems": [],
+  "seconds": 9.1
+ },
+ {
+  "id": "flight-wrong-row",
+  "verdict": "wrong",
+  "problems": [
+   "The work log lists TAP Air Portugal at $412 departing 09:40 nonstop, which is cheaper than the stated United flight at $455, so the answer does not identify the cheapest flight."
+  ],
+  "seconds": 7.3
+ },
+ {
+  "id": "capitals-missing-row",
+  "verdict": "wrong",
+  "problems": [
+   "The requested CSV must include the row Canada,Ottawa, but the handed-over file only contains France,Paris and Japan,Tokyo.",
+   "The answer says the file has the three countries, but the provided file and work log show only two data rows: 'France,Paris' and 'Japan,Tokyo'."
+  ],
+  "seconds": 15.6
+ },
+ {
+  "id": "count-off",
+  "verdict": "wrong",
+  "problems": [
+   "The answer says 'model' appears 52 times, but the provided work log output shows [('model', 50), ('worker', 37), ('cases', 37)], so the stated count does not match the evidence."
+  ],
+  "seconds": 26.6
+ }
+]

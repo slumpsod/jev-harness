@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import random
 import sqlite3
 import subprocess
 import sys
@@ -247,11 +248,17 @@ class FailureWatch:
 
     def __init__(self, log: FailureLog, settings: dict[str, Any], session: str, where: Callable[[], dict],
                  lookup: Callable[[int], Task | None], ask: Callable | None, emit: Callable[[str, dict], None],
-                 thresholds: Callable[[str], float], root: Path):
+                 thresholds: Callable[[str], float], root: Path, spawn: Callable | None = None,
+                 audit_llm: Callable | None = None):
+        """`spawn(kind, fn, task)`: run fn in the background for that task (None: inline);
+        `audit_llm(persona, own_llm)`: the model a spot check uses (failures.audit_model)."""
         self.log, self.session = log, session
         self.where, self.lookup, self.ask, self.emit, self.t = where, lookup, ask, emit, thresholds
         self.enabled = bool(settings.get("enabled", True))
         self.jev_check = bool(settings.get("jev_check", True)) and ask is not None
+        self.audit_rate = float(settings.get("audit") or 0)   # share of finished lead tasks spot-checked
+        self.spawn, self.audit_llm = spawn, audit_llm
+        self._rng = random.Random()
         self.hooks = [Hook(h, root) for h in settings.get("hooks") or []]
         self._models: dict[tuple, str] = {}   # (turn, task id) -> model name, from "start" events
 
@@ -345,6 +352,7 @@ class FailureWatch:
             self.record("harness", kind, f"{task.to} {what} (step {result.steps})", task, **common)
             return
         if not self.jev_check:
+            self._maybe_audit(task, result, model)
             return
         try:
             r = self.ask("failure_check", {"request": task.text[:2000], "answer": result.answer[:3000],
@@ -360,6 +368,37 @@ class FailureWatch:
         elif scores["missed"] >= self.t("failure_missed"):
             self.record("jev", "missed_request", f"{task.to}'s answer doesn't deliver what was asked", task,
                         scores=scores, **common)
+        else:
+            self._maybe_audit(task, result, model)
+
+    def _maybe_audit(self, task: Task, result, model: str) -> None:
+        """A spot check of a lead task that ended normally and nothing flagged: a model rereads it all
+        (jevh/audit.py) and a wrong answer is logged as wrong_answer. In the background, on a sample."""
+        if not (self.audit_rate and task.parent is None and result.llm is not None and result.answer
+                and self._rng.random() < self.audit_rate):
+            return
+        from .audit import audit
+        from .learn import work_log
+        log = work_log(result.transcript, cap=12000, answer=result.answer) if result.transcript else ""
+        llm = self.audit_llm(task.to, result.llm) if self.audit_llm else result.llm
+
+        def run() -> None:
+            try:
+                v = audit(llm, task.text, result.answer, list(result.artifacts or []), log)
+            except Exception as e:  # noqa: BLE001 - a spot check never breaks anything
+                print(f"spot check: {type(e).__name__}: {e}", file=sys.stderr)
+                return
+            self.emit("audit", {"task_id": task.id, "persona": task.to, "verdict": v["verdict"],
+                                "problems": v["problems"][:3]})
+            if v["verdict"] == "wrong":
+                first = (v["problems"] or ["the answer is wrong"])[0]
+                self.record("audit", "wrong_answer", f"{task.to}'s answer is wrong: {first}"[:500], task,
+                            detail="\n".join(v["problems"]), answer=result.answer, work_log=log,
+                            **({"model": model} if model else {}))
+        if self.spawn is not None:
+            self.spawn("audit", run, task)
+        else:
+            run()
 
     def _run_hook(self, hook: Hook, kind: str, data: dict) -> None:
         w = self.where()

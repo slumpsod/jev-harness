@@ -197,3 +197,32 @@ def test_a_missed_failure_is_added_from_the_task_folder(cfg, tmp_path, capsys, m
     assert f["request"] == "Give me planets.csv" and f["answer"] == "CSV of the 8 planets"
     assert "save_artifact('planets.csv', 'planets.csv')" in f["work_log"]
     assert main(["add", "x", "no request given"]) == 1
+
+
+def test_a_spot_check_logs_a_confident_wrong_answer(cfg):
+    events = []
+    verdict = json.dumps({"verdict": "wrong", "problems": ["says 52 occurrences; the log counted 50"]})
+    h, llm = harness(cfg, [py("print({'model': 50})"), py("final('model appears 52 times')"), verdict], events,
+                     failures={"audit": 1.0})
+    h.learn_sync = True   # the spot check runs on the task's own model, inline in tests
+    h.turn("which word appears most often in the README?")
+    [f] = h.failures.list()
+    assert (f["source"], f["kind"], f["persona"], f["turn"], f["task"]) == ("audit", "wrong_answer", "daily_assistant",
+                                                                             1, 1)
+    assert "the log counted 50" in f["summary"] and f["answer"] == "model appears 52 times"
+    assert "{'model': 50}" in f["work_log"] and f["request"].startswith("which word")
+    prompt = llm.seen[-1][0]["content"]
+    assert "model appears 52 times" in prompt and "OUTPUT: {'model': 50}" in prompt
+    assert ("audit", "wrong") == next((k, d["verdict"]) for k, d in events if k == "audit")
+    h.wait_learning()
+
+
+def test_a_right_answer_or_no_sampling_logs_nothing(cfg):
+    right = json.dumps({"verdict": "right", "problems": []})
+    h, llm = harness(cfg, [py("final('42')"), right], failures={"audit": 1.0})
+    h.learn_sync = True
+    h.turn("6 times 7?")
+    assert h.failures.list() == [] and len(llm.seen) == 2
+    h, llm = harness(cfg, [py("final('42')")], failures={"audit": 0})
+    h.turn("6 times 7?")
+    assert h.failures.list() == [] and len(llm.seen) == 1   # no spot check: no extra model call

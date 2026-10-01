@@ -183,7 +183,8 @@ class Harness:
         self.failure_watch = FailureWatch(
             self.failures, self.cfg.raw.get("failures") or {}, self.session, self._where,
             lambda tid: next((t for t in self.board.tasks if t.id == tid), None),
-            lambda step, state, questions: self.jev._ask(step, state, questions), ui, self.cfg.t, self.cfg.root)
+            lambda step, state, questions: self.jev._ask(step, state, questions), ui, self.cfg.t, self.cfg.root,
+            spawn=self._background, audit_llm=self._audit_llm)
 
         def emit(kind: str, data: dict) -> None:
             ui(kind, data)
@@ -420,6 +421,29 @@ class Harness:
             detail=(f"The user's note: {note}\n" if note else "") + (f"Files handed over: {files}" if files else ""))
         self.on_event("failure", {"failure": {k: row[k] for k in ("id", "source", "kind", "summary", "persona", "task")}})
         return row
+
+    def _background(self, kind: str, fn, task: Task) -> None:
+        """Run fn after the task, on its own thread, metered as `kind` for that task (spot checks); joined
+        by wait_learning() like learning is."""
+        turn_no = getattr(self._tl, "turn", self.turn_no)
+
+        def run() -> None:
+            self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = turn_no, task.to, task.id, kind
+            fn()
+        if self.learn_sync:
+            run()
+            return
+        t = threading.Thread(target=run, name=kind, daemon=False)
+        self._learn_threads = [x for x in self._learn_threads if x.is_alive()] + [t]
+        t.start()
+
+    def _audit_llm(self, persona: str, own):
+        """The model a spot check uses: config failures.audit_model "same" (the task's own: no model swap)
+        or "strong" (the persona's strong-tier model, for tasks the fast tier did)."""
+        mode = str((self.cfg.raw.get("failures") or {}).get("audit_model") or "same")
+        if mode == "strong" and persona in self.personas:
+            return self._llm(self.personas[persona], "strong")
+        return own
 
     def wait_learning(self, timeout: float | None = None) -> None:
         for t in list(self._learn_threads):
