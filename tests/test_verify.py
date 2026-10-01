@@ -51,6 +51,45 @@ def test_files_are_checked(cfg, tmp_path):
     assert "Email" not in problems  # a placeholder= attribute on an input is fine
 
 
+def test_office_files_pdfs_and_csvs_must_hold_up(cfg, tmp_path):
+    import zipfile
+    v = verifier(cfg)
+    with zipfile.ZipFile(tmp_path / "table.xlsx", "w") as z:
+        z.writestr("[Content_Types].xml", "<Types/>")
+        z.writestr("xl/workbook.xml", "<workbook/>")
+    with zipfile.ZipFile(tmp_path / "deck.pptx", "w") as z:   # a zip, but not a deck
+        z.writestr("readme.txt", "hi")
+    (tmp_path / "fake.xlsx").write_text("name,age\nAna,31", encoding="utf-8")
+    (tmp_path / "note.pdf").write_text("Quarterly note", encoding="utf-8")
+    (tmp_path / "ok.pdf").write_bytes(b"%PDF-1.4\n...")
+    (tmp_path / "people.csv").write_text('name,city\nAna,"Lyon, FR"\nBo,Oslo,NO\n', encoding="utf-8")
+    (tmp_path / "good.csv").write_text('name,city\nAna,"Lyon, FR"\n\nBo,Oslo\n', encoding="utf-8")
+    arts = [str(tmp_path / n) for n in ("table.xlsx", "deck.pptx", "fake.xlsx", "note.pdf", "ok.pdf", "people.csv",
+                                        "good.csv")]
+    problems = " | ".join(v.check("make them", "Done.", arts, "CODE:\nx").problems)
+    for expected in ("deck.pptx isn't a valid pptx file: it has no ppt/ part", "fake.xlsx isn't a valid xlsx file: it "
+                     "doesn't open", "note.pdf isn't a valid PDF", "people.csv: row 3 has 3 columns, the header has 2"):
+        assert expected in problems, expected
+    for fine in ("table.xlsx", "ok.pdf", "good.csv"):
+        assert fine not in problems, fine
+
+
+def test_a_file_the_request_names_must_be_handed_over(cfg, tmp_path):
+    v = verifier(cfg)
+    (tmp_path / "leap.py").write_text("def is_leap(y):\n    return y % 4 == 0\n", encoding="utf-8")
+    (tmp_path / "squares_10.csv").write_text("n,square\n1,1\n", encoding="utf-8")
+    req = "Write a Python file leap.py with a function is_leap(year), and hand it over."
+    inline = v.check(req, "def is_leap(year): return year % 4 == 0", [], "CODE:\nx")   # live: refine's control
+    assert any("asks for leap.py, but no file was handed over" in p for p in inline.problems)
+    assert not any("asks for" in p for p in v.check(req, "Here is leap.py.", [str(tmp_path / "leap.py")], "").problems)
+    other = v.check("Create a CSV file named squares.csv, and hand it over.", "Done.", [str(tmp_path / "squares_10.csv")], "")
+    assert any("asks for squares.csv, but you handed over squares_10.csv" in p for p in other.problems)
+    # an input file is not a deliverable
+    assert not any("asks for" in p for p in v.check("Read notes.txt and summarize it.", "It says hi.", [], "").problems)
+    honest = verifier(cfg, honest=0.95).check(req, "I couldn't write leap.py: the disk is full.", [], "CODE:\nx")
+    assert not any("asks for" in p for p in honest.problems)
+
+
 def test_a_file_holding_only_a_file_name_is_caught(cfg, tmp_path):
     v = verifier(cfg)
     (tmp_path / "planets.csv").write_text("planets.csv", encoding="utf-8")        # live: its own name as content

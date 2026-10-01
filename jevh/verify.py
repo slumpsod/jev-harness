@@ -16,10 +16,13 @@ the answer is accepted with the unresolved problems stated plainly, never silent
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 import os
 import re
 import subprocess
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -85,6 +88,12 @@ PROMISE = re.compile(r"\bnext,? I(?:'ll| will)\b|\bI(?:'ll| will) (?:now |next |
 BROWSER_CLAIM = re.compile(r"\b(?:checked|tested|verified|opened|previewed|confirmed)\b[^.\n]{0,60}"
                            r"\b(?:browser|renders?|rendering|in chrome|on the page)\b", re.I)
 IMAGE_MAGIC = {".png": b"\x89PNG", ".jpg": b"\xff\xd8", ".jpeg": b"\xff\xd8", ".gif": b"GIF8", ".webp": b"RIFF"}
+OOXML = {".xlsx": "xl/", ".docx": "word/", ".pptx": "ppt/"}   # an Office file is a zip with this part inside
+# A file the request asks to be made, by name: "create a CSV file named squares.csv", "write leap.py", "hand it over as
+# index.html". Only after a making verb, so an input ("read notes.txt", "download rfc2324.txt") isn't one.
+DELIVERABLE = re.compile(r"\b(?:make|create|write|generate|produce|build|save|export|give me|send me|hand(?: it)? over"
+                         r"|deliver)\b[^.?!\n]{0,80}?\b([\w][\w-]*(?:\.[\w-]+)*\.(?:csv|json|xlsx|pptx|docx|pdf|html?"
+                         r"|py|md|txt|png|jpe?g|svg|ya?ml|toml|xml|sql|zip|js|css))\b", re.I)
 
 
 FILE_NAME = re.compile(r"[\w .()~\\/:-]{0,250}\.[A-Za-z0-9]{1,5}")
@@ -183,6 +192,12 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
         if 2 <= want <= 20 and 0 < len(artifacts) < want:
             problems.append(f"The request asks for {want} {m.group(0).split()[-1]}, but you delivered "
                             f"{len(artifacts)} file(s). Make the rest, or say which are missing.")
+    wanted = {m.group(1).lower() for m in DELIVERABLE.finditer(request)} - {Path(a).name.lower() for a in artifacts}
+    if wanted and not honest:   # live: refine's control "write leap.py ... hand it over" answered with the code inline
+        got = ", ".join(Path(a).name for a in artifacts)
+        problems.append(f"The request asks for {', '.join(sorted(wanted))}, but "
+                        + (f"you handed over {got}." if got else "no file was handed over.")
+                        + " Hand over that file: save_artifact(name, path=...) or its path in final().")
     if BROWSER_CLAIM.search(answer) and "browser." not in log:
         problems.append("Your answer says the page was checked in a browser, but the work log shows no browser "
                         "use. Check it (browser.goto('file:///...')) or don't claim it.")
@@ -260,6 +275,17 @@ class Verifier:
         if ext in IMAGE_MAGIC:
             head = p.read_bytes()[:8]
             return [] if head.startswith(IMAGE_MAGIC[ext]) else [f"{p.name} isn't a valid {ext[1:]} image."]
+        if ext in OOXML or ext == ".zip":
+            try:
+                with zipfile.ZipFile(p) as z:
+                    names = z.namelist()
+            except zipfile.BadZipFile:   # e.g. text or a file name saved under an Office name
+                return [f"{p.name} isn't a valid {ext[1:]} file: it doesn't open as one."]
+            if ext in OOXML and not any(n.startswith(OOXML[ext]) for n in names):
+                return [f"{p.name} isn't a valid {ext[1:]} file: it has no {OOXML[ext]} part inside."]
+            return []
+        if ext == ".pdf":
+            return [] if p.read_bytes()[:5] == b"%PDF-" else [f"{p.name} isn't a valid PDF."]
         if ext not in (".html", ".htm", ".py", ".json", ".md", ".txt", ".css", ".js", ".csv", ".svg"):
             return []
         text = p.read_text(encoding="utf-8", errors="replace")
@@ -277,6 +303,12 @@ class Verifier:
                 json.loads(text)
             except ValueError as e:
                 problems.append(f"{p.name} isn't valid JSON ({e}).")
+        elif ext == ".csv":
+            rows = [r for r in csv.reader(io.StringIO(text)) if any(c.strip() for c in r)]
+            ragged = next(((i, len(r)) for i, r in enumerate(rows[1:], 2) if len(r) != len(rows[0])), None)
+            if ragged:
+                problems.append(f"{p.name}: row {ragged[0]} has {ragged[1]} columns, the header has {len(rows[0])} "
+                                "(a comma inside a value needs quotes).")
         visible = _visible_text(text) if ext in (".html", ".htm", ".svg") else text
         hits = sorted({m.group(0) for m in PLACEHOLDER.finditer(visible)})
         if hits and ext != ".py":
