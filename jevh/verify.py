@@ -172,7 +172,9 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
     elif scores.get("delivers", 1.0) < t("verify_delivers") and not honest:
         problems.append("Your answer doesn't deliver what was asked (it reads like a plan, a promise or "
                         "unfinished work presented as done). Finish the work, or say plainly what is not done.")
-    elif scores.get("accurate", 1.0) < t("verify_accurate") and not honest and not grounded:
+    # like the numbers rule above: with an empty log "accurate" judges a knowledge / hand-math answer
+    # against "(no code was run)" and misfires (live: arXiv 28.4 BLEU, a train arrival time, a date)
+    elif (log.strip() and scores.get("accurate", 1.0) < t("verify_accurate") and not honest and not grounded):
         problems.append("Your answer doesn't match what the work log shows (numbers, items or results differ, "
                         "or it reports steps that didn't happen). Check it against your outputs and correct it.")
     m = re.search(rf"\b(\d+|{'|'.join(NUMBERS)})\s+(?:\w+\s+){{0,3}}?{COUNTED}\b", request, re.I)
