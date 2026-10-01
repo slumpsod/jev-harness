@@ -19,6 +19,9 @@ user ─► Jev: route persona ─► Jev: gate memory ─► Jev: pick skills �
 
 Each decision is one batched `/v1/systemone` call (about 0.2s warm on semif).
 
+**Architecture:** [docs/architecture](docs/architecture/README.md) maps every loop and what data
+crosses between them, with Mermaid diagrams and `file:line` references.
+
 ## Run
 
 On a Mac, Linux, or with the hosted Jev instead of a local one: see [SETUP.md](SETUP.md). A machine's own
