@@ -42,6 +42,12 @@
   "accurate": 0.974
  },
  {
+  "claims": 0.3775,
+  "delivers": 0.977,
+  "honest": 0.0601,
+  "accurate": 0.5622
+ },
+ {
   "claims": 0.1645,
   "delivers": 0.9914,
   "honest": 0.023,
