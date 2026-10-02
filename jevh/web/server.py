@@ -642,6 +642,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
 
     # -- updating the harness from GitHub (jevh/update.py) --------------------------------------------
     version_cache: dict[str, Any] = {"ts": 0.0, "data": None}
+    running = (updater.check(fetch=False)["current"] or {}).get("sha")   # the code this server loaded
 
     @app.get("/api/version")
     def version(refresh: bool = False) -> dict:
@@ -650,21 +651,32 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             version_cache.update(ts=time.time(), data=updater.check(fetch=True))
         return {**version_cache["data"], "restart_needed": hub.updated}
 
-    @app.post("/api/update")
-    def update() -> dict:
-        """Fast-forward to the latest version. The running server keeps its loaded code until restarted."""
+    def updating(fn):
+        """Run an update/undo with no turn running (and none starting); the server keeps its loaded code."""
         if not hub.busy.acquire(blocking=False):
             raise HTTPException(409, "wait for the running turn to finish")
         try:
-            r = updater.apply()
+            r = fn()
         except updater.UpdateError as e:
             raise HTTPException(409, str(e)) from None
         finally:
             hub.busy.release()
-        if r["updated"]:
-            hub.updated = {"from": r["from"], "to": r["to"], "commits": r["commits"], "deps_changed": r["deps_changed"]}
+        if r["from"] != r["to"]:   # an undo back to the version this server runs needs no restart
+            hub.updated = None if r["to"] == running else {
+                "from": running, "to": r["to"], "undone": bool(r.get("undone")),
+                "deps_changed": r["deps_changed"], "deps_note": r["deps_note"]}
         version_cache.update(ts=time.time(), data=updater.check(fetch=False))
         return {**r, "message": updater.done(r), "restart_needed": hub.updated}
+
+    @app.post("/api/update")
+    async def update(request: Request) -> dict:
+        """Update to the latest version, keeping local edits; with test, the tests must pass or it's undone."""
+        body = await request.json() if await request.body() else {}
+        return await asyncio.to_thread(updating, lambda: updater.apply(test=bool(body.get("test"))))
+
+    @app.post("/api/update/undo")
+    async def update_undo() -> dict:
+        return await asyncio.to_thread(updating, updater.undo)
 
     @app.get("/api/artifacts")
     def artifacts() -> list[dict]:

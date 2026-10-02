@@ -91,15 +91,30 @@ it from. Every command also still works as `python -m jevh.cli`, `python -m jevh
 ## Updating
 
 ```bash
-jevh update            # or /update in the chat, or "Check for updates" in the dashboard's Status tab
+jevh update            # or /update in the chat, or the Harness version card in the dashboard's Status tab
 jevh update --check    # only list what's new on GitHub
+jevh update --test     # also run the test suite on the new version; undo the update if it fails
+jevh update --undo     # back to the version before the last update (/update undo, or "Undo update")
 ```
 
-The checkout is fast-forwarded to its GitHub branch (normally `origin/main`). It is never merged or
-rebased: local commits, or edits to a file the update changes, stop it with a message and nothing is
-touched (`config.local.yaml` and `workspace/` are ignored by git, so they're never in the way). Restart the
-CLI or dashboard afterwards to load the new code, and if `pyproject.toml` changed, rerun
-`pip install -e ".[web,browser,dev]"` first (the update says so). The dashboard won't update during a turn.
+An update either works or leaves everything as it was:
+
+- **Your edits are kept.** Edited harness files (a persona, a skill, the code) are saved with `git stash`,
+  carried onto the new version and put back. A dry-run merge checks first that they still apply; if
+  one clashes with the update (you and the update changed the same lines), it stops before anything
+  moves and says which file. A file you added that the update would overwrite stops it the same way.
+  `config.local.yaml` and `workspace/` are ignored by git, so updates never touch them.
+- **New dependencies are installed.** If `pyproject.toml` changed, the update runs `pip install -e`
+  with the extras you already have.
+- **A broken version is rolled back.** The new version must import (with `--test`, or the dashboard's
+  "run the tests first" box, it must pass the tests too). If that or the install fails, you're put back on
+  the old version with your edits as they were.
+- **You can undo it.** The version you came from is kept for `--undo`, which also keeps your edits.
+
+Copies stay in git as `refs/jevh/pre-update` (the old version) and `refs/jevh/pre-update-edits` (your
+edits, `git stash apply refs/jevh/pre-update-edits`). Local commits that aren't on GitHub stop the update
+(`git pull` merges them). Restart the CLI or dashboard afterwards to load the new code. The dashboard
+won't update during a turn.
 
 ## Adding things
 

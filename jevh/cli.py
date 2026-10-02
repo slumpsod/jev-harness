@@ -17,7 +17,7 @@ browser tool work in a visible window), /facts, /forget <id>, /usage, /failures 
 /flag [note] (flag this session for review), /note <text> (add a note to its flag),
 /flags [all] (flagged sessions), /review [id] (a model reviews the flagged session against the notes
 and says whether it failed), /verdict failure|not_failure [why] (your own verdict on it),
-/personas, /skills, /trace, /verbose, /jev (health), /update [check] (update the harness from GitHub),
+/personas, /skills, /trace, /verbose, /jev (health), /update [check|test|undo] (update the harness from GitHub),
 /reset, /quit
 """
 from __future__ import annotations
@@ -416,19 +416,31 @@ def main(argv: list[str] | None = None) -> int | None:
                 except Exception as e:  # noqa: BLE001
                     console.print(f"[red]{esc(str(e))}[/]")
             elif cmd == "update":
-                with console.status("checking GitHub for updates..."):
-                    st = update.check()
-                console.print(esc(update.describe(st)))
-                if arg.strip() == "check" or st["error"] or not st["behind"]:
-                    continue
-                if input(f"update to {st['latest']['sha']} now? [y/N] ").strip().lower() not in ("y", "yes"):
-                    continue
+                # /update [check | test | undo]: see jevh/update.py
+                sub = arg.strip()
                 try:
-                    with console.status("updating..."):
-                        r = update.apply()
-                    console.print(f"[green]{esc(update.done(r))}[/]" + (" (/quit, then start jevh again)" if r["updated"] else ""))
+                    if sub == "undo":
+                        st = update.check(fetch=False)
+                        if not st["previous"]:
+                            console.print("nothing to undo")
+                            continue
+                        if input(f"go back to {st['previous']['sha']}? [y/N] ").strip().lower() not in ("y", "yes"):
+                            continue
+                        with console.status("going back..."):
+                            r = update.undo()
+                    else:
+                        with console.status("checking GitHub for updates..."):
+                            st = update.check()
+                        console.print(esc(update.describe(st)))
+                        if sub == "check" or not st["can_update"]:
+                            continue
+                        if input(f"update to {st['latest']['sha']} now? [y/N] ").strip().lower() not in ("y", "yes"):
+                            continue
+                        with console.status("updating, then running the tests..." if sub == "test" else "updating..."):
+                            r = update.apply(test=sub == "test")
+                    console.print(f"[green]{esc(update.done(r))}[/]" + (" (/quit, then start jevh again)" if r.get("to") != r.get("from") else ""))
                 except update.UpdateError as e:
-                    console.print(f"[red]update failed: {esc(str(e))}[/]")
+                    console.print(f"[red]{'undo' if sub == 'undo' else 'update'} failed: {esc(str(e))}[/]")
             elif cmd == "reset":
                 mode, project, watch = h.tier_mode, h.project, h.watch_browser
                 h = Harness(h.cfg, on_event=printer, model_override=a.model)
