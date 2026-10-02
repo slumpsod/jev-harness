@@ -43,14 +43,23 @@ MEMORY_TOP_N = 4           # Choice leaders that get the noul
 CONTINUES_Q = "Is the latest request a continuation of the recent conversation's topic?"
 REPLY_Q = "Is the latest message a reply to the assistant's last message, or a follow-up to it?"
 
-# Persona creation (jevh/forge.py). NOT tuned yet: evals/persona_cases.py holds labelled cases to run live
-# on semif before the thresholds (no_fit, orphan, same_specialist) are trusted. No-fit is asked only
-# when routing is already unsure, so it adds no call to a confident route.
-NO_FIT_Q = "Does `latest_request` fall outside what every one of the `assistants` is for?"
+# Persona creation (jevh/forge.py); measured live by evals/persona_cases.py and evals/bench/persona_creation.py.
+# "Is this a request no assistant is for?" is a Choice over the assistants plus "none of these", like the skill
+# check below. A yes/no noul on the same question rated specialist and ordinary requests alike (0.44-0.62 vs
+# 0.12-0.59), because the general assistant's description reads as covering everything. The Choice separates
+# them, and asking for the *expertise* a request needs (not just "is it for them") keeps generic chores
+# (proofreading, arithmetic, a short bio) with the general assistant: "which assistant is for this request"
+# flagged 5 of 19 such ordinary requests, this wording 1. Asked off the critical path (orchestrator._learn).
+NO_FIT_Q = "Which assistant has the expertise this request needs, if any?"
+NO_FIT_NONE = ("none_of_these", "None of these assistants: the request needs expertise in a specialist field "
+                                "that none of them covers.")
 SKILL_HOME_Q = "Which assistant would use this skill guide, if any?"
 SKILL_HOME_NONE = ("none_of_these", "None of these assistants: the guide is about something they are not for.")
-SAME_SPECIALIST_Q = "Would one specialist assistant be the right one to handle both `request_a` and `request_b`?"
-SAME_SPECIALIST_TOP_N = 8    # earlier unhandled requests a new one is compared with
+# Asking whether "one specialist assistant would be right for both" rated unrelated specialist requests as high as
+# 0.75 (a chess question against Japanese grammar), 11 of 220 cross-area pairs over 0.6; asking whether one *expert in
+# the subject* would be an expert in the other's separates 54 same-domain from 220 cross-area pairs perfectly (AUC 1.00).
+SAME_SPECIALIST_Q = "Would one person who is an expert in `request_a`'s subject also be an expert in `request_b`'s subject?"
+SAME_SPECIALIST_TOP_N = 8    # personas compared per call in the near-duplicate check (forge._twin)
 
 ROUTE_Q = "Which assistant is best suited to handle the user's latest request?"
 
@@ -98,7 +107,6 @@ class RouteDecision:
     reason: str
     replies: float | None = None
     follows: bool = False      # the message follows up on the recent exchange: it goes along as context
-    no_fit: float | None = None   # P(no assistant is for this); asked only on a low-confidence route that stays put
 
 
 @dataclass
@@ -195,21 +203,14 @@ class Jev:
         if follows and current and current in personas and pick != current and conf < self.cfg.t("route"):
             return RouteDecision(current, conf, probs, cont, f"follow-up; stays with {current}", rep, True)
         if pick == current:
-            fit = self.no_fit(request, personas) if conf < self.cfg.t("route") else None
-            return RouteDecision(pick, conf, probs, cont, self._unfit(fit, "choice (same persona)", f"stays with {pick}"),
-                                 rep, follows, no_fit=fit)
+            return RouteDecision(pick, conf, probs, cont, "choice (same persona)", rep, follows)
         if conf >= self.cfg.t("route"):
             return RouteDecision(pick, conf, probs, cont, "choice", rep, follows)
         if current and cont is not None and cont >= self.cfg.t("stick"):
             return RouteDecision(current, conf, probs, cont, f"low confidence for {pick}; conversation continues",
                                  rep, follows)
-        fit = self.no_fit(request, personas)
         return RouteDecision(default if default in personas else pick, conf, probs, cont,
-                             self._unfit(fit, f"low confidence for {pick}; default", "default"), rep, follows, no_fit=fit)
-
-    def _unfit(self, fit: float | None, usual: str, outcome: str) -> str:
-        """The route's reason: says so when Jev finds that no assistant is for the request."""
-        return f"no assistant fits; {outcome}" if fit is not None and fit >= self.cfg.t("no_fit") else usual
+                             f"low confidence for {pick}; default", rep, follows)
 
     def pick_persona(self, request: str, personas: dict[str, Persona]) -> str:
         """The persona the routing Choice alone would pick (no follow-up or fallback rules)."""
@@ -218,17 +219,17 @@ class Jev:
         return max(probs, key=probs.get)
 
     def no_fit(self, request: str, personas: dict[str, Persona]) -> float | None:
-        """P(the request is outside every assistant's purpose); None when persona creation is off
-        or Jev could not be asked (routing itself must never fail because of this extra check)."""
+        """P(none of these assistants is for the request), whichever one routing sent it to; None when persona
+        creation is off or Jev could not be asked (a turn must never fail because of this extra check)."""
         if not (self.cfg.raw.get("persona_creation") or {}).get("enabled", True):
             return None
+        none_key, none_desc = NO_FIT_NONE
         try:
-            r = self._ask("route_fit", {"latest_request": request,
-                                        "assistants": {n: p.description for n, p in personas.items()}},
-                          {"no_fit": noul(NO_FIT_Q)})
-            return r["no_fit"].noul
+            probs = self.choice_probs("route_fit", {"latest_request": request}, NO_FIT_Q,
+                                      {n: p.description for n, p in personas.items()}, {none_key: none_desc})
         except SystemOneError:
             return None
+        return probs.get(none_key, 0.0)
 
     def skill_home(self, skill: Skill, personas: dict[str, Persona]) -> tuple[str | None, float, dict[str, float]]:
         """Which persona a skill belongs with, blind to where it currently lives: (best persona,

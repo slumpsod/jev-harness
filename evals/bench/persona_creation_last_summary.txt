@@ -1,0 +1,121 @@
+PERSONA CREATION BENCH  v4  model=default persona model  reps=3  [realistic memory: the originating request is already in memory]
+
+== decisions (labelled cases; thresholds are the config's)
+  [dev] no_fit           @0.60: caught 8/8 (100%), false positives 0/10   [target: >=70% caught, 0 false]  PASS
+  [dev] same_specialist  @0.60: caught 5/5 (100%), false positives 0/4   [target: >=70% caught, 0 false]  PASS
+  [dev] orphan           @0.50: caught 4/4 (100%), false positives 0/5   [target: >=70% caught, 0 false]  PASS
+  [dev] no_fit best threshold on these cases: 0.30 -> caught 8/8, false 0/10
+  [dev] no_fit scores: specialist [0.86, 0.89, 0.94, 0.96, 0.97, 0.98, 0.99, 0.99]  ordinary [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.01]
+  [held] no_fit           @0.60: caught 5/6 (83%), false positives 1/10   [target: >=70% caught, 0 false]  FAIL
+  [held] same_specialist  @0.60: caught 3/4 (75%), false positives 0/4   [target: >=70% caught, 0 false]  PASS
+  [held] orphan           @0.50: caught 4/4 (100%), false positives 0/4   [target: >=70% caught, 0 false]  PASS
+  [held] no_fit best threshold on these cases: 0.65 -> caught 5/6, false 0/10
+  [held] no_fit scores: specialist [0.04, 0.74, 0.95, 0.97, 0.98, 0.98]  ordinary [0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.01, 0.26, 0.39, 0.64]
+  [fresh] no_fit           @0.60: caught 12/12 (100%), false positives 1/19   [target: >=70% caught, 0 false]  FAIL
+  [fresh] same_specialist  @0.60: caught 8/8 (100%), false positives 0/5   [target: >=70% caught, 0 false]  PASS
+  [fresh] no_fit best threshold on these cases: 0.90 -> caught 11/12, false 0/19
+  [fresh] no_fit scores: specialist [0.7, 0.92, 0.94, 0.96, 0.96, 0.96, 0.97, 0.97, 0.98, 0.98, 0.98, 0.99]  ordinary [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.01, 0.03, 0.04, 0.13, 0.23, 0.31, 0.9]
+  [fresh2] no_fit           @0.60: caught 16/16 (100%), false positives 4/21   [target: >=70% caught, 0 false]  FAIL
+  [fresh2] same_specialist  @0.60: caught 12/12 (100%), false positives 0/11   [target: >=70% caught, 0 false]  PASS
+  [fresh2] no_fit best threshold on these cases: 0.90 -> caught 16/16, false 2/21
+  [fresh2] no_fit scores: specialist [0.95, 0.95, 0.96, 0.96, 0.97, 0.97, 0.97, 0.97, 0.98, 0.98, 0.98, 0.99, 0.99, 0.99, 0.99, 0.99]  ordinary [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.02, 0.02, 0.07, 0.12, 0.17, 0.31, 0.36, 0.37, 0.86, 0.89, 0.96, 0.96]
+
+== trigger (the real route, then the after-turn fit check on what the catch-all persona got)
+  [dev] specialist requests pooled 7/8 (87%) (checked: the router sent 7 of them to the catch-all); ordinary requests pooled 0/10
+  [held] specialist requests pooled 4/6 (66%) (checked: the router sent 5 of them to the catch-all); ordinary requests pooled 1/10
+  [fresh] specialist requests pooled 12/12 (100%) (checked: the router sent 12 of them to the catch-all); ordinary requests pooled 1/19
+  [fresh2] specialist requests pooled 16/16 (100%) (checked: the router sent 16 of them to the catch-all); ordinary requests pooled 4/21
+  all sets: specialist pooled 39/42 (92%), ordinary pooled 6/60 (10%)   [target: >=80% specialist, <=20% ordinary: a pooled request only becomes a persona with 2 similar ones]  PASS
+  [dev] ordinary but pooled: []   specialist but missed: ['Teach me to read a Kubelka-Munk colour mixing chart for oil paints']
+  [held] ordinary but pooled: ['Help me write a cover letter for a project manager job']   specialist but missed: ['Walk me through filing quarterly estimated taxes as a sole proprietor', "Help me read my blood panel's lipid numbers"]
+  [fresh] ordinary but pooled: ['Remember that the Hendersons prefer cellulose insulation']   specialist but missed: []
+  [fresh2] ordinary but pooled: ['Give me five name ideas for my new insulation crew', 'Explain what R-value means in simple terms', 'Brainstorm a slogan for a weatherization company', 'Explain how compound interest works']   specialist but missed: []
+
+== owned (P(none of the assistants): the gate's bar for a request an existing persona clearly has, the trigger's for one nobody has)
+  requests the existing personas own (37): max 0.32, median 0.00; below the owned bar (0.3): 36/37 (97%)   [target >=90%: the gate protects them]
+  the domains' requests (36): min 0.31, median 0.96; at or above the owned bar: 36/36 (100%) [target >=90%: taking them is not a theft]; at or above the trigger bar (0.6): 33/36 (91%)
+    lowest: 0.31 [tenancy] What should I check in a lease before signing as a tenant?
+    lowest: 0.39 [tenancy] Is a 60-day notice period normal in a residential lease?
+    lowest: 0.43 [spanish] What's the difference between ser and estar, with examples to practise
+    lowest: 0.86 [dahlia] How do I save seed from heirloom beans?
+
+== gate (hand-written drafts through the twin check and the gate, realistic memory: pass good ones, stop duplicates)
+  drafts that should go live: 3/3 (100%); duplicates of an existing persona stopped: 4/4 (100%)  [target: all of both]  PASS
+    good: chess coach: live=True (wins 3/3, steals 0) 
+    good: garden advisor: live=True (wins 3/3, steals 0) 
+    good: sourdough baker: live=True (wins 3/3, steals 0) 
+    duplicates daily_assistant: a general-purpose catch-all: live=False (wins 3/3, steals 0) too close to daily_assistant
+    duplicates daily_assistant's email and calendar: live=False (wins 0/3, steals 0) wins too few of the requests that made it
+    duplicates fitness_coach: live=False (wins 2/3, steals 1) too close to fitness_coach
+    duplicates high_end_dev: live=False (wins 1/3, steals 0) too close to high_end_dev
+
+== pool (the clustering on shuffled streams of 62 flagged requests: 9 real domains x4, 17 one-offs, 9 chores)
+  last 8, no coherence, 0.60, pool cap 80 clusters  2, MIXED (junk persona) 1, real domains formed 1/18 over 2 streams
+  last 24, no coherence, 0.60, pool cap 80 clusters 18, MIXED (junk persona) 3, real domains formed 15/18 over 2 streams
+  last 24, coherent, 0.60, pool cap 80 clusters 15, MIXED (junk persona) 1, real domains formed 14/18 over 2 streams
+  last 24, coherent, 0.45, pool cap 80 clusters 18, MIXED (junk persona) 3, real domains formed 15/18 over 2 streams
+  last 40, coherent, 0.60, pool cap 80 clusters 19, MIXED (junk persona) 2, real domains formed 17/18 over 2 streams
+  shipped: last 40, coherent, 0.60     clusters 20, MIXED (junk persona) 2, real domains formed 18/18 over 2 streams
+  [target: 0 mixed clusters, then as many of the 9 domains as possible]
+    mixed [last 8, no coherence, 0.60, pool cap 80] seed 1: ['games', 'music']: ["My acoustic's 12th fret harmonic is shar", "How do I intonate a classical guitar's b", "What's a good opening repertoire for a 1"]
+    mixed [last 24, no coherence, 0.60, pool cap 80] seed 1: ['notes', 'writing']: ['Remember that the Hendersons prefer cell', 'Brainstorm a slogan for a weatherization', 'Give me five name ideas for my new insul']
+    mixed [last 24, no coherence, 0.60, pool cap 80] seed 1: ['games', 'music']: ['What scales work over a minor 7b5 chord?', 'How do I punish the London System as bla', "My acoustic's 12th fret harmonic is shar", "What's a good opening repertoire for a 1"]
+    mixed [last 24, no coherence, 0.60, pool cap 80] seed 2: ['home', 'writing']: ["What's the correct way to wire a 3-way s", 'Explain what R-value means in simple ter', 'Give me five name ideas for my new insul']
+    mixed [last 24, coherent, 0.60, pool cap 80] seed 1: ['notes', 'writing']: ['Remember that the Hendersons prefer cell', 'Brainstorm a slogan for a weatherization', 'Give me five name ideas for my new insul']
+    mixed [last 24, coherent, 0.45, pool cap 80] seed 1: ['notes', 'writing']: ['Remember that the Hendersons prefer cell', 'Brainstorm a slogan for a weatherization', 'Give me five name ideas for my new insul']
+    mixed [last 24, coherent, 0.45, pool cap 80] seed 1: ['games', 'music']: ['What scales work over a minor 7b5 chord?', "What's a good opening repertoire for a 1", 'How do I comp rootless voicings in a jaz']
+    mixed [last 24, coherent, 0.45, pool cap 80] seed 2: ['home', 'notes', 'writing']: ['Give me five name ideas for my new insul', 'Explain what R-value means in simple ter', 'Remember that the Hendersons prefer cell']
+    mixed [last 40, coherent, 0.60, pool cap 80] seed 1: ['notes', 'writing']: ['Remember that the Hendersons prefer cell', 'Brainstorm a slogan for a weatherization', 'Give me five name ideas for my new insul']
+    mixed [last 40, coherent, 0.60, pool cap 80] seed 2: ['home', 'writing']: ['Brainstorm a slogan for a weatherization', 'Explain what R-value means in simple ter', 'Give me five name ideas for my new insul']
+    mixed [shipped: last 40, coherent, 0.60] seed 1: ['notes', 'writing']: ['Remember that the Hendersons prefer cell', 'Brainstorm a slogan for a weatherization', 'Give me five name ideas for my new insul']
+    mixed [shipped: last 40, coherent, 0.60] seed 2: ['home', 'writing']: ['Brainstorm a slogan for a weatherization', 'Explain what R-value means in simple ter', 'Give me five name ideas for my new insul']
+
+== forge (drafting model + routing gate), per domain over reps
+  guitar    [dev ] created 3/3, live 3/3, new requests won 6/6   names: guitar_setup_expert, guitar_setup_expert, nylon_guitar_setup
+  chess     [dev ] created 3/3, live 3/3, new requests won 6/6   names: chess_coach, chess_opening_coach, chess_opening_coach
+  petg      [dev ] created 3/3, live 3/3, new requests won 6/6   names: fff_print_tuner, fdm_print_expert, print_slicer_expert
+  spanish   [dev ] created 3/3, live 3/3, new requests won 6/6   names: spanish_grammar_tutor, spanish_tutor, spanish_tutor
+  tenancy   [dev ] created 3/3, live 3/3, new requests won 6/6   names: residential_lease_advisor, tenancy_contract_reviewer, tenancy_advisor
+  dahlia    [held] created 3/3, live 3/3, new requests won 6/6   names: zone5_garden_coach, vegetable_garden_coach, horticulture_expert
+  cricket   [held] created 3/3, live 3/3, new requests won 6/6   names: cricket_rules_expert, cricket_rules_expert, cricket_rules_expert
+  jazz      [held] created 3/3, live 3/3, new requests won 6/6   names: jazz_piano_tutor, jazz_piano_tutor, jazz_piano_tutor
+  sourdough [held] created 3/3, live 3/3, new requests won 6/6   names: sourdough_specialist, sourdough_baker, sourdough_baker
+  all clusters: created 27/27 (100%), live 27/27 (100%) [target >=80% live]  PASS
+  fence + validity checks pass on 27/27 (100%) created drafts [target 100%]  PASS
+  gate steals recorded: 0 [target 0]  PASS;  new in-domain requests routed to the draft: 54/54 (100%) [target >=80%]  PASS
+  mean time to draft one persona: 27s (3 requests + the writer + the gate)
+  fits_existing: persona created in 0/2 runs [target 0]  PASS
+  scattered: persona created in 0/2 runs [target 0]  PASS
+  lifecycle: live when made True, approve True, delete True  PASS
+  drafts written (read these: name / description):
+    guitar: guitar_setup_expert: Specialist for acoustic and classical guitar setup: bridge saddle intonation, action and nut height, string gauge selection, and diagnosing sharp/flat harmonics or buzz. It does not cover electric guitars, luthier repairs, or general music theory.
+    chess: chess_coach: Chess opening and repertoire specialist: explains openings and defenses, recommends which lines to study, and builds practical repertoires for White or Black at club level. Handles requests about specific openings, replies to common systems, and study priorities rather than general chess help.
+    petg: fff_print_tuner: FFF/FDM 3D printing troubleshooter: diagnoses first-layer adhesion, stringing, warping, clogging, and layer defects, then recommends slicer settings for PETG, PLA, ABS, and TPU on specific printers such as Bambu Lab or Ender.
+    spanish: spanish_grammar_tutor: Spanish grammar tutor for focused learning and practice. Handles requests to explain, drill, or quiz the user on specific Spanish grammar topics such as ser vs estar, preterite vs imperfect, and subjunctive triggers.
+    tenancy: residential_lease_advisor: Residential lease and tenancy specialist: handles tenant and landlord questions about leases, notice periods, security deposits, wear and tear, repairs, rent, and clause-by-clause risk review of tenancy agreements.
+    dahlia: zone5_garden_coach: Specialist for home vegetable and perennial gardening in USDA zone 5 and similar short-season gardens. Handles planting windows, seed starting, hardening off, raised-bed soil mixes and spacing, frost protection, and overwintering tender plants or tubers.
+    cricket: cricket_rules_expert: Explains cricket rules and scoring, including LBW, DRS, T20/ODI/Test differences, and Duckworth-Lewis-Stern rain-affected methods.
+    jazz: jazz_piano_tutor: Jazz piano and harmony specialist: teaches chord theory, voicings, scales, and comping for piano, including ii-V-I progressions, minor 7b5 harmony, rootless voicings, and jazz trio practice.
+    sourdough: sourdough_specialist: Handles sourdough bread requests: starter feeding schedules, hydration and dough strength, bulk fermentation timing at different temperatures, and troubleshooting dense loaves or tight crumb.
+
+== orphan (a learned skill no persona wants)
+  orphans that got a persona 24/24 (100%), and went LIVE 24/24 (100%) [target >=75% live]; skills with a home that got one 0/9 [target 0]  PASS
+  live drafts that own their skill 24/24; delete gives the skill back 24/24  [target all]
+
+== regress (every draft live at once)
+  routing_cases top-1 without drafts 36/37 (97%), with 9 drafts live 36/37 (97%); requests an existing persona owned that a draft took: 0 [target 0 and no drop]  PASS
+  new in-domain requests that land on their own draft with ALL drafts live: 27/27 (100%); on a different draft: 0 [target 0]
+
+== e2e (full turns)
+  chess (shipped): draft created ['chess_coach']; the 4th request routed to it: True; answered: True; pending in pool 0; 161s total   PASS
+    turn 1: -> daily_assistant (conf 0.85, 1 pooled after) choice
+    turn 2: -> daily_assistant (conf 0.89, 2 pooled after) choice (same persona)
+    turn 3: -> daily_assistant (conf 0.92, 0 pooled after) choice (same persona)
+    turn 4: -> chess_coach (conf 1.0, 0 pooled after) choice
+  dahlia (shipped): draft created ['garden_specialist']; the 4th request routed to it: True; answered: True; pending in pool 0; 121s total   PASS
+    turn 1: -> daily_assistant (conf 0.96, 1 pooled after) choice
+    turn 2: -> daily_assistant (conf 0.88, 2 pooled after) choice (same persona)
+    turn 3: -> daily_assistant (conf 0.97, 0 pooled after) choice (same persona)
+    turn 4: -> garden_specialist (conf 0.99, 0 pooled after) choice
+
+total 344s; raw results in C:\Users\Jedidiah\Projects\jev-harness\evals\bench\runs\persona_creation\v4

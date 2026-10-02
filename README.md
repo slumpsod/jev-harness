@@ -581,9 +581,12 @@ Seen live (ornith as every worker, semif as Jev):
 When no persona fits, the harness drafts one (`jevh/forge.py`, design in
 `docs/architecture/15-persona-creation.md`). Two triggers:
 
-- **A request no persona fits.** Only when routing is already unsure, one more Jev noul asks whether
-  the request is outside every assistant's purpose. Those requests are pooled; when `min_cluster`
-  similar ones have gathered (Jev compares each new one with the pool), a persona is drafted for them.
+- **A request no persona fits.** After a turn the general assistant (the default persona) handled, Jev is
+  asked which assistant has the expertise the request needs, with "none of these" as an option; it does not
+  depend on how confident the router was (live, specialist requests went to the general assistant at
+  0.85-1.0). Requests it says none covers are pooled, and when `min_cluster` that suit the same subject
+  have gathered (all of the pool is compared, and a cluster must suit each other, not just the newest
+  request), a persona is drafted for them.
 - **A learned skill no persona wants.** A new learned skill is shown to Jev blind (a Choice over the
   personas plus "none of these"); if none claims it, a persona is drafted around it at once.
 
@@ -591,7 +594,7 @@ A draft is a file in `personas/learned/` (not committed) and is **live straight 
 it, but fenced: no MCP, no `can_request`, the REPL tools in `persona_creation.tools` (none by default),
 and the skill that made it, which it now **owns**: no other persona is offered that skill. Before it goes
 live it must pass a routing gate: win the requests that made it, and take none of the last
-`gate_probes` requests other personas handled. One that fails is written **inactive** (with the reason)
+`gate_probes` requests that an existing persona clearly has the expertise for. One that fails is written **inactive** (with the reason)
 for you to switch on or delete. A new description that Jev finds to suit the same specialist as an
 existing persona is not created, and at most `max_live_drafts` drafts wait for approval.
 
@@ -600,24 +603,29 @@ skills learned before) or the CLI (`/personas`, `/persona approve|activate|delet
 Deleting a draft gives its skills back to the personas that were offered them. `persona_creation.enabled:
 false` turns it all off.
 
-**Live bench: it does not work end to end yet** (`python evals/bench/persona_creation.py`, 2026-10-02, semif Jev,
-Qwen 3.8 27B writing, 3 reps per case; see `evals/bench/runs/persona_creation/`). What holds: the
-writer produces a narrow, correctly fenced persona (24/24 drafts valid, 0 fence breaks, 24s each), the draft wins
-72/72 new requests in its domain, `orphan` and `same_specialist` separate cleanly (8/8, 9/9, 0 false positives, dev
-and held-out), no existing persona's routing changes (37 requests, 36/37 before and after), delete and
-approve work. What does not:
-- **The "no assistant fits" trigger never fires.** `daily_assistant` is a generalist, so Jev routes specialist
-  requests to it at 0.85-1.0 confidence and the `no_fit` question (asked under `thresholds.route`, 0.45) is asked on
-  0 of 14; when asked it scores 0.44-0.62 against `no_fit: 0.80`.
-- **The routing gate rejects drafts in real use.** Memory always holds the request a persona came from, handled
-  by another persona, and the gate counts it as stolen (`max_steals: 0`): with that request in memory 0/27 drafts
-  went live (24/24 were held back with 1 steal) and 3/24 orphan-skill drafts. Without it (the offline tests'
-  setup) 24/27 and 22/24 went live.
-- A near-duplicate of an existing persona (a strength-only coach beside `fitness_coach`) was created in 3 of 4 runs.
-- Tenancy requests were never pooled (similarity 0.38, 0.41, 0.59 against 0.60); the writer returned an unusable
-  reply for 2 of 3 sourdough-skill runs.
+**Live bench** (`python evals/bench/persona_creation.py`, 2026-10-02, semif Jev, Qwen 3.8 27B writing, 3 reps
+per case; last summary in `evals/bench/persona_creation_last_summary.txt`). The first run found that persona creation did
+not work end to end: the "no assistant fits" trigger never fired (it was only asked when routing was unsure, and
+routing was never unsure about a specialist request: 0 of 14 asked), and the routing gate rejected every draft
+once memory held the request the persona came from (0 of 27 went live). Fixed, then measured again:
+- **Trigger:** specialist requests are pooled 39/42 (92%), ordinary ones 6/60 (10%) over four case sets (tuning,
+  held-out, two fresh ones, the last written before it was scored). The flagged ordinary ones are chores no
+  persona description lists (naming ideas, a slogan, "how does compound interest work", a cover letter). A
+  flagged request only pools: a draft needs 3 that suit each other, then your approval.
+- **Clustering** (shuffled streams of 62 flagged requests: 9 real domains, one-offs, chores): all 9 domains
+  formed on both streams, 2 of 20 clusters mixed (insulation-business chores: a slogan, crew names, R-value).
+  The version before compared only the last 8 pooled requests with no coherence check and formed 1 of 18 domains.
+- **Drafts:** 27/27 (9 domains x 3) written and live, 0 steals, 27/27 fence and validity checks, 54/54 new
+  in-domain requests routed to the draft, 24/24 orphan-skill drafts live and owning their skill, 0 of 9 skills
+  with a home given one, 27s per draft. The three-reps rows include the held-out domains.
+- **No harm to what worked:** the 37-request routing set is 36/37 with and without 9 drafts live; no draft takes a
+  request an existing persona owns; a near-duplicate of `fitness_coach` and a general-purpose catch-all are
+  refused; 4 of 4 hand-written duplicates stopped. Full turns: three requests pooled, a draft written in the
+  background, the fourth request routed to it (conf 0.99-1.0) and answered, for a tuning and a held-out domain.
+- **Known gaps:** about 1 in 10 ordinary requests is pooled (see above; describing what `daily_assistant` is for
+  would keep them with it); the writer sometimes returns an empty reply (one retry now); a lukewarm group
+  (cricket tactics vs rules) can need a 4th request; chess "endgames" and "openings" do not suit each other.
 
-Until the trigger and the gate are fixed and the bench passes, treat this as unverified;
 `persona_creation.enabled: false` turns it off. Moving skills between existing personas is a later step.
 
 ## Failure log

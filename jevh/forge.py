@@ -36,7 +36,7 @@ from .personas import LEARNED_DIR, Persona, load_learned, load_personas
 from .skills import Skill, parse_skill
 
 DEFAULTS = {"enabled": True, "min_cluster": 3, "max_live_drafts": 4, "max_pending": 40, "tools": [],
-            "max_steps": 30, "gate_probes": 8, "max_steals": 0}
+            "max_steps": 30, "gate_probes": 8, "max_steals": 0, "compare_last": 40, "coherent": True}
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,40}$")
 
 PERSONA_PROMPT = """You are adding a specialist assistant to an assistant harness. A router picks the \
@@ -82,7 +82,8 @@ class Forge:
         self.chat = chat                                  # (llm, prompt) -> text; stops when the user moves on
         self.on_event = on_event or (lambda kind, data: None)
         self.pool_path = cfg.workspace / "persona_proposals.json"
-        self._lock = threading.Lock()
+        self._lock = threading.Lock()                     # the pool file
+        self._note_lock = threading.Lock()                # one request at a time through note_no_fit (learning threads can overlap)
 
     # -- settings --------------------------------------------------------------------
     @property
@@ -104,17 +105,31 @@ class Forge:
 
     # -- trigger 1: a request no persona fits ------------------------------------------
     def note_no_fit(self, request: str, llm: Any, source: str = "") -> Created | None:
-        """Pool an unhandled request; draft a persona once enough similar ones have gathered."""
+        """Pool a request no assistant is for; draft a persona once enough similar ones have gathered."""
         if not self.enabled:
             return None
+        with self._note_lock:   # two overlapping learning threads must not both draft from the same cluster
+            return self._note_no_fit(request, llm, source)
+
+    def _note_no_fit(self, request: str, llm: Any, source: str) -> Created | None:
         cfg = self.settings
         with self._lock:
             pending = self._read_pool()
-        earlier = pending[-SAME_SPECIALIST_TOP_N:]
+        if any(_same_text(p["text"], request) for p in pending):
+            return None   # the same request again (a retry, a re-ask) is not more demand for a specialist
+        earlier = pending[-int(cfg["compare_last"]):]
         sims = self.jev.same_specialist(request, [p["text"] for p in earlier])
-        similar = [p for p, v in zip(earlier, sims) if v >= self.cfg.t("same_specialist")]
+        t = self.cfg.t("same_specialist")
+        similar = [p for p, v in sorted(zip(earlier, sims), key=lambda pv: -pv[1]) if v >= t]
+        if cfg["coherent"] and len(similar) + 1 >= int(cfg["min_cluster"]):
+            similar = self._coherent(similar)
         if len(similar) + 1 >= int(cfg["min_cluster"]):
             requests = [p["text"] for p in similar] + [request]
+            if self._already_handled(requests):
+                with self._lock:
+                    self._write_pool([p for p in self._read_pool() if p["text"] not in set(requests)])
+                self.on_event("persona_skipped", {"reason": "an existing assistant is for these requests"})
+                return None
             made = self._create(requests, None, llm, "no_fit",
                                 f"{len(requests)} requests no persona fit, e.g. \"{request[:120]}\"")
             if made is not None:
@@ -128,6 +143,30 @@ class Forge:
             self._write_pool(pool[-int(cfg["max_pending"]):])
         self.on_event("persona_proposal", {"request": request, "similar": len(similar), "needed": int(cfg["min_cluster"])})
         return None
+
+    def _coherent(self, similar: list[dict]) -> list[dict]:
+        """The pooled requests that suit the same specialist as the new one AND as each other, strongest first.
+        Similarity is not transitive: a new request can be similar to two pooled requests that have nothing to do
+        with each other (with the first wording of the question a chess question scored 0.75 against Japanese
+        grammar and 0.68 against soccer tactics) and would 'gather' them into a persona. A request that does not
+        suit one of the group already formed is left out."""
+        t = self.cfg.t("same_specialist")
+        group: list[dict] = []
+        for p in similar:
+            if group and any(v < t for v in self.jev.same_specialist(p["text"], [g["text"] for g in group])):
+                continue
+            group.append(p)
+        return group
+
+    def _already_handled(self, requests: list[str]) -> bool:
+        """The requests were pooled because no assistant was for them. One made since (a draft, or an edit to a
+        description) may be now, and a persona for what an existing one handles is a duplicate of it."""
+        field = load_personas(self.persona_dirs)
+        handled = 0
+        for r in requests:
+            fit = self.jev.no_fit(r, field)
+            handled += fit is not None and fit < self.cfg.t("owned")   # clearly covered, not merely partly
+        return handled * 2 > len(requests)
 
     def pending(self) -> list[dict[str, Any]]:
         with self._lock:
@@ -178,11 +217,17 @@ class Forge:
         evidence = (f"A how-to guide learned from a task that fits none of them:\nname: {skill.name}\n"
                     f"description: {skill.description}\n{skill.excerpt[:500]}" if skill else
                     "Requests that none of them could handle well:\n" + "\n".join(f"- {r[:300]}" for r in requests[:6]))
-        reply = self.chat(llm, PERSONA_PROMPT.format(
-            evidence=evidence, existing="\n".join(f"- {n}: {p.description}" for n, p in existing.items())))
+        prompt = PERSONA_PROMPT.format(
+            evidence=evidence, existing="\n".join(f"- {n}: {p.description}" for n, p in existing.items()))
+        reply = self.chat(llm, prompt)
         spec = _parse_spec(reply)
+        retry = None
+        if spec is None:   # live: the local model sometimes returns nothing at all (an empty reply in 8s): ask once more
+            retry = self.chat(llm, prompt)
+            spec = _parse_spec(retry)
         if spec is None:
-            self.on_event("persona_skipped", {"reason": "the model's persona description was unusable"})
+            self.on_event("persona_skipped", {"reason": "the model's persona description was unusable",
+                                              "reply": (reply or "")[:2000], "retry": (retry or "")[:2000]})
             return None
         name = self._unique_name(spec["name"], existing)
         # one persona's purpose should not repeat another's: a near-duplicate is not created
@@ -227,9 +272,18 @@ class Forge:
 
     # -- the routing gate --------------------------------------------------------------
     def gate(self, persona: Persona, existing: dict[str, Persona], triggers: list[str]) -> Gate:
-        """The draft must win what made it and take none of what other personas recently handled."""
+        """The draft must win what made it and take nothing an existing assistant is for.
+
+        A recent request counts as stolen only when the draft would win it AND Jev says one of the existing
+        assistants clearly has the expertise for it (`owned`). A request that merely landed on the catch-all
+        persona because nothing was for it is what the draft exists to take: the ones it was made from (a pooled
+        request, the task a skill was learned from) and every earlier one in its domain are in memory under that
+        persona, so counting them rejected every real draft (live bench, 2026-10-02: 0 of 27 went live). Between
+        `owned` and `no_fit` a request is ambiguous (a lease checklist scored 0.31 for the general assistant, and
+        so did a quote for attic insulation, which it does own): taking it is not a theft."""
         field_ = {n: p for n, p in existing.items() if p.active}
         field_[persona.name] = persona
+        others = {n: p for n, p in field_.items() if n != persona.name}
         wins = sum(1 for t in triggers if self.jev.pick_persona(t, field_) == persona.name)
         stolen, checked = [], 0
         seen: set[str] = set(triggers)   # the requests that made it were handled by another persona; that is the point
@@ -240,7 +294,10 @@ class Forge:
                 continue
             seen.add(turn.user)
             checked += 1
-            if self.jev.pick_persona(turn.user, field_) == persona.name:
+            if self.jev.pick_persona(turn.user, field_) != persona.name:
+                continue
+            fit = self.jev.no_fit(turn.user, others)   # None (Jev down) counts as an assistant being for it
+            if fit is None or fit < self.cfg.t("owned"):
                 stolen.append(turn.user[:120])
         won = wins * 2 >= len(triggers)
         ok = won and len(stolen) <= int(self.settings["max_steals"])
@@ -300,6 +357,10 @@ class Forge:
         if data.get("active", True):
             self._claim(Persona(**data))
         return True
+
+
+def _same_text(a: str, b: str) -> bool:
+    return " ".join(a.lower().split()) == " ".join(b.lower().split())
 
 
 def _parse_spec(text: str) -> dict[str, str] | None:

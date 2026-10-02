@@ -305,10 +305,11 @@ class Harness:
         if root.status == "done":  # a crashed turn's error text must not become "memory"
             self.memory.append(route.persona, message, result.answer, self.session, turn_notes(result))
             learn = self.learning and result.stopped in ("final", "plain")
-            # routing was unsure and Jev says no persona is for this request: it counts toward a new one
-            forge = self.forge.enabled and route.no_fit is not None and route.no_fit >= self.cfg.t("no_fit")
-            if learn or forge:
-                self._learn(route.persona, message, result, learn, forge)
+            # the catch-all persona ended up with it (the router's confidence in the catch-all says nothing: it
+            # is the persona everything lands on): Jev decides, after the turn, whether any assistant is for it
+            check_fit = self.forge.enabled and not force and route.persona == self.cfg.default_persona
+            if learn or check_fit:
+                self._learn(route.persona, message, result, learn, check_fit)
         elif cancelled:  # kept, so a redirect ("no, just the USPS part") has the request as context
             self.memory.append(route.persona, message, STOPPED_NOTE, self.session)
         self.current = route.persona
@@ -489,9 +490,10 @@ class Harness:
             t.join(timeout)
 
     def _learn(self, persona: str, message: str, result: WorkerResult, learn: bool = True,
-               unhandled: bool = False) -> None:
+               check_fit: bool = False) -> None:
         """After a turn, off the critical path: learn (facts, skills), then let the forge see what
-        was learned (a skill no persona wants) and the request itself (one no persona fits)."""
+        was learned (a skill no persona wants) and the request itself (when `check_fit` and Jev says no
+        persona, a created one included, is for it)."""
         if result.llm is None:
             return
         used = [self.roster[n] for n in result.skills if n in self.roster]
@@ -512,7 +514,8 @@ class Harness:
                 if out and out.skill and out.skill_action == "created":
                     skill = parse_skill(Path(out.skill))
                     made = bool(skill and self.forge.note_skill(skill, result.llm))
-                if unhandled and self.forge.note_no_fit(message, result.llm, f"{self.session}/{persona}"):
+                if check_fit and self._unfit(message) and self.forge.note_no_fit(
+                        message, result.llm, f"{self.session}/{persona}"):
                     made = True
             except Cancelled:
                 self.on_event("learn_error", {"error": "persona creation skipped: a new turn started"})
@@ -527,6 +530,11 @@ class Harness:
         t = threading.Thread(target=run, name="learn", daemon=False)
         self._learn_threads = [x for x in self._learn_threads if x.is_alive()] + [t]
         t.start()
+
+    def _unfit(self, message: str) -> bool:
+        """Jev says no assistant (a created persona included) is for this request."""
+        fit = self.jev.no_fit(message, self.personas)
+        return fit is not None and fit >= self.cfg.t("no_fit")
 
     def forge_sweep(self) -> list:
         """Look at every learned skill that has no owner for one no persona wants (CLI /forge, dashboard)."""

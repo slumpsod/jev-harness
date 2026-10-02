@@ -35,9 +35,10 @@ thresholds:
   review_risk: 0.65    # cheap first pass: a changed file this risky gets a full review by the strong model (18/19, 0/18; risk_cases.py)
   review_severe: 0.20  # ...reviewed by the strong model if a mistake could be severe (15/15, 13/13 with plain code; severity_cases.py)
   learn_skill: 0.50   # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
-  no_fit: 0.80         # persona creation (not tuned yet; evals/persona_cases.py): "no assistant is for this request"
+  no_fit: 0.60         # persona creation (evals/persona_cases.py): P("no assistant has the expertise") for a request the catch-all persona handled (specialist 41/42 flagged, ordinary 6/60)
+  owned: 0.30          #   ...below this an assistant clearly has it: the gate counts taking it as a theft (requests the personas own: 36/37 below, median 0.00; domain requests: 36/36 above)
   orphan: 0.50         #   ...P("none of these assistants") for a learned skill guide
-  same_specialist: 0.60  # ...two unhandled requests "suit one specialist" (they are counted together)
+  same_specialist: 0.60  # ...two unhandled requests: "one expert in the subject of each" (28/29 same-subject pairs, 0 of 244 different ones)
   failure_gave_up: 0.85  # failure log's Jev check: "the answer says it couldn't (fully) do it" (not tuned yet:
   failure_missed: 0.85   # evals/failure_cases.py) ... "the answer doesn't deliver what was asked"
 
@@ -72,6 +73,8 @@ persona_creation:                # jevh/forge.py: a persona drafted when a reque
   min_cluster: 3                 # similar unhandled requests that make one (a learned skill with no home makes one at once)
   max_live_drafts: 4             # drafts waiting for approval; no more are created until some are approved or deleted
   max_pending: 40                # unhandled requests kept while waiting for similar ones
+  compare_last: 40               # a new unhandled request is compared with this many of the latest pooled ones (all of them)
+  coherent: true                 # ...and a cluster must be similar throughout, not just to the newest request
   tools: []                      # REPL tools a draft gets (project, web, browser, nango): none until you widen them
   max_steps: 30
   gate_probes: 8                 # earlier requests re-routed to check the draft takes none of them

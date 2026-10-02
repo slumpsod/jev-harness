@@ -1,19 +1,22 @@
-"""Live eval of the three Jev decisions behind persona creation (jevh/forge.py). NOT TUNED YET: the
-thresholds in config.yaml (no_fit, orphan, same_specialist) are first guesses; run this on semif and
-set them from the sweeps below, then put the numbers in the config comments like the other gates.
+"""Live eval of the three Jev decisions behind persona creation (jevh/forge.py), on four sets of cases:
+dev (the first look), held (written afterwards), fresh and fresh2 (newer; fresh2 was written before any of it
+was scored). Thresholds (config.yaml, 2026-10-02, semif): no_fit 0.60, orphan 0.50, same_specialist 0.60.
 
-- no_fit: "does the request fall outside what every assistant is for?" on the real personas. A false
-  positive pools a request that a persona could have handled (and, with enough similar ones, creates
-  a needless persona); a miss only delays a persona.
-- orphan: a learned skill's P("none of these assistants"). A false positive creates a persona for a
-  skill that has a home (the gate and the twin check are the backstop); a miss leaves the skill
-  offered to every persona that allows learned-*.
-- same_specialist: two unhandled requests that one specialist would suit. False positives gather
-  unrelated requests into one persona; misses make a persona wait for more requests.
+- no_fit: P("none of these assistants has the expertise this request needs") for a request on the real
+  personas: 41 of 42 specialist requests flagged at 0.60 across the four sets (39 reach the pool: the router
+  sends a few to a specialist persona); ordinary requests 6/60 (the false positives are chores no persona
+  description lists: naming ideas, a slogan, compound interest, a cover letter). A false positive only pools a request (a persona needs 3 similar ones, then the writer, the
+  twin check and the gate, then your approval); a miss only delays a persona.
+- orphan: a learned skill's P("none of these assistants"): 8/8 orphans, 0 of 9 skills with a home.
+- same_specialist: "would one person who is an expert in A's subject also be an expert in B's?": 28/29
+  same-subject pairs, 0 of 24 different ones (and 52/54 and 0/220 on the stream's pairs in the bench). The
+  first wording ("one specialist assistant for both") passed unrelated pairs at up to 0.75.
 
     python evals/persona_cases.py            # live, sweep
     python evals/persona_cases.py --holdout  # the held-out cases (run once the thresholds are set)
-    python evals/persona_cases.py --offline  # re-sweep the cached raw answers (with or without --holdout)
+    python evals/persona_cases.py --fresh    # newer cases (looked at while choosing the no_fit wording)
+    python evals/persona_cases.py --fresh2   # newest cases: written before scoring, the confirmation, run once
+    python evals/persona_cases.py --offline  # re-sweep the cached raw answers (with --holdout or --fresh too)
 
 The whole feature (the drafting model, the routing gate, a real turn) is in evals/bench/persona_creation.py.
 """
@@ -122,6 +125,137 @@ SKILLS_HELD = [
 ]
 
 
+# The fresh set: written (2026-10-02) after the no_fit question was changed to a Choice with "none of these",
+# and scored only after its threshold was chosen on the tuning cases and the held-out ones had been looked at
+# once. Ordinary requests include a few general-writing ones (proofread, translate, an About-page bio): a
+# general assistant handles them, though its description lists none of them, so they are the likely false
+# positives. The same-specialist pairs are in domains (law, tax, medicine, repair) where the score ran lukewarm.
+NO_FIT_FRESH = [
+    ("What's the weather going to be like for the job site on Thursday?", False),
+    ("Reply to Dana's email and tell her the quote will be ready Monday", False),
+    ("Add 40 minutes of travel time to tomorrow's 9am estimate", False),
+    ("Calculate payroll for last week: 3 guys, 42 hours each at 28 an hour", False),
+    ("Dim the kitchen lights and turn on the porch light", False),
+    ("Why is my Python script slower after I added the second loop?", False),
+    ("Write a SQL query that totals invoices by customer for September", False),
+    ("Convert this CSS to use a flex layout instead of floats", False),
+    ("Give me a color palette for a bakery website", False),
+    ("I'm sore after deadlifts, should I train legs again tomorrow?", False),
+    ("What should I eat before a morning lift?", False),
+    ("Turn this sketch into a photorealistic render", False),
+    ("Remember that the Hendersons prefer cellulose insulation", False),
+    ("What's 15% of 2,340?", False),
+    ("Build me a 16-week marathon training plan", False),
+    ("Help me word a polite reminder to a customer who hasn't paid", False),
+    ("Proofread this paragraph for typos", False),
+    ("Translate this note into Spanish for my crew", False),
+    ("Write a short bio for my company's About page", False),
+    ("What torque should I use on the lug nuts for a 2014 F-150?", True),
+    ("My check engine light shows P0420, what does that mean and what should I check?", True),
+    ("How do I cut a through dovetail by hand and mark it out?", True),
+    ("What lens and settings should I use to shoot a wedding reception indoors?", True),
+    ("How do I mix a vocal track so it sits in the mix?", True),
+    ("Balance this redox equation in acidic solution: MnO4- + Fe2+ -> Mn2+ + Fe3+", True),
+    ("How do I tell a Cooper's hawk from a sharp-shinned hawk?", True),
+    ("Explain the grammar of this Japanese sentence: watashi wa kinou gakkou ni ikimashita", True),
+    ("What's the best way to restring and tune a banjo?", True),
+    ("How do I size the beam for a 12 ft span deck with 2x10 joists?", True),
+    ("What should I do in the first year after planting an apple tree?", True),
+    ("How do I brew a clean pale ale with extract and steeping grains?", True),
+]
+SAME_FRESH = [
+    ("What does P0420 mean on my truck?", "How do I test a catalytic converter?", True),
+    ("What torque for lug nuts on an F-150?", "How often should I rotate my tires?", True),
+    ("How do I cut a through dovetail?", "What's the best wood glue for a table top?", True),
+    ("How do I mix a vocal so it sits in the mix?", "What EQ cuts help a muddy kick drum?", True),
+    ("Is a 30-day eviction notice valid for a month-to-month lease?", "Can a landlord enter without notice?", True),
+    ("Can I deduct a home office as a sole proprietor?", "When are quarterly estimated taxes due?", True),
+    ("What does a high LDL number mean on a blood test?", "How is a lipid panel different from a metabolic panel?", True),
+    ("How do I brew a clean pale ale?", "What temperature should I ferment lager yeast at?", True),
+    ("What does P0420 mean on my truck?", "How do I cut a through dovetail?", False),
+    ("Is a 30-day eviction notice valid for a month-to-month lease?", "How do I mix a vocal so it sits in the mix?", False),
+    ("Can I deduct a home office as a sole proprietor?", "How do I brew a clean pale ale?", False),
+    ("What does a high LDL number mean on a blood test?", "How do I test a catalytic converter?", False),
+    ("Is a 30-day eviction notice valid for a month-to-month lease?", "Can I deduct a home office as a sole proprietor?", False),
+]
+
+# Fresh pairs 2: written before they were scored, after the same-specialist wording was changed to "would one person
+# who is an expert in A's subject also be an expert in B's" (chosen on 54 same-domain and 220 cross-area pairs from
+# the stream in evals/bench/persona_creation.py). Positives share a narrow subject; negatives are different fields.
+SAME_FRESH2 = [
+    ("How do I bleed the brakes on a 2012 Civic?", "What brake fluid should I use for a Honda Civic?", True),
+    ("How much should I water a fiddle-leaf fig?", "Why are the leaves on my fiddle-leaf fig dropping?", True),
+    ("How do I fix a leaking compression fitting under a sink?", "How do I replace a toilet fill valve?", True),
+    ("What does a P/E ratio tell me about a stock?", "How do I read a company's balance sheet?", True),
+    ("How do I stop my sourdough starter smelling of acetone?", "How often should I feed a sourdough starter in the fridge?", True),
+    ("What's the best way to learn the notes on a guitar fretboard?", "How do I practice barre chords without buzzing?", True),
+    ("How do I read a topographic map?", "How do I use a compass bearing to navigate off trail?", True),
+    ("How do I treat a sprained ankle with RICE?", "When can I return to running after an ankle sprain?", True),
+    ("What is the difference between a Roth and a traditional IRA?", "How do required minimum distributions work?", True),
+    ("How do I clean a rusty cast iron skillet?", "What oil is best for seasoning cast iron?", True),
+    ("How do I grind coffee for a V60?", "What water temperature is best for a pour-over?", True),
+    ("How do I identify poison ivy?", "What should I do after touching poison ivy?", True),
+    ("How do I bleed the brakes on a 2012 Civic?", "How should I water a fiddle-leaf fig?", False),
+    ("How do I fix a leaking compression fitting under a sink?", "What does a P/E ratio tell me about a stock?", False),
+    ("How do I stop my sourdough starter smelling of acetone?", "How do I read a topographic map?", False),
+    ("What's the best way to learn the notes on a guitar fretboard?", "How do I treat a sprained ankle with RICE?", False),
+    ("What is the difference between a Roth and a traditional IRA?", "How do I clean a rusty cast iron skillet?", False),
+    ("How do I grind coffee for a V60?", "How do I identify poison ivy?", False),
+    ("How do I bleed the brakes on a 2012 Civic?", "How do I replace a toilet fill valve?", False),
+    ("What does a P/E ratio tell me about a stock?", "How do I bleed the brakes on a 2012 Civic?", False),
+    ("How do I practice barre chords without buzzing?", "What is the difference between a Roth and a traditional IRA?", False),
+    ("How do I identify poison ivy?", "How do I use a compass bearing to navigate off trail?", False),
+    ("How do I stop my sourdough starter smelling of acetone?", "How do I read a company's balance sheet?", False),
+]
+
+# Fresh set 2: written before any of it was scored, after the question became "which assistant has the expertise
+# this request needs" and the threshold was set from the three sets above. The confirmation: run it once.
+NO_FIT_FRESH2 = [
+    ("Can you rewrite this sentence to sound more professional?", False),
+    ("Give me five name ideas for my new insulation crew", False),
+    ("Explain what R-value means in simple terms", False),
+    ("Convert 3.5 inches to millimeters", False),
+    ("What's the capital of Portugal?", False),
+    ("Thanks, that works", False),
+    ("Summarize this email thread in three bullets", False),
+    ("Make a checklist for closing up a job site at the end of the day", False),
+    ("Draft a text to the homeowner confirming Friday's appointment", False),
+    ("What time is sunset in Provo today?", False),
+    ("Fix the off-by-one error in this for loop", False),
+    ("Set up a cron job to back up my database every night", False),
+    ("Make the hero section of my landing page feel more premium", False),
+    ("Suggest a 3-day full-body routine for a beginner", False),
+    ("How many calories are in a chicken burrito bowl?", False),
+    ("Upscale this blurry logo to 4K", False),
+    ("Remind me to order blown-in insulation on Monday", False),
+    ("Rename these 50 files to include the date", False),
+    ("Brainstorm a slogan for a weatherization company", False),
+    ("Explain how compound interest works", False),
+    ("What are the key differences between Python's asyncio and threading for I/O-bound work?", False),
+    ("How do I solder a copper pipe joint without leaving pinholes?", True),
+    ("What's the correct way to wire a 3-way switch with a switch loop?", True),
+    ("How do I treat powdery mildew on squash without chemicals?", True),
+    ("What are the pros and cons of a 4-4-2 versus a 4-3-3 formation in soccer?", True),
+    ("How do I read a tide table and plan a kayak crossing?", True),
+    ("What flour and hydration should I use for a Neapolitan pizza dough?", True),
+    ("Walk me through changing the brake pads on a 2016 Honda Civic", True),
+    ("How should I set up a freshwater planted aquarium for shrimp?", True),
+    ("What does the Krebs cycle produce and where does it happen?", True),
+    ("Explain how to use a sextant for celestial navigation", True),
+    ("How do I replace a sash cord in an old double-hung window?", True),
+    ("How do I teach a dog reliable recall off leash?", True),
+    ("Explain how bidding works in contract bridge for opening hands", True),
+    ("How do I develop black-and-white film at home with a stainless tank?", True),
+    ("Explain the offside rule in rugby union", True),
+    ("What's the fingering for an F major barre chord on ukulele?", True),
+]
+
+SETS = {"dev": (NO_FIT, SAME, SKILLS), "held": (NO_FIT_HELD, SAME_HELD, SKILLS_HELD),
+        "fresh": (NO_FIT_FRESH, SAME_FRESH, []), "fresh2": (NO_FIT_FRESH2, SAME_FRESH2, [])}
+RAW_FILES = {"dev": "persona_cases_raw.json", "held": "persona_cases_holdout_raw.json",
+             "fresh": "persona_cases_fresh_raw.json", "fresh2": "persona_cases_fresh2_raw.json"}
+
+
 def run_live(no_fit_cases=NO_FIT, same_cases=SAME, skill_cases=SKILLS, raw_path: Path = RAW) -> dict:
     cfg = load_config()
     jev = Jev(cfg)
@@ -151,9 +285,12 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--holdout", action="store_true", help="the held-out cases instead of the tuning ones")
+    ap.add_argument("--fresh", action="store_true", help="the fresh cases (run once, after the thresholds are set)")
+    ap.add_argument("--fresh2", action="store_true", help="the second fresh set: the confirmation, run once")
     a = ap.parse_args()
-    no_fit, same, skills = (NO_FIT_HELD, SAME_HELD, SKILLS_HELD) if a.holdout else (NO_FIT, SAME, SKILLS)
-    path = RAW.with_name("persona_cases_holdout_raw.json") if a.holdout else RAW
+    split = "fresh2" if a.fresh2 else "fresh" if a.fresh else "held" if a.holdout else "dev"
+    no_fit, same, skills = SETS[split]
+    path = RAW.with_name(RAW_FILES[split])
     raw = json.loads(path.read_text(encoding="utf-8")) if a.offline else run_live(no_fit, same, skills, path)
     sweep("no_fit: no persona is for the request", raw["no_fit"], [c[1] for c in no_fit])
     sweep("same_specialist: one specialist suits both", raw["same"], [c[2] for c in same])

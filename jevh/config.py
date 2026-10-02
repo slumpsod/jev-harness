@@ -48,7 +48,7 @@ class Config:
 
 
 # Settings added after the first config.yaml: an older config keeps working with the tuned values.
-DEFAULT_THRESHOLDS = {"no_fit": 0.8, "orphan": 0.5, "same_specialist": 0.6, "tool": 0.65, "mcp_fits": 0.5, "fact": 0.88, "same_fact": 0.5, "learn_skill": 0.5,
+DEFAULT_THRESHOLDS = {"no_fit": 0.6, "owned": 0.3, "orphan": 0.5, "same_specialist": 0.6, "tool": 0.65, "mcp_fits": 0.5, "fact": 0.88, "same_fact": 0.5, "learn_skill": 0.5,
                       "follow_topic": 0.25, "follow_reply": 0.4,
                       "verify_claims": 0.8, "verify_delivers": 0.8, "verify_honest": 0.8,
                       "verify_accurate": 0.4, "stall": 0.6, "testable": 0.55, "searching": 0.25,
