@@ -1041,7 +1041,11 @@ async function refreshStatus() {
     <div class="rings-row">${ring(g.used_mb / g.total_mb, "VRAM", pct(g.used_mb / g.total_mb))}${ring(g.util / 100, "Busy", `${g.util}%`)}</div>
     <div class="kv" style="text-align:center">${(g.used_mb / 1024).toFixed(1)} / ${(g.total_mb / 1024).toFixed(1)} GB</div></div>`).join("");
   const swaps = (st.swaps || []).slice().reverse().map((s) => `<tr><td>${new Date(s.ts * 1000).toLocaleTimeString()}</td><td>${esc((s.unloaded || []).join(", ") || "-")}</td><td>${esc(s.loaded)}</td><td>${secs(s.seconds)}</td></tr>`).join("");
-  $("p-status").innerHTML = `${versionCard()}<div class="grid2">
+  const probs = st.problems || [];
+  const probCard = probs.length ? `<div class="card"><h3>Skipped add-ons <span class="badge failed">${probs.length}</span></h3>
+    <div class="kv">These couldn't be used, so the harness runs without them. Fix the file and start a new session.</div>
+    <table><tr><th>what</th><th>problem</th></tr>${probs.map((p) => `<tr><td><b>${esc(p.kind)}</b> ${esc(p.name)}${p.path ? `<div class="kv">${esc(p.path)}</div>` : ""}</td><td>${p.skipped ? "" : '<span class="badge">loaded</span> '}${esc(p.error)}</td></tr>`).join("")}</table></div>` : "";
+  $("p-status").innerHTML = `${versionCard()}${probCard}<div class="grid2">
     ${svc("LM Studio", st.lmstudio, st.lmstudio?.up ? `<div class="kv">loaded: <b>${esc(st.lmstudio.loaded.join(", ") || "nothing")}</b></div><div class="kv">gate: ${esc(st.lmstudio.gate.current || "-")}, ${st.lmstudio.gate.inflight} in flight</div>` : "")}
     ${svc("Jev adapter", st.jev_adapter)}
     ${st.jev_backend ? svc(`Jev backend (${esc(st.jev_backend.name)})`, st.jev_backend, st.jev_backend.info?.model ? `<div class="kv">${esc(st.jev_backend.info.model)}</div>` : "") : ""}
@@ -1051,7 +1055,7 @@ async function refreshStatus() {
 }
 
 // ---- harness version: check GitHub, fast-forward to the latest (jevh/update.py) ----
-const U = {st: null, checking: false, updating: false, msg: "", err: ""};
+const U = {st: null, checking: false, updating: false, test: false, msg: "", err: ""};
 async function refreshVersion(refresh = false) {
   U.checking = true; if (S.tab === "status") refreshStatus();
   try { U.st = await api(`/api/version${refresh ? "?refresh=1" : ""}`); U.err = ""; } catch (e) { U.err = e.message; }
@@ -1066,29 +1070,54 @@ function versionCard() {
   const btn = `<button data-upd="check" ${busy ? "disabled" : ""}>${U.checking ? "Checking..." : "Check for updates"}</button>`;
   if (!v) return `<div class="card"><h3>Harness version ${btn}</h3><div class="kv">${U.err ? esc(U.err) : "checking GitHub..."}</div></div>`;
   const c = (x) => x ? `<code>${esc(x.sha)}</code> ${esc(x.date)} · ${esc(x.subject)}` : "-";
-  let body = `<div class="kv">running: ${c(v.current)}</div>`
-    + (v.branch ? `<div class="kv">branch ${esc(v.branch)}${v.upstream ? ` → ${esc(v.upstream)}` : ""}${v.dirty.length ? ` · ${v.dirty.length} locally edited file${v.dirty.length > 1 ? "s" : ""}` : ""}</div>` : "");
-  if (v.restart_needed) body += `<div class="kv" style="color:var(--warn-ink);margin-top:6px"><b>Updated to ${esc(v.restart_needed.to)}.</b> Restart the dashboard (Ctrl+C, then <code>jevh dashboard</code>) to load it.${v.restart_needed.deps_changed ? ' Dependencies changed: run <code>pip install -e ".[web,browser,dev]"</code> first.' : ""}</div>`;
-  else if (v.error) body += `<div class="kv" style="color:var(--bad-ink);margin-top:6px">${esc(v.error)}</div>`;
+  const files = (l) => esc(l.slice(0, 6).join(", ") + (l.length > 6 ? ` and ${l.length - 6} more` : ""));
+  const warn = (html) => `<div class="kv" style="color:var(--bad-ink);margin-top:6px">${html}</div>`;
+  const blocked = busy || anyRunning(), why = anyRunning() ? "Wait for the running turn to finish" : "";
+  let body = `<div class="kv">on disk: ${c(v.current)}</div>`
+    + (v.branch ? `<div class="kv">branch ${esc(v.branch)}${v.upstream ? ` → ${esc(v.upstream)}` : ""}</div>` : "")
+    + (v.channels && v.channels.length ? `<div class="kv" style="margin-top:4px">channel <select id="updchannel" ${busy ? "disabled" : ""} title="stable only gets versions whose tests passed on GitHub; main gets every change as it lands">${v.channels.map((c) => `<option ${c === v.channel ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></div>` : "");
+  const R = v.restart_needed;
+  if (R) body += `<div class="kv" style="color:var(--warn-ink);margin-top:6px"><b>${R.undone ? "Went back" : "Updated"} to ${esc(R.to)}.</b> Restart the dashboard (Ctrl+C, then <code>jevh dashboard</code>) to load it.${R.deps_note ? ` ${esc(R.deps_note)}.` : ""}</div>`;
+  if (v.error) body += warn(esc(v.error));
   else if (!v.behind) body += `<div class="kv" style="margin-top:6px"><span class="badge done">up to date</span></div>`;
   else {
     const more = v.behind - v.incoming.length;
     body += `<div style="margin-top:8px"><b>${v.behind} new commit${v.behind > 1 ? "s" : ""}</b> <span class="kv">latest: ${c(v.latest)}</span></div>
       <ul class="commits">${v.incoming.map((x) => `<li><code>${esc(x.sha)}</code>${esc(x.subject)} <span class="kv">${esc(x.date)}</span></li>`).join("")}${more > 0 ? `<li class="kv">... and ${more} more</li>` : ""}</ul>
-      ${v.deps_changed ? '<div class="kv">Dependencies changed: after updating, run <code>pip install -e ".[web,browser,dev]"</code>.</div>' : ""}
-      <div style="margin-top:8px"><button data-upd="apply" ${busy || anyRunning() ? "disabled" : ""} title="${anyRunning() ? "Wait for the running turn to finish" : "Fast-forward this checkout to the latest commit"}">${U.updating ? "Updating..." : "Update now"}</button></div>`;
+      ${v.deps_changed ? '<div class="kv">Dependencies changed: they are installed as part of the update.</div>' : ""}`;
+    if (v.conflicts.length) body += warn(`Can't update: your edits to <b>${files(v.conflicts)}</b> clash with it. Save a copy, undo them (<code>git checkout -- &lt;file&gt;</code>), update, then redo them.`);
+    if (v.in_way.length) body += warn(`Can't update: it adds <b>${files(v.in_way)}</b>, which you already have as your own file(s). Rename or move them first.`);
+    if (v.can_update) body += `<div style="margin-top:8px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <button data-upd="apply" ${blocked ? "disabled" : ""} title="${why || "Update to the latest commit, keeping your edits; rolled back if the new version doesn't start"}">${U.updating ? (U.test ? "Updating, running tests..." : "Updating...") : "Update now"}</button>
+      <label class="kv" title="Takes a few minutes. Needs the dev extra (pytest)."><input type="checkbox" id="updtest" ${U.test ? "checked" : ""} ${busy ? "disabled" : ""}> run the tests first, undo if they fail</label></div>`;
   }
-  if (U.msg) body += `<div class="kv" style="margin-top:6px">${esc(U.msg)}</div>`;
+  if (v.dirty.length) body += `<div class="kv" style="margin-top:6px">Your edits (${files(v.dirty)}) ${v.behind && !v.conflicts.length ? "are saved and put back on top of the update" : "are left as they are"}.</div>`;
+  if (v.snapshot) body += `<div class="kv" style="margin-top:6px">Your data is snapshotted before each update (latest: <code>${esc(v.snapshot)}</code>). To put one back, stop the harness and run <code>jevh update --restore-data &lt;name&gt;</code>.</div>`;
+  if (v.previous) body += `<div class="kv" style="margin-top:6px">Before the last update: ${c(v.previous)} <button data-upd="undo" ${blocked ? "disabled" : ""} title="${why || "Go back to it, keeping your edits"}">Undo update</button></div>`;
+  if (U.msg) body += `<div class="kv" style="margin-top:6px;white-space:pre-wrap">${esc(U.msg)}</div>`;
   return `<div class="card"><h3>Harness version ${btn}</h3>${body}</div>`;
 }
+$("p-status").addEventListener("change", async (ev) => {
+  if (ev.target.id === "updtest") U.test = ev.target.checked;
+  if (ev.target.id !== "updchannel") return;
+  U.checking = true; U.msg = ""; refreshStatus();
+  try { U.st = await api("/api/update/channel", {method: "POST", body: JSON.stringify({channel: ev.target.value})}); }
+  catch (e) { U.msg = `Channel not changed: ${e.message}`; }
+  U.checking = false; refreshVersion(false);
+});
 $("p-status").addEventListener("click", async (ev) => {
   const b = ev.target.closest("button[data-upd]"); if (!b || b.disabled) return;
+  const act = b.dataset.upd;
   U.msg = "";
-  if (b.dataset.upd === "check") return refreshVersion(true);
-  if (!confirm(`Update the harness to ${U.st.latest.sha}? Running code stays as is until you restart the dashboard.`)) return;
+  if (act === "check") return refreshVersion(true);
+  const ask = act === "undo" ? `Go back to ${U.st.previous.sha}? Your edits are kept.`
+    : `Update the harness to ${U.st.latest.sha}?${U.test ? " The tests run first (a few minutes)." : ""} Your edits are kept; if the new version doesn't work it's rolled back.`;
+  if (!confirm(ask + " The dashboard keeps running the code it loaded until you restart it.")) return;
   U.updating = true; refreshStatus();
-  try { const r = await api("/api/update", {method: "POST"}); U.msg = r.message; }
-  catch (e) { U.msg = `Update failed: ${e.message}`; }
+  try {
+    const r = await api(act === "undo" ? "/api/update/undo" : "/api/update", {method: "POST", body: JSON.stringify({test: U.test})});
+    U.msg = r.message;
+  } catch (e) { U.msg = `${act === "undo" ? "Undo" : "Update"} failed: ${e.message}`; }
   U.updating = false;
   refreshVersion(false);
 });

@@ -8,7 +8,7 @@ import pytest
 # the tests run on config.yaml alone: a machine's config.local.yaml (its models, a hosted Jev) stays out
 os.environ["JEVH_NO_LOCAL_CONFIG"] = "1"
 # ...and offline: a real Nango key must not reach a server (without config.local.yaml, the cloud) from a test
-for _var in ("NANGO_SECRET_KEY", "JEVH_NANGO_URL", "JEVH_NANGO_WRITES"):
+for _var in ("NANGO_SECRET_KEY", "JEVH_NANGO_URL", "JEVH_NANGO_WRITES", "JEVH_HOME"):
     os.environ.pop(_var, None)
 
 from jevh.config import ROOT, load_config

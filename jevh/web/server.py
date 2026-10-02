@@ -310,7 +310,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                                  "fast_ok": p.fast_ok} for n, p in h.personas.items()},
                 "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq, "project": h.project,
                 "watch_browser": h.watch_browser, "questions": h.pending_questions(),
-                "thresholds": h.cfg.thresholds}
+                "thresholds": h.cfg.thresholds, "problems": h.problems()}
 
     @app.post("/api/chat")
     async def chat(request: Request) -> dict:
@@ -582,7 +582,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             shutil.rmtree(path.parent)
         else:
             raise HTTPException(400, "action must be approve|delete")
-        h.roster = load_roster(h.cfg.skills_dirs, Path(h.skills_home) / "_lessons")
+        h.roster = load_roster(h.cfg.skills_dirs, h.lesson_dirs)
         return {"ok": True}
 
     @app.post("/api/memory/forget")
@@ -624,7 +624,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @app.get("/api/status")
     def status() -> dict:
         h = hub.harness
-        out: dict[str, Any] = {"gpus": gpus(), "swaps": hub.swaps[-20:]}
+        out: dict[str, Any] = {"gpus": gpus(), "swaps": hub.swaps[-20:], "problems": h.problems()}
         lm = next((p for p in h.cfg.providers.values() if p.get("exclusive")), None)
         if lm:
             try:
@@ -642,6 +642,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
 
     # -- updating the harness from GitHub (jevh/update.py) --------------------------------------------
     version_cache: dict[str, Any] = {"ts": 0.0, "data": None}
+    running = (updater.check(fetch=False)["current"] or {}).get("sha")   # the code this server loaded
 
     @app.get("/api/version")
     def version(refresh: bool = False) -> dict:
@@ -650,21 +651,45 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             version_cache.update(ts=time.time(), data=updater.check(fetch=True))
         return {**version_cache["data"], "restart_needed": hub.updated}
 
-    @app.post("/api/update")
-    def update() -> dict:
-        """Fast-forward to the latest version. The running server keeps its loaded code until restarted."""
+    def updating(fn):
+        """Run an update/undo with no turn running (and none starting); the server keeps its loaded code."""
         if not hub.busy.acquire(blocking=False):
             raise HTTPException(409, "wait for the running turn to finish")
         try:
-            r = updater.apply()
+            r = fn()
         except updater.UpdateError as e:
             raise HTTPException(409, str(e)) from None
         finally:
             hub.busy.release()
-        if r["updated"]:
-            hub.updated = {"from": r["from"], "to": r["to"], "commits": r["commits"], "deps_changed": r["deps_changed"]}
+        if r["from"] != r["to"]:   # an undo back to the version this server runs needs no restart
+            hub.updated = None if r["to"] == running else {
+                "from": running, "to": r["to"], "undone": bool(r.get("undone")),
+                "deps_changed": r["deps_changed"], "deps_note": r["deps_note"]}
         version_cache.update(ts=time.time(), data=updater.check(fetch=False))
         return {**r, "message": updater.done(r), "restart_needed": hub.updated}
+
+    @app.post("/api/update")
+    async def update(request: Request) -> dict:
+        """Update to the latest version, keeping local edits; with test, the tests must pass or it's undone."""
+        body = await request.json() if await request.body() else {}
+        return await asyncio.to_thread(updating, lambda: updater.apply(test=bool(body.get("test"))))
+
+    @app.post("/api/update/channel")
+    async def update_channel(request: Request) -> dict:
+        """Follow another channel (stable, main, ...) from now on; "default" goes back to stable."""
+        name = str((await request.json()).get("channel") or "default").strip()
+        was = updater.get_channel()
+        updater.set_channel(name)
+        st = await asyncio.to_thread(updater.check, None, True)
+        if st["error"] and name != "default":
+            updater.set_channel(was)
+            raise HTTPException(400, st["error"])
+        version_cache.update(ts=time.time(), data=st)
+        return {**st, "restart_needed": hub.updated}
+
+    @app.post("/api/update/undo")
+    async def update_undo() -> dict:
+        return await asyncio.to_thread(updating, updater.undo)
 
     @app.get("/api/artifacts")
     def artifacts() -> list[dict]:

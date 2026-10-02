@@ -73,6 +73,7 @@ CLI commands: `/as <persona>`, `/auto`, `/tier auto|fast|strong`, `/project <pat
 | `jevh` | chat in the terminal (`jevh --help` for its options) |
 | `jevh dashboard` | the dashboard in your browser |
 | `jevh update` | update the harness from GitHub |
+| `jevh home` | where your own things are; `jevh home move` moves them out of the checkout |
 | `jevh failures`, `jevh review` | the failure log, flagged sessions |
 
 `pip install -e .` inside the venv puts `jevh` on the PATH while that venv is active. To have it in every
@@ -91,19 +92,50 @@ it from. Every command also still works as `python -m jevh.cli`, `python -m jevh
 ## Updating
 
 ```bash
-jevh update            # or /update in the chat, or "Check for updates" in the dashboard's Status tab
+jevh update            # or /update in the chat, or the Harness version card in the dashboard's Status tab
 jevh update --check    # only list what's new on GitHub
+jevh update --test     # also run the test suite on the new version; undo the update if it fails
+jevh update --undo     # back to the version before the last update (/update undo, or "Undo update")
+jevh update --set-channel main     # every change as it lands, instead of stable (default: stable)
+jevh update --snapshots            # data snapshots taken before updates; --restore-data <name> puts one back
 ```
 
-The checkout is fast-forwarded to its GitHub branch (normally `origin/main`). It is never merged or
-rebased: local commits, or edits to a file the update changes, stop it with a message and nothing is
-touched (`config.local.yaml` and `workspace/` are ignored by git, so they're never in the way). Restart the
-CLI or dashboard afterwards to load the new code, and if `pyproject.toml` changed, rerun
-`pip install -e ".[web,browser,dev]"` first (the update says so). The dashboard won't update during a turn.
+**Channels.** Every push to `main` runs the tests on GitHub (`.github/workflows/stable.yml`); when
+they pass, the `stable` branch moves to that commit. `jevh update` follows `stable` by default, so a
+commit that breaks the tests never reaches you. `--set-channel main` (or the channel menu in the
+dashboard) follows `main` instead; `--channel main` does it for one update.
+
+An update either works or leaves everything as it was:
+
+- **Your edits are kept.** Edited harness files (a persona, a skill, the code) are saved with `git stash`,
+  carried onto the new version and put back. A dry-run merge checks first that they still apply; if
+  one clashes with the update (you and the update changed the same lines), it stops before anything
+  moves and says which file. A file you added that the update would overwrite stops it the same way.
+  `config.local.yaml` and `workspace/` are ignored by git, so updates never touch them.
+- **New dependencies are installed.** If `pyproject.toml` changed, the update runs `pip install -e`
+  with the extras you already have.
+- **A broken version is rolled back.** The new version must import (with `--test`, or the dashboard's
+  "run the tests first" box, it must pass the tests too). If that or the install fails, you're put back on
+  the old version with your edits as they were.
+- **You can undo it.** The version you came from is kept for `--undo`, which also keeps your edits.
+- **Your data is snapshotted first.** The workspace databases, learned skills and config files are
+  copied to `<workspace>/snapshots/` (the last 5 are kept), since a newer version may change data in a
+  way the older one can't read; `--restore-data` puts a snapshot back.
+- **A broken persona or skill is skipped.** One that can't be loaded (bad YAML, missing fields, an
+  unknown model provider), or an MCP server that won't start, is left out with the reason (shown when
+  the CLI starts and in the dashboard's Status tab) instead of stopping the harness.
+
+The fewer of your own things live in the checkout, the less an update has to work around: see
+[Your things, outside the checkout](docs/your-data.md) (`jevh home move` does the moving).
+
+Copies stay in git as `refs/jevh/pre-update` (the old version) and `refs/jevh/pre-update-edits` (your
+edits, `git stash apply refs/jevh/pre-update-edits`). Local commits that aren't on GitHub stop the update
+(`git pull` merges them). Restart the CLI or dashboard afterwards to load the new code. The dashboard
+won't update during a turn.
 
 ## Adding things
 
-- **Persona**: drop a YAML in `personas/`. Jev routes on `description`, so make it concrete.
+- **Persona**: drop a YAML in `personas/` (your own ones: `~/.jevh/personas/`, see [your data](docs/your-data.md)). Jev routes on `description`, so make it concrete.
   `model` picks the provider from `config.yaml` (an optional `fallback:` is used if the primary errors);
   `skills_allowed` holds globs over the skill roster; `can_request` lists who it may delegate to (Jev's
   collaborator suggestions add to this per turn); `tools` are modules from `jevh/tools/` pre-imported

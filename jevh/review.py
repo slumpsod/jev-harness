@@ -352,7 +352,7 @@ def reviewer_block(cfg, model: str | dict | None = None, model_override: str | N
     elif cfg.models.get("strong"):
         block = dict(cfg.models["strong"])
     else:
-        personas = load_personas(cfg.personas_dir)
+        personas = load_personas(cfg.personas_dirs)
         p = personas.get(cfg.default_persona) or next(iter(personas.values()))
         block = {k: v for k, v in p.model.items() if k != "fallback"}
     block.pop("think", None)   # a review must end; a finite budget instead of unlimited thinking

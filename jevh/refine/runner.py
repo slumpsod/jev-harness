@@ -47,7 +47,7 @@ def local_models(cfg: Config, personas: dict | None = None) -> list[str]:
         else:
             if personas is None:
                 from ..personas import load_personas
-                personas = load_personas(cfg.personas_dir)
+                personas = load_personas(cfg.personas_dirs)
             blocks += [p.model for p in personas.values()]
         if cfg.models.get("fast"):
             blocks.append(cfg.models["fast"])

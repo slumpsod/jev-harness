@@ -148,7 +148,7 @@ class Refiner:
         if isinstance(m, dict):
             block = dict(m)
         else:
-            personas = load_personas(self.cfg.personas_dir)
+            personas = load_personas(self.cfg.personas_dirs)
             if not m:
                 block = dict(self.cfg.models.get("strong") or personas[self.s["fixer_persona"]].model)
             else:
