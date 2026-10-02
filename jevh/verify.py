@@ -17,12 +17,11 @@ the answer is accepted with the unresolved problems stated plainly, never silent
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 from .config import shell_env
 from .decide import noul

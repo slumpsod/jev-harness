@@ -640,7 +640,7 @@ class Worker:
                     if not blocks and "<function=" in out.text:
                         blocks, failed = translate_tool_calls(out.text, self.tools)
                         if blocks:
-                            note = (f"\n(Your <tool_call> text ran as Python: " + "; ".join(blocks) +
+                            note = ("\n(Your <tool_call> text ran as Python: " + "; ".join(blocks) +
                                     f". Next time {self._act}.)")
                         else:
                             messages.append({"role": "user", "content": (

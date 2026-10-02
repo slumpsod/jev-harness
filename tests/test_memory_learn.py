@@ -164,7 +164,6 @@ def test_recall_and_remember_from_the_repl(cfg):
 
 
 def test_a_new_turn_drops_background_learning(cfg):
-    import threading as _t
     import time as _time
 
     class SlowLearnLLM(ScriptedLLM):

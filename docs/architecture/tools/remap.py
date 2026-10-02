@@ -3,7 +3,7 @@ by content in today's file (the nearest identical line wins). Unresolved refs ar
 
     python docs/architecture/tools/remap.py <old-commit> docs/architecture/*.md docs/architecture/tools/components.js
 """
-import re,glob,subprocess,sys
+import re,subprocess,sys
 OLD=sys.argv[1]
 def old_lines(f):
     return subprocess.run(["git","show",f"{OLD}:jevh/{f}"],capture_output=True,text=True).stdout.splitlines()

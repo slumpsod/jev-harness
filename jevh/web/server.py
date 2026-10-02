@@ -38,7 +38,7 @@ from ..bus import jsonable, task_json
 from ..config import Config, load_config
 from ..lmstudio import gate_for
 from ..orchestrator import Harness
-from ..review import ReviewError, list_sessions
+from ..review import list_sessions
 from ..skills import load_roster
 
 STATIC = Path(__file__).with_name("static")

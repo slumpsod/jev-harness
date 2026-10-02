@@ -29,7 +29,7 @@ module.exports.nodes = [
   { id: "learner", g: "harness", name: "Learner", ref: "learn.py:178", blurb: "After a successful turn, on its own thread with the model that just ran: keeps lasting facts, writes a skill or appends lessons. Yields to a new turn.", watch: "event learned · Memory tab", loops: [P("09-memory-learning")] },
   { id: "mcphub", g: "harness", name: "MCP hub", ref: "mcp.py:134", blurb: "Starts MCP servers on first use and keeps one catalog of server.tool; Jev picks up to 3 per task.", watch: "event tools (mcp picks)", loops: [P("08-tools")] },
   { id: "events", g: "harness", name: "Event bus", ref: "orchestrator.py:86", blurb: "on_event(kind, data), shielded so a display bug can't stop work. Every loop reports through it.", watch: "all events", loops: [P("10-observability")] },
-  { id: "usage", g: "harness", name: "Usage", ref: "usage.py:27", blurb: "One row per model call, Jev call, tool Jev batch and LM Studio swap, tagged with session, turn, task, persona.", watch: "footer line · /usage · Usage tab", loops: [P("10-observability")] },
+  { id: "usage", g: "harness", name: "Usage", ref: "usage.py:27", blurb: "One row per model call, Jev call, tool Jev batch and LM Studio swap, tagged with session, turn, task, persona.", watch: "footer line · /usage · context popover", loops: [P("10-observability")] },
 
   // REPL
   { id: "repl", g: "repl", name: "REPL server", ref: "repl/server.py:374", blurb: "The worker's persistent Python. JSON-line ops (init, set, exec, snapshot, restore); helpers final, save_artifact, ask_user, request, recall, start_job; callbacks to the harness.", watch: "events code · output", loops: [P("03-worker-loop")] },

@@ -34,7 +34,7 @@ openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in c
 jevh                                 # chat; /help for commands
 jevh dashboard                       # the dashboard (see Dashboard)
 jevh --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 126 offline tests (fake Jev + scripted LLMs, a fake MCP server)
+python -m pytest -q                  # offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
@@ -49,10 +49,11 @@ jevh failures                          # logged failures; `export out.jsonl` to 
 jevh review                            # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
 ```
 
-CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`,
-`/flag [note]`, `/note <text>`, `/flags`, `/review`, `/verdict failure|not_failure [why]` (see Session review),
-`/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
-`/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
+CLI commands: `/as <persona>`, `/auto`, `/tier auto|fast|strong`, `/project <path>` (or `--project`),
+`/watch [on|off]` (the browser tool in a visible window), `/facts`, `/forget <id>`, `/usage`, `/failures`,
+`/resume [n|list]`, `/flag [note]`, `/note <text>`, `/flags`, `/review`, `/verdict failure|not_failure [why]`
+(see Session review), `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn),
+`/verbose` (show code + REPL output), `/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
 
 ## The `jevh` command
 
@@ -183,6 +184,8 @@ The chat is on the left, and every event streams in live on the right:
 - **Timeline**: one lane per task, positioned in time and coloured by tier (fast/strong). It shows nested hand-offs, refused requests, LM Studio swap markers, and "parallel saved Xs".
 - **Inspector**: every Jev decision for the selected turn, with probabilities and threshold markers: routing, tier, skill Choice + fits, memory kept/checked, collaborators and hand-off approvals.
 - **Artifacts**: files produced in this session. HTML is previewed live in a sandboxed iframe, images and video inline, and code or text as source.
+- **Memory**: facts (with "forget"), learned skills and lesson notes.
+- **Browser**: the worker's docked browser, live.
 - **Review**: sessions flagged for review (see below), with their notes, a model's review and your verdict.
 - **Status**: the harness version, with new commits on GitHub and an Update button (a count on the tab when there are any); which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
 
@@ -340,7 +343,8 @@ Where you see it:
 - Each answer shows a line like `12.1k in / 597 out (308 thinking) · model 24s · Jev 19.0s, 33 calls`,
   in both the CLI footer and the dashboard.
 - `/usage` in the CLI covers this session, the last 24h and the last 7 days.
-- The dashboard's Usage tab has totals, breakdowns by kind, model and persona, and per-turn history.
+- The dashboard shows each turn's usage under its answer and the session total in the context popover;
+  `GET /api/usage` has the breakdowns by kind, model and persona, and per-turn history.
 
 It showed right away that on a web lookup, 16 of the 19s of Jev time is the web tool's
 passage picking, not the harness's decisions (3.1s for 14).

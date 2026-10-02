@@ -444,7 +444,7 @@ def test_direct_fill_reads_back_refuses_passwords_and_offers_suggestions(session
 
 def test_numbers_are_checked_and_kinds_are_explained(session, site):
     session.goto(site + "flights.html")
-    with pytest.raises(ValueError, match="elements\(\) again"):
+    with pytest.raises(ValueError, match=r"elements\(\) again"):
         session.click(999)
     button = _num(session.elements("Choose This Flight"), "Choose This Flight")
     assert "not a text field" in session.fill(button, "x")["note"]
