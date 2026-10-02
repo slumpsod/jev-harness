@@ -27,10 +27,13 @@ crosses between them, with Mermaid diagrams and `file:line` references.
 On a Mac, Linux, or with the hosted Jev instead of a local one: see [SETUP.md](SETUP.md). A machine's own
 settings (models, Jev, paths) go in `config.local.yaml`, laid over `config.yaml` and ignored by git.
 
+The `jevh` command works from any folder once installed (see [the `jevh` command](#the-jevh-command)).
+
 ```bash
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
-python -m jevh.cli                   # chat; /help for commands
-python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
+jevh                                 # chat; /help for commands
+jevh dashboard                       # the dashboard (see Dashboard)
+jevh --as fitness_coach -c "plan my week"   # one-shot, pinned persona
 python -m pytest -q                  # 126 offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
@@ -42,8 +45,8 @@ python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness t
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
-python -m jevh.failures                # logged failures; `export out.jsonl` to study them
-python -m jevh.review                  # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
+jevh failures                          # logged failures; `export out.jsonl` to study them
+jevh review                            # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
 ```
 
 CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`,
@@ -51,11 +54,33 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
 `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
 `/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
 
+## The `jevh` command
+
+| Command | Does |
+|---|---|
+| `jevh` | chat in the terminal (`jevh --help` for its options) |
+| `jevh dashboard` | the dashboard in your browser |
+| `jevh update` | update the harness from GitHub |
+| `jevh failures`, `jevh review` | the failure log, flagged sessions |
+
+`pip install -e .` inside the venv puts `jevh` on the PATH while that venv is active. To have it in every
+terminal with no venv to activate, install it once with [pipx](https://pipx.pypa.io)
+(`brew install pipx` on a Mac, `py -m pip install --user pipx` on Windows, then `pipx ensurepath` and open a new terminal):
+
+```bash
+pipx install -e ".[web,browser]"       # from the repo folder; -e keeps it pointing at this checkout
+pipx run --spec playwright playwright install chromium   # the browser tool's Chromium, if not installed yet
+```
+
+Because it's editable, it always runs this folder's code: `jevh update` (or a `git pull`) updates the
+global command too, and memory, logs and `config.local.yaml` stay in this folder whichever folder you start
+it from. Every command also still works as `python -m jevh.cli`, `python -m jevh.web` and so on.
+
 ## Updating
 
 ```bash
-python -m jevh.cli --update       # or /update in the chat, or "Check for updates" in the dashboard's Status tab
-python -m jevh.update --check     # only list what's new on GitHub
+jevh update            # or /update in the chat, or "Check for updates" in the dashboard's Status tab
+jevh update --check    # only list what's new on GitHub
 ```
 
 The checkout is fast-forwarded to its GitHub branch (normally `origin/main`). It is never merged or
@@ -150,8 +175,8 @@ Lessons from getting there (all handled in code now):
 ## Dashboard
 
 ```bash
-python -m jevh.web                 # http://127.0.0.1:8740/ opens in your browser
-python -m jevh.web --no-browser --port 8740 --model lmstudio:ornith-1.5-35b-a3b
+jevh dashboard                     # http://127.0.0.1:8740/ opens in your browser
+jevh dashboard --no-browser --port 8740 --model lmstudio:ornith-1.5-35b-a3b
 ```
 
 The chat is on the left, and every event streams in live on the right:
@@ -178,7 +203,7 @@ task's work log, and the failures already logged. It lists the problems it found
 each bears on, the evidence) and says **failure** or **not a failure**; you can overrule it either way. A
 failure verdict is written to the failure log as `review_failure` (source `review`), so `jevh.refine` can
 work on it; overruling it with "not a failure" marks that row ignored. Flags and notes live in
-`workspace/reviews.db`; `python -m jevh.review` does the same from a terminal, for any session
+`workspace/reviews.db`; `jevh review` does the same from a terminal, for any session
 (`sessions` lists them).
 
 ## Fast tier: Jev picks the model per task
@@ -221,7 +246,7 @@ for every persona that's generating, each task's duration, and a summary such as
 (parallel saved 79s)`. Your semif bridge serializes forward passes, so parallel Jev calls queue safely, and
 LM Studio runs concurrent requests in parallel (measured with 2 streams at once: 3.5s vs 3.1s for one).
 
-Test with one fast model for every persona: `python -m jevh.cli --model lmstudio:ornith-1.5-35b-a3b`.
+Test with one fast model for every persona: `jevh --model lmstudio:ornith-1.5-35b-a3b`.
 
 Safeguards added after watching a weaker model (ornith) work:
 - If the same error repeats 3 times, the worker is told to stop retrying and report the blocker.
@@ -503,7 +528,7 @@ gone. Rows have a triage `status` (open / reviewed / fixed / ignored) and a note
 
 Where you see them: new failures show in the CLI and the dashboard's activity feed as they happen;
 `/failures [n|kind]` in the CLI; `GET /api/failures` and `POST /api/failures/status` on the dashboard
-server; and `python -m jevh.failures` (list, `--kind`, `export out.jsonl`, `status <id> fixed "note"`, and
+server; and `jevh failures` (list, `--kind`, `export out.jsonl`, `status <id> fixed "note"`, and
 `add <kind> "<summary>" --workdir <task folder>` for a failure no detector caught: it reads the request,
 persona, work log and answer from the task's checkpoint).
 

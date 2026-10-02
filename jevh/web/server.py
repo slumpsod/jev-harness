@@ -1,6 +1,6 @@
 """Local dashboard: chat + live view of Jev's decisions, hand-offs, swaps and artifacts.
 
-    python -m jevh.web [--port 8740] [--model provider:model] [--no-browser]
+    jevh dashboard [--port 8740] [--model provider:model] [--no-browser]
 
 Security (the agent runs code, so the browser must not become a remote control):
 - binds 127.0.0.1 only, and rejects any Host header but 127.0.0.1/localhost:<port>

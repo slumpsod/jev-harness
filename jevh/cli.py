@@ -1,6 +1,11 @@
-"""Terminal chat for the harness.
+"""Terminal chat for the harness, and the `jevh` command.
 
-    python -m jevh.cli [--as persona] [--project path] [--watch] [--verbose] [--config path]
+    jevh [--as persona] [--project path] [--watch] [--verbose] [--config path]   # chat
+    jevh dashboard [--port 8740] [--no-browser]    # the dashboard (python -m jevh.web)
+    jevh update [--check]                          # update from GitHub (python -m jevh.update)
+    jevh failures | jevh review                    # the failure log, flagged sessions
+
+(`python -m jevh.cli` works the same as `jevh` without installing it.)
 
 Ctrl-C during a turn stops it (model, running code, hand-offs); a worker's question is
 asked right here in the terminal.
@@ -14,8 +19,6 @@ browser tool work in a visible window), /facts, /forget <id>, /usage, /failures 
 and says whether it failed), /verdict failure|not_failure [why] (your own verdict on it),
 /personas, /skills, /trace, /verbose, /jev (health), /update [check] (update the harness from GitHub),
 /reset, /quit
-
-    python -m jevh.cli --update     # update the harness from GitHub and exit
 """
 from __future__ import annotations
 
@@ -186,8 +189,27 @@ class Printer:
                           f"{esc(data['error'][:160])}[/]")
 
 
-def main(argv: list[str] | None = None) -> None:
-    ap = argparse.ArgumentParser(prog="jevh")
+def subcommand(name: str):
+    """`jevh <name> ...` -> that module's main(argv), imported only when used (the dashboard needs fastapi)."""
+    if name in ("dashboard", "web"):
+        from .web.__main__ import main
+    elif name == "update":
+        main = update.main
+    elif name == "failures":
+        from .failures import main
+    elif name == "review":
+        from .review import main
+    else:
+        return None
+    return main
+
+
+def main(argv: list[str] | None = None) -> int | None:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and (sub := subcommand(argv[0])):
+        return sub(argv[1:])
+    ap = argparse.ArgumentParser(prog="jevh", epilog="other commands: jevh dashboard | update | failures | review "
+                                                      "(each takes --help)")
     ap.add_argument("--config")
     ap.add_argument("--as", dest="pin", help="pin a persona (skip routing)")
     ap.add_argument("--verbose", action="store_true")
@@ -197,7 +219,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--model", help="put every persona on one model for testing, e.g. lmstudio:qwen3-4b")
     ap.add_argument("--project", help="open a project folder for personas with the project tool")
     ap.add_argument("--watch", action="store_true", help="show the browser tool's window with Jev's picks outlined")
-    ap.add_argument("--update", action="store_true", help="update the harness to the latest version on GitHub and exit")
+    ap.add_argument("--update", action="store_true", help="same as: jevh update")
     a = ap.parse_args(argv)
     if a.update:
         return update.main([])

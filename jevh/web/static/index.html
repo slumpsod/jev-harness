@@ -1068,7 +1068,7 @@ function versionCard() {
   const c = (x) => x ? `<code>${esc(x.sha)}</code> ${esc(x.date)} · ${esc(x.subject)}` : "-";
   let body = `<div class="kv">running: ${c(v.current)}</div>`
     + (v.branch ? `<div class="kv">branch ${esc(v.branch)}${v.upstream ? ` → ${esc(v.upstream)}` : ""}${v.dirty.length ? ` · ${v.dirty.length} locally edited file${v.dirty.length > 1 ? "s" : ""}` : ""}</div>` : "");
-  if (v.restart_needed) body += `<div class="kv" style="color:var(--warn-ink);margin-top:6px"><b>Updated to ${esc(v.restart_needed.to)}.</b> Restart the dashboard (Ctrl+C, then <code>python -m jevh.web</code>) to load it.${v.restart_needed.deps_changed ? ' Dependencies changed: run <code>pip install -e ".[web,browser,dev]"</code> first.' : ""}</div>`;
+  if (v.restart_needed) body += `<div class="kv" style="color:var(--warn-ink);margin-top:6px"><b>Updated to ${esc(v.restart_needed.to)}.</b> Restart the dashboard (Ctrl+C, then <code>jevh dashboard</code>) to load it.${v.restart_needed.deps_changed ? ' Dependencies changed: run <code>pip install -e ".[web,browser,dev]"</code> first.' : ""}</div>`;
   else if (v.error) body += `<div class="kv" style="color:var(--bad-ink);margin-top:6px">${esc(v.error)}</div>`;
   else if (!v.behind) body += `<div class="kv" style="margin-top:6px"><span class="badge done">up to date</span></div>`;
   else {

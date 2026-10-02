@@ -1,7 +1,7 @@
 """Update the harness to the latest version on GitHub (the checkout's upstream branch).
 
-    python -m jevh.update            # show what's new, then fast-forward to it
-    python -m jevh.update --check    # only show what's new
+    jevh update            # show what's new, then fast-forward to it (or python -m jevh.update)
+    jevh update --check    # only show what's new
 
 The same is /update in the CLI chat and "Check for updates" in the dashboard's Status tab.
 Only a fast-forward is ever done: local commits or edits that would be overwritten stop the
@@ -140,7 +140,7 @@ def done(r: dict) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="jevh.update", description="Update the harness from GitHub.")
+    ap = argparse.ArgumentParser(prog="jevh update", description="Update the harness from GitHub.")
     ap.add_argument("--check", action="store_true", help="only show what's new")
     a = ap.parse_args(argv)
     st = check()

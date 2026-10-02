@@ -506,7 +506,7 @@ def main(argv: list[str] | None = None) -> int:
     from .config import load_config
     from .failures import FailureLog
     from .memory import Memory
-    ap = argparse.ArgumentParser(prog="python -m jevh.review", description="Flag sessions for review.")
+    ap = argparse.ArgumentParser(prog="jevh review", description="Flag sessions for review.")
     ap.add_argument("--config")
     ap.add_argument("--status", choices=STATUSES)
     ap.add_argument("-n", type=int, default=30)

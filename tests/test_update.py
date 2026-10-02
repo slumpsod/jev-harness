@@ -112,3 +112,13 @@ def test_dashboard_version_and_update(cfg, repos, monkeypatch):
     assert r["updated"] and r["restart_needed"]["commits"] == 1 and "Restart" in r["message"]
     v = client.get("/api/version", headers=auth()).json()
     assert v["behind"] == 0 and v["restart_needed"]["to"] == r["to"]
+
+
+def test_jevh_subcommands_dispatch(monkeypatch):
+    import jevh.web.__main__ as web
+    seen = []
+    monkeypatch.setattr(web, "main", lambda argv: seen.append(("dashboard", argv)))
+    monkeypatch.setattr(update, "main", lambda argv: seen.append(("update", argv)) or 0)
+    cli_main(["dashboard", "--no-browser", "--port", "8750"])
+    assert cli_main(["update", "--check"]) == 0
+    assert seen == [("dashboard", ["--no-browser", "--port", "8750"]), ("update", ["--check"])]
