@@ -48,7 +48,7 @@ def test_timeout_restarts_quickly(tmp_path):
         t = time.time()
         res = r.run("while True: pass")
         assert res.timed_out and time.time() - t < 6
-        assert r.run("keep").error  # state was lost, but the REPL works
+        assert r.run("keep").error  # state was lost, but the REPL works (the worker restores its last snapshot)
 
 
 def test_subprocess_stdout_cannot_break_protocol(tmp_path):
