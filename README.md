@@ -49,7 +49,20 @@ python -m jevh.review                  # flagged sessions; `flag <session> "note
 CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`,
 `/flag [note]`, `/note <text>`, `/flags`, `/review`, `/verdict failure|not_failure [why]` (see Session review),
 `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
-`/jev` (adapter health), `/reset`, `/quit`.
+`/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
+
+## Updating
+
+```bash
+python -m jevh.cli --update       # or /update in the chat, or "Check for updates" in the dashboard's Status tab
+python -m jevh.update --check     # only list what's new on GitHub
+```
+
+The checkout is fast-forwarded to its GitHub branch (normally `origin/main`). It is never merged or
+rebased: local commits, or edits to a file the update changes, stop it with a message and nothing is
+touched (`config.local.yaml` and `workspace/` are ignored by git, so they're never in the way). Restart the
+CLI or dashboard afterwards to load the new code, and if `pyproject.toml` changed, rerun
+`pip install -e ".[web,browser,dev]"` first (the update says so). The dashboard won't update during a turn.
 
 ## Adding things
 
@@ -146,7 +159,7 @@ The chat is on the left, and every event streams in live on the right:
 - **Inspector**: every Jev decision for the selected turn, with probabilities and threshold markers: routing, tier, skill Choice + fits, memory kept/checked, collaborators and hand-off approvals.
 - **Artifacts**: files produced in this session. HTML is previewed live in a sandboxed iframe, images and video inline, and code or text as source.
 - **Review**: sessions flagged for review (see below), with their notes, a model's review and your verdict.
-- **Status**: which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
+- **Status**: the harness version, with new commits on GitHub and an Update button (a count on the tab when there are any); which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
 
 In the header you can pin a persona and set the tier (Jev decides / fast / strong). Click an answer to inspect that turn,
 and reload any time: the event history replays. **Security:** the agent executes code, so the dashboard binds to 127.0.0.1 only.

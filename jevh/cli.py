@@ -12,7 +12,10 @@ browser tool work in a visible window), /facts, /forget <id>, /usage, /failures 
 /flag [note] (flag this session for review), /note <text> (add a note to its flag),
 /flags [all] (flagged sessions), /review [id] (a model reviews the flagged session against the notes
 and says whether it failed), /verdict failure|not_failure [why] (your own verdict on it),
-/personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
+/personas, /skills, /trace, /verbose, /jev (health), /update [check] (update the harness from GitHub),
+/reset, /quit
+
+    python -m jevh.cli --update     # update the harness from GitHub and exit
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ from rich.panel import Panel
 
 from .config import load_config
 from .orchestrator import Harness
+from . import update
 from .review import ReviewError, describe, show
 from .usage import brief
 
@@ -193,7 +197,10 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--model", help="put every persona on one model for testing, e.g. lmstudio:qwen3-4b")
     ap.add_argument("--project", help="open a project folder for personas with the project tool")
     ap.add_argument("--watch", action="store_true", help="show the browser tool's window with Jev's picks outlined")
+    ap.add_argument("--update", action="store_true", help="update the harness to the latest version on GitHub and exit")
     a = ap.parse_args(argv)
+    if a.update:
+        return update.main([])
 
     printer = Printer(a.verbose)
     h = Harness(load_config(a.config), on_event=printer, model_override=a.model)
@@ -386,6 +393,20 @@ def main(argv: list[str] | None = None) -> None:
                     console.print_json(json.dumps(h.jev.client.health()))
                 except Exception as e:  # noqa: BLE001
                     console.print(f"[red]{esc(str(e))}[/]")
+            elif cmd == "update":
+                with console.status("checking GitHub for updates..."):
+                    st = update.check()
+                console.print(esc(update.describe(st)))
+                if arg.strip() == "check" or st["error"] or not st["behind"]:
+                    continue
+                if input(f"update to {st['latest']['sha']} now? [y/N] ").strip().lower() not in ("y", "yes"):
+                    continue
+                try:
+                    with console.status("updating..."):
+                        r = update.apply()
+                    console.print(f"[green]{esc(update.done(r))}[/]" + (" (/quit, then start jevh again)" if r["updated"] else ""))
+                except update.UpdateError as e:
+                    console.print(f"[red]update failed: {esc(str(e))}[/]")
             elif cmd == "reset":
                 mode, project, watch = h.tier_mode, h.project, h.watch_browser
                 h = Harness(h.cfg, on_event=printer, model_override=a.model)
