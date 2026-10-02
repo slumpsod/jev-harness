@@ -39,6 +39,13 @@ def repos(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def no_git_identity(tmp_path, monkeypatch):
+    """Like a fresh machine: no global git config, so no user.name for the stash commits."""
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "no-gitconfig"))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+
+@pytest.fixture(autouse=True)
 def no_install(monkeypatch):
     """No pip installs and no import check of the fake checkout unless a test asks; pip calls are recorded."""
     calls = []
@@ -186,7 +193,7 @@ def test_diverged_checkout_is_not_merged(repos):
     publish(dev, "b.py", "b2\n", "second")
     commit(user, "c.py", "mine\n", "local work")
     st = update.check(user)
-    assert st["ahead"] == 1 and st["behind"] == 1 and not st["can_update"] and "local commit" in st["error"]
+    assert st["ahead"] == 1 and st["behind"] == 1 and not st["can_update"] and "aren't on origin/main" in st["error"]
     with pytest.raises(update.UpdateError):
         update.apply(user)
 
@@ -237,3 +244,88 @@ def test_jevh_subcommands_dispatch(monkeypatch):
     cli_main(["dashboard", "--no-browser", "--port", "8750"])
     assert cli_main(["update", "--check"]) == 0
     assert seen == [("dashboard", ["--no-browser", "--port", "8750"]), ("update", ["--check"])]
+
+
+def test_stable_channel_is_followed_once_it_exists(repos):
+    user, dev = repos
+    sh(dev, "push", "-q", "origin", "main:stable")          # CI marks the current main as stable
+    publish(dev, "b.py", "b2\n", "untested on main")
+    st = update.check(user)
+    assert st["channel"] == "stable" and st["upstream"] == "origin/stable" and st["behind"] == 0
+    assert set(st["channels"]) >= {"main", "stable"}
+    st = update.check(user, channel="main")               # this once
+    assert st["upstream"] == "origin/main" and st["behind"] == 1
+    sh(dev, "push", "-q", "origin", "main:stable")          # the tests passed: stable moves
+    r = update.apply(user)
+    assert r["updated"] and (user / "b.py").read_text() == "b2\n"
+
+
+def test_set_channel_and_unknown_channels(repos, monkeypatch, capsys):
+    user, dev = repos
+    sh(dev, "push", "-q", "origin", "main:stable")
+    monkeypatch.setattr(update, "ROOT", user)
+    assert cli_main(["update", "--set-channel", "main"]) == 0
+    assert update.get_channel(user) == "main" and "following main" in capsys.readouterr().out
+    assert cli_main(["update", "--set-channel", "nightly"]) == 1
+    assert update.get_channel(user) == "main" and "no 'nightly' channel" in capsys.readouterr().out
+    assert cli_main(["update", "--set-channel", "default"]) == 0
+    assert update.get_channel(user) is None and update.check(user)["channel"] == "stable"
+
+
+def harness_repo(repos):
+    """The user's checkout as a harness install: a config.yaml whose data lives in ws/ (ignored by git)."""
+    user, dev = repos
+    commit(dev, ".gitignore", "ws/\nconfig.local.yaml\n", "ignore data")
+    publish(dev, "config.yaml", "workspace: ws\nskills_dirs: [skills]\n", "config")
+    update.apply(user)
+    import sqlite3
+    (user / "ws" / "memory").mkdir(parents=True)
+    with sqlite3.connect(user / "ws" / "memory" / "memory.db") as db:
+        db.execute("create table facts (t text)")
+        db.execute("insert into facts values ('likes tea')")
+    db.close()
+    (user / "ws" / "sessions" / "s1").mkdir(parents=True)
+    (user / "ws" / "sessions" / "s1" / "big.txt").write_text("session files", encoding="utf-8")
+    (user / "config.local.yaml").write_text("models: {}\n", encoding="utf-8")
+    return user, dev
+
+
+def test_data_is_snapshotted_before_an_update_and_can_be_restored(repos, monkeypatch, capsys):
+    import sqlite3
+    from jevh import snapshot
+    user, dev = harness_repo(repos)
+    publish(dev, "b.py", "b2\n", "second")
+    r = update.apply(user)
+    assert r["snapshot"] and "Data snapshot" in update.done(r)
+    snap = user / "ws" / "snapshots" / r["snapshot"]
+    assert (snap / "workspace" / "memory" / "memory.db").is_file() and (snap / "config.local.yaml").is_file()
+    assert not (snap / "workspace" / "sessions").exists()   # session folders aren't copied
+    with sqlite3.connect(user / "ws" / "memory" / "memory.db") as db:   # the new version changes the data
+        db.execute("delete from facts")
+    db.close()
+    monkeypatch.setattr(update, "ROOT", user)
+    assert cli_main(["update", "--snapshots"]) == 0 and r["snapshot"] in capsys.readouterr().out
+    assert cli_main(["update", "--restore-data", r["snapshot"]]) == 0
+    with sqlite3.connect(user / "ws" / "memory" / "memory.db") as db:
+        assert db.execute("select t from facts").fetchall() == [("likes tea",)]
+    db.close()
+    assert (user / "ws" / "sessions" / "s1" / "big.txt").is_file()   # left alone
+    names = [m["reason"] for m in snapshot.listing(update._config(user))]
+    assert names[0] == "before-restore"   # the restore itself can be undone
+
+
+def test_undo_keeps_data_and_says_how_to_restore_it(repos):
+    user, dev = harness_repo(repos)
+    publish(dev, "b.py", "b2\n", "second")
+    r = update.apply(user)
+    u = update.undo(user)
+    assert u["pre_update_snapshot"] == r["snapshot"] and f"--restore-data {r['snapshot']}" in update.done(u)
+
+
+def test_snapshots_are_pruned(repos):
+    from jevh import snapshot
+    user, _ = harness_repo(repos)
+    cfg = update._config(user)
+    for i in range(snapshot.KEEP + 2):
+        snapshot.take(cfg, f"t{i}")
+    assert len(snapshot.listing(cfg)) == snapshot.KEEP

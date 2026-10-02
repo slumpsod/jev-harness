@@ -310,7 +310,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                                  "fast_ok": p.fast_ok} for n, p in h.personas.items()},
                 "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq, "project": h.project,
                 "watch_browser": h.watch_browser, "questions": h.pending_questions(),
-                "thresholds": h.cfg.thresholds}
+                "thresholds": h.cfg.thresholds, "problems": h.problems()}
 
     @app.post("/api/chat")
     async def chat(request: Request) -> dict:
@@ -582,7 +582,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             shutil.rmtree(path.parent)
         else:
             raise HTTPException(400, "action must be approve|delete")
-        h.roster = load_roster(h.cfg.skills_dirs, Path(h.skills_home) / "_lessons")
+        h.roster = load_roster(h.cfg.skills_dirs, h.lesson_dirs)
         return {"ok": True}
 
     @app.post("/api/memory/forget")
@@ -624,7 +624,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @app.get("/api/status")
     def status() -> dict:
         h = hub.harness
-        out: dict[str, Any] = {"gpus": gpus(), "swaps": hub.swaps[-20:]}
+        out: dict[str, Any] = {"gpus": gpus(), "swaps": hub.swaps[-20:], "problems": h.problems()}
         lm = next((p for p in h.cfg.providers.values() if p.get("exclusive")), None)
         if lm:
             try:
@@ -673,6 +673,19 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         """Update to the latest version, keeping local edits; with test, the tests must pass or it's undone."""
         body = await request.json() if await request.body() else {}
         return await asyncio.to_thread(updating, lambda: updater.apply(test=bool(body.get("test"))))
+
+    @app.post("/api/update/channel")
+    async def update_channel(request: Request) -> dict:
+        """Follow another channel (stable, main, ...) from now on; "default" goes back to stable."""
+        name = str((await request.json()).get("channel") or "default").strip()
+        was = updater.get_channel()
+        updater.set_channel(name)
+        st = await asyncio.to_thread(updater.check, None, True)
+        if st["error"] and name != "default":
+            updater.set_channel(was)
+            raise HTTPException(400, st["error"])
+        version_cache.update(ts=time.time(), data=st)
+        return {**st, "restart_needed": hub.updated}
 
     @app.post("/api/update/undo")
     async def update_undo() -> dict:

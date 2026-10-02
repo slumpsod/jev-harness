@@ -4,6 +4,7 @@
     jevh dashboard [--port 8740] [--no-browser]    # the dashboard (python -m jevh.web)
     jevh update [--check]                          # update from GitHub (python -m jevh.update)
     jevh failures | jevh review                    # the failure log, flagged sessions
+    jevh home [move]                               # move your own things out of the checkout
 
 (`python -m jevh.cli` works the same as `jevh` without installing it.)
 
@@ -17,7 +18,7 @@ browser tool work in a visible window), /facts, /forget <id>, /usage, /failures 
 /flag [note] (flag this session for review), /note <text> (add a note to its flag),
 /flags [all] (flagged sessions), /review [id] (a model reviews the flagged session against the notes
 and says whether it failed), /verdict failure|not_failure [why] (your own verdict on it),
-/personas, /skills, /trace, /verbose, /jev (health), /update [check|test|undo] (update the harness from GitHub),
+/personas, /skills, /trace, /verbose, /jev (health), /update [check|test|undo|channel [name]] (update the harness from GitHub),
 /reset, /quit
 """
 from __future__ import annotations
@@ -189,6 +190,16 @@ class Printer:
                           f"{esc(data['error'][:160])}[/]")
 
 
+def show_problems(h, limit: int = 8) -> None:
+    """Personas and skills that were skipped (or loaded with a warning) because they can't be used."""
+    probs = h.problems()
+    for p in probs[:limit]:
+        what = "skipped" if p.get("skipped") else "warning"
+        console.print(f"[yellow]{what}: {p['kind']} {esc(p['name'])}[/] [dim]{esc(p['path'])}[/] {esc(p['error'])}")
+    if len(probs) > limit:
+        console.print(f"[yellow]... and {len(probs) - limit} more[/] [dim](the dashboard's Status tab lists them all)[/]")
+
+
 def subcommand(name: str):
     """`jevh <name> ...` -> that module's main(argv), imported only when used (the dashboard needs fastapi)."""
     if name in ("dashboard", "web"):
@@ -199,6 +210,8 @@ def subcommand(name: str):
         from .failures import main
     elif name == "review":
         from .review import main
+    elif name == "home":
+        from .home import main
     else:
         return None
     return main
@@ -208,7 +221,7 @@ def main(argv: list[str] | None = None) -> int | None:
     argv = sys.argv[1:] if argv is None else argv
     if argv and (sub := subcommand(argv[0])):
         return sub(argv[1:])
-    ap = argparse.ArgumentParser(prog="jevh", epilog="other commands: jevh dashboard | update | failures | review "
+    ap = argparse.ArgumentParser(prog="jevh", epilog="other commands: jevh dashboard | update | home | failures | review "
                                                       "(each takes --help)")
     ap.add_argument("--config")
     ap.add_argument("--as", dest="pin", help="pin a persona (skip routing)")
@@ -286,6 +299,7 @@ def main(argv: list[str] | None = None) -> int | None:
 
     console.print(f"[bold]jev harness[/] · session {h.session} · personas: {', '.join(h.personas)}"
                   f" · skills: {len(h.roster)}  [dim](/help for commands)[/]")
+    show_problems(h)
     while True:
         try:
             msg = input("\nyou › ").strip()
@@ -419,6 +433,20 @@ def main(argv: list[str] | None = None) -> int | None:
                 # /update [check | test | undo]: see jevh/update.py
                 sub = arg.strip()
                 try:
+                    if sub.startswith("channel"):
+                        name = sub[len("channel"):].strip()
+                        if name:
+                            was = update.get_channel()
+                            update.set_channel(name)
+                        with console.status("checking GitHub..."):
+                            st = update.check()
+                        if name and st["error"]:
+                            update.set_channel(was)
+                            console.print(f"[red]channel not changed: {esc(st['error'])}[/]")
+                        else:
+                            console.print(f"channel: {esc(str(st['channel']))} ({esc(str(st['upstream']))}); "
+                                          f"available: {esc(', '.join(st['channels']))}")
+                        continue
                     if sub == "undo":
                         st = update.check(fetch=False)
                         if not st["previous"]:

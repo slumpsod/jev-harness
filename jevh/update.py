@@ -4,8 +4,16 @@
     jevh update --check    # only show what's new
     jevh update --test     # also run the test suite on the new version; undo the update if it fails
     jevh update --undo     # go back to the version before the last update
+    jevh update --channel main         # this once, update from main instead of stable
+    jevh update --set-channel main     # from now on (stable | main | default)
+    jevh update --snapshots            # the data snapshots taken before updates
+    jevh update --restore-data <name>  # put one back (CLI and dashboard stopped)
 
 The same is /update in the CLI chat and the Harness version card in the dashboard's Status tab.
+
+Channels: `stable` is moved forward by GitHub Actions (.github/workflows/stable.yml) only after the
+tests pass on main, so a broken commit on main never reaches it. It is the default once it exists;
+`main` gets every change as soon as it lands. The channel is kept per checkout (git config jevh.channel).
 
 An update either works or leaves things exactly as they were:
 - Your edits to the harness's files are saved (git stash), carried onto the new version and put back.
@@ -16,7 +24,9 @@ An update either works or leaves things exactly as they were:
 - If pyproject.toml changed, the new dependencies are installed (with the extras you already have).
 - The new version must import (and with --test, pass the tests). If installing or that check fails,
   the update is rolled back: the old version, your edits as they were.
-- The version you came from is kept (refs/jevh/pre-update) for --undo.
+- The version you came from is kept (refs/jevh/pre-update) for --undo, and your data (workspace
+  databases, learned skills, config files) is snapshotted first (jevh/snapshot.py): a newer version
+  may change it in a way the older code can't read, so --undo can be followed by --restore-data.
 Local commits that aren't on GitHub stop the update (merge them yourself with git pull).
 Code already imported keeps running, so restart the CLI or dashboard after an update.
 """
@@ -37,6 +47,10 @@ EXTRAS = {"web": "fastapi", "browser": "playwright", "dev": "pytest", "claude": 
 SMOKE = ["jevh.cli", "jevh.orchestrator", "jevh.update"]   # must import after an update (+ the dashboard if installed)
 BACKUP_REF, LANDED_REF, EDITS_REF = "refs/jevh/pre-update", "refs/jevh/post-update", "refs/jevh/pre-update-edits"
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+DEFAULT_CHANNEL = "stable"   # used when the remote has it; otherwise the branch's own upstream
+# git stash makes commits, which needs a name even when the user never set one up
+_IDENT = {"GIT_AUTHOR_NAME": "jevh update", "GIT_AUTHOR_EMAIL": "jevh@localhost",
+          "GIT_COMMITTER_NAME": "jevh update", "GIT_COMMITTER_EMAIL": "jevh@localhost"}
 
 
 class UpdateError(RuntimeError):
@@ -44,7 +58,7 @@ class UpdateError(RuntimeError):
 
 
 def run(cmd: list[str], root: Path, timeout: float) -> subprocess.CompletedProcess:
-    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # a private repo fails instead of waiting for a password
+    env = {**_IDENT, **os.environ, "GIT_TERMINAL_PROMPT": "0"}   # a private repo fails instead of waiting for a password
     try:
         return subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=timeout, env=env,
                               creationflags=_NO_WINDOW)
@@ -125,8 +139,9 @@ def _verify(root: Path, test: bool) -> None:
             raise UpdateError(f"the tests fail on the new version:\n{_tail(p.stdout + p.stderr)}")
 
 
-def _move(target: str, root: Path, test: bool = False) -> dict:
-    """Move this branch to `target` carrying the local edits, or leave everything as it was."""
+def _move(target: str, root: Path, test: bool = False, before_change=None) -> dict:
+    """Move this branch to `target` carrying the local edits, or leave everything as it was.
+    `before_change()` runs once the move is known to be possible, before anything is touched."""
     before = git("rev-parse", "HEAD", root=root)
     target = git("rev-parse", target, root=root)
     if test and not importlib.util.find_spec("pytest"):
@@ -141,6 +156,7 @@ def _move(target: str, root: Path, test: bool = False) -> dict:
     files = git("diff", "--name-only", before, target, root=root).splitlines()
     deps = any(f in DEPS_FILES for f in files)
     dirty = git("diff", "--name-only", "HEAD", root=root).splitlines()
+    extra = before_change() if before_change else {}
     saved = None
     if dirty:
         git("stash", "push", "--quiet", "-m", f"jevh update: your edits on {before[:7]}", root=root)
@@ -164,7 +180,7 @@ def _move(target: str, root: Path, test: bool = False) -> dict:
         _drop(saved, root)
     short = lambda sha: git("rev-parse", "--short", sha, root=root)   # same form as %h in _info
     return {"from": short(before), "to": short(target), "files": len(files), "kept": dirty, "deps_changed": deps,
-            "deps_note": note}
+            "deps_note": note, **extra}
 
 
 def _restore(before: str, saved: str | None, root: Path, pipped: bool) -> str:
@@ -196,13 +212,61 @@ def _drop(saved: str, root: Path) -> None:
             return
 
 
-def check(root: Path | None = None, fetch: bool = True) -> dict:
-    """Where this checkout is against its upstream branch. `fetch` asks GitHub first; without it
-    the answer is as of the last fetch. Never raises: problems come back in `error`."""
+def _config(root: Path):
+    """The harness config of the checkout at `root` (for where its data lives), or None."""
+    from .config import ROOT as HARNESS, load_config
+    try:
+        if Path(root).resolve() == HARNESS:   # this install: honour JEVH_CONFIG and the home folder
+            return load_config()
+        return load_config(root / "config.yaml") if (root / "config.yaml").is_file() else None
+    except Exception:  # noqa: BLE001 - a broken config must not block an update that may fix it
+        return None
+
+
+def _snapshot(root: Path, reason: str, version: str):
+    """before_change for _move: snapshot the data, or stop the update if that fails."""
+    def take() -> dict:
+        from . import snapshot
+        cfg = _config(root)
+        try:
+            d = snapshot.take(cfg, reason, version) if cfg else None
+        except Exception as e:  # noqa: BLE001
+            raise UpdateError(f"couldn't snapshot your data first ({type(e).__name__}: {e}). Nothing was changed.") from None
+        return {"snapshot": d.name if d else None}
+    return take
+
+
+def latest_snapshot(root: Path) -> str | None:
+    from . import snapshot
+    cfg = _config(root)
+    found = snapshot.listing(cfg) if cfg else []
+    return found[0]["name"] if found else None
+
+
+def get_channel(root: Path | None = None) -> str | None:
+    """The channel this checkout follows (git config jevh.channel), None for the default."""
+    p = run(["git", "config", "--get", "jevh.channel"], Path(root or ROOT), 30)
+    return p.stdout.strip() or None
+
+
+def set_channel(channel: str | None, root: Path | None = None) -> None:
+    """Follow `channel` (a branch on GitHub) from now on; None or "default" goes back to the default."""
     root = Path(root or ROOT)
-    out: dict = {"root": str(root), "branch": None, "upstream": None, "current": None, "latest": None,
-                 "behind": 0, "ahead": 0, "incoming": [], "dirty": [], "conflicts": [], "in_way": [],
-                 "deps_changed": False, "fetched": False, "can_update": False, "previous": None, "error": None}
+    if channel in (None, "", "default"):
+        run(["git", "config", "--unset", "jevh.channel"], root, 30)
+    else:
+        git("config", "jevh.channel", channel, root=root)
+
+
+def check(root: Path | None = None, fetch: bool = True, channel: str | None = None) -> dict:
+    """Where this checkout is against the version it follows (the channel's branch on GitHub, else
+    its upstream). `fetch` asks GitHub first; without it the answer is as of the last fetch. Never
+    raises: problems come back in `error`."""
+    root = Path(root or ROOT)
+    out: dict = {"root": str(root), "branch": None, "channel": None, "channels": [], "upstream": None,
+                 "current": None, "latest": None, "behind": 0, "ahead": 0, "incoming": [], "dirty": [],
+                 "conflicts": [], "in_way": [], "deps_changed": False, "fetched": False, "can_update": False,
+                 "previous": None, "snapshot": None, "error": None}
     try:
         if not (root / ".git").exists():
             raise UpdateError(f"{root} is not a git checkout: reinstall it with git clone to get updates")
@@ -210,50 +274,69 @@ def check(root: Path | None = None, fetch: bool = True) -> dict:
         head = git("rev-parse", "HEAD", root=root)
         if (prev := _ref(BACKUP_REF, root)) and _ref(LANDED_REF, root) == head:
             out["previous"] = _info(prev, root)   # the last update can be undone
+        try:
+            out["snapshot"] = latest_snapshot(root)
+        except OSError:
+            pass
         branch = git("rev-parse", "--abbrev-ref", "HEAD", root=root)
         if branch == "HEAD":
             raise UpdateError("no branch is checked out (detached HEAD): git checkout main first")
         out["branch"] = branch
-        try:
-            out["upstream"] = git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}", root=root)
-        except UpdateError:
-            raise UpdateError(f"branch {branch} doesn't track a GitHub branch: git checkout main, "
-                              f"or git branch --set-upstream-to origin/{branch}") from None
+        remote = run(["git", "config", "--get", f"branch.{branch}.remote"], root, 30).stdout.strip() or "origin"
         out["dirty"] = git("diff", "--name-only", "HEAD", root=root).splitlines()   # edited tracked files
         if fetch:
-            remote = git("config", "--get", f"branch.{branch}.remote", root=root) or "origin"
             git("fetch", "--quiet", remote, root=root, timeout=90)
             out["fetched"] = True
-        out["latest"] = _info("@{upstream}", root)
-        ahead, behind = git("rev-list", "--left-right", "--count", "HEAD...@{upstream}", root=root).split()
+        out["channels"] = sorted(r.split("/", 1)[1] for r in git(
+            "for-each-ref", "--format=%(refname:short)", f"refs/remotes/{remote}", root=root).splitlines()
+            if "/" in r and not r.endswith("/HEAD"))
+        chosen = channel or get_channel(root)
+        if chosen and chosen not in out["channels"]:
+            raise UpdateError(f"there's no '{chosen}' channel on {remote} (have: {', '.join(out['channels'])}); "
+                              "jevh update --set-channel default goes back to the default")
+        if not chosen and DEFAULT_CHANNEL in out["channels"]:
+            chosen = DEFAULT_CHANNEL
+        if chosen:
+            target = f"{remote}/{chosen}"
+        else:
+            try:
+                target = git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}", root=root)
+            except UpdateError:
+                raise UpdateError(f"branch {branch} doesn't track a GitHub branch: git checkout main, "
+                                  "or pick a channel: jevh update --set-channel main") from None
+        out["channel"], out["upstream"] = chosen or target.split("/", 1)[-1], target
+        out["latest"] = _info(target, root)
+        ahead, behind = git("rev-list", "--left-right", "--count", f"HEAD...{target}", root=root).split()
         out["ahead"], out["behind"] = int(ahead), int(behind)
         if out["behind"] and out["ahead"]:
-            raise UpdateError(f"this checkout has {out['ahead']} local commit(s) that aren't on {out['upstream']}: "
-                              "merge them yourself (git pull)")
+            raise UpdateError(f"this checkout has {out['ahead']} commit(s) that aren't on {target}: "
+                              "merge them yourself (git pull), or follow another channel")
         if out["behind"]:
-            out["incoming"] = _commits("HEAD..@{upstream}", root)
-            changed = git("diff", "--name-only", "HEAD", "@{upstream}", root=root).splitlines()
+            out["incoming"] = _commits(f"HEAD..{target}", root)
+            changed = git("diff", "--name-only", "HEAD", target, root=root).splitlines()
             out["deps_changed"] = any(f in DEPS_FILES for f in changed)
-            out["conflicts"], out["in_way"] = obstacles("@{upstream}", root)
+            out["conflicts"], out["in_way"] = obstacles(target, root)
         out["can_update"] = out["behind"] > 0 and not out["conflicts"] and not out["in_way"]
     except UpdateError as e:
         out["error"] = str(e)
     return out
 
 
-def apply(root: Path | None = None, test: bool = False) -> dict:
-    """Fetch and move to the upstream branch, keeping local edits (see the module doc). Returns the
-    check before it plus `updated`, `from`, `to`, `commits`, `files`, `kept` (the edited files carried
-    over) and `deps_note`. Raises UpdateError when it can't, with everything as it was."""
+def apply(root: Path | None = None, test: bool = False, channel: str | None = None) -> dict:
+    """Fetch and move to the latest version on the channel, keeping local edits (see the module doc).
+    Returns the check before it plus `updated`, `from`, `to`, `commits`, `files`, `kept` (the edited
+    files carried over), `deps_note` and `snapshot`. Raises UpdateError when it can't, with everything
+    as it was."""
     root = Path(root or ROOT)
-    st = check(root, fetch=True)
+    st = check(root, fetch=True, channel=channel)
     if st["error"]:
         raise UpdateError(st["error"])
     if not st["behind"]:
         sha = st["current"]["sha"]
-        return {**st, "updated": False, "from": sha, "to": sha, "commits": 0, "files": 0, "kept": [], "deps_note": None}
+        return {**st, "updated": False, "from": sha, "to": sha, "commits": 0, "files": 0, "kept": [],
+                "deps_note": None, "snapshot": None}
     before = git("rev-parse", "HEAD", root=root)
-    r = _move("@{upstream}", root, test)
+    r = _move(st["upstream"], root, test, _snapshot(root, "update", st["current"]["sha"]))
     git("update-ref", BACKUP_REF, before, root=root)
     git("update-ref", LANDED_REF, "HEAD", root=root)
     return {**st, **r, "updated": True, "commits": st["behind"], "can_update": False, "behind": 0,
@@ -261,15 +344,17 @@ def apply(root: Path | None = None, test: bool = False) -> dict:
 
 
 def undo(root: Path | None = None) -> dict:
-    """Go back to the version before the last update, keeping local edits."""
+    """Go back to the version before the last update, keeping local edits. The data stays as it is
+    (it holds what you did since); the snapshot from before the update can be restored after."""
     root = Path(root or ROOT)
     st = check(root, fetch=False)
     if not st["previous"]:
         raise UpdateError("nothing to undo: no update was made here, or the code moved on since")
-    r = _move(BACKUP_REF, root)
+    pre = latest_snapshot(root)   # taken by the update being undone
+    r = _move(BACKUP_REF, root, before_change=_snapshot(root, "undo", st["current"]["sha"]))
     for ref in (BACKUP_REF, LANDED_REF):
         git("update-ref", "-d", ref, root=root)
-    return {**r, "undone": True}
+    return {**r, "undone": True, "pre_update_snapshot": pre}
 
 
 def describe(st: dict) -> str:
@@ -281,7 +366,8 @@ def describe(st: dict) -> str:
     if st.get("error"):
         lines.append(st["error"])
     elif not st["behind"]:
-        lines.append(f"up to date with {st['upstream']}" + ("" if st["fetched"] else " (as of the last fetch)"))
+        lines.append(f"up to date with {st['upstream']}" + ("" if st["fetched"] else " (as of the last fetch)")
+                     + (f"; {st['ahead']} newer commit(s) here than on {st['channel']}" if st["ahead"] else ""))
     else:
         lines.append(f"{st['behind']} new commit(s) on {st['upstream']}:")
         lines += [f"  {c['sha']} {c['date']} {c['subject']}" for c in st["incoming"]]
@@ -298,6 +384,8 @@ def describe(st: dict) -> str:
         lines.append(f"can't update: it adds {', '.join(st['in_way'])}, which you already have as your own file(s)")
     if st["previous"]:
         lines.append(f"before the last update: {st['previous']['sha']} (jevh update --undo goes back)")
+    if st.get("channel"):
+        lines.append(f"channel: {st['channel']}" + ("" if st["channel"] == "main" else " (jevh update --set-channel main for every change as it lands)"))
     return "\n".join(lines)
 
 
@@ -312,6 +400,11 @@ def done(r: dict) -> str:
         msg += f" Your edits to {len(r['kept'])} file(s) were kept."
     if r["deps_changed"]:
         msg += f" {r['deps_note']}." if r["deps_note"] else " New dependencies installed."
+    if r.get("undone") and r.get("pre_update_snapshot"):
+        msg += (f" Your data is as you left it; if the older version has trouble reading it: "
+                f"jevh update --restore-data {r['pre_update_snapshot']} (with the harness stopped).")
+    elif r.get("snapshot"):
+        msg += f" Data snapshot: {r['snapshot']}."
     return msg + " Restart to use it."
 
 
@@ -320,19 +413,45 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--check", action="store_true", help="only show what's new")
     ap.add_argument("--test", action="store_true", help="run the test suite on the new version; undo the update if it fails")
     ap.add_argument("--undo", action="store_true", help="go back to the version before the last update")
+    ap.add_argument("--channel", help="update from this channel this once (stable, main, or another branch)")
+    ap.add_argument("--set-channel", metavar="CHANNEL", help="follow this channel from now on (default: back to stable)")
+    ap.add_argument("--snapshots", action="store_true", help="list the data snapshots taken before updates")
+    ap.add_argument("--restore-data", metavar="NAME", help="put a data snapshot back (stop the CLI and dashboard first)")
     a = ap.parse_args(argv)
     try:
+        if a.snapshots or a.restore_data:
+            from . import snapshot
+            cfg = _config(ROOT)
+            if a.restore_data:
+                r = snapshot.restore(cfg, a.restore_data)
+                print(f"restored {r['restored']}; the data from just before is in {r['safety']}")
+                return 0
+            for m in snapshot.listing(cfg):
+                print(f"{m['name']}  ({m['reason']}{', ' + str(len(m['skipped'])) + ' big files left out' if m['skipped'] else ''})")
+            print(f"in {snapshot.folder(cfg)}" if snapshot.listing(cfg) else "no snapshots yet")
+            return 0
+        if a.set_channel:
+            was = get_channel()
+            set_channel(a.set_channel)
+            st = check()
+            if st["error"]:
+                set_channel(was)
+                print(f"channel not changed: {st['error']}")
+                return 1
+            print(f"following {st['channel']} ({st['upstream']})")
+            print(describe(st))
+            return 0
         if a.undo:
             print(done(undo()))
             return 0
-        st = check()
+        st = check(channel=a.channel)
         print(describe(st))
         if a.check or st["error"] or not st["can_update"]:
             return 1 if st["error"] or st["behind"] else 0
         if a.test:
             print("updating, then running the tests (a few minutes)...")
-        print(done(apply(test=a.test)))
-    except UpdateError as e:
+        print(done(apply(test=a.test, channel=a.channel)))
+    except (UpdateError, FileNotFoundError) as e:
         print(f"{'undo' if a.undo else 'update'} failed: {e}")
         return 1
     return 0

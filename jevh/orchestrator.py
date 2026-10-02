@@ -166,9 +166,26 @@ class Harness:
                  session: str | None = None, model_override: str | None = None):
         self.cfg = cfg or load_config()
         self.jev = jev or Jev(self.cfg)
-        self.personas = load_personas(self.cfg.personas_dir)
+        # a persona, skill or MCP server that can't be used is skipped and listed here, not fatal
+        self.load_problems: list[dict] = []
+        self.personas = load_personas(self.cfg.personas_dirs, self.load_problems)
+        if llm_factory is None and not model_override:
+            for name, p in list(self.personas.items()):
+                if p.model.get("provider") not in self.cfg.providers:
+                    self.load_problems.append({"kind": "persona", "name": name, "path": "", "skipped": True,
+                                               "error": f"unknown model provider '{p.model.get('provider')}' "
+                                                        f"(providers: {', '.join(self.cfg.providers) or 'none'})"})
+                    if len(self.personas) > 1:
+                        del self.personas[name]
+        if self.cfg.default_persona not in self.personas:
+            first = next(iter(self.personas))
+            self.load_problems.append({"kind": "persona", "name": self.cfg.default_persona, "path": "", "skipped": True,
+                                       "error": f"the default persona isn't available; using {first} instead"})
+            self.cfg.default_persona = first
         self.skills_home = self.cfg.skills_dirs[0]    # where learned skills and lessons are written
-        self.roster = load_roster(self.cfg.skills_dirs, self.skills_home / "_lessons")
+        # lesson notes: yours (the first skills folder) and any shipped with a skills folder
+        self.lesson_dirs = [Path(d) / "_lessons" for d in self.cfg.skills_dirs]
+        self.roster = load_roster(self.cfg.skills_dirs, self.lesson_dirs, self.load_problems)
         self.memory = Memory(self.cfg.workspace / "memory")
         self.mcp = McpHub(self.cfg.mcp_servers)
         self.project: str | None = None             # the user's project folder, if one is open
@@ -235,6 +252,11 @@ class Harness:
         self._qids = itertools.count(1)
 
     # -- public ----------------------------------------------------------------------
+    def problems(self) -> list[dict]:
+        """Add-ons that were skipped: personas, skills, and MCP servers that failed to start."""
+        return self.load_problems + [{"kind": "mcp", "name": n, "path": "", "error": e, "skipped": True}
+                                     for n, e in self.mcp.errors.items()]
+
     def turn(self, message: str, force: str | None = None, resume: dict | None = None) -> TurnResult:
         self.learner.cancel.set()               # background learning yields the model to this turn
         self.turn_no += 1
@@ -408,7 +430,7 @@ class Harness:
             out = self.learner.after_turn(persona, message, result.answer, result.transcript, result.steps,
                                           used, result.llm, self.session)
             if out.skill:  # a new or improved skill is picked up from the next turn on
-                self.roster = load_roster(self.cfg.skills_dirs, self.skills_home / "_lessons")
+                self.roster = load_roster(self.cfg.skills_dirs, self.lesson_dirs)
 
         if self.learn_sync:
             run()
