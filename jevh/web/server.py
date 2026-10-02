@@ -4,7 +4,9 @@
 
 Security (the agent runs code, so the browser must not become a remote control):
 - binds 127.0.0.1 only, and rejects any Host header but 127.0.0.1/localhost:<port>
-  (blocks DNS-rebinding),
+  (blocks DNS-rebinding). `--allow-host NAME` (for `tailscale serve`, which proxies to 127.0.0.1) also
+  accepts NAME, but only from a browser that holds this launch's access key (a link `?key=...`, then a cookie):
+  the page itself carries the API token, so a bare reachable page would hand it to anyone who can reach it,
 - every /api call needs the per-launch token baked into the served page; POSTs from a
   foreign Origin are refused (blocks CSRF from other websites),
 - /api/file serves only files under the workspace; HTML artifacts get a CSP sandbox so a
@@ -269,12 +271,20 @@ def probe(url: str, timeout: float = 2.0) -> dict:
 # ---------------------------------------------------------------- FastAPI app
 
 def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None,
-               model_override: str | None = None, token: str | None = None) -> FastAPI:
+               model_override: str | None = None, token: str | None = None,
+               allow_hosts: list[str] | None = None, access_key: str | None = None) -> FastAPI:
     cfg = cfg or load_config()
     hub = Hub(cfg, harness_factory, model_override)
     token = token or secrets.token_urlsafe(24)
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     allowed_origins = {f"http://{h}" for h in allowed_hosts}
+    # each entry is a name or name:port (a `tailscale serve --https=10000` front is name:10000); the bare name is
+    # allowed too, since the proxy's Host header omits the port on 443
+    remote_hosts = {h for e in (allow_hosts or []) for h in (e.lower(), e.lower().partition(":")[0]) if h}
+    remote_origins = {f"{scheme}://{h}" for h in remote_hosts for scheme in ("http", "https")}
+    allowed_hosts |= remote_hosts
+    allowed_origins |= remote_origins
+    access_key = access_key or secrets.token_urlsafe(24)
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         hub.loop = asyncio.get_running_loop()  # worker threads hand events to SSE via this loop
@@ -282,12 +292,19 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
 
     app = FastAPI(title="jev-harness dashboard", docs_url=None, redoc_url=None, openapi_url=None,
                   lifespan=lifespan)
-    app.state.hub, app.state.token = hub, token
+    app.state.hub, app.state.token, app.state.access_key = hub, token, access_key
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
-        if request.headers.get("host", "") not in allowed_hosts:
+        host = request.headers.get("host", "").lower()
+        if host not in allowed_hosts:
             return JSONResponse({"detail": "bad host"}, status_code=403)
+        remote = host in remote_hosts
+        key_sent = request.query_params.get("key")
+        if remote:   # not this machine: only a browser holding the access key gets in
+            have = request.cookies.get("jevh_key") or key_sent
+            if not have or not secrets.compare_digest(have, access_key):
+                return JSONResponse({"detail": "missing or bad access key"}, status_code=403)
         if request.url.path.startswith("/api/"):
             sent = request.headers.get("x-jevh-token") or request.query_params.get("token")
             if not sent or not secrets.compare_digest(sent, token):
@@ -295,7 +312,10 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             origin = request.headers.get("origin")
             if request.method != "GET" and origin is not None and origin not in allowed_origins:
                 return JSONResponse({"detail": "foreign origin"}, status_code=403)
-        return await call_next(request)
+        response = await call_next(request)
+        if remote and key_sent and secrets.compare_digest(key_sent, access_key):
+            response.set_cookie("jevh_key", access_key, httponly=True, secure=True, samesite="strict")
+        return response
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:

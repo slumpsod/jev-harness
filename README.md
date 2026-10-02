@@ -254,6 +254,12 @@ and reload any time: the event history replays.
 - It refuses POSTs from other origins, which blocks CSRF from websites you visit.
 - It serves files only from the workspace. HTML artifacts get a CSP sandbox, so a generated page can't reach the dashboard.
 
+**From your phone (Tailscale):** the dashboard stays bound to 127.0.0.1; `tailscale serve` is the way in, and it is
+tailnet-only (never `funnel`). Run `tailscale serve --bg --https=10000 http://127.0.0.1:8740`, then
+`jevh dashboard --no-browser --allow-host <this-machine>.<tailnet>.ts.net:10000`. It prints a link ending
+`?key=...`; open it once on the phone, which keeps a cookie. The page carries the API token, so the key is what
+stops other devices on your tailnet from fetching it. The key is new each launch, so keep the link private.
+
 ### Session review
 
 When a session went wrong in a way no detector caught, flag it: **Flag for review** at the top of the chat (or the
