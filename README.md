@@ -5,6 +5,9 @@ semif / laya / openjev behind `openjev/systemone.py`) is the gatekeeper for ever
 Workers (any LLM: LM Studio, llama.cpp, vLLM, Claude) see only the request plus what Jev lets through,
 and they act by writing Python in their own sandboxed REPL.
 
+**Contributing (people and coding agents): read [AGENTS.md](AGENTS.md) first.** Anything built in the cloud or
+remotely must ship with a thorough test bench that runs locally against live models.
+
 ```
 user ─► Jev: route persona ─► Jev: gate memory ─► Jev: pick skills ─► Jev: suggest collaborators
                                                                               │
