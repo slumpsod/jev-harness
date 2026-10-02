@@ -307,7 +307,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         return {"session": h.session, "tier_mode": h.tier_mode, "pin": hub.pin, "busy": hub.busy.locked(),
                 "fast_model": (h.cfg.models.get("fast") or {}).get("model"), "model_override": hub.model_override,
                 "personas": {n: {"description": p.description, "model": p.model.get("model"),
-                                 "fast_ok": p.fast_ok} for n, p in h.personas.items()},
+                                 "fast_ok": p.fast_ok, "draft": p.draft} for n, p in h.personas.items()},
                 "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq, "project": h.project,
                 "watch_browser": h.watch_browser, "questions": h.pending_questions(),
                 "thresholds": h.cfg.thresholds, "problems": h.problems()}
@@ -563,7 +563,41 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                     encoding="utf-8", errors="replace"):
                 lessons.append({"name": s.name, "entries": s.body.count("<!--")})
         return {"facts": [dataclasses.asdict(f) for f in h.memory.facts(None, 200)], "turns": h.memory.count(),
-                "learned": learned, "lessons": lessons}
+                "learned": learned, "lessons": lessons,
+                "persona_drafts": [{"name": p.name, "description": p.description, "active": p.active,
+                                    "draft": p.draft, "source": p.source, "skills": p.skills_allowed,
+                                    "tools": p.tools, "live": p.name in h.personas}
+                                   for p in h.forge.drafts()],
+                "persona_pending": [{"text": p["text"], "ts": p.get("ts")} for p in h.forge.pending()]}
+
+    @app.post("/api/personas/review")
+    async def review_persona(request: Request) -> dict:
+        """Approve, activate or delete a persona the harness created. Only personas/learned/ is touched."""
+        body = await request.json()
+        h = hub.harness
+        name, action = str(body.get("name", "")), body.get("action")
+        if name not in {p.name for p in h.forge.drafts()}:
+            raise HTTPException(404, "no such created persona waiting for review")
+        if action == "approve":
+            h.forge.approve(name)
+        elif action == "activate":
+            h.forge.activate(name)
+        elif action == "delete":
+            if hub.pin == name:
+                hub.pin = None
+            h.forge.delete(name)
+        else:
+            raise HTTPException(400, "action must be approve|activate|delete")
+        h.reload_personas()
+        return {"ok": True, "personas": list(h.personas)}
+
+    @app.post("/api/personas/forge")
+    def forge_sweep() -> dict:
+        """Look at the learned skills that have no owner yet for one that fits no persona."""
+        if hub.busy.locked():
+            raise HTTPException(409, "a turn is running; try again when it is done")
+        made = hub.harness.forge_sweep()
+        return {"created": [m.name for m in made]}
 
     @app.post("/api/skills/review")
     async def review_skill(request: Request) -> dict:

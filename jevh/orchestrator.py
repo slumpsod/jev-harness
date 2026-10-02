@@ -25,15 +25,16 @@ from .config import Config, load_config
 from .decide import SystemOneError, noul
 from .errors import Cancelled
 from .failures import FailureLog, FailureWatch
+from .forge import Forge
 from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision
 from .learn import Learner, seen_text, work_log
 from .llm import LLM, make_llm, see_image
 from .lmstudio import gate_for
 from .mcp import McpHub
 from .memory import Memory
-from .personas import Persona, load_personas
+from .personas import Persona, load_learned, load_personas
 from .review import Reviewer
-from .skills import load_roster
+from .skills import load_roster, parse_skill
 from .tools import TOOLS
 from .tools import nango
 from .usage import Metered, Usage
@@ -245,6 +246,9 @@ class Harness:
             persona=getattr(self._tl, "persona", ""), task=getattr(self._tl, "task", None))
         self.learner = Learner(self.jev, self.memory, self.skills_home, self.cfg.t,
                                lambda kind, data: self.on_event(kind, data))
+        # a persona drafted when a request or a learned skill fits none of them (jevh/forge.py)
+        self.forge = Forge(self.cfg, self.jev, self.memory, self.skills_home, self.learner._chat,
+                           lambda kind, data: self.on_event(kind, data))
         self._learn_threads: list[threading.Thread] = []
         self._cancel = threading.Event()             # set by cancel(); every worker of the turn checks it
         self._running = False
@@ -298,8 +302,11 @@ class Harness:
         cancelled = root.status == "cancelled"
         if root.status == "done":  # a crashed turn's error text must not become "memory"
             self.memory.append(route.persona, message, result.answer, self.session, turn_notes(result))
-            if self.learning and result.stopped in ("final", "plain"):
-                self._learn(route.persona, message, result)
+            learn = self.learning and result.stopped in ("final", "plain")
+            # routing was unsure and Jev says no persona is for this request: it counts toward a new one
+            forge = self.forge.enabled and route.no_fit is not None and route.no_fit >= self.cfg.t("no_fit")
+            if learn or forge:
+                self._learn(route.persona, message, result, learn, forge)
         elif cancelled:  # kept, so a redirect ("no, just the USPS part") has the request as context
             self.memory.append(route.persona, message, STOPPED_NOTE, self.session)
         self.current = route.persona
@@ -474,7 +481,10 @@ class Harness:
         for t in list(self._learn_threads):
             t.join(timeout)
 
-    def _learn(self, persona: str, message: str, result: WorkerResult) -> None:
+    def _learn(self, persona: str, message: str, result: WorkerResult, learn: bool = True,
+               unhandled: bool = False) -> None:
+        """After a turn, off the critical path: learn (facts, skills), then let the forge see what
+        was learned (a skill no persona wants) and the request itself (one no persona fits)."""
         if result.llm is None:
             return
         used = [self.roster[n] for n in result.skills if n in self.roster]
@@ -484,10 +494,25 @@ class Harness:
 
         def run() -> None:
             self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = turn_no, persona, None, "learn"
-            out = self.learner.after_turn(persona, message, result.answer, result.transcript, result.steps,
-                                          used, result.llm, self.session)
-            if out.skill:  # a new or improved skill is picked up from the next turn on
-                self.roster = load_roster(self.cfg.skills_dirs, self.lesson_dirs)
+            out = None
+            if learn:
+                out = self.learner.after_turn(persona, message, result.answer, result.transcript, result.steps,
+                                              used, result.llm, self.session)
+                if out.skill:  # a new or improved skill is picked up from the next turn on
+                    self.roster = load_roster(self.cfg.skills_dirs, self.lesson_dirs)
+            made = False
+            try:
+                if out and out.skill and out.skill_action == "created":
+                    skill = parse_skill(Path(out.skill))
+                    made = bool(skill and self.forge.note_skill(skill, result.llm))
+                if unhandled and self.forge.note_no_fit(message, result.llm, f"{self.session}/{persona}"):
+                    made = True
+            except Cancelled:
+                self.on_event("learn_error", {"error": "persona creation skipped: a new turn started"})
+            except Exception as e:  # noqa: BLE001 - best effort; never break a turn
+                self.on_event("learn_error", {"error": f"persona creation: {type(e).__name__}: {e}"})
+            if made:
+                self.reload_personas()
 
         if self.learn_sync:
             run()
@@ -495,6 +520,25 @@ class Harness:
         t = threading.Thread(target=run, name="learn", daemon=False)
         self._learn_threads = [x for x in self._learn_threads if x.is_alive()] + [t]
         t.start()
+
+    def forge_sweep(self) -> list:
+        """Look at every learned skill that has no owner for one no persona wants (CLI /forge, dashboard)."""
+        persona = self.personas.get(self.cfg.default_persona) or next(iter(self.personas.values()))
+        self.learner.cancel = threading.Event()
+        self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = self.turn_no, persona.name, None, "learn"
+        try:
+            return self.forge.sweep(self.roster, self._llm(persona))
+        finally:
+            self.reload_personas()
+
+    def reload_personas(self) -> None:
+        """Pick up personas the forge created, approved or deleted (the hand-written ones are untouched,
+        so changes made to them in memory stay), and the ownership it gave learned skills."""
+        fresh = load_personas(self.cfg.personas_dirs)
+        learned = {p.name for p in load_learned(self.cfg.personas_dirs)}
+        # one assignment, so a turn starting meanwhile never finds a persona missing
+        self.personas = {n: (p if n in learned else self.personas.get(n, p)) for n, p in fresh.items()}
+        self.roster = load_roster(self.cfg.skills_dirs, self.lesson_dirs)
 
     # -- tasks -----------------------------------------------------------------------
     def run_task(self, task: Task, goal: str, allow_collab: bool, resume: dict | None = None) -> WorkerResult:

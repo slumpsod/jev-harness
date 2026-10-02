@@ -22,9 +22,19 @@ class Persona:
     code: bool = True                     # False = plain chat persona, no REPL
     fast_ok: bool = True                  # Jev may send easy tasks to config models.fast
     mcp: list[str] = field(default_factory=list)            # globs over "server.tool" MCP keys
+    draft: bool = False                   # created by the harness (jevh/forge.py) and not yet approved
+    active: bool = True                   # False: written but kept out of routing (failed the routing gate)
+    source: str = ""                      # what led to it, for a draft: shown when reviewing
 
     def allows_skill(self, skill_name: str) -> bool:
         return any(fnmatch.fnmatch(skill_name, pat) for pat in self.skills_allowed)
+
+    def offered_skill(self, skill) -> bool:
+        """Whether this persona may be shown `skill`: one owned by a persona goes to that persona
+        alone (it is how a created persona keeps a skill out of every other persona's context)."""
+        if skill.owner:
+            return skill.owner == self.name
+        return self.allows_skill(skill.name)
 
     def allows_mcp(self, key: str) -> bool:
         return any(fnmatch.fnmatch(key, pat) for pat in self.mcp)
@@ -34,6 +44,7 @@ class Persona:
 
 
 REQUIRED = ("description", "system_prompt", "model")
+LEARNED_DIR = "learned"   # <personas folder>/learned/: personas the harness created, apart from the hand-written ones
 
 
 def _why(e: Exception) -> str:
@@ -44,10 +55,14 @@ def _why(e: Exception) -> str:
 LISTS = ("skills_allowed", "tools", "can_request", "mcp")
 
 
-def load_personas(directories: Path | list[Path], problems: list[dict] | None = None) -> dict[str, Persona]:
+def load_personas(directories: Path | list[Path], problems: list[dict] | None = None,
+                  include_inactive: bool = False) -> dict[str, Persona]:
     """Every persona file in `directories`; on a name clash the first folder wins (your own folder goes
     first, so your persona replaces a built-in one). A file that can't be used is skipped and noted in
-    `problems` ({kind, name, path, error}) instead of stopping the harness; an unknown key is dropped."""
+    `problems` ({kind, name, path, error}) instead of stopping the harness; an unknown key is dropped.
+    The harness-created personas in each folder's `learned/` come after all the hand-written ones and never
+    replace one of the same name; inactive drafts (failed the routing gate) are left out unless
+    `include_inactive`."""
     dirs = [directories] if isinstance(directories, (str, Path)) else list(directories)
     problems = problems if problems is not None else []
     personas: dict[str, Persona] = {}
@@ -82,4 +97,24 @@ def load_personas(directories: Path | list[Path], problems: list[dict] | None = 
     if not personas:
         raise FileNotFoundError(f"no usable persona files in {', '.join(map(str, dirs))}"
                                 + (f" ({problems[-1]['error']})" if problems else ""))
+    for p in load_learned(dirs):
+        if p.name not in personas and (p.active or include_inactive):
+            personas[p.name] = p
     return personas
+
+
+def load_learned(directories: Path | list[Path]) -> list[Persona]:
+    """Every readable persona in `<folder>/learned/` for each folder, drafts and inactive ones included
+    (the first folder wins on a name clash)."""
+    dirs = [directories] if isinstance(directories, (str, Path)) else list(directories)
+    out: dict[str, Persona] = {}
+    for directory in dirs:
+        for path in sorted((Path(directory) / LEARNED_DIR).glob("*.y*ml")):
+            try:
+                data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+                data.setdefault("name", path.stem)
+                p = Persona(**data)
+            except (OSError, yaml.YAMLError, TypeError, ValueError):
+                continue
+            out.setdefault(p.name, p)
+    return list(out.values())

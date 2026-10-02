@@ -129,6 +129,11 @@ class Memory:
                            "ORDER BY id DESC LIMIT ?", (exclude, max(n, 0)))
         return rows[::-1]
 
+    def recent_requests(self, n: int) -> list[Turn]:
+        """The latest `n` turns of any persona and session, newest first."""
+        return self._turns("SELECT persona, session, ts, user, assistant FROM turns ORDER BY id DESC LIMIT ?",
+                           (max(n, 0),))
+
     def recent_text(self, session: str, n: int = 2) -> str:
         rows = self._turns("SELECT persona, session, ts, user, assistant FROM turns WHERE session=? "
                            "ORDER BY id DESC LIMIT ?", (session, n))

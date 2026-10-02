@@ -19,7 +19,8 @@ browser tool work in a visible window), /facts, /forget <id>, /usage, /failures 
 /flag [note] (flag this session for review), /note <text> (add a note to its flag),
 /flags [all] (flagged sessions), /review [id] (a model reviews the flagged session against the notes
 and says whether it failed), /verdict failure|not_failure [why] (your own verdict on it),
-/personas, /skills, /trace, /verbose, /jev (health), /update [check|test|undo|channel [name]] (update the harness from GitHub),
+/personas, /persona approve|activate|delete <name> (personas the harness created), /forge,
+/skills, /trace, /verbose, /jev (health), /update [check|test|undo|channel [name]] (update the harness from GitHub),
 /reset, /quit
 """
 from __future__ import annotations
@@ -130,6 +131,15 @@ class Printer:
                 verb = "learned a new skill (draft; /skills to review)" if out.skill_action == "created" \
                     else "added lessons to"
                 console.print(f"[dim]    {verb}: {esc(out.skill)}[/]")
+        elif kind == "persona_proposal":
+            console.print(f"[dim]    no persona fits this request ({data['similar'] + 1}/{data['needed']} similar "
+                          f"ones gathered for a new persona)[/]")
+        elif kind == "persona_drafted":
+            c = data["created"]
+            state = "draft, live: /persona approve|delete " + c.name if c.active else "inactive: " + c.gate.note
+            console.print(f"[yellow]    created persona {c.name} ({state})[/]")
+        elif kind == "persona_skipped":
+            console.print(f"[dim]    persona not created: {esc(data['reason'])}[/]")
         elif kind == "learn_error":
             console.print(f"[yellow]    learning skipped: {esc(data['error'][:160])}[/]")
         elif kind == "collab":
@@ -420,7 +430,29 @@ def main(argv: list[str] | None = None) -> int | None:
                 console.print("Jev routes again")
             elif cmd == "personas":
                 for n, p in h.personas.items():
-                    console.print(f"[bold]{n}[/] ({p.model.get('provider')}:{p.model.get('model')}) — {esc(p.description)}")
+                    tag = " [yellow](draft: created by the harness; /persona approve|delete " + n + ")[/]" if p.draft else ""
+                    console.print(f"[bold]{n}[/]{tag} ({p.model.get('provider')}:{p.model.get('model')}) — {esc(p.description)}")
+                for p in h.forge.drafts():
+                    if p.name not in h.personas:
+                        console.print(f"[bold]{p.name}[/] [yellow](inactive: {esc(p.source[-120:])}; "
+                                      f"/persona activate|delete {p.name})[/] — {esc(p.description)}")
+                if h.forge.pending():
+                    console.print(f"[dim]{len(h.forge.pending())} request(s) no persona fit, waiting for similar ones[/]")
+            elif cmd == "persona":
+                action, _, name = arg.strip().partition(" ")
+                name = name.strip()
+                if action not in ("approve", "activate", "delete") or name not in {p.name for p in h.forge.drafts()}:
+                    console.print("usage: /persona approve|activate|delete <name> (a created persona; see /personas)")
+                else:
+                    getattr(h.forge, action)(name)
+                    if pin == name and action == "delete":
+                        pin = None
+                    h.reload_personas()
+                    console.print(f"{action}: {name}")
+            elif cmd == "forge":
+                with console.status("checking learned skills for one no persona wants..."):
+                    made = h.forge_sweep()
+                console.print(", ".join(f"created {m.name}" for m in made) or "no learned skill needed a new persona")
             elif cmd == "skills":
                 for s in h.roster.values():
                     tag = " [yellow](draft: learned, not reviewed)[/]" if s.draft else ""

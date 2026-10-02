@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from typing import Any, Callable
 
 import pytest
@@ -81,6 +82,9 @@ def py(code: str) -> str:
 def cfg(tmp_path):
     c = load_config(ROOT / "config.yaml")
     c.workspace = tmp_path / "ws"
+    c.personas_dir = tmp_path / "personas"   # a copy: persona creation writes personas/learned/ here, not in the repo
+    c.personas_dirs = [c.personas_dir]
+    shutil.copytree(ROOT / "personas", c.personas_dir)
     c.skills_dirs = [ROOT / "skills"]  # deterministic: local skills only
     c.limits["repl_timeout"] = 20
     # the final() gate asks Jev about every answer; tests about other things use scripted workers

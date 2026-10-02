@@ -22,6 +22,7 @@ name.
 | [12 Session review](12-session-review.md) | Flag a session, write notes, a model judges it; a failure verdict joins the failure log |
 | [13 Refinement](13-refine.md) | Logged failures → tests → a local model's fix in a worktree → old vs new on every local model → your approval |
 | [14 Skill / hook router](14-skill-hook-router.md) | Proposed: checks that run in the final() gate, and a router that turns checkable skills into hooks |
+| [15 Persona creation](15-persona-creation.md) | A persona drafted when a request or a learned skill fits none: live but fenced, gated, reviewed in the dashboard (thresholds not tuned yet) |
 
 Keeping them current: [tools/](tools/README.md) re-anchors every `file:line` after the code moves, checks
 every diagram, and builds the interactive Atlas page. A narrated walkthrough video of the same material is
