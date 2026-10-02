@@ -21,6 +21,7 @@ name.
 | [11 The failure log](11-failure-log.md) | Every way a task fails, detected from events, a Jev check, `report_failure()` and your hooks, kept in failures.db |
 | [12 Session review](12-session-review.md) | Flag a session, write notes, a model judges it; a failure verdict joins the failure log |
 | [13 Refinement](13-refine.md) | Logged failures → tests → a local model's fix in a worktree → old vs new on every local model → your approval |
+| [14 Persona creation](14-persona-creation.md) | Design (not built): a persona drafted when a request or a skill fits none, live but fenced |
 
 Keeping them current: [tools/](tools/README.md) re-anchors every `file:line` after the code moves, checks
 every diagram, and builds the interactive Atlas page. A narrated walkthrough video of the same material is
