@@ -145,6 +145,9 @@ RESUME_NOTE = ("[Resumed after an interruption. Your REPL was restarted, so vari
 RESTORED_NOTE = ("[Resumed after an interruption. Your REPL was restarted and its saved state brought back - "
                  "variables: {vars}; functions/classes: {defs}.{lost} Files in your working directory, the artifact "
                  "store and the project are as you left them. Continue the task from where you were.]")
+TIMEOUT_RESTORED_NOTE = ("[timed out after {secs:.0f}s; the REPL was restarted and its state as of the end of your "
+                         "previous step was brought back - variables: {vars}; functions/classes: {defs}.{lost} "
+                         "Anything this block created or changed in memory is gone; files it wrote are still there.]")
 SKILL_PROMPT_CHARS = 6000   # longer skills: head in the prompt, full text in ctx['skills']
 CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
 # Some local models (seen: ornith in LM Studio) sometimes answer in their native tool-call
@@ -678,6 +681,8 @@ class Worker:
                 self._ran_code, self._pauses = True, 0
                 self.on_step("code", {"persona": self.persona.name, "step": step, "code": code})
                 ex = repl.run(code)
+                if ex.timed_out:
+                    self._restore_after_timeout(repl, ex)
                 if ex.usage:
                     self.on_step("tool_usage", {"persona": self.persona.name, **ex.usage})
                 self._check()  # a stop kills the REPL mid-run: don't read that as the code failing
@@ -926,6 +931,18 @@ class Worker:
     @property
     def _state_path(self) -> Path | None:
         return self.checkpoint.with_name("repl_state.pkl") if self.checkpoint else None
+
+    def _restore_after_timeout(self, repl, ex) -> None:
+        """A timed-out block restarted the REPL empty: put back the snapshot `_save` took after the previous
+        step, and say so (nothing to restore, e.g. in the first step: the REPL's own message stands)."""
+        info = repl.restore(self._state_path) if self._state_path else {}
+        if not (info.get("restored") or info.get("defs")):
+            return
+        lost = info.get("failed") or []
+        ex.output = TIMEOUT_RESTORED_NOTE.format(
+            secs=repl.timeout, vars=", ".join(info.get("restored") or []) or "none",
+            defs=", ".join(info.get("defs") or []) or "none",
+            lost=f" Not restored (recreate them if needed): {', '.join(lost)}." if lost else "")
 
     def _add_resume_note(self, messages: list[dict], repl) -> None:
         info = repl.restore(self._state_path) if self._state_path else {}

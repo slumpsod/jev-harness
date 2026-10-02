@@ -220,6 +220,26 @@ def test_resume_brings_back_repl_variables_functions_and_imports(cfg):
     assert "fh" in note                               # an open file can't be saved: named as lost
 
 
+def test_a_timeout_brings_back_the_state_from_the_end_of_the_previous_step(cfg):
+    """Live (web.ask, 120s): the block timed out, the REPL restarted and every variable was gone."""
+    h, llm = harness(cfg, [py("import statistics as st\nrows = [3, 1, 4, 1, 5]\ndef double(x):\n    return 2 * x\n"
+                              "print(len(rows))"),
+                           py("made_in_the_stuck_block = 1\nwhile True: pass"),
+                           py("final(str(double(st.mean(rows))))")], repl_timeout=2)
+    r = h.turn("crunch the numbers")
+    assert r.answer == "5.6"                          # data, the def and the import all came back
+    note = llm.seen[-1][-1]["content"]
+    assert "timed out after 2s" in note and "variables: rows" in note and "functions/classes: double" in note
+    assert "previous step" in note and "made_in_the_stuck_block" not in note.split("variables:")[1].split(";")[0]
+    assert "all variables were lost" not in note
+
+
+def test_a_timeout_in_the_first_step_still_says_the_variables_are_gone(cfg):
+    h, llm = harness(cfg, [py("x = 1\nwhile True: pass"), py("final('ok')")], repl_timeout=2)
+    assert h.turn("go").answer == "ok"
+    assert "all variables were lost" in llm.seen[-1][-1]["content"]
+
+
 def test_snapshot_skips_what_cannot_be_saved(tmp_path):
     with Repl(tmp_path / "wd", tmp_path / "arts") as r:
         r.run("import json\ndata = {'a': [1, 2]}\ngen = (i for i in range(3))\nclass P:\n    z = 7")
