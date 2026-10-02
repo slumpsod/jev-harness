@@ -413,7 +413,7 @@ def from_workdir(workdir: Path) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     from .config import load_config
-    ap = argparse.ArgumentParser(prog="python -m jevh.failures", description="The harness's failure log.")
+    ap = argparse.ArgumentParser(prog="jevh failures", description="The harness's failure log.")
     ap.add_argument("--config")
     ap.add_argument("--kind")
     ap.add_argument("--source")

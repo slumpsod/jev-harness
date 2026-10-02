@@ -1,6 +1,6 @@
 """Local dashboard: chat + live view of Jev's decisions, hand-offs, swaps and artifacts.
 
-    python -m jevh.web [--port 8740] [--model provider:model] [--no-browser]
+    jevh dashboard [--port 8740] [--model provider:model] [--no-browser]
 
 Security (the agent runs code, so the browser must not become a remote control):
 - binds 127.0.0.1 only, and rejects any Host header but 127.0.0.1/localhost:<port>
@@ -33,6 +33,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
+from .. import update as updater
 from ..bus import jsonable, task_json
 from ..config import Config, load_config
 from ..lmstudio import gate_for
@@ -66,6 +67,7 @@ class Hub:
         self._subs: list[asyncio.Queue] = []
         self.loop: asyncio.AbstractEventLoop | None = None
         self.pin: str | None = None
+        self.updated: dict | None = None   # set once the code on disk was updated: a restart loads it
 
     # events from worker threads -> history + every open SSE stream
     def publish(self, kind: str, data: dict | None = None) -> None:
@@ -637,6 +639,32 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         if h.cfg.tools.get("comfy_url"):
             out["comfyui"] = probe(str(h.cfg.tools["comfy_url"]).rstrip("/") + "/system_stats", 2.0)
         return out
+
+    # -- updating the harness from GitHub (jevh/update.py) --------------------------------------------
+    version_cache: dict[str, Any] = {"ts": 0.0, "data": None}
+
+    @app.get("/api/version")
+    def version(refresh: bool = False) -> dict:
+        """This checkout against its GitHub branch. Asks GitHub at most every 10 minutes unless refresh."""
+        if refresh or version_cache["data"] is None or time.time() - version_cache["ts"] > 600:
+            version_cache.update(ts=time.time(), data=updater.check(fetch=True))
+        return {**version_cache["data"], "restart_needed": hub.updated}
+
+    @app.post("/api/update")
+    def update() -> dict:
+        """Fast-forward to the latest version. The running server keeps its loaded code until restarted."""
+        if not hub.busy.acquire(blocking=False):
+            raise HTTPException(409, "wait for the running turn to finish")
+        try:
+            r = updater.apply()
+        except updater.UpdateError as e:
+            raise HTTPException(409, str(e)) from None
+        finally:
+            hub.busy.release()
+        if r["updated"]:
+            hub.updated = {"from": r["from"], "to": r["to"], "commits": r["commits"], "deps_changed": r["deps_changed"]}
+        version_cache.update(ts=time.time(), data=updater.check(fetch=False))
+        return {**r, "message": updater.done(r), "restart_needed": hub.updated}
 
     @app.get("/api/artifacts")
     def artifacts() -> list[dict]:
