@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Jev Harness</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%239af23a'/%3E%3Cstop offset='1' stop-color='%231fd2f2'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M26 6v17a9 9 0 0 1-18 0' fill='none' stroke='url(%23g)' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
 <script>/* Appearance: theme, accent and layout preferences. Kept in this browser (localStorage), applied before first paint
@@ -234,7 +234,7 @@ window.JUI = (function () {
    Base
    ====================================================================== */
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; height: 100%; -webkit-text-size-adjust: 100%; }
 body {
   color: var(--text); font: 14px/1.5 var(--font-body); background: var(--ambient), var(--bg);
   background-attachment: fixed; overflow: hidden; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
@@ -760,6 +760,52 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
   .msg.assistant { grid-template-columns: 1fr; } .msg.assistant .avatar { display: none; }
   .tl { grid-template-columns: 120px 1fr; } .axis { margin-left: 132px; } .prob { grid-template-columns: 100px 1fr 40px; }
   .pop.appear { left: 8px !important; right: 8px; width: auto; top: 8px !important; bottom: 66px !important; }
+}
+/* ---- phones and tablets in portrait: the panel is a full screen over the chat, and the tab bar sits at the bottom ---- */
+@media (max-width: 900px) {
+  :root { --rail-h: calc(58px + env(safe-area-inset-bottom, 0px)); }
+  .rail { height: var(--rail-h); padding: 0 8px env(safe-area-inset-bottom, 0px); overflow: visible; }
+  #tabs { flex: 1; min-width: 0; justify-content: space-around; }
+  .rbtn { flex: 1 1 0; width: auto; min-width: 34px; max-width: 48px; height: 44px; }
+  #appearbtn { flex: none; width: 44px; max-width: none; }
+  .app[data-panel="open"] .side { bottom: var(--rail-h); background: var(--bg); }   /* opaque: it covers the chat, which must not show through */
+  .sidehead { padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
+  .topbar { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  .panel { padding: 14px 16px 24px; overscroll-behavior: contain; }
+  .log { overscroll-behavior: contain; }
+  /* one column: a list that is a grid row of a fixed-height panel shrinks to nothing, so let the panel scroll instead */
+  .arts { grid-template-columns: 1fr; grid-template-rows: auto; flex: none; }
+  .artlist { overflow: auto; max-height: 34vh; max-height: 34dvh; }
+  .rvrow > input:not([type=checkbox]), .rvrow > select { flex: 1 1 100%; max-width: none; }
+  .tl { grid-template-columns: 1fr; row-gap: 4px; } .tl .label { white-space: normal; } .tl .track { margin-bottom: 10px; } .axis { margin-left: 0; }
+  .dlg { max-height: calc(100dvh - 32px); overflow: auto; }
+  /* 16px: a smaller text field makes iOS zoom the page in when it is tapped */
+  input:not([type=checkbox]):not([type=radio]):not([type=color]), textarea, select { font-size: 16px !important; }   /* (!important: per-component sizes are more specific) */
+  #wide { display: none; }
+  .app[data-panel="open"] .chatcol { min-width: 0; }   /* (the 1100px rule's 340px is wider than a small phone) */
+  .panel select, .card select { max-width: 100%; }
+  /* the composer's chips shrink (with an ellipsis) so the send button never leaves the screen */
+  .cbar .cchip:not(.tog) { flex: 0 1 auto; min-width: 0; }
+  .cbar .cchip select { min-width: 0; max-width: 100%; }
+}
+@media (max-width: 360px) { .rbtn { min-width: 28px; } #appearbtn { width: 36px; } }
+/* touch screens (any width): targets a finger can hit, and nothing that only appears on hover */
+@media (pointer: coarse) {
+  button, a, select, summary, label { touch-action: manipulation; }
+  .topbar button, .stat { min-height: 40px; min-width: 40px; }
+  button.flag, button.ghost { height: 40px; }
+  .cchip { height: 36px; } .cchip select { height: 100%; }
+  .ctx { min-height: 36px; }
+  .chips button, .rvrow button, .btnrow button, .card h3 button, .tfoot button { min-height: 38px; }
+  .msg .flagturn { opacity: .85; padding: 6px 12px; min-height: 34px; }
+  .iconbtn { min-width: 40px; min-height: 40px; }
+  .segc button { min-height: 36px; }
+  .nbadd .kv { display: none; }   /* (the Ctrl+Enter hint) */
+  .sw { width: 32px; height: 32px; }
+  summary { padding-block: 8px; }
+  .preview .bar2 a { padding-block: 8px; }
+  .artlink { display: inline-flex; align-items: center; min-height: 36px; }
+  .art { padding: 12px 14px; }
 }
 @media (prefers-reduced-motion: reduce), (update: slow) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 :root[data-fx="off"] *, :root[data-fx="off"] *::before, :root[data-fx="off"] *::after { animation-duration: 0s !important; }
@@ -1681,7 +1727,7 @@ function renderReview() {
     || `<div class="kv" style="padding:8px">${R.flags.length ? "Nothing here." : "No flagged sessions yet. Use <b>Flag for review</b> above the chat, or the flag on any answer."}</div>`;
   const others = R.sessions.filter((x) => !x.flag || !R.flags.some((f) => f.id === x.flag && f.status !== "dismissed"));
   const flagOther = `<details class="card"><summary><b>Flag an earlier session</b></summary>
-    <div class="rvrow"><select id="rvother" style="max-width:none;flex:1">${others.map((x) => `<option value="${esc(x.session)}">${esc(x.session)}${x.current ? " (this one)" : ""} - ${x.turns} turns - ${esc((x.title || "").slice(0, 60))}</option>`).join("") || "<option value=''>no sessions recorded</option>"}</select></div>
+    <div class="rvrow"><select id="rvother" style="flex:1;min-width:0;max-width:100%">${others.map((x) => `<option value="${esc(x.session)}">${esc(x.session)}${x.current ? " (this one)" : ""} - ${x.turns} turns - ${esc((x.title || "").slice(0, 60))}</option>`).join("") || "<option value=''>no sessions recorded</option>"}</select></div>
     <div class="rvrow"><input id="rvothernote" placeholder="What went wrong? (optional)"><button data-rv="flagother">Flag</button></div></details>`;
   el.innerHTML = `${chips}<div class="arts"><div class="artlist">${items}${flagOther}</div><div class="rv">${reviewDetail()}</div></div>`;
   for (const [id, v] of Object.entries(keep)) if ($(id) && v) $(id).value = v;

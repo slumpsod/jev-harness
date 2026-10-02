@@ -218,3 +218,31 @@ def _notebook(page, dashboard):
     page.wait_for_function("document.querySelectorAll('#nblist .nbitem').length === 0")
     assert "Nothing" in page.inner_text("#nblist")
     assert not page.errors
+
+
+def test_the_phone_layout_fits_and_every_tab_stays_reachable(dashboard, browse):
+    browse(lambda page: _phone(page, dashboard))
+
+
+def _phone(page, dashboard):
+    page.set_viewport_size({"width": 360, "height": 640})
+    page.goto(dashboard)
+    page.wait_for_selector(".hello")
+    too_wide = "document.documentElement.scrollWidth > innerWidth"
+    assert not page.evaluate(too_wide)
+    assert page.evaluate("document.getElementById('send').getBoundingClientRect().right <= innerWidth")     # the composer fits
+    assert page.evaluate("getComputedStyle(document.getElementById('input')).fontSize") == "16px"          # no zoom-on-tap on iOS
+    for tab in ("timeline", "inspector", "artifacts", "memory", "browser", "review", "notebook", "status"):
+        page.click(f'#tabs [data-tab="{tab}"]')                              # a panel never covers the tab bar, so the next click works
+        page.wait_for_function("document.getElementById('app').dataset.panel === 'open'")
+        assert not page.evaluate(too_wide), tab
+        colour = page.evaluate("getComputedStyle(document.getElementById('side')).backgroundColor")
+        assert not colour.startswith("rgba") or colour.endswith(", 1)"), f"{tab}: the panel is see-through ({colour})"
+        assert page.evaluate("document.getElementById('side').getBoundingClientRect().bottom"
+                             " <= document.querySelector('.rail').getBoundingClientRect().top + 1"), tab
+    page.click('#tabs [data-tab="notebook"]')
+    page.fill("#nbtext", "an idea from my phone")                            # the notebook works with a thumb
+    assert page.evaluate("getComputedStyle(document.getElementById('nbtext')).fontSize") == "16px"
+    page.click("#nbadd")
+    page.wait_for_selector("#nblist .nbitem")
+    assert not page.evaluate(too_wide) and not page.errors
