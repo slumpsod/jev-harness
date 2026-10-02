@@ -38,7 +38,7 @@ from .skills import load_roster, parse_skill
 from .tools import TOOLS
 from .tools import nango
 from .usage import Metered, Usage
-from .verify import Verifier
+from .verify import Verifier, asks_for_secret
 from .worker import Worker, WorkerResult, build_system
 
 Event = Callable[[str, dict], None]
@@ -154,11 +154,12 @@ class PendingQuestion:
     options: list[str]
     asked: float
     answer: str | None = None
+    secret: bool = False     # a password or key: typed hidden, and never echoed into events
     event: threading.Event = field(default_factory=threading.Event, repr=False)
 
     def public(self) -> dict[str, Any]:
         return {"id": self.id, "task_id": self.task_id, "persona": self.persona, "question": self.question,
-                "options": self.options, "asked": self.asked}
+                "options": self.options, "asked": self.asked, "secret": self.secret}
 
 
 class Harness:
@@ -232,6 +233,7 @@ class Harness:
                          ("nango_writes", "JEVH_NANGO_WRITES")):
             if self.cfg.tools.get(key):  # REPL children inherit these
                 os.environ.setdefault(env, str(self.cfg.tools[key]))
+        os.environ["JEVH_NANGO_DIR"] = str(self.cfg.workspace / "nango")   # the key/URL nango.start() keeps
         os.environ.setdefault("JEVH_JEV_URL", str(self.cfg.jev.get("url", "http://127.0.0.1:33001")))
         os.environ.setdefault("JEVH_JEV_BACKEND", str(self.cfg.jev.get("backend", "semif")))
         self.verifier = Verifier(self.jev, self.cfg)
@@ -394,9 +396,13 @@ class Harness:
         q.event.set()
         return True
 
-    def _ask_user(self, task: Task, persona: Persona, question: str, options: list | None) -> str:
+    def _ask_user(self, task: Task, persona: Persona, question: str, options: list | None,
+                  secret: bool = False) -> str:
+        # a free-text question that asks for a password or key is asked hidden whatever the worker passed: the
+        # answer would otherwise sit in the transcript, memory and logs (buttons: an approval, left alone)
+        secret = bool(secret) or (not options and asks_for_secret(str(question)))
         q = PendingQuestion(f"q{next(self._qids)}", task.id, persona.name, str(question).strip(),
-                            [str(o) for o in (options or [])][:8], time.time())
+                            [] if secret else [str(o) for o in (options or [])][:8], time.time(), secret=bool(secret))
         with self._qlock:
             self._questions[q.id] = q
         self.on_event("question", {"task": task, "question": q.public()})
@@ -414,7 +420,8 @@ class Harness:
             self.on_event("question_timeout", {"task": task, "question": q.public()})
             return (f"(no answer from the user within {self.cfg.lim('ask_timeout') // 60} minutes: continue with "
                     f"your best judgement, or finish and say what you need)")
-        self.on_event("answered", {"task": task, "question": q.public(), "answer": q.answer})
+        self.on_event("answered", {"task": task, "question": q.public(),
+                                   "answer": "(hidden)" if q.secret else q.answer})
         return q.answer
 
     def set_project(self, path: str | None) -> str | None:
@@ -604,7 +611,8 @@ class Harness:
             "mcp": lambda key, arguments: self._mcp_call(persona, key, arguments),
             "recall": lambda query, k=5: self._recall(query, k),
             "remember": lambda fact: self.learner.remember(str(fact), f"{self.session}/{persona.name}"),
-            "ask_user": lambda question, options=None: self._ask_user(task, persona, question, options),
+            "ask_user": lambda question, options=None, secret=False: self._ask_user(task, persona, question,
+                                                                                    options, secret),
             "report_failure": lambda what, detail="": self.failure_watch.report(task, what, detail),
         }
         workdir = Path(resume["workdir"]) if resume and resume.get("workdir") else \
@@ -730,7 +738,7 @@ class Harness:
         if not persona.code:
             return ToolDecision([])
         own = {t: TOOLS[t].description for t in persona.tools
-               if t in TOOLS and (t != "project" or self.project) and (t != "nango" or nango.configured())}
+               if t in TOOLS and (t != "project" or self.project)}
         if "nango" in own and (accounts := nango.summary()):   # Jev judges "my email" knowing Gmail is connected
             own["nango"] += f" ({accounts.rstrip('.')})"
         mcp = {}

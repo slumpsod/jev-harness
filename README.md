@@ -45,6 +45,7 @@ python evals/tier_cases.py             # live fast/strong tier accuracy + sweep
 python evals/tool_cases.py             # live tool-guide picking accuracy + sweep
 python evals/browser_cases.py --live   # Jev browser agent on a local test shop (+ Wikipedia)
 python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness turns (flights, tickets, forms...)
+python evals/bench/nango_setup.py        # connecting an account: a simulated user + the real local Nango (Docker), multi-turn
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
@@ -174,16 +175,18 @@ won't update during a turn.
 
 | Decision | Eval | Result | Per turn |
 |---|---|---|---|
-| Persona routing | `routing_cases.py`, 33 requests | 97% top-1 | ~0.2s |
+| Persona routing | `routing_cases.py`, 37 requests (33 + 4 "connect my account", 2026-10-02) | 97% top-1 (92% before `daily_assistant`'s description mentioned accounts: it sent 2 of the 4 to the dev persona) | ~0.2s |
 | Follow-up detection | `followup_cases.py`, 22 message pairs | 14/14 follow-ups kept, 0/8 new topics joined | (in the routing call) |
-| Collaborators | `routing_cases.py` | 94% exact, 0 needless | ~0.2s |
+| Collaborators | `routing_cases.py` | 94% exact, 0 needless on the 33; with the 4 new, 89% exact, 2 needless ("set up Nango" suggests the dev persona; a design request suggests `daily_assistant`) | ~0.2s |
 | Skill picking | `skill_cases.py`, 63 requests (your 52 Hermes-router cases + 11) | 94% right skill, 93% correct "no skill", 3 needless | ~1.5s |
+| Skill picking: `nango-setup` | the 8 new cases in `skill_cases.py` (7 "connect my ..." + an OAuth-concepts control, among 15 no-skill controls), harness-local skills only (the Hermes cases need your skills folder) | 7/7 pick it (fits 0.47-0.95); none of the 15 "no skill" controls (the OAuth one included, fits 0.07) loads it | ~1.5s |
 | Memory gating | `memory_cases.py`, 18 requests over an 18-turn history | 95% of needed turns passed, 0 leaks | ~1.5s |
 | Model tier (fast/strong) | `tier_cases.py`, 39 tasks + 15 held out | 100% and 15/15, 0 hard tasks sent fast | ~0.2s |
-| Tool guides | `tool_cases.py`, 54 requests x 5 tools | 50/54 exact, 3 needless (nango: 10/10 picked, 1 needless) | ~0.3s |
+| Tool guides | `tool_cases.py`, 59 requests x 5 tools | 55/59 exact, 3 needless (nango: 15/15 picked incl. 5 set-up requests, 1 needless: "how do I use the Gmail API from Python") | ~0.3s |
 | final() answer check | `verify_cases.py`, 22 tuning + 2 held-out sets of 12 | 12/12 tuning; fresh held-out 4/6 bad caught, 0 false alarms | ~0.3s |
 | Progress check (long tasks) | `progress_cases.py`, 14 work logs | 6/6 stalls caught, 0/8 healthy runs interrupted | every 8 steps |
 | Browser agent | `browser_cases.py`, 16 tuning + 12 held-out + 2 Wikipedia goals | 29-30/30, 0 false "done" | ~2.3s per goal |
+| Connecting an account | `evals/bench/nango_setup.py -n 3` (2026-10-02; live: Qwen/Ornith workers, semif Jev, the real local Nango; a simulated user and a stand-in browser). 3 scenarios x 3 runs | no-login app connected 3/3 (55-73 s, 4-5 steps); Google Calendar walk-through 3/3 (steps one at a time, secret hidden, integration created, `redirect_uri_mismatch` diagnosed; median 10 min, 27-34 steps); assistant drives a practice OAuth console 3/3 (right ID and secret stored, nothing leaked) | minutes: the user's part dominates |
 | Learning gates | `learn_cases.py`, 25 + 10 + 7 cases | 12/12 facts, 5/5 replacements, 3/3 skills; 0 false positives | ~0.2s each |
 | Memory reach | `recall_cases.py 4`, history under 160 newer turns | 14/19 needed turns reached (recent-window design: 1/19) | ~1.3s |
 
@@ -511,17 +514,26 @@ missed pick costs one `help(name)`, not the capability. The Inspector shows the 
   and ~700 other APIs) through [Nango](https://github.com/NangoHQ/nango). Nango holds the OAuth tokens
   and refreshes them. The worker calls each app's own REST API through Nango's proxy
   (`nango.get("google-mail", "/gmail/v1/users/me/messages", {...})`), so no token reaches a prompt.
-  - Setup: [SETUP.md](SETUP.md#connected-accounts-nango). It's offered only when `NANGO_SECRET_KEY` is set,
-    and Jev's tool pick sees which accounts are connected ("my calendar" with Google Calendar connected).
+  - **Setup is a conversation.** Say "Connect my Google Calendar" (or "Set up Nango"). The `nango-setup`
+    skill has the assistant start Docker and Nango for you the first time, read you each step at the
+    provider's website one message at a time (opening the page in your own browser), ask for the app's
+    Client ID and then its secret (typed hidden: not in the transcript, memory or logs), open Nango's sign-in
+    page and wait for you, and check the connection. Details, and what to do by hand: [SETUP.md](SETUP.md#connected-accounts-nango);
+    how it works: [architecture 08](docs/architecture/08-tools.md#nango-setup-the-walk-through-and-what-code-does-for-it).
+    It can also click through the provider's console in a window you sign in on (it never types a
+    password; if Google refuses an automated sign-in it says so and carries on in your browser). Untested
+    on Google's own console (it needs your sign-in): run live only against a practice console page
+    (`evals/browser_site/oauth_console.html`, the `drive-mock` scenario).
+  - The tool is offered before Nango is set up, so the request reaches it; Jev's tool pick sees which
+    accounts are connected ("my calendar" with Google Calendar connected).
   - **Changes are approved by the user, not the model.** A POST/PUT/PATCH/DELETE that isn't a search or
     query goes to the user as a question (`Allow` / `Allow all <app> changes this task` / `Don't allow`)
     showing the method, path, params and body. A request with `base_url=` (Nango then sends your token to
     that host) is always asked, even a read. It's asked from inside the tool, so the worker can't approve itself,
     and an email it read can't talk it into forwarding the inbox. `tools.nango_writes: deny` turns
     changes off; `allow` skips the question.
-  - Not connected yet: `nango.connect("notion")` returns a Connect link the worker hands to the user.
   - Limit: this gate guards the tool's normal path, not a sandbox. The worker's REPL can read
-    `NANGO_SECRET_KEY` from its environment, like any other key the harness runs with.
+    `NANGO_SECRET_KEY` (or `workspace/nango/secret_key`), like any other key the harness runs with.
   - Tool pick (`tool_cases.py`, live on semif): all 10 account requests scored >= 0.99 (a draft email 0.87),
     everything else <= 0.25 except "how do I use the Gmail API from Python" (1.00, a needless guide).
 - **MCP**: stdio JSON-RPC client (`jevh/mcp.py`). The servers' tools form one catalog, and Jev picks

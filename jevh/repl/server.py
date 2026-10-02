@@ -22,6 +22,7 @@ import io
 import json
 import os
 import pickle
+import re
 import shutil
 import sys
 import traceback
@@ -144,10 +145,12 @@ def _stop_jobs() -> None:
             j["proc"].kill()
 
 
-def ask_user(question: str, options: list | None = None) -> str:
+def ask_user(question: str, options: list | None = None, secret: bool = False) -> str:
     """Ask the user something only they can answer and wait for the reply, keeping all your
-    state (variables, an open browser page). options: short choices shown as buttons."""
-    return _call("ask_user", question, options)
+    state (variables, an open browser page). options: short choices shown as buttons.
+    secret=True (a password, an API key): the answer is typed hidden and never shown in the
+    transcript; pass it straight to the code that uses it, and don't print or save it."""
+    return _call("ask_user", question, options, secret=secret)
 
 
 def request(persona: str, task: str, inputs: list | None = None) -> dict:
@@ -345,6 +348,23 @@ def restore(path: str) -> dict:
     return {"restored": sorted(restored), "defs": sorted(defs), "failed": failed + data.get("skipped", [])}
 
 
+# Secrets whose format is unmistakable never go back to the model in a cell's output: a page the worker reads
+# can show one (Google's "OAuth client created" dialog, live 2026-10-02), and what a cell prints lands in the
+# work log, events and memory. The code that holds the value still has it; only what is printed is cut.
+SECRET_FORMS = re.compile("|".join([
+    r"GOCSPX-[A-Za-z0-9_-]{16,}",                                   # a Google OAuth client secret
+    r"xox[abprs]-[A-Za-z0-9-]{20,}",                                # Slack tokens
+    r"gh[pousr]_[A-Za-z0-9]{30,}", r"github_pat_[A-Za-z0-9_]{40,}",  # GitHub tokens
+    r"\bAKIA[0-9A-Z]{16}\b",                                        # an AWS access key id
+    r"\b[sr]k_live_[A-Za-z0-9]{20,}",                               # Stripe live keys
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]+?-----END [A-Z ]*PRIVATE KEY-----",
+]))
+
+
+def scrub_secrets(text: str) -> str:
+    return SECRET_FORMS.sub("[secret hidden]", text)
+
+
 def _exec(code: str) -> tuple[str, bool]:
     buf = io.StringIO()
     error = False
@@ -407,7 +427,7 @@ def main() -> None:
             usage = None
             if dec and before is not None and dec.TOTALS["calls"] > before["calls"]:
                 usage = {k: dec.TOTALS[k] - before[k] for k in before}  # tools' own Jev calls (browser, web, ...)
-            _send({"type": "result", "output": output, "error": error, "final": _FINAL, "usage": usage})
+            _send({"type": "result", "output": scrub_secrets(output), "error": error, "final": _FINAL, "usage": usage})
         else:
             _send({"type": "result", "output": f"unknown op {op!r}", "error": True, "final": None})
 

@@ -1,0 +1,29 @@
+<!doctype html><html><head><title>Practice OAuth console: Create OAuth client ID</title></head><body>
+<!-- A stand-in for a provider's console (Google's "Create OAuth client ID"), for evals/bench/nango_setup.py:
+     no sign-in, and it shows a made-up Client ID and secret once the form is filled in. -->
+<h1>Create OAuth client ID</h1>
+<form id="f" novalidate>
+<label>Application type <select name="type"><option value="">Select an application type</option>
+<option>Web application</option><option>Desktop app</option><option>Android</option></select></label><br>
+<label>Name <input name="name"></label><br>
+<label>Authorized redirect URIs <input name="redirect" placeholder="https://example.com/oauth/callback"></label><br>
+<button type="submit">Create</button></form>
+<p id="err" role="alert" style="color:red"></p>
+<div id="done" hidden>
+<h1>OAuth client created</h1>
+<p>The client ID and secret are shown here once. Copy them now.</p>
+<p>Your Client ID <code id="cid">314159265358-simulateduserabcdefghijklmnop.apps.googleusercontent.com</code></p>
+<p>Your Client secret <code id="sec">GOCSPX-SimulatedSecretDoNotUse_123</code></p>
+<p>Authorized redirect URI <code id="uri"></code></p>
+<button id="ok">OK</button>
+</div>
+<script>
+f.onsubmit = e => { e.preventDefault(); const d = new FormData(f);
+  if (d.get("type") !== "Web application") return err.textContent = "Choose Web application: only a web client has redirect URIs.";
+  if (!(d.get("name") || "").trim()) return err.textContent = "Name is required.";
+  if (!/^https?:\/\//.test((d.get("redirect") || "").trim())) return err.textContent = "Enter the redirect URI, starting with http:// or https://.";
+  uri.textContent = d.get("redirect").trim();
+  f.hidden = true; err.textContent = ""; done.hidden = false; };
+ok.onclick = () => { done.hidden = true; document.body.insertAdjacentHTML("beforeend", "<p>Client saved. It is listed under Clients.</p>"); };
+</script>
+</body></html>

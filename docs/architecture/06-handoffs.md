@@ -55,7 +55,7 @@ sequenceDiagram
 | Depth | `bus.py:86` | `limits.max_depth` 3 |
 | Tasks per turn, including rejected ones | `bus.py:88` | `limits.max_tasks_per_turn` 8 |
 | Parallel race for the last slot | `open_checked`, `bus.py:98` | check and open under one lock |
-| Turn stopped | `orchestrator.py:551` | new hand-offs refused |
+| Turn stopped | `orchestrator.py:558` | new hand-offs refused |
 
 A refused hand-off is still recorded on the board (`Board.reject`, status `rejected`) and emitted
 as a `request` event with `approved: False`. Its Future resolves at once to
@@ -63,11 +63,11 @@ as a `request` event with `approved: False`. Its Future resolves at once to
 
 ## Parallelism
 
-- Each child runs on a thread named `task-<id>-<persona>` (`orchestrator.py:581`).
+- Each child runs on a thread named `task-<id>-<persona>` (`orchestrator.py:588`).
 - `wait([h1, h2], timeout)` shares one deadline across the list (`orchestrator.py:113`).
 - A hand-off the parent never waited for is still finished and its artifacts are merged into the
-  parent's result (`collect_unwaited`, `orchestrator.py:530`) → event `unwaited`.
+  parent's result (`collect_unwaited`, `orchestrator.py:537`) → event `unwaited`.
 - Children on different models share LM Studio through the gate's linger, which costs about one
   swap per worker instead of one per step ([04](04-llm-streaming.md#lm-studio-one-model-at-a-time-lmstudiopy)).
 - The CLI prints `hand-offs: Xs of work in Ys wall (parallel saved Zs)` from the tasks' start and
-  finish times (`handoff_overlap`, `cli.py:38`).
+  finish times (`handoff_overlap`, `cli.py:39`).

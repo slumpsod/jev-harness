@@ -5,7 +5,7 @@
 Every part of the harness reports what it does through one callback, `on_event(kind, data)`. It
 sends each event to the UI callback, wrapped by `_shielded` (`orchestrator.py:86`) so a bug in a
 display handler can never stop the work, and then to the failure watch, which logs what went wrong
-(`emit`, `orchestrator.py:189`; [11](11-failure-log.md)). Worker events go through `Worker.on_step` → `Harness._on_worker` (`orchestrator.py:598`),
+(`emit`, `orchestrator.py:190`; [11](11-failure-log.md)). Worker events go through `Worker.on_step` → `Harness._on_worker` (`orchestrator.py:605`),
 which adds `task_id` and turns `tool_usage` into a usage row instead of an event.
 
 ```mermaid
@@ -23,7 +23,7 @@ flowchart LR
   EM --> SH["_shielded UI callback"]
   EM --> FW["FailureWatch<br/>→ failures.db, hooks"]
   FW -- "failure, hook_error" --> SH
-  SH -- "CLI" --> PR["Printer<br/>cli.py:59"]
+  SH -- "CLI" --> PR["Printer<br/>cli.py:60"]
   SH -- "dashboard" --> HUB["Hub.publish<br/>seq, ts, kind, turn, data<br/>last MAX_EVENTS kept"]
   HUB --> SSE["GET /api/events (SSE)<br/>backlog since seq, then live"]
   SSE --> UI["Timeline · Inspector ·<br/>Artifacts · Status · Usage"]
@@ -53,7 +53,7 @@ flowchart LR
 | `review` | `_verify_fn` | persona, tier of the reviewer | Inspector |
 | `escalate` | `_bounce` | the strong model swapped in | timeline, CLI |
 | `swap` | LM Studio gate | unloaded, loaded, seconds | timeline markers, Status |
-| `question` / `answered` / `question_timeout` | `_ask_user` | question id, options / answer | chat buttons |
+| `question` / `answered` / `question_timeout` | `_ask_user` | question id, options, `secret` / answer (`(hidden)` for a secret) | chat buttons; a secret question has a hidden input |
 | `cancel` | `Harness.cancel` | number of workers | chat |
 | `jev_error` | `_safe` | step, error | CLI, Inspector |
 | `learned` / `learn_error` | Learner | facts, retired, skill, scores / error | Memory tab, CLI |
@@ -84,7 +84,7 @@ sequenceDiagram
 ## ask_user: a worker waits for the user
 
 `ask_user(question, options)` in the REPL → callback → `Harness._ask_user`
-(`orchestrator.py:360`). This registers a `PendingQuestion` (up to 8 options), emits `question`,
+(`orchestrator.py:362`). This registers a `PendingQuestion` (up to 8 options), emits `question`,
 and waits in 0.5s ticks for `answer()` (dashboard `/api/answer`, or the CLI prompt), up to
 `limits.ask_timeout` (30 min). On timeout the worker gets "(no answer from the user … continue
 with your best judgement)". Its REPL (variables, an open browser page) stays alive the whole time.

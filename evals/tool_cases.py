@@ -81,6 +81,12 @@ CASES = [  # (request, needed, either)
     ("What did Maria say in my last Slack DM?", {N}, set()),
     ("How do I use the Gmail API to send an email from Python?", set(), {W}),
     ("What is OAuth and how does token refresh work?", set(), {W}),
+    # setting up and connecting accounts (added 2026-10-02)
+    ("Set up Nango so you can use my accounts.", {N}, {W}),
+    ("Walk me through connecting my Google Calendar to the assistant.", {N}, {W, B}),
+    ("My Gmail connection expired, reconnect it.", {N}, {B}),
+    ("I'd like you to be able to read my Todoist tasks. How do I connect it?", {N}, {W, B}),
+    ("Link my GitHub account so you can open issues for me.", {N}, {W, B}),
 ]
 
 PHRASINGS = {

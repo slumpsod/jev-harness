@@ -8,18 +8,18 @@ from it later (prompts, thresholds, tools, skills). Logging never changes how a 
 ## Where it sits
 
 The harness's `on_event` used to go straight to the UI. Now `Harness.__init__` wraps it
-(`orchestrator.py:184-192`): every event goes to the UI first, then to the failure watch.
+(`orchestrator.py:185-193`): every event goes to the UI first, then to the failure watch.
 
 ```mermaid
 flowchart LR
-  SRC["Harness, Worker, Learner<br/>events"] --> EMIT["emit(kind, data)<br/>orchestrator.py:189"]
+  SRC["Harness, Worker, Learner<br/>events"] --> EMIT["emit(kind, data)<br/>orchestrator.py:190"]
   EMIT --> UI["_shielded UI callback<br/>(CLI printer / Hub.publish)"]
   EMIT --> FW["FailureWatch.on_event<br/>failures.py:242"]
   FW --> BI["built-in detectors<br/>_builtin, _done"]
   FW --> HK["your hooks<br/>config failures.hooks"]
   BI -- "record()" --> DB[("failures.db<br/>table failures")]
   HK -- "record()" --> DB
-  REPL["worker code:<br/>report_failure(what, detail)"] -- "callback<br/>orchestrator.py:485" --> FW
+  REPL["worker code:<br/>report_failure(what, detail)"] -- "callback<br/>orchestrator.py:492" --> FW
   REV["session review verdict<br/>(12)"] -- "source review" --> DB
   USER["python -m jevh.failures add"] -- "source user" --> DB
   DB --> OUT["CLI /failures · dashboard Failures ·<br/>python -m jevh.failures · refine (13)"]

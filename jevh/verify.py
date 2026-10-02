@@ -86,6 +86,35 @@ PROMISE = re.compile(r"\bnext,? I(?:'ll| will)\b|\bI(?:'ll| will) (?:now |next |
                      r"implement|continue|finish|start|make)\b|\bnext step(?:s)? (?:is|are|will be)\b", re.I)
 BROWSER_CLAIM = re.compile(r"\b(?:checked|tested|verified|opened|previewed|confirmed)\b[^.\n]{0,60}"
                            r"\b(?:browser|renders?|rendering|in chrome|on the page)\b", re.I)
+OPENED_FOR_USER = re.compile(r"\bnango\.(?:open_page|connect_and_wait|start)\(")
+NANGO_USED = re.compile(r"\bnango\.")
+NANGO_CALL = re.compile(r"\bnango\.\w+\(")
+# Seen live (ornith, 2026-10-02): after "Done" a reply with no code said "Google Calendar is all set up and connected",
+# when setup() had never been called; and "I'll hand the Client ID to Nango directly" ended a turn with no call.
+NANGO_CLAIM = re.compile(r"\ball set up\b|\bset up and connected\b|\b(?:is|are|now|already|successfully|been) connected\b"
+                         r"|\bconnected (?:and|&) (?:ready|working|active)\b|\bconnection (?:is )?(?:active|live|working)\b"
+                         r"|\bsuccessfully set up\b", re.I)
+NANGO_PROMISE = re.compile(r"\bI(?:'ll| will) (?:now |next |then )?(?:pass|hand|give|register|send|connect|set up|run|call)\b"
+                           r"[^.\n]{0,80}\bNango\b", re.I)
+# Asking the user to paste a secret into the chat puts it in the transcript, memory and logs; the nango tool asks
+# for it hidden (ask_user(secret=True)). Seen live (ornith, 2026-10-02): "Paste them here" after listing the secret.
+SECRET_WORD = r"(?:client[ _-]?secret|secret|password|passphrase|api[ _-]?key|access[ _-]?token|app-specific password)"
+SECRET_ASK = re.compile(r"\b(?:paste|send|type|share|provide|enter|reply with|give me|tell me)\b[^.\n]{0,60}\b"
+                        + SECRET_WORD + r"\b", re.I)
+WHAT_IS_SECRET = re.compile(r"\bwhat(?:'s| is)\s+(?:your|the)\b[^?\n]{0,30}\b" + SECRET_WORD + r"\b", re.I)
+PASTE_HERE = re.compile(r"\b(?:paste|send|type|share|reply with)\b[^.\n]{0,25}\b(?:here|in (?:the )?chat|below)\b", re.I)
+SECRET_ASKED_HIDDEN = re.compile(r"\bhidden\b|never paste|don'?t paste|do not paste|won'?t (?:see|ask)|"
+                                 r"not (?:in|into) (?:the )?chat", re.I)
+
+
+def asks_for_secret(text: str) -> bool:
+    """Does `text` ask the user to type or paste a secret (a password, key, token, client secret) in the chat?"""
+    if SECRET_ASKED_HIDDEN.search(text):
+        return False
+    return bool(SECRET_ASK.search(text) or WHAT_IS_SECRET.search(text)
+                or (re.search(r"\bsecret\b|\bpassword\b|\bapi key\b", text, re.I) and PASTE_HERE.search(text)))
+
+
 IMAGE_MAGIC = {".png": b"\x89PNG", ".jpg": b"\xff\xd8", ".jpeg": b"\xff\xd8", ".gif": b"GIF8", ".webp": b"RIFF"}
 LONG_LOG = 1500   # chars of work log from which grounded numbers overrule 'accurate' (see answer_rules)
 ASPECT = re.compile(r"\b(?:16:9|9:16|4:3|3:4|21:9|16:10|3:2|2:3|1:1|2:1)\b")   # aspect ratios
@@ -204,9 +233,22 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
         problems.append(f"The request asks for {', '.join(sorted(wanted))}, but "
                         + (f"you handed over {got}." if got else "no file was handed over.")
                         + " Hand over that file: save_artifact(name, path=...) or its path in final().")
-    if BROWSER_CLAIM.search(answer) and "browser." not in log:
+    # (nango.open_page / connect_and_wait open a page in the USER's browser: "I opened it in your browser" is then true)
+    if BROWSER_CLAIM.search(answer) and "browser." not in log and not OPENED_FOR_USER.search(log):
         problems.append("Your answer says the page was checked in a browser, but the work log shows no browser "
                         "use. Check it (browser.goto('file:///...')) or don't claim it.")
+    if NANGO_USED.search(log) and asks_for_secret(answer):
+        problems.append("Your answer asks the user to paste a secret into the chat. Don't: it would sit in the "
+                        "transcript and memory. nango.setup(app) asks for the Client ID and then the secret, typed "
+                        "hidden: tell the user it will ask, and call it now.")
+    if not NANGO_CALL.search(log) and re.search(r"nango", (evidence or "") + request + answer, re.I):
+        if NANGO_CLAIM.search(answer):
+            problems.append("Your answer says an account is connected, but nothing in this reply checked it. Run "
+                            "nango.status() (and nango.test(app)) and say what they show: don't report a step as "
+                            "done from memory.")
+        elif NANGO_PROMISE.search(answer):
+            problems.append("Your answer says you'll do something with Nango next, but ending the reply ends your "
+                            "turn. Do it now: call nango.setup(app) / nango.connect_and_wait(app) in code, then report.")
     if PROMISE.search(answer) and not re.search(r"\?\s*$|want me to|shall I|should I", answer, re.I):
         problems.append("Your answer says you'll do more next, but final() ends the task. Do that work now, "
                         "or finish and say plainly what is left.")

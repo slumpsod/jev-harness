@@ -155,13 +155,13 @@ Two paths to Jev are easy to miss:
   `jev.trace` and in `usage.db` as kind `jev`.
 - The tool modules inside the REPL (browser, web, project.find, the rule enforcer) build their own
   `SystemOneClient` from environment variables the harness set (`JEVH_JEV_URL`,
-  `JEVH_JEV_BACKEND`, `JEVH_TOOLS_JEV`; `orchestrator.py:211-217`, `tools/_pick.py:19`). They talk
+  `JEVH_JEV_BACKEND`, `JEVH_TOOLS_JEV`; `orchestrator.py:212-218`, `tools/_pick.py:19`). They talk
   to the adapter directly, not through the harness. After each exec the REPL reports how many
-  calls they made (`repl/server.py:404-410`), and the harness records that as kind `jev_tools`
-  (`orchestrator.py:598`).
+  calls they made (`repl/server.py:424-430`), and the harness records that as kind `jev_tools`
+  (`orchestrator.py:605`).
 
 A worker's own `jev(state, questions)` helper is different again: it goes back to the harness
-over the REPL's callback channel and becomes a `worker_jev` step (`orchestrator.py:475`).
+over the REPL's callback channel and becomes a `worker_jev` step (`orchestrator.py:482`).
 
 ## Threads
 
@@ -170,15 +170,15 @@ flowchart TB
   subgraph main["Harness process"]
     T0["UI thread<br/>(CLI input loop / uvicorn)"]
     TT["turn thread<br/>Harness.turn → run_task(root)"]
-    TK["task-N-persona threads<br/>one per approved hand-off<br/>orchestrator.py:581"]
-    TL["learn thread<br/>orchestrator.py:416"]
+    TK["task-N-persona threads<br/>one per approved hand-off<br/>orchestrator.py:588"]
+    TL["learn thread<br/>orchestrator.py:422"]
     TC["LLM side threads per call<br/>_close_on_cancel, _watch_thinking<br/>llm.py:88, :100"]
     TR["REPL reader threads<br/>stdout → queue, stderr tail<br/>repl/client.py:82-83"]
     TM["mcp-server reader threads<br/>mcp.py:63"]
     TD["browser-dock thread (dashboard)<br/>web/server.py:154"]
   end
   subgraph repl["Each REPL process"]
-    RM["main: JSON-line op loop<br/>repl/server.py:374"]
+    RM["main: JSON-line op loop<br/>repl/server.py:394"]
     RB["jevh-browser thread<br/>tools/browser.py:1283"]
   end
   T0 --> TT
@@ -191,9 +191,9 @@ flowchart TB
   TK --> TR
 ```
 
-The Harness uses a `threading.local` (`self._tl`, `orchestrator.py:223`) so any thread knows
+The Harness uses a `threading.local` (`self._tl`, `orchestrator.py:224`) so any thread knows
 which turn, task and persona it works for, and whether it's doing `llm` or `learn` work. Every
-usage row and model call is tagged from it (`_where`, `orchestrator.py:585`).
+usage row and model call is tagged from it (`_where`, `orchestrator.py:592`).
 
 ## Where state lives
 
@@ -203,12 +203,12 @@ usage row and model call is tagged from it (`_where`, `orchestrator.py:585`).
 | What a turn's answer was based on | `memory.db` table `turn_notes` | `turn_notes()` (`orchestrator.py:78`) via `Memory.append` | follow-up history (`session_turns`) |
 | Remembered facts | `memory.db` tables `facts` + `facts_fts` | Learner, `remember()` | candidates, `recall` |
 | Human-readable logs | `workspace/memory/<persona>.jsonl`, `timeline.jsonl` | `Memory.append` | you |
-| Every model, Jev and swap cost | `workspace/usage.db` table `usage` | `Harness._record` (`orchestrator.py:589`) | CLI footer, `/usage`, dashboard (per turn, context popover) |
+| Every model, Jev and swap cost | `workspace/usage.db` table `usage` | `Harness._record` (`orchestrator.py:596`) | CLI footer, `/usage`, dashboard (per turn, context popover) |
 | A task's working folder | `workspace/sessions/<session>/u<turn>t<task>-<persona>/` | the worker's REPL (its cwd) | the worker, `_harvest` |
 | Worker conversation after each step | `…/checkpoint.json` | `Worker._save` (`worker.py:944`) | `resume` |
-| REPL variables, imports, defs | `…/repl_state.pkl` | `repl.snapshot` (`repl/server.py:289`) | `repl.restore` on resume |
+| REPL variables, imports, defs | `…/repl_state.pkl` | `repl.snapshot` (`repl/server.py:292`) | `repl.restore` on resume |
 | Each step's live reasoning and reply | `…/thinking/step-NN.txt` | `_LiveFeed` (`llm.py:139`) | dashboard `/api/thinking`, you |
-| Background job logs | `…/.jobs/<id>.log` | `start_job` (`repl/server.py:108`) | `job_status` |
+| Background job logs | `…/.jobs/<id>.log` | `start_job` (`repl/server.py:109`) | `job_status` |
 | Originals of edited project files | `…/.project_backups/` | `project._backup` (`tools/project.py:162`) | `project.undo`, the gate's review diffs |
 | Deliverables | `workspace/sessions/<session>/artifacts/` | `save_artifact`, `_resolve_artifact`, `_harvest` | the gate, the user, other workers (`inputs=`) |
 | Docked browser ports | `workspace/sessions/<session>/browsers/<pid>.json` | browser `Session` (`tools/browser.py:440`) | dashboard BrowserDock |

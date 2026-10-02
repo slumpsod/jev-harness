@@ -59,7 +59,7 @@ flowchart LR
   FU -- yes --> HIS["task.history → real user/assistant<br/>messages (+ work notes)<br/>and task.jev_text for every decision"]
 ```
 
-- Candidates that are already in the follow-up history are removed first (`orchestrator.py:432`).
+- Candidates that are already in the follow-up history are removed first (`orchestrator.py:439`).
 - `task.jev_text` (`bus.py:29`) is what every per-task Jev decision judges. For a follow-up it is
   the earlier exchange plus "Latest message: …", so "4 days, full gym" still gets the workout
   skill.

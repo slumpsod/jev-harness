@@ -69,75 +69,76 @@ To watch the browser work, type `/watch` in the CLI chat (or tick "Watch browser
 
 The `nango` tool lets the assistants use your own accounts (email, calendar, Drive, GitHub, Slack, Notion,
 accounting, fitness trackers... about 1,000 apps) through [Nango](https://nango.dev), which keeps the
-logins and refreshes the tokens. It's optional: without a key the tool is simply not offered.
+logins and refreshes the tokens. No token ever reaches a model, and anything that changes something
+(sending, creating, deleting) asks you first.
 
-Run Nango on your own machine (below) or use [Nango Cloud](https://app.nango.dev) (skip to step 3 and
-leave `nango_url` out). Local keeps your logins in a database on your machine, your email and files come
-from the app straight to you, and the secret key only works from this machine. It costs a Docker
-container and making your own OAuth app per provider (step 4).
+### The easy way: ask the assistant
 
-### 1. Start Nango (Docker)
+Say **"Connect my Google Calendar"** (or Gmail, GitHub, Slack, Notion...), or **"Set up Nango"**. The
+assistant does the work and talks you through the rest, one step at a time (the `nango-setup` skill):
 
-Needs [Docker Desktop](https://www.docker.com/products/docker-desktop/), running.
+1. **Nango, the first time.** It starts Docker and Nango on this machine (about 400 MB; you need
+   [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed). If Docker Desktop on
+   Windows is stuck on leftover files from its last shutdown, it asks before moving them aside. Nothing to
+   configure: it keeps the key and address in `workspace/nango/`.
+2. **At the app's website.** It reads you each step (for Google: make a project, turn on the API, the
+   consent screen, publish it, create the OAuth client), opens that page in your own browser, and waits for
+   your "Done". The redirect URL it gives you is exact.
+3. **Its ID and secret.** It asks for the Client ID, then the secret; the secret is typed hidden, goes
+   straight to Nango on this machine, and is not kept in the conversation, memory or logs.
+4. **Sign in.** It opens Nango's sign-in page in your browser, waits until you've allowed access, and checks
+   the connection works ("connected as you@gmail.com").
+
+Want it to click through the website for you? Say so. It opens a window **you** sign in on (it never types
+your password) and does the clicking, and it can read the Client ID and secret straight off the page so you
+don't copy anything. Google may refuse to sign in to an automated window; if so it says so and carries on in
+your own browser, because working around that would be wrong. The window stays signed in between tasks
+(a profile in `workspace/nango/browser-profile`). **Untested on Google's own pages** (they need your sign-in):
+this was only run live against a practice console, so the by-hand walk-through is the proven path.
+
+Every time you add another app it's the same walk-through, and Google apps reuse the project. Apps that sign
+in with a key or password (Todoist, Airtable, Apple Calendar...) need no app at all: it tells you where to
+find the details and you type them on Nango's own page.
+
+### Or by hand
+
+Everything above is also plain Python the assistant calls: `nango.status()`, `nango.start()`,
+`nango.guide(app)`, `nango.setup(app)`, `nango.connect_and_wait(app)`, `nango.test(app)`. And the
+long way, to see what it does:
+
+**Nango on this machine** (Docker Desktop running):
 
 ```bash
 cd nango
 cp .env.example .env
-openssl rand -base64 32
+openssl rand -base64 32       # put this after NANGO_ENCRYPTION_KEY= in .env, and keep a copy: it can't be replaced
+docker compose up -d          # dashboard: http://localhost:3003
 ```
 
-Put that key after `NANGO_ENCRYPTION_KEY=` in `nango/.env`, and keep a copy somewhere safe: it can't be
-changed later, and the stored logins can't be read without it. The dashboard asks you to sign up for an
-account (it stays in the local database); `FLAG_AUTH_ENABLED=false` in `nango/.env` drops the login instead,
-leaving the dashboard open to anything running on this machine. Then:
+The dashboard asks you to sign up for an account (it stays in the local database); `FLAG_AUTH_ENABLED=false`
+in `nango/.env` drops the login instead, leaving it open to anything running on this machine (the
+assistant asks which you want, and can fetch the key itself only when there's no login). Everything listens
+on 127.0.0.1 only; your connections live in the `nango-data` volume.
 
-```bash
-docker compose up -d
-```
+**The key.** Dashboard > Environment Settings > API Keys > the secret key. Make it available as
+`NANGO_SECRET_KEY` in your environment (Windows: `setx NANGO_SECRET_KEY ...`, then a new terminal), or put
+the key in `workspace/nango/secret_key` and `http://localhost:3003` in `workspace/nango/url`. Nango Cloud
+instead of local: sign up at [app.nango.dev](https://app.nango.dev), use its secret key, and leave the URL out.
 
-The dashboard is at http://localhost:3003. It restarts with Docker; `docker compose down` stops it (your
-connections stay in the `nango-data` volume). Everything listens on 127.0.0.1 only.
+**An app at the provider.** For OAuth apps (Google, GitHub, Slack...), make an OAuth app at the provider
+with the redirect URL `http://localhost:3003/oauth/callback`. For Google (Gmail, Calendar, Drive, Docs,
+Sheets), once for all of them:
+1. [Google Cloud console](https://console.cloud.google.com/projectcreate): make a project, and under
+   **APIs & Services > Library** enable the APIs you want.
+2. **Google Auth Platform** (the OAuth consent screen): External, your email as support and contact.
+3. **Audience > Publish app.** In "Testing", Google's logins expire after 7 days. Publishing an app only
+   you use normally needs no review (Google shows an "unverified app" warning you click past once); if
+   Google asks for verification, check its current rules.
+4. **Clients > Create client**: Web application, with the redirect URL above. Copy the Client ID and secret.
+5. In Nango's dashboard, **Integrations > Set up** the app (key e.g. `google-mail`) with that ID, secret and
+   scopes (e.g. `https://www.googleapis.com/auth/gmail.readonly`), then **Connections > Add** and sign in.
 
-### 2. Point the harness at it
-
-In `config.local.yaml`:
-
-```yaml
-tools:
-  nango_url: http://localhost:3003
-```
-
-### 3. The secret key
-
-In the dashboard, open **Environment Settings > API Keys** and copy the secret key. Set it where you start the
-harness: `export NANGO_SECRET_KEY=...` in your shell profile (Windows: `setx NANGO_SECRET_KEY ...`, then
-open a new terminal).
-
-### 4. Set up the apps you want
-
-In the dashboard, **Integrations > Set up** each app (e.g. Gmail, Google Calendar, GitHub). The unique key you
-give it (e.g. `google-mail`) is the name the assistants use. Apps that log in with an API key (Stripe,
-Airtable PAT, Twilio, ...) need nothing more. OAuth apps need an OAuth app of your own at the provider, with
-this redirect URL: `http://localhost:3003/oauth/callback`. Nango's page for each app links a guide.
-
-Google (Gmail, Calendar, Drive, Docs, Sheets), once for all of them:
-1. [Google Cloud console](https://console.cloud.google.com): make a project, and under **APIs & Services >
-   Library** enable the APIs you want (Gmail API, Google Calendar API, Google Drive API...).
-2. **OAuth consent screen**: External, your own email as a test user.
-3. **Credentials > Create credentials > OAuth client ID**: Web application, with the redirect URL above.
-4. Paste the client ID and secret into each Google integration in Nango, with its scopes, e.g.
-   `https://www.googleapis.com/auth/gmail.modify` or `https://www.googleapis.com/auth/calendar`.
-5. **The 7-day catch:** while the consent screen is in "Testing", Google's refresh tokens expire after
-   7 days and you would reconnect weekly. Click **Publish app**: for your own account that's allowed
-   without Google's review, and you click past an "unverified app" warning once when you connect.
-
-### 5. Connect your accounts
-
-On the dashboard's Connections page, or just ask ("connect my Gmail"): the assistant gives you a link, you
-sign in, and reply "done".
-
-Check: `jevh -c "what's on my calendar tomorrow?"`. When an assistant wants to send, create,
-change or delete something, you're asked first and shown exactly what goes out.
+Check: `jevh -c "what's on my calendar tomorrow?"`.
 
 ## Good to know
 
@@ -162,8 +163,8 @@ change or delete something, you're asked first and shown exactly what goes out.
 | `model not found` from LM Studio | `models.strong` / `models.fast` must match the ids LM Studio shows |
 | the browser tool fails to start | `python -m playwright install chromium` (inside the venv) |
 | `python: not found` in a worker's shell command | activate the venv (`source .venv/bin/activate`) |
-| `Nango isn't set up: NANGO_SECRET_KEY is not set` | set it (Connected accounts, step 3) in the terminal you run from |
-| `no '<app>' account is connected` | connect it in the Nango dashboard, or let the assistant give you a link |
-| `isn't set up in Nango` | add that integration in the dashboard first (Connected accounts, step 4) |
+| `Nango isn't set up yet` | ask the assistant to "Set up Nango" (or `nango.start()` in its REPL) |
+| `no '<app>' account is connected` | ask the assistant to connect it ("Connect my Gmail") |
+| `isn't set up in Nango` | ask the assistant to set that app up ("Connect my Slack") |
 | `can't reach Nango at http://localhost:3003` | start Docker Desktop, then `docker compose up -d` in `nango/` |
 | Docker Desktop (Windows): `remove ...\engine.sock` (or `dockerInference`): `The file cannot be accessed by the system` | a socket left by a crash that Windows won't delete: quit Docker, rename the folder it names (e.g. `%LOCALAPPDATA%\docker-secrets-engine` -> `docker-secrets-engine.old`), start Docker again |
