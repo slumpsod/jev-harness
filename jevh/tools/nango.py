@@ -9,13 +9,19 @@ through Nango's proxy, so a token never reaches the worker's prompt.
     nango.post("github", "/repos/o/r/issues", json={"title": "..."})   # the user approves it first
     nango.connect("notion")    # a link the user opens to connect an account
 
+First-time setup (Docker, the keys, registering an app at the provider, connecting) is in
+nango_setup.py and reached through this module: nango.status(), nango.start(), nango.providers(),
+nango.guide(), nango.setup(), nango.connect_and_wait(), nango.test(), nango.open_page(),
+nango.browser_mode(). The nango-setup skill walks a user through them.
+
 Anything that could change something (a POST, PUT, PATCH or DELETE that is not a search or query) is
 shown to the user, who allows or refuses it before it is sent. The harness asks that question itself,
 so a request can't approve itself (an email the worker read can't tell it to forward your inbox).
 
 Settings: tools.nango_url in config.yaml (default https://api.nango.dev; a self-hosted server is
 usually http://localhost:3003), tools.nango_writes (ask | deny | allow; default ask), and the
-secret key in the NANGO_SECRET_KEY environment variable.
+secret key in the NANGO_SECRET_KEY environment variable. nango.start() keeps the key and the URL of
+the Nango it set up in <workspace>/nango/ (JEVH_NANGO_DIR), which are used when nothing else says.
 """
 from __future__ import annotations
 
@@ -27,6 +33,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 DEFAULT_URL = "https://api.nango.dev"
@@ -50,19 +57,63 @@ class Refused(NangoError):
     """The user (or tools.nango_writes: deny) did not allow a change."""
 
 
+def _state_dir() -> Path:
+    """Where the Nango this harness set up keeps its key and URL (and the browser's sign-in profile)."""
+    d = os.environ.get("JEVH_NANGO_DIR")
+    if d:
+        return Path(d)
+    from jevh.config import load_config
+    return load_config().workspace / "nango"
+
+
+def _state(name: str) -> str:
+    try:
+        return (_state_dir() / name).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def _save_state(name: str, value: str, private: bool = False) -> None:
+    d = _state_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / name
+    f.write_text(value, encoding="utf-8")
+    if private:
+        try:
+            f.chmod(0o600)
+        except OSError:
+            pass   # Windows: the folder is already the user's own
+
+
+def _key() -> str:
+    """The secret key: the environment first, else the one nango.start() saved."""
+    return os.environ.get("NANGO_SECRET_KEY") or _state("secret_key")
+
+
 def configured() -> bool:
-    return bool(os.environ.get("NANGO_SECRET_KEY"))
+    return bool(_key())
 
 
 def _base() -> str:
-    return (os.environ.get("JEVH_NANGO_URL") or DEFAULT_URL).rstrip("/")
+    return (os.environ.get("JEVH_NANGO_URL") or _state("url") or DEFAULT_URL).rstrip("/")
+
+
+def _ask(question: str, options: list | None = None, secret: bool = False) -> str | None:
+    """Ask the user from inside the tool (the worker's code never sees a question it can answer for the
+    user, and a secret goes straight to the caller). None: there is no user here (not in a worker's REPL)."""
+    main = sys.modules.get("__main__")
+    call = getattr(main, "_call", None)
+    if call is None or not hasattr(main, "ask_user"):
+        return None
+    return str(call("ask_user", question, options, **({"secret": True} if secret else {})) or "")
 
 
 def _http(method: str, path: str, *, params: dict | None = None, body: Any = None,
           headers: dict | None = None, timeout: float = 60) -> tuple[int, str, bytes]:
-    key = os.environ.get("NANGO_SECRET_KEY")
+    key = _key()
     if not key:
-        raise NangoError("Nango isn't set up: NANGO_SECRET_KEY is not set (see SETUP.md, 'Connected accounts')")
+        raise NangoError("Nango isn't set up yet: nango.status() says what is missing and nango.start() sets it "
+                         "up on this machine (or set NANGO_SECRET_KEY for Nango Cloud; SETUP.md, 'Connected accounts')")
     url = _base() + path
     if params:
         url += ("&" if "?" in url else "?") + urllib.parse.urlencode(
@@ -156,23 +207,31 @@ def _resolve(integration: str, connection_id: str | None) -> tuple[str, str]:
     if not hits:
         have = ", ".join(sorted({c["integration"] for c in connections()}))
         raise NotConnected(f"no '{integration}' account is connected" + (f" (connected: {have})" if have else "")
-                           + f". nango.connect('{integration}') gives a link for the user to connect one.")
+                           + f". nango.connect_and_wait('{integration}') opens the sign-in page for the user "
+                             "(an app Nango doesn't have yet: nango.guide(app), then nango.setup(app)).")
     if len(hits) > 1:
         raise NangoError(f"{len(hits)} '{integration}' accounts are connected: pass connection_id= one of "
                          f"{[c['connection_id'] for c in hits]}")
     return hits[0]["integration"], hits[0]["connection_id"]
 
 
+def _integration_key(integration: str) -> str | None:
+    """The key of the Nango integration a name means ("github" -> "github-jed"), or None when it isn't set up."""
+    keys = {i["integration"]: i for i in integrations()}
+    by_provider = {i["provider"]: i["integration"] for i in keys.values()}
+    return integration if integration in keys else by_provider.get(integration)
+
+
 def connect(integration: str) -> str:
     """A Nango Connect link for the user to connect (or reconnect) an account of `integration`.
     Give it to the user with ask_user(f"Open {link} to connect ..., then reply done", ["done", "cancel"]);
     after "done", call the API as usual."""
-    keys = {i["integration"]: i for i in integrations()}
-    by_provider = {i["provider"]: i["integration"] for i in keys.values()}
-    key = integration if integration in keys else by_provider.get(integration)
+    key = _integration_key(integration)
     if not key:
-        raise NangoError(f"'{integration}' isn't set up in Nango (set up: {', '.join(sorted(keys)) or 'none'}). "
-                         "The user adds an integration once in the Nango dashboard (Integrations > Set up).")
+        keys = {i["integration"] for i in integrations()}
+        raise NangoError(f"'{integration}' isn't set up in Nango yet (set up: {', '.join(sorted(keys)) or 'none'}). "
+                         f"nango.guide({integration!r}) says what the user does at the app, and "
+                         f"nango.setup({integration!r}) adds it. Don't ask the user to use the dashboard.")
     res = _nango("POST", "/connect/sessions", body={
         "tags": {"end_user_id": os.environ.get("JEVH_NANGO_USER", "jev-harness")},
         "allowed_integrations": [key]})
@@ -191,7 +250,8 @@ def connect(integration: str) -> str:
 def summary() -> str:
     """One line for the prompt: which accounts are connected (empty if Nango is down or unset)."""
     if not configured():
-        return ""
+        return ("Nango isn't set up yet: nango.status() says what is missing, nango.start() sets it up here, "
+                "and the nango-setup skill walks the user through it.")
     down = _cache.get("down")
     if down and time.monotonic() - down[0] < 60:   # every task asks: a dead server costs one short wait a minute
         return ""
@@ -199,9 +259,10 @@ def summary() -> str:
         conns = connections(timeout=5)
     except NangoError:
         _cache["down"] = (time.monotonic(), True)
-        return ""
+        return "Nango is set up but not reachable right now (nango.status() says why; nango.start() starts it)."
     if not conns:
-        return "No accounts are connected yet (nango.integrations() lists what can be; nango.connect(name))."
+        return ("No accounts are connected yet (nango.integrations() lists the apps set up; nango.guide(app) and "
+                "nango.setup(app) add one; the nango-setup skill walks the user through it).")
     parts = [f"{c['integration']}{'' if c['ok'] else ' (needs reconnecting)'}" for c in conns]
     return "Connected accounts: " + ", ".join(dict.fromkeys(parts)) + "."
 
@@ -230,10 +291,6 @@ def _approve(integration: str, method: str, path: str, body: Any, params: dict |
     what = f"{method} {path} on {integration}" + (f" (sent to {base_url})" if base_url else "")
     if mode == "deny" and not base_url:
         raise Refused(f"{what} was not sent: changes through Nango are turned off (tools.nango_writes: deny)")
-    main = sys.modules.get("__main__")
-    ask = getattr(main, "_call", None)
-    if ask is None or not hasattr(main, "ask_user"):   # not in a worker's REPL: nobody to ask
-        raise Refused(f"{what} was not sent: there is no user here to approve a change")
     shown = body if isinstance(body, str) else jsonlib.dumps(body, ensure_ascii=False, default=str) if body is not None else ""
     if params:   # some APIs take the whole message as query params (Slack's chat.postMessage?text=...)
         shown = f"params: {jsonlib.dumps(params, ensure_ascii=False, default=str)}" + (f"\n{shown}" if shown else "")
@@ -241,7 +298,9 @@ def _approve(integration: str, method: str, path: str, body: Any, params: dict |
          else f"Allow this change through your {integration} account?\n") + f"{method} {path}" + (
         f"\n{shown[:800]}{'...' if len(shown) > 800 else ''}" if shown else "")
     everything = f"Allow all {integration} changes this task"
-    answer = str(ask("ask_user", q, ["Allow", "Don't allow"] if base_url else ["Allow", everything, "Don't allow"]) or "")
+    answer = _ask(q, ["Allow", "Don't allow"] if base_url else ["Allow", everything, "Don't allow"])
+    if answer is None:   # not in a worker's REPL: nobody to ask
+        raise Refused(f"{what} was not sent: there is no user here to approve a change")
     if answer.strip().lower() == everything.lower():
         _allowed.add(integration)
     elif answer.strip().lower() not in ("allow", "yes", "y"):
@@ -295,3 +354,15 @@ def patch(integration: str, path: str, json: Any = None, **kw) -> Any:
 
 def delete(integration: str, path: str, **kw) -> Any:
     return request(integration, "DELETE", path, **kw)
+
+
+# -- first-time setup lives in nango_setup.py; `nango.start()` etc. reach it from here ------------------------
+_SETUP = {"status", "start", "providers", "guide", "setup", "connect_and_wait", "test", "open_page",
+          "browser_mode", "docker_unstick"}
+
+
+def __getattr__(name: str):
+    if name in _SETUP:
+        from jevh.tools import nango_setup
+        return getattr(nango_setup, name)
+    raise AttributeError(f"module 'nango' has no attribute {name!r}")

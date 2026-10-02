@@ -19,7 +19,7 @@ flowchart TD
   D -- yes --> E["group old messages into steps<br/>_steps() worker.py:115"]
   E --> F["each step → entry<br/>brief: _condense() one-line notes<br/>full: _full() THOUGHT 400 / CODE 1500 / OUTPUT 2000<br/>worker.py:843, 854"]
   F --> G["now = condensed recent steps (last 2k)"]
-  G --> H["_score: Jev compact per step<br/>'holds info finishing the task will use again?'<br/>cached by step text<br/>worker.py:801 → orchestrator.py:628"]
+  G --> H["_score: Jev compact per step<br/>'holds info finishing the task will use again?'<br/>cached by step text<br/>worker.py:801 → orchestrator.py:636"]
   H --> I["keep in full if P ≥ compact_keep 0.8"]
   I --> J["entries = earlier entries + new ones"]
   J --> K["soft = max(8,000 chars,<br/>0.6 × compact_tokens × 3.2 − system/task/recent)"]
@@ -74,7 +74,7 @@ stateDiagram-v2
 | Same error 3× | `worker.py:1095` | "Stop retrying it. Try a genuinely different approach, or call final()" |
 | 2 steps / 1 step left | `worker.py:1084` | "save your deliverables… call final()" / "LAST STEP" |
 | Repetition in a reply | `worker.py:93` | the stream is stopped and the worker told to do what it keeps saying it will do |
-| Thinking watch | `orchestrator.py:638` | see [04](04-llm-streaming.md#the-watcher-thread-_watch_thinking-llmpy100) |
+| Thinking watch | `orchestrator.py:646` | see [04](04-llm-streaming.md#the-watcher-thread-_watch_thinking-llmpy100) |
 | Step limit | `worker.py:714` | files harvested, the last output quoted, resumable |
 | Hidden reasoning kept | `worker.py:518` | the last 40k chars of each step's reasoning go back as `reasoning_content` (`limits.keep_reasoning`) |
 
@@ -104,5 +104,5 @@ sequenceDiagram
   H->>D: old checkpoint: resumed_by = session
 ```
 
-Code: `_save` `worker.py:944`, `resumable` `orchestrator.py:289`, `resume` `orchestrator.py:309`,
-`_add_resume_note` `worker.py:930`, `snapshot` / `restore` `repl/server.py:289`, `:316`.
+Code: `_save` `worker.py:944`, `resumable` `orchestrator.py:291`, `resume` `orchestrator.py:311`,
+`_add_resume_note` `worker.py:930`, `snapshot` / `restore` `repl/server.py:292`, `:316`.

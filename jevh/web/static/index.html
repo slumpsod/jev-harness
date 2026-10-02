@@ -432,6 +432,7 @@ button.flag.on { color: var(--warn-ink); border-color: color-mix(in srgb, var(--
 #input { display: block; width: 100%; resize: none; border: 0; background: transparent; box-shadow: none; outline: none; border-radius: var(--r-lg) var(--r-lg) 0 0;
          padding: 15px 18px 6px; font-size: var(--fs-chat); line-height: 1.55; min-height: 54px; max-height: 240px; }
 #input::placeholder { color: var(--faint); }
+#input.secret { -webkit-text-security: disc; }
 .cbar { display: flex; align-items: center; gap: 2px; padding: 4px 8px 8px 8px; flex-wrap: nowrap; min-width: 0; }
 .cbar .grow { flex: 1; }
 .cchip { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; flex: none; border-radius: var(--pill); border: 1px solid transparent; font-size: 12.5px; color: var(--muted);
@@ -1140,7 +1141,9 @@ function render() {
   $("send").title = $("send").ariaLabel = q ? "Answer" : "Send";
   $("form").classList.toggle("busy", busy && !q);
   $("stop").hidden = !busy;
-  $("input").placeholder = q ? `Answer ${q.persona}: ${q.question}` : matchMedia("(max-width: 700px)").matches ? "Message" : "Message (Enter to send, Shift+Enter for a new line)";
+  $("input").classList.toggle("secret", !!(q && q.secret));
+  $("input").placeholder = q && q.secret ? `${q.persona} asks for a secret (typed hidden, never shown): ${q.question}`
+    : q ? `Answer ${q.persona}: ${q.question}` : matchMedia("(max-width: 700px)").matches ? "Message" : "Message (Enter to send, Shift+Enter for a new line)";
   document.title = busy ? "\u25cf Working - Jev Harness" : "Jev Harness";
   renderCtx();
 }
@@ -1417,7 +1420,7 @@ const clock = (ts) => new Date(ts * 1000).toLocaleTimeString([], {hour: "2-digit
 function askHtml(q) {
   return `<div class="ask"><div class="q">${esc(q.persona)} asks: ${esc(q.question)}</div>
     ${q.options.length ? `<div class="opts">${q.options.map((o) => `<button data-q="${esc(q.id)}" data-a="${esc(o)}">${esc(o)}</button>`).join("")}</div>` : ""}
-    <div class="kv" style="margin-top:6px">${q.options.length ? "or type" : "Type"} your answer below.</div></div>`;
+    <div class="kv" style="margin-top:6px">${q.secret ? "Type it below: it is hidden, and not kept in the conversation." : q.options.length ? "or type" : "Type"}${q.secret ? "" : " your answer below."}</div></div>`;
 }
 function turnHtml(id) {
   const t = S.turns.get(id);

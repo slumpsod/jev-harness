@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import tempfile
 from typing import Any, Callable
 
 import pytest
@@ -11,6 +12,8 @@ os.environ["JEVH_NO_LOCAL_CONFIG"] = "1"
 # ...and offline: a real Nango key must not reach a server (without config.local.yaml, the cloud) from a test
 for _var in ("NANGO_SECRET_KEY", "JEVH_NANGO_URL", "JEVH_NANGO_WRITES", "JEVH_HOME"):
     os.environ.pop(_var, None)
+# ...and the key/URL nango.start() saves go to a folder of their own, never the real workspace's
+os.environ["JEVH_NANGO_DIR"] = tempfile.mkdtemp(prefix="jevh-nango-test-")
 
 from jevh.config import ROOT, load_config
 from jevh.decide import Answer, Response
@@ -93,3 +96,28 @@ def cfg(tmp_path):
     # spot checks sample tasks at random and spend a model reply: off unless a test turns them on
     c.raw = {**c.raw, "failures": {**(c.raw.get("failures") or {}), "audit": 0}}
     return c
+
+
+@pytest.fixture
+def nango_dir(tmp_path, monkeypatch):
+    """A fresh folder for the key/URL nango.start() saves."""
+    d = tmp_path / "nango-state"
+    monkeypatch.setenv("JEVH_NANGO_DIR", str(d))
+    return d
+
+
+@pytest.fixture
+def fake_nango(nango_dir, monkeypatch):
+    """A fake Nango server on localhost (tests/fake_nango.py); yields it. Its `.seen` lists every request."""
+    from fake_nango import serve
+
+    from jevh.tools import nango
+    srv = serve()
+    monkeypatch.setenv("NANGO_SECRET_KEY", "sk-test")
+    monkeypatch.setenv("JEVH_NANGO_URL", srv.url)
+    monkeypatch.delenv("JEVH_NANGO_WRITES", raising=False)
+    nango._cache.clear()
+    nango._allowed.clear()
+    yield srv
+    srv.shutdown()
+    nango._cache.clear()

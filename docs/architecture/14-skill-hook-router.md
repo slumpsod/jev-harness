@@ -68,7 +68,7 @@ any other failure is the hook's own error and never blocks work:
  "work_log": "...", "project": null, "changed": []}
 ```
 
-**Gate integration.** `Verifier.check` (`verify.py:205`) already collects `v.problems` from file,
+**Gate integration.** `Verifier.check` (`verify.py:234`) already collects `v.problems` from file,
 render, project and answer checks. Gate hooks join them after the file and render checks and
 before the answer check:
 
@@ -82,7 +82,7 @@ for hook in self.hooks.matching(artifacts, persona):
 Nothing else changes. A problem becomes the worker's "Not accepted yet: …" message with its REPL
 state intact (`Worker._bounce`, `worker.py:966`), counts against `verify.max_bounces` (2), and after
 that the answer is accepted with the problem listed. A bad hook can cost two bounces on a task,
-never an unbounded loop. `_verify_fn` (`orchestrator.py:653`) needs to pass the persona through;
+never an unbounded loop. `_verify_fn` (`orchestrator.py:661`) needs to pass the persona through;
 hooks only run where the verifier does (`persona.code` and `verify.enabled`).
 
 **Where hooks live.** Built-in hooks that change the harness for everyone are tracked in

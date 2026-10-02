@@ -6,133 +6,45 @@
   "route": "daily_assistant",
   "route_conf": 0.9997,
   "probs": {
-   "comfyui_manager": 0.0002,
+   "comfyui_manager": 0.0003,
    "daily_assistant": 0.9997,
    "fitness_coach": 0.0,
    "front_end_designer": 0.0,
    "high_end_dev": 0.0
   },
   "collab_scores": {
-   "comfyui_manager": 0.1192,
-   "fitness_coach": 0.0675,
-   "front_end_designer": 0.0675,
-   "high_end_dev": 0.133
+   "comfyui_manager": 0.0601,
+   "fitness_coach": 0.0534,
+   "front_end_designer": 0.0421,
+   "high_end_dev": 0.148
   },
-  "complexity": 0.0101,
-  "secs": 1.21
+  "complexity": 0.0162,
+  "secs": 0.45
  },
  {
   "text": "Remind me to call Dave Miller about the radon kit on Thursday.",
   "want": "daily_assistant",
   "want_collab": [],
   "route": "daily_assistant",
-  "route_conf": 0.9996,
+  "route_conf": 0.9995,
   "probs": {
-   "comfyui_manager": 0.0003,
-   "daily_assistant": 0.9996,
+   "comfyui_manager": 0.0005,
+   "daily_assistant": 0.9995,
    "fitness_coach": 0.0,
    "front_end_designer": 0.0,
    "high_end_dev": 0.0
   },
   "collab_scores": {
-   "comfyui_manager": 0.0331,
-   "fitness_coach": 0.0601,
-   "front_end_designer": 0.026,
-   "high_end_dev": 0.0293
+   "comfyui_manager": 0.0474,
+   "fitness_coach": 0.0851,
+   "front_end_designer": 0.0331,
+   "high_end_dev": 0.0675
   },
-  "complexity": 0.5398,
-  "secs": 1.06
+  "complexity": 0.541,
+  "secs": 0.44
  },
  {
   "text": "Search my email for the invoice from Centerpoint last month.",
-  "want": "daily_assistant",
-  "want_collab": [],
-  "route": "daily_assistant",
-  "route_conf": 0.9996,
-  "probs": {
-   "comfyui_manager": 0.0003,
-   "daily_assistant": 0.9996,
-   "fitness_coach": 0.0,
-   "front_end_designer": 0.0,
-   "high_end_dev": 0.0
-  },
-  "collab_scores": {
-   "comfyui_manager": 0.1067,
-   "fitness_coach": 0.1192,
-   "front_end_designer": 0.0675,
-   "high_end_dev": 0.148
-  },
-  "complexity": 0.5768,
-  "secs": 0.98
- },
- {
-  "text": "Log today's job: 6 hours labor at 75/hr plus 300 in materials for Talon.",
-  "want": "daily_assistant",
-  "want_collab": [],
-  "route": "daily_assistant",
-  "route_conf": 0.9969,
-  "probs": {
-   "comfyui_manager": 0.0028,
-   "daily_assistant": 0.9969,
-   "fitness_coach": 0.0001,
-   "front_end_designer": 0.0001,
-   "high_end_dev": 0.0001
-  },
-  "collab_scores": {
-   "comfyui_manager": 0.0953,
-   "fitness_coach": 0.133,
-   "front_end_designer": 0.0851,
-   "high_end_dev": 0.1192
-  },
-  "complexity": 0.7073,
-  "secs": 0.97
- },
- {
-  "text": "What's a good gift for my mom's 60th birthday?",
-  "want": "daily_assistant",
-  "want_collab": [],
-  "route": "daily_assistant",
-  "route_conf": 0.9823,
-  "probs": {
-   "comfyui_manager": 0.0159,
-   "daily_assistant": 0.9823,
-   "fitness_coach": 0.001,
-   "front_end_designer": 0.0004,
-   "high_end_dev": 0.0005
-  },
-  "collab_scores": {
-   "comfyui_manager": 0.2018,
-   "fitness_coach": 0.0759,
-   "front_end_designer": 0.0851,
-   "high_end_dev": 0.0759
-  },
-  "complexity": 0.1558,
-  "secs": 0.89
- },
- {
-  "text": "Summarize this PDF rebate form for me.",
-  "want": "daily_assistant",
-  "want_collab": [],
-  "route": "daily_assistant",
-  "route_conf": 0.9784,
-  "probs": {
-   "comfyui_manager": 0.0158,
-   "daily_assistant": 0.9784,
-   "fitness_coach": 0.0011,
-   "front_end_designer": 0.0011,
-   "high_end_dev": 0.0035
-  },
-  "collab_scores": {
-   "comfyui_manager": 0.0953,
-   "fitness_coach": 0.0851,
-   "front_end_designer": 0.2018,
-   "high_end_dev": 0.148
-  },
-  "complexity": 0.6091,
-  "secs": 0.96
- },
- {
-  "text": "Turn the living room lights to 30 percent.",
   "want": "daily_assistant",
   "want_collab": [],
   "route": "daily_assistant",
@@ -145,189 +57,365 @@
    "high_end_dev": 0.0
   },
   "collab_scores": {
+   "comfyui_manager": 0.0534,
+   "fitness_coach": 0.1067,
+   "front_end_designer": 0.0421,
+   "high_end_dev": 0.1824
+  },
+  "complexity": 0.5809,
+  "secs": 0.44
+ },
+ {
+  "text": "Log today's job: 6 hours labor at 75/hr plus 300 in materials for Talon.",
+  "want": "daily_assistant",
+  "want_collab": [],
+  "route": "daily_assistant",
+  "route_conf": 0.9968,
+  "probs": {
+   "comfyui_manager": 0.0028,
+   "daily_assistant": 0.9968,
+   "fitness_coach": 0.0002,
+   "front_end_designer": 0.0001,
+   "high_end_dev": 0.0002
+  },
+  "collab_scores": {
    "comfyui_manager": 0.0953,
-   "fitness_coach": 0.0601,
-   "front_end_designer": 0.0331,
+   "fitness_coach": 0.0851,
+   "front_end_designer": 0.1067,
+   "high_end_dev": 0.2942
+  },
+  "complexity": 0.6894,
+  "secs": 0.46
+ },
+ {
+  "text": "What's a good gift for my mom's 60th birthday?",
+  "want": "daily_assistant",
+  "want_collab": [],
+  "route": "daily_assistant",
+  "route_conf": 0.9933,
+  "probs": {
+   "comfyui_manager": 0.0059,
+   "daily_assistant": 0.9933,
+   "fitness_coach": 0.0004,
+   "front_end_designer": 0.0002,
+   "high_end_dev": 0.0002
+  },
+  "collab_scores": {
+   "comfyui_manager": 0.1824,
+   "fitness_coach": 0.0953,
+   "front_end_designer": 0.0601,
    "high_end_dev": 0.1067
   },
-  "complexity": 0.4475,
-  "secs": 0.92
+  "complexity": 0.1508,
+  "secs": 0.44
+ },
+ {
+  "text": "Summarize this PDF rebate form for me.",
+  "want": "daily_assistant",
+  "want_collab": [],
+  "route": "daily_assistant",
+  "route_conf": 0.9818,
+  "probs": {
+   "comfyui_manager": 0.014,
+   "daily_assistant": 0.9818,
+   "fitness_coach": 0.001,
+   "front_end_designer": 0.0008,
+   "high_end_dev": 0.0024
+  },
+  "collab_scores": {
+   "comfyui_manager": 0.0759,
+   "fitness_coach": 0.133,
+   "front_end_designer": 0.1067,
+   "high_end_dev": 0.2451
+  },
+  "complexity": 0.6188,
+  "secs": 0.45
+ },
+ {
+  "text": "Turn the living room lights to 30 percent.",
+  "want": "daily_assistant",
+  "want_collab": [],
+  "route": "daily_assistant",
+  "route_conf": 0.9996,
+  "probs": {
+   "comfyui_manager": 0.0004,
+   "daily_assistant": 0.9996,
+   "fitness_coach": 0.0,
+   "front_end_designer": 0.0,
+   "high_end_dev": 0.0
+  },
+  "collab_scores": {
+   "comfyui_manager": 0.0759,
+   "fitness_coach": 0.0534,
+   "front_end_designer": 0.0293,
+   "high_end_dev": 0.1192
+  },
+  "complexity": 0.4464,
+  "secs": 0.4
  },
  {
   "text": "How far is it from Spanish Fork to Provo?",
   "want": "daily_assistant",
   "want_collab": [],
   "route": "daily_assistant",
-  "route_conf": 0.9947,
+  "route_conf": 0.9962,
   "probs": {
-   "comfyui_manager": 0.0041,
-   "daily_assistant": 0.9947,
-   "fitness_coach": 0.0003,
-   "front_end_designer": 0.0002,
-   "high_end_dev": 0.0007
+   "comfyui_manager": 0.0032,
+   "daily_assistant": 0.9962,
+   "fitness_coach": 0.0002,
+   "front_end_designer": 0.0001,
+   "high_end_dev": 0.0003
   },
   "collab_scores": {
-   "comfyui_manager": 0.0759,
-   "fitness_coach": 0.0373,
+   "comfyui_manager": 0.0675,
+   "fitness_coach": 0.0331,
    "front_end_designer": 0.0421,
-   "high_end_dev": 0.0601
+   "high_end_dev": 0.0851
   },
-  "complexity": 0.0178,
-  "secs": 0.94
+  "complexity": 0.0158,
+  "secs": 0.42
  },
  {
   "text": "Put together a quote for 2,400 sqft of R-30 attic insulation.",
   "want": "daily_assistant",
   "want_collab": [],
   "route": "daily_assistant",
-  "route_conf": 0.9994,
+  "route_conf": 0.999,
   "probs": {
-   "comfyui_manager": 0.0005,
-   "daily_assistant": 0.9994,
+   "comfyui_manager": 0.0008,
+   "daily_assistant": 0.999,
+   "fitness_coach": 0.0001,
+   "front_end_designer": 0.0,
+   "high_end_dev": 0.0001
+  },
+  "collab_scores": {
+   "comfyui_manager": 0.0953,
+   "fitness_coach": 0.1645,
+   "front_end_designer": 0.1824,
+   "high_end_dev": 0.2018
+  },
+  "complexity": 0.7969,
+  "secs": 0.44
+ },
+ {
+  "text": "Connect my Gmail so you can read my email.",
+  "want": "daily_assistant",
+  "want_collab": [],
+  "route": "daily_assistant",
+  "route_conf": 0.9997,
+  "probs": {
+   "comfyui_manager": 0.0002,
+   "daily_assistant": 0.9997,
    "fitness_coach": 0.0,
    "front_end_designer": 0.0,
    "high_end_dev": 0.0
   },
   "collab_scores": {
-   "comfyui_manager": 0.1192,
-   "fitness_coach": 0.1067,
+   "comfyui_manager": 0.0675,
+   "fitness_coach": 0.1192,
    "front_end_designer": 0.0759,
-   "high_end_dev": 0.0601
+   "high_end_dev": 0.2451
   },
-  "complexity": 0.8421,
-  "secs": 0.96
+  "complexity": 0.6426,
+  "secs": 0.43
+ },
+ {
+  "text": "Help me link my Google Calendar to the assistant.",
+  "want": "daily_assistant",
+  "want_collab": [],
+  "route": "daily_assistant",
+  "route_conf": 0.9997,
+  "probs": {
+   "comfyui_manager": 0.0002,
+   "daily_assistant": 0.9997,
+   "fitness_coach": 0.0,
+   "front_end_designer": 0.0,
+   "high_end_dev": 0.0
+  },
+  "collab_scores": {
+   "comfyui_manager": 0.0534,
+   "fitness_coach": 0.1067,
+   "front_end_designer": 0.1192,
+   "high_end_dev": 0.3775
+  },
+  "complexity": 0.4075,
+  "secs": 0.46
+ },
+ {
+  "text": "Set up Nango so you can use my accounts.",
+  "want": "daily_assistant",
+  "want_collab": [],
+  "route": "daily_assistant",
+  "route_conf": 0.9977,
+  "probs": {
+   "comfyui_manager": 0.0013,
+   "daily_assistant": 0.9977,
+   "fitness_coach": 0.0001,
+   "front_end_designer": 0.0001,
+   "high_end_dev": 0.0008
+  },
+  "collab_scores": {
+   "comfyui_manager": 0.0759,
+   "fitness_coach": 0.133,
+   "front_end_designer": 0.2227,
+   "high_end_dev": 0.8933
+  },
+  "complexity": 1.0645,
+  "secs": 0.44
+ },
+ {
+  "text": "My Slack connection stopped working, can you reconnect it?",
+  "want": "daily_assistant",
+  "want_collab": [],
+  "route": "daily_assistant",
+  "route_conf": 0.9987,
+  "probs": {
+   "comfyui_manager": 0.0006,
+   "daily_assistant": 0.9987,
+   "fitness_coach": 0.0001,
+   "front_end_designer": 0.0,
+   "high_end_dev": 0.0006
+  },
+  "collab_scores": {
+   "comfyui_manager": 0.1067,
+   "fitness_coach": 0.0759,
+   "front_end_designer": 0.0759,
+   "high_end_dev": 0.2942
+  },
+  "complexity": 0.5574,
+  "secs": 0.45
  },
  {
   "text": "Refactor this FastAPI route to use dependency injection.",
   "want": "high_end_dev",
   "want_collab": [],
   "route": "high_end_dev",
-  "route_conf": 0.9984,
+  "route_conf": 0.9985,
   "probs": {
    "comfyui_manager": 0.0013,
    "daily_assistant": 0.0001,
    "fitness_coach": 0.0001,
    "front_end_designer": 0.0001,
-   "high_end_dev": 0.9984
+   "high_end_dev": 0.9985
   },
   "collab_scores": {
    "comfyui_manager": 0.0851,
-   "daily_assistant": 0.2451,
+   "daily_assistant": 0.4688,
    "fitness_coach": 0.0851,
    "front_end_designer": 0.0293
   },
   "complexity": 1.2945,
-  "secs": 1.0
+  "secs": 0.41
  },
  {
   "text": "Why does my Python script throw KeyError: 'id' when the JSON is empty?",
   "want": "high_end_dev",
   "want_collab": [],
   "route": "high_end_dev",
-  "route_conf": 0.9987,
+  "route_conf": 0.9985,
   "probs": {
-   "comfyui_manager": 0.0012,
+   "comfyui_manager": 0.0013,
    "daily_assistant": 0.0001,
    "fitness_coach": 0.0,
    "front_end_designer": 0.0001,
-   "high_end_dev": 0.9987
+   "high_end_dev": 0.9985
   },
   "collab_scores": {
    "comfyui_manager": 0.0474,
-   "daily_assistant": 0.1645,
+   "daily_assistant": 0.1824,
    "fitness_coach": 0.0851,
    "front_end_designer": 0.0331
   },
   "complexity": 0.0932,
-  "secs": 1.03
+  "secs": 0.41
  },
  {
   "text": "Write a PowerShell script that backs up my Documents folder nightly.",
   "want": "high_end_dev",
   "want_collab": [],
   "route": "high_end_dev",
-  "route_conf": 0.9975,
+  "route_conf": 0.9971,
   "probs": {
-   "comfyui_manager": 0.0019,
+   "comfyui_manager": 0.0022,
    "daily_assistant": 0.0003,
-   "fitness_coach": 0.0001,
+   "fitness_coach": 0.0002,
    "front_end_designer": 0.0002,
-   "high_end_dev": 0.9975
+   "high_end_dev": 0.9971
   },
   "collab_scores": {
    "comfyui_manager": 0.0759,
-   "daily_assistant": 0.4378,
+   "daily_assistant": 0.5,
    "fitness_coach": 0.1067,
    "front_end_designer": 0.0373
   },
   "complexity": 0.6284,
-  "secs": 1.02
+  "secs": 0.45
  },
  {
   "text": "Set up a SQLite schema for storing customer jobs and invoices.",
   "want": "high_end_dev",
   "want_collab": [],
   "route": "high_end_dev",
-  "route_conf": 0.9967,
+  "route_conf": 0.9974,
   "probs": {
-   "comfyui_manager": 0.0028,
+   "comfyui_manager": 0.0022,
    "daily_assistant": 0.0002,
    "fitness_coach": 0.0001,
-   "front_end_designer": 0.0002,
-   "high_end_dev": 0.9967
+   "front_end_designer": 0.0001,
+   "high_end_dev": 0.9974
   },
   "collab_scores": {
    "comfyui_manager": 0.0601,
-   "daily_assistant": 0.5,
+   "daily_assistant": 0.5927,
    "fitness_coach": 0.0675,
    "front_end_designer": 0.0953
   },
   "complexity": 1.2443,
-  "secs": 0.93
+  "secs": 0.43
  },
  {
   "text": "Review this pull request diff for bugs.",
   "want": "high_end_dev",
   "want_collab": [],
   "route": "high_end_dev",
-  "route_conf": 0.996,
+  "route_conf": 0.9954,
   "probs": {
-   "comfyui_manager": 0.0036,
-   "daily_assistant": 0.0002,
+   "comfyui_manager": 0.0041,
+   "daily_assistant": 0.0003,
    "fitness_coach": 0.0001,
    "front_end_designer": 0.0001,
-   "high_end_dev": 0.996
+   "high_end_dev": 0.9954
   },
   "collab_scores": {
    "comfyui_manager": 0.1824,
-   "daily_assistant": 0.2227,
+   "daily_assistant": 0.4378,
    "fitness_coach": 0.0953,
    "front_end_designer": 0.148
   },
   "complexity": 1.0352,
-  "secs": 0.99
+  "secs": 0.45
  },
  {
   "text": "My vLLM server OOMs on startup with a 27B model, how do I fix it?",
   "want": "high_end_dev",
   "want_collab": [],
   "route": "high_end_dev",
-  "route_conf": 0.9969,
+  "route_conf": 0.9973,
   "probs": {
-   "comfyui_manager": 0.0028,
+   "comfyui_manager": 0.0025,
    "daily_assistant": 0.0001,
    "fitness_coach": 0.0001,
-   "front_end_designer": 0.0002,
-   "high_end_dev": 0.9969
+   "front_end_designer": 0.0001,
+   "high_end_dev": 0.9973
   },
   "collab_scores": {
    "comfyui_manager": 0.0534,
-   "daily_assistant": 0.1645,
+   "daily_assistant": 0.2942,
    "fitness_coach": 0.0601,
    "front_end_designer": 0.0124
   },
   "complexity": 1.0313,
-  "secs": 0.97
+  "secs": 0.45
  },
  {
   "text": "Build a small web app where customers can book appointments, with a nice modern UI.",
@@ -336,22 +424,22 @@
    "front_end_designer"
   ],
   "route": "high_end_dev",
-  "route_conf": 0.829,
+  "route_conf": 0.7822,
   "probs": {
-   "comfyui_manager": 0.099,
-   "daily_assistant": 0.0321,
-   "fitness_coach": 0.0034,
-   "front_end_designer": 0.0364,
-   "high_end_dev": 0.829
+   "comfyui_manager": 0.1059,
+   "daily_assistant": 0.0642,
+   "fitness_coach": 0.0036,
+   "front_end_designer": 0.0441,
+   "high_end_dev": 0.7822
   },
   "collab_scores": {
    "comfyui_manager": 0.0534,
-   "daily_assistant": 0.3775,
+   "daily_assistant": 0.5927,
    "fitness_coach": 0.0851,
    "front_end_designer": 0.5
   },
   "complexity": 1.7782,
-  "secs": 1.03
+  "secs": 0.45
  },
  {
   "text": "Build a landing page for my insulation business with a custom hero illustration.",
@@ -360,13 +448,13 @@
    "comfyui_manager"
   ],
   "route": "front_end_designer",
-  "route_conf": 0.9357,
+  "route_conf": 0.9683,
   "probs": {
-   "comfyui_manager": 0.0528,
-   "daily_assistant": 0.0034,
-   "fitness_coach": 0.0018,
-   "front_end_designer": 0.9357,
-   "high_end_dev": 0.0063
+   "comfyui_manager": 0.0258,
+   "daily_assistant": 0.0024,
+   "fitness_coach": 0.0008,
+   "front_end_designer": 0.9683,
+   "high_end_dev": 0.0027
   },
   "collab_scores": {
    "comfyui_manager": 0.4688,
@@ -375,139 +463,139 @@
    "high_end_dev": 0.2689
   },
   "complexity": 1.8868,
-  "secs": 1.08
+  "secs": 0.42
  },
  {
   "text": "Design a dark-mode dashboard layout for my payroll numbers.",
   "want": "front_end_designer",
   "want_collab": [],
   "route": "front_end_designer",
-  "route_conf": 0.9291,
+  "route_conf": 0.9435,
   "probs": {
-   "comfyui_manager": 0.0463,
-   "daily_assistant": 0.0193,
-   "fitness_coach": 0.0011,
-   "front_end_designer": 0.9291,
-   "high_end_dev": 0.0043
+   "comfyui_manager": 0.0323,
+   "daily_assistant": 0.0196,
+   "fitness_coach": 0.0013,
+   "front_end_designer": 0.9435,
+   "high_end_dev": 0.0034
   },
   "collab_scores": {
    "comfyui_manager": 0.0474,
-   "daily_assistant": 0.3208,
+   "daily_assistant": 0.3486,
    "fitness_coach": 0.0474,
    "high_end_dev": 0.2227
   },
   "complexity": 1.627,
-  "secs": 1.01
+  "secs": 0.43
  },
  {
   "text": "Pick a color palette and typography for my company website.",
   "want": "front_end_designer",
   "want_collab": [],
   "route": "front_end_designer",
-  "route_conf": 0.9985,
+  "route_conf": 0.9979,
   "probs": {
-   "comfyui_manager": 0.0012,
-   "daily_assistant": 0.0002,
+   "comfyui_manager": 0.0015,
+   "daily_assistant": 0.0004,
    "fitness_coach": 0.0001,
-   "front_end_designer": 0.9985,
+   "front_end_designer": 0.9979,
    "high_end_dev": 0.0
   },
   "collab_scores": {
    "comfyui_manager": 0.1824,
-   "daily_assistant": 0.5312,
+   "daily_assistant": 0.7311,
    "fitness_coach": 0.1645,
    "high_end_dev": 0.2227
   },
   "complexity": 1.8827,
-  "secs": 1.06
+  "secs": 0.42
  },
  {
   "text": "Make the buttons on this page look more modern and accessible.",
   "want": "front_end_designer",
   "want_collab": [],
   "route": "front_end_designer",
-  "route_conf": 0.9875,
+  "route_conf": 0.991,
   "probs": {
-   "comfyui_manager": 0.0097,
-   "daily_assistant": 0.001,
-   "fitness_coach": 0.0005,
-   "front_end_designer": 0.9875,
-   "high_end_dev": 0.0013
+   "comfyui_manager": 0.0067,
+   "daily_assistant": 0.0012,
+   "fitness_coach": 0.0003,
+   "front_end_designer": 0.991,
+   "high_end_dev": 0.0008
   },
   "collab_scores": {
    "comfyui_manager": 0.2018,
-   "daily_assistant": 0.4378,
+   "daily_assistant": 0.6225,
    "fitness_coach": 0.2227,
    "high_end_dev": 0.2227
   },
   "complexity": 1.5514,
-  "secs": 0.93
+  "secs": 0.47
  },
  {
   "text": "Mock up the home screen for a habit tracking app.",
   "want": "front_end_designer",
   "want_collab": [],
   "route": "front_end_designer",
-  "route_conf": 0.9959,
+  "route_conf": 0.9962,
   "probs": {
-   "comfyui_manager": 0.0032,
-   "daily_assistant": 0.0003,
+   "comfyui_manager": 0.0028,
+   "daily_assistant": 0.0004,
    "fitness_coach": 0.0004,
-   "front_end_designer": 0.9959,
+   "front_end_designer": 0.9962,
    "high_end_dev": 0.0002
   },
   "collab_scores": {
    "comfyui_manager": 0.148,
-   "daily_assistant": 0.5312,
+   "daily_assistant": 0.4378,
    "fitness_coach": 0.2227,
    "high_end_dev": 0.3486
   },
   "complexity": 1.649,
-  "secs": 0.93
+  "secs": 0.43
  },
  {
   "text": "Make me a 4 day upper/lower split for strength.",
   "want": "fitness_coach",
   "want_collab": [],
   "route": "fitness_coach",
-  "route_conf": 0.9996,
+  "route_conf": 0.9995,
   "probs": {
    "comfyui_manager": 0.0003,
    "daily_assistant": 0.0,
-   "fitness_coach": 0.9996,
+   "fitness_coach": 0.9995,
    "front_end_designer": 0.0,
-   "high_end_dev": 0.0
+   "high_end_dev": 0.0001
   },
   "collab_scores": {
    "comfyui_manager": 0.133,
-   "daily_assistant": 0.3486,
+   "daily_assistant": 0.4378,
    "front_end_designer": 0.0421,
    "high_end_dev": 0.1067
   },
   "complexity": 1.4018,
-  "secs": 0.98
+  "secs": 0.42
  },
  {
   "text": "How should I progress my bench press, I've stalled at 80kg?",
   "want": "fitness_coach",
   "want_collab": [],
   "route": "fitness_coach",
-  "route_conf": 0.9996,
+  "route_conf": 0.9997,
   "probs": {
    "comfyui_manager": 0.0003,
    "daily_assistant": 0.0,
-   "fitness_coach": 0.9996,
+   "fitness_coach": 0.9997,
    "front_end_designer": 0.0,
    "high_end_dev": 0.0
   },
   "collab_scores": {
    "comfyui_manager": 0.0675,
-   "daily_assistant": 0.2451,
+   "daily_assistant": 0.1645,
    "front_end_designer": 0.018,
    "high_end_dev": 0.0534
   },
   "complexity": 1.0294,
-  "secs": 0.99
+  "secs": 0.42
  },
  {
   "text": "My knees hurt when I squat, what should I change?",
@@ -520,60 +608,60 @@
    "daily_assistant": 0.0001,
    "fitness_coach": 0.9995,
    "front_end_designer": 0.0,
-   "high_end_dev": 0.0
+   "high_end_dev": 0.0001
   },
   "collab_scores": {
    "comfyui_manager": 0.0851,
-   "daily_assistant": 0.1645,
+   "daily_assistant": 0.148,
    "front_end_designer": 0.0159,
    "high_end_dev": 0.0474
   },
   "complexity": 0.9706,
-  "secs": 0.91
+  "secs": 0.47
  },
  {
   "text": "How much protein should I eat to build muscle at 85kg?",
   "want": "fitness_coach",
   "want_collab": [],
   "route": "fitness_coach",
-  "route_conf": 0.9994,
+  "route_conf": 0.9996,
   "probs": {
-   "comfyui_manager": 0.0004,
+   "comfyui_manager": 0.0003,
    "daily_assistant": 0.0,
-   "fitness_coach": 0.9994,
+   "fitness_coach": 0.9996,
    "front_end_designer": 0.0,
    "high_end_dev": 0.0001
   },
   "collab_scores": {
    "comfyui_manager": 0.1192,
-   "daily_assistant": 0.2018,
+   "daily_assistant": 0.2227,
    "front_end_designer": 0.0293,
    "high_end_dev": 0.0601
   },
   "complexity": 0.6553,
-  "secs": 0.89
+  "secs": 0.42
  },
  {
   "text": "Plan a deload week for me.",
   "want": "fitness_coach",
   "want_collab": [],
   "route": "fitness_coach",
-  "route_conf": 0.9726,
+  "route_conf": 0.4906,
   "probs": {
-   "comfyui_manager": 0.0157,
-   "daily_assistant": 0.0084,
-   "fitness_coach": 0.9726,
-   "front_end_designer": 0.0009,
-   "high_end_dev": 0.0024
+   "comfyui_manager": 0.1095,
+   "daily_assistant": 0.3821,
+   "fitness_coach": 0.4906,
+   "front_end_designer": 0.0048,
+   "high_end_dev": 0.0131
   },
   "collab_scores": {
    "comfyui_manager": 0.2227,
-   "daily_assistant": 0.4688,
+   "daily_assistant": 0.5,
    "front_end_designer": 0.0601,
    "high_end_dev": 0.1645
   },
   "complexity": 0.6972,
-  "secs": 0.92
+  "secs": 0.42
  },
  {
   "text": "I want an app to look at my workouts and track my progress over time.",
@@ -583,22 +671,22 @@
    "high_end_dev"
   ],
   "route": "fitness_coach",
-  "route_conf": 0.996,
+  "route_conf": 0.9986,
   "probs": {
-   "comfyui_manager": 0.0013,
-   "daily_assistant": 0.0002,
-   "fitness_coach": 0.996,
-   "front_end_designer": 0.0003,
-   "high_end_dev": 0.0022
+   "comfyui_manager": 0.0007,
+   "daily_assistant": 0.0001,
+   "fitness_coach": 0.9986,
+   "front_end_designer": 0.0001,
+   "high_end_dev": 0.0005
   },
   "collab_scores": {
    "comfyui_manager": 0.1824,
-   "daily_assistant": 0.3208,
+   "daily_assistant": 0.3775,
    "front_end_designer": 0.7773,
    "high_end_dev": 0.9149
   },
   "complexity": 1.0,
-  "secs": 0.89
+  "secs": 0.44
  },
  {
   "text": "Build me a web dashboard that charts my lifts and bodyweight.",
@@ -608,44 +696,44 @@
    "high_end_dev"
   ],
   "route": "high_end_dev",
-  "route_conf": 0.6094,
+  "route_conf": 0.5681,
   "probs": {
-   "comfyui_manager": 0.0935,
-   "daily_assistant": 0.0087,
-   "fitness_coach": 0.0642,
-   "front_end_designer": 0.2242,
-   "high_end_dev": 0.6094
+   "comfyui_manager": 0.0871,
+   "daily_assistant": 0.0092,
+   "fitness_coach": 0.0987,
+   "front_end_designer": 0.2368,
+   "high_end_dev": 0.5681
   },
   "collab_scores": {
    "comfyui_manager": 0.1067,
-   "daily_assistant": 0.1824,
+   "daily_assistant": 0.3208,
    "front_end_designer": 0.8808,
    "high_end_dev": 0.7773
   },
   "complexity": 1.3321,
-  "secs": 0.98
+  "secs": 0.43
  },
  {
   "text": "Generate a hero image of mountains at sunset, 16:9.",
   "want": "comfyui_manager",
   "want_collab": [],
   "route": "comfyui_manager",
-  "route_conf": 0.9991,
+  "route_conf": 0.9988,
   "probs": {
-   "comfyui_manager": 0.9991,
-   "daily_assistant": 0.0006,
+   "comfyui_manager": 0.9988,
+   "daily_assistant": 0.0007,
    "fitness_coach": 0.0002,
-   "front_end_designer": 0.0001,
+   "front_end_designer": 0.0002,
    "high_end_dev": 0.0001
   },
   "collab_scores": {
-   "daily_assistant": 0.4688,
+   "daily_assistant": 0.5927,
    "fitness_coach": 0.0953,
    "front_end_designer": 0.3208,
    "high_end_dev": 0.2942
   },
   "complexity": 0.8597,
-  "secs": 1.01
+  "secs": 0.43
  },
  {
   "text": "Upscale this photo to 4K.",
@@ -661,35 +749,35 @@
    "high_end_dev": 0.0
   },
   "collab_scores": {
-   "daily_assistant": 0.5,
+   "daily_assistant": 0.6225,
    "fitness_coach": 0.0759,
    "front_end_designer": 0.1824,
    "high_end_dev": 0.2227
   },
   "complexity": 0.9396,
-  "secs": 1.0
+  "secs": 0.42
  },
  {
   "text": "Make a 5 second video of waves crashing on rocks.",
   "want": "comfyui_manager",
   "want_collab": [],
   "route": "comfyui_manager",
-  "route_conf": 0.9995,
+  "route_conf": 0.9993,
   "probs": {
-   "comfyui_manager": 0.9995,
-   "daily_assistant": 0.0003,
-   "fitness_coach": 0.0001,
+   "comfyui_manager": 0.9993,
+   "daily_assistant": 0.0004,
+   "fitness_coach": 0.0002,
    "front_end_designer": 0.0,
    "high_end_dev": 0.0001
   },
   "collab_scores": {
-   "daily_assistant": 0.4378,
+   "daily_assistant": 0.5312,
    "fitness_coach": 0.1645,
    "front_end_designer": 0.2227,
    "high_end_dev": 0.3208
   },
   "complexity": 0.859,
-  "secs": 0.91
+  "secs": 0.42
  },
  {
   "text": "Turn this product photo into a 3D model.",
@@ -711,28 +799,28 @@
    "high_end_dev": 0.4688
   },
   "complexity": 1.5728,
-  "secs": 0.99
+  "secs": 0.4
  },
  {
   "text": "Edit this image to remove the background and make it blue.",
   "want": "comfyui_manager",
   "want_collab": [],
   "route": "comfyui_manager",
-  "route_conf": 0.9973,
+  "route_conf": 0.997,
   "probs": {
-   "comfyui_manager": 0.9973,
-   "daily_assistant": 0.0008,
-   "fitness_coach": 0.0005,
-   "front_end_designer": 0.001,
+   "comfyui_manager": 0.997,
+   "daily_assistant": 0.0012,
+   "fitness_coach": 0.0006,
+   "front_end_designer": 0.0008,
    "high_end_dev": 0.0004
   },
   "collab_scores": {
-   "daily_assistant": 0.4378,
+   "daily_assistant": 0.5927,
    "fitness_coach": 0.133,
    "front_end_designer": 0.2942,
    "high_end_dev": 0.2689
   },
   "complexity": 1.0,
-  "secs": 0.97
+  "secs": 0.4
  }
 ]

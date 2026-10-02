@@ -66,7 +66,7 @@ flowchart TD
   E -- yes --> STOP2["stop: reason repeating"]
   E -- no --> F{"code has run this task,<br/>thinking watch on,<br/>not writing the final reply?"}
   F -- no --> T
-  F -- yes --> G["Jev thinking_watch<br/>orchestrator.py:638"]
+  F -- yes --> G["Jev thinking_watch<br/>orchestrator.py:646"]
   G -- "testable / searching" --> STOP3["stop: pause the think"]
   G -- none --> T
 ```
@@ -116,7 +116,7 @@ the dashboard next to a CLI) may have swapped models meanwhile, so after 30 idle
 asks LM Studio again (`lmstudio.py:72`).
 
 Swaps show up as the `swap` event (dashboard timeline markers) and as usage rows of kind `swap`
-(`orchestrator.py:208`). Embedding models are never unloaded.
+(`orchestrator.py:209`). Embedding models are never unloaded.
 
 ## Metering (`Metered`, `usage.py:132`)
 

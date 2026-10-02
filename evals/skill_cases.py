@@ -74,6 +74,15 @@ CASES = [
     ("openjev-up", "openjev", "Check that the local openjev NLI server is up and which model it's serving."),
     ("koe-hash", "koe-no-hashi-voice-dashboard", "Wire Koe-no-Hashi TTS into the voice dashboard and test a phrase."),
     ("hermes-tui", "debugging-hermes-tui-commands", "Debug why a TUI slash command crashes on the gateway - check the Python side and the Ink UI."),
+    # connecting the user's own accounts (nango-setup), added 2026-10-02
+    ("nango-gmail", "nango-setup", "I want the assistant to be able to read my Gmail. Walk me through connecting it."),
+    ("nango-calendar", "nango-setup", "Connect my Google Calendar so you can see my schedule."),
+    ("nango-github", "nango-setup", "Help me link my GitHub account to the assistant."),
+    ("nango-reconnect", "nango-setup", "My Gmail connection stopped working, I think the login expired. Reconnect it."),
+    ("nango-start", "nango-setup", "Set up Nango on this PC so you can use my accounts."),
+    ("nango-slack", "nango-setup", "I'd like you to be able to post in my Slack. How do I connect it?"),
+    ("nango-todoist", "nango-setup", "Hook up my Todoist account to the assistant."),
+    ("none-oauth", None, "What is OAuth and why do apps ask for a redirect URL?"),
     # harness-local skills
     ("lift-split", "workout-programming", "Make me a 4 day upper/lower split for strength."),
     ("deload", "workout-programming", "Plan a deload week, I've stalled on bench for three sessions."),
@@ -121,6 +130,7 @@ ACCEPTABLE = {
     "blender-render": {"blender-scripting"},
     "blender-mcp": {"blender-scripting"},
     "comfy-img": {"comfyui-3d-generation"},
+    "nango-gmail": {"google-workspace"}, "nango-calendar": {"google-workspace"}, "nango-reconnect": {"google-workspace"},
     # "none" controls where, after routing to this persona, one skill is a fair load
     "none-opinion": {"local-ai-models"},
     "none-accent": {"frontend-design"},
@@ -147,6 +157,7 @@ ACCEPTABLE = {
     "blender-render": {"blender-scripting"},
     "blender-mcp": {"blender-scripting"},
     "comfy-img": {"comfyui-3d-generation"},
+    "nango-gmail": {"google-workspace"}, "nango-calendar": {"google-workspace"}, "nango-reconnect": {"google-workspace"},
     # "none" controls where, after routing to this persona, one skill is a fair load
     "none-opinion": {"local-ai-models"},
     "none-accent": {"frontend-design"},

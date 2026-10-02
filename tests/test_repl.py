@@ -20,6 +20,19 @@ def test_callbacks_reach_host_and_errors_surface(tmp_path):
         assert res.error and "not available" in res.output
 
 
+def test_a_secret_in_a_cells_output_is_cut_but_the_code_still_holds_it(tmp_path):
+    with make(tmp_path) as r:
+        r.run("page = 'Your Client ID 1-abc.apps.googleusercontent.com Your Client secret GOCSPX-AbCdEfGhIjKlMnOpQrStUv_12'")
+        shown = r.run("print(page)\npage").output          # printed, and echoed as the last expression
+        assert "GOCSPX" not in shown and shown.count("[secret hidden]") == 2
+        assert "1-abc.apps.googleusercontent.com" in shown   # a Client ID is not a secret
+        assert r.run("import re\nm = re.search(r'GOCSPX-[A-Za-z0-9_-]+', page)\nlen(m.group(0))").output.strip() == "32"
+        out = r.run("print('xoxb-' + '1234567890-abcdefghijklmnop', 'ghp_' + 'a' * 36, 'AKIA' + 'B' * 16)").output
+        assert "xoxb" not in out and "ghp_" not in out and "AKIA" not in out and out.count("[secret hidden]") == 3
+        assert r.run("print('a normal line, sk-learn and AKIAN are fine')").output.strip() == "a normal line, sk-learn and AKIAN are fine"
+        assert r.run("print('-----BEGIN RSA PRIVATE KEY-----\\nMIIB\\n-----END RSA PRIVATE KEY-----')").output.strip() == "[secret hidden]"
+
+
 def test_exceptions_are_reported(tmp_path):
     with make(tmp_path) as r:
         res = r.run("1/0")

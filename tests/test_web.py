@@ -57,6 +57,29 @@ def test_index_embeds_token_and_rejects_foreign_host(cfg):
     assert client.get("/", headers={"Host": "evil.example:8740"}).status_code == 403  # DNS rebinding
 
 
+def test_an_allowed_remote_host_needs_the_access_key(cfg):
+    """`--allow-host` (a tailscale serve front): the page carries the API token, so a host other than this
+    machine gets in only with the launch's access key (a link, then a cookie); other hosts stay refused."""
+    host = "box.tail1234.ts.net"
+    def factory(on_event):
+        return Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM([]), on_event=on_event)
+
+    app = create_app(cfg, port=8740, harness_factory=factory, token=TOKEN,
+                     allow_hosts=[f"{host}:10000"], access_key="k3y")
+    client = TestClient(app, base_url=BASE)
+    for h in (host, f"{host}:10000"):
+        assert client.get("/", headers={"Host": h}).status_code == 403            # no key: the token isn't handed out
+        assert client.get("/?key=wrong", headers={"Host": h}).status_code == 403
+    assert client.get("/?key=k3y", headers={"Host": "evil.example:10000"}).status_code == 403
+    r = client.get("/?key=k3y", headers={"Host": f"{host}:10000"})
+    assert r.status_code == 200 and TOKEN in r.text and "jevh_key=k3y" in r.headers["set-cookie"]
+    assert "httponly" in r.headers["set-cookie"].lower() and "secure" in r.headers["set-cookie"].lower()
+    r = client.get("/api/state", headers={"Host": f"{host}:10000", "Cookie": "jevh_key=k3y", **auth()})
+    assert r.status_code == 200                                                    # the cookie carries the key
+    assert client.get("/api/state", headers={"Host": f"{host}:10000", **auth()}).status_code == 403
+    assert client.get("/").status_code == 200                                      # this machine needs no key
+
+
 def test_api_requires_token(cfg):
     client, _ = make_client(cfg)
     assert client.get("/api/state").status_code == 403

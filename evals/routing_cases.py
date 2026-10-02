@@ -32,6 +32,11 @@ CASES = [
     ("Turn the living room lights to 30 percent.", D, set()),
     ("How far is it from Spanish Fork to Provo?", D, set()),
     ("Put together a quote for 2,400 sqft of R-30 attic insulation.", D, set()),
+    # connecting the user's own accounts (nango-setup), added 2026-10-02
+    ("Connect my Gmail so you can read my email.", D, set()),
+    ("Help me link my Google Calendar to the assistant.", D, set()),
+    ("Set up Nango so you can use my accounts.", D, set()),
+    ("My Slack connection stopped working, can you reconnect it?", D, set()),
     ("Refactor this FastAPI route to use dependency injection.", DEV, set()),
     ("Why does my Python script throw KeyError: 'id' when the JSON is empty?", DEV, set()),
     ("Write a PowerShell script that backs up my Documents folder nightly.", DEV, set()),

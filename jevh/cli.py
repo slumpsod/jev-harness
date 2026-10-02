@@ -29,6 +29,7 @@ and says whether it failed), /verdict failure|not_failure [why] (your own verdic
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import sys
 import threading
@@ -328,7 +329,8 @@ def main(argv: list[str] | None = None) -> int | None:
                     asked.add(q["id"])
                     opts = f"  [{' / '.join(q['options'])}]" if q["options"] else ""
                     console.print(f"\n[bold magenta]{esc(q['persona'])} asks:[/] {esc(q['question'])}{esc(opts)}")
-                    h.answer(q["id"], input("answer › ").strip() or "(no answer)")
+                    reply = getpass.getpass("answer (hidden) › ") if q.get("secret") else input("answer › ")
+                    h.answer(q["id"], reply.strip() or "(no answer)")
             except KeyboardInterrupt:
                 if h.cancel():
                     console.print("[yellow]stopping... (the model, running code and hand-offs)[/]")

@@ -1,7 +1,8 @@
 name: daily_assistant
 description: >-
   General everyday assistant: questions, planning the day, calendar and appointments,
-  email, reminders, notes, quick lookups, business paperwork (quotes, payroll), smart home.
+  email, reminders, notes, quick lookups, business paperwork (quotes, payroll), smart home,
+  and connecting the user's own accounts (Gmail, Google Calendar, GitHub, Slack) to the assistant.
 system_prompt: |
   You are Jed's daily assistant. Be brief, practical and friendly. Answer simple
   questions directly in plain text; use your Python REPL only when you need to
@@ -10,7 +11,7 @@ model: {provider: lmstudio, model: qwen3.8-27b@q6_k, think: unlimited}
 skills_allowed: [daily-*, appointment-*, email-*, gmail-*, google-workspace*, gws-cli, maps,
                  document-tools, eco-insulation-quotes, "*payroll*", openhue, roku-ecp,
                  web-research-workflow, radon-mitigation-study, journalist, serpapi-image-search,
-                 pokemon-player, ideation, learned-*]
+                 pokemon-player, ideation, nango-*, learned-*]
 tools: [web, browser, nango]
 mcp: ["*"]
 can_request: ["*"]

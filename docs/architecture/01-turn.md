@@ -1,8 +1,8 @@
 # 01 · Turn and task setup
 
-A **turn** is one user message. `Harness.turn` (`orchestrator.py:238`) sets up cancellation and
-the thread-local tags, then `_turn` (`orchestrator.py:249`) does the work. Every task in the turn,
-whether the root or a hand-off, goes through `run_task` (`orchestrator.py:421`). `run_task` asks
+A **turn** is one user message. `Harness.turn` (`orchestrator.py:240`) sets up cancellation and
+the thread-local tags, then `_turn` (`orchestrator.py:251`) does the work. Every task in the turn,
+whether the root or a hand-off, goes through `run_task` (`orchestrator.py:428`). `run_task` asks
 Jev five questions and assembles what the worker will see.
 
 ## The turn loop
@@ -51,18 +51,18 @@ sequenceDiagram
 
 | Step | Code | Data |
 |---|---|---|
-| Recent context | `orchestrator.py:253`, `memory.py:132` | the session's last 2 turns, each clipped to 900 chars |
-| Routing | `orchestrator.py:263`, `jev.py:165` | `{latest_request, recent_conversation}` → `RouteDecision` |
-| Root task | `orchestrator.py:267`, `bus.py:91` | `Task(id, parent=None, requester="user", to, text)` |
-| Follow-up history | `orchestrator.py:271`, `memory.py:137` | `[(user, assistant, notes)]` × `limits.follow_turns` |
-| Memory write | `orchestrator.py:276`, `memory.py:111` | turn + `turn_notes()` (code run and outputs, 2k chars) |
-| Learning | `orchestrator.py:278`, `:398` | runs on its own thread with the model that just ran the task |
-| Result | `orchestrator.py:282` | `TurnResult` incl. `usage.summary(session, turn)` and a checkpoint path if resumable |
+| Recent context | `orchestrator.py:255`, `memory.py:132` | the session's last 2 turns, each clipped to 900 chars |
+| Routing | `orchestrator.py:265`, `jev.py:165` | `{latest_request, recent_conversation}` → `RouteDecision` |
+| Root task | `orchestrator.py:269`, `bus.py:91` | `Task(id, parent=None, requester="user", to, text)` |
+| Follow-up history | `orchestrator.py:273`, `memory.py:137` | `[(user, assistant, notes)]` × `limits.follow_turns` |
+| Memory write | `orchestrator.py:278`, `memory.py:111` | turn + `turn_notes()` (code run and outputs, 2k chars) |
+| Learning | `orchestrator.py:280`, `:398` | runs on its own thread with the model that just ran the task |
+| Result | `orchestrator.py:284` | `TurnResult` incl. `usage.summary(session, turn)` and a checkpoint path if resumable |
 
 **Routing rule** (`jev.py:165-195`): if the message follows up (`continues ≥ 0.25` or
 `replies ≥ 0.40`) and the Choice isn't confident (`< route 0.45`), stay with the current persona.
 Otherwise take the pick if its confidence is `≥ 0.45`. Otherwise stay if `continues ≥ stick 0.55`.
-Otherwise use `default_persona`. If Jev is down, `_safe` (`orchestrator.py:727`) falls back to the
+Otherwise use `default_persona`. If Jev is down, `_safe` (`orchestrator.py:728`) falls back to the
 current or default persona.
 
 ## Task setup: what `run_task` builds
@@ -70,26 +70,26 @@ current or default persona.
 ```mermaid
 flowchart TD
   T["Task<br/>text, inputs, history<br/>jev_text = history + latest"] --> S
-  S["Jev: pick_skills<br/>steps skills, skills_round, skills_fits<br/>orchestrator.py:425"] --> MC
-  MC["Memory.candidates<br/>own 20 + shared 6 + FTS search 10 + facts 6<br/>orchestrator.py:428"] --> MG
-  MG["Jev: gate_context<br/>steps memory_rank, memory<br/>orchestrator.py:435"] --> CO
-  CO{"allow_collab<br/>and persona.code?"} -- yes --> CL["Jev: collab<br/>step collab<br/>orchestrator.py:440"]
+  S["Jev: pick_skills<br/>steps skills, skills_round, skills_fits<br/>orchestrator.py:432"] --> MC
+  MC["Memory.candidates<br/>own 20 + shared 6 + FTS search 10 + facts 6<br/>orchestrator.py:435"] --> MG
+  MG["Jev: gate_context<br/>steps memory_rank, memory<br/>orchestrator.py:442"] --> CO
+  CO{"allow_collab<br/>and persona.code?"} -- yes --> CL["Jev: collab<br/>step collab<br/>orchestrator.py:447"]
   CO -- "no (hand-offs)" --> RQ
-  CL --> RQ["requestable =<br/>can_request + suggested<br/>orchestrator.py:442"]
-  RQ --> TO["Jev: pick_tools<br/>steps tools, mcp_rank, mcp_fits<br/>orchestrator.py:444"]
-  TO --> SYS["build_system()<br/>worker.py:414<br/>orchestrator.py:449"]
-  TO --> CTX["ctx = request, memory,<br/>inputs, skills (+ project)<br/>orchestrator.py:451"]
-  TO --> ENV["REPL env<br/>JEVH_BROWSER_*, JEVH_TASK_HOSTS,<br/>JEVH_PROJECT, JEVH_RULE_BLOCK<br/>orchestrator.py:453"]
-  SYS --> TI["Jev: pick_tier<br/>step tier<br/>orchestrator.py:465"]
-  TI --> LLM["_llm(persona, tier)<br/>cached Metered client<br/>orchestrator.py:694"]
+  CL --> RQ["requestable =<br/>can_request + suggested<br/>orchestrator.py:449"]
+  RQ --> TO["Jev: pick_tools<br/>steps tools, mcp_rank, mcp_fits<br/>orchestrator.py:451"]
+  TO --> SYS["build_system()<br/>worker.py:414<br/>orchestrator.py:456"]
+  TO --> CTX["ctx = request, memory,<br/>inputs, skills (+ project)<br/>orchestrator.py:458"]
+  TO --> ENV["REPL env<br/>JEVH_BROWSER_*, JEVH_TASK_HOSTS,<br/>JEVH_PROJECT, JEVH_RULE_BLOCK<br/>orchestrator.py:460"]
+  SYS --> TI["Jev: pick_tier<br/>step tier<br/>orchestrator.py:472"]
+  TI --> LLM["_llm(persona, tier)<br/>cached Metered client<br/>orchestrator.py:702"]
   LLM --> NAT{"native_tools?"}
-  NAT -- yes --> SYS2["rebuild system with<br/>native=True wording<br/>orchestrator.py:468"]
+  NAT -- yes --> SYS2["rebuild system with<br/>native=True wording<br/>orchestrator.py:475"]
   NAT -- no --> HD
-  SYS2 --> HD["handlers dict<br/>llm_query, jev, look, request,<br/>request_async, wait, mcp, recall,<br/>remember, ask_user,<br/>report_failure<br/>orchestrator.py:472"]
-  HD --> WD["workdir =<br/>sessions/id/u{turn}t{task}-{persona}<br/>orchestrator.py:487"]
-  WD --> WK["Worker(...)<br/>+ step_value, thinking_watch, escalate<br/>orchestrator.py:490-506"]
-  WK --> RUN["worker.run(task.text, ctx, system,<br/>task.history, resume)<br/>orchestrator.py:511"]
-  RUN --> UW["collect_unwaited hand-offs<br/>merge their artifacts<br/>orchestrator.py:530"]
+  SYS2 --> HD["handlers dict<br/>llm_query, jev, look, request,<br/>request_async, wait, mcp, recall,<br/>remember, ask_user,<br/>report_failure<br/>orchestrator.py:479"]
+  HD --> WD["workdir =<br/>sessions/id/u{turn}t{task}-{persona}<br/>orchestrator.py:494"]
+  WD --> WK["Worker(...)<br/>+ step_value, thinking_watch, escalate<br/>orchestrator.py:497-513"]
+  WK --> RUN["worker.run(task.text, ctx, system,<br/>task.history, resume)<br/>orchestrator.py:518"]
+  RUN --> UW["collect_unwaited hand-offs<br/>merge their artifacts<br/>orchestrator.py:537"]
   UW --> DONE["event done<br/>return WorkerResult"]
 ```
 
@@ -138,7 +138,7 @@ flowchart LR
   D -- no --> E["Jev pick_tier<br/>P(strong) ≥ 0.55 → strong<br/>else fast<br/>Jev down → strong"]
 ```
 
-`_llm` (`orchestrator.py:694`) caches one client per `(persona, tier)`. Each is wrapped in
+`_llm` (`orchestrator.py:702`) caches one client per `(persona, tier)`. Each is wrapped in
 `Metered` (`usage.py:132`), which records every call, and gets an `on_progress` hook that emits
-`progress` events (token counts while streaming). `_model_cfg` (`orchestrator.py:707`) swaps in
+`progress` events (token counts while streaming). `_model_cfg` (`orchestrator.py:715`) swaps in
 `models.fast`, or `models.strong` from `config.local.yaml`, keeping the persona's sampling settings.

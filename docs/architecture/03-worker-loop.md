@@ -84,7 +84,7 @@ Each worker gets its own Python process: `python -u -m jevh.repl.server` with it
 as cwd, `JEVH_ARTIFACTS` pointing at the session's artifact store, and the env from `run_task`
 (`repl/client.py:70`). The protocol is JSON lines. The server answers on a private duplicate of
 the original stdout, and its fd 1 is pointed at stderr, so prints from child processes can't
-corrupt the protocol (`repl/server.py:31-32`).
+corrupt the protocol (`repl/server.py:32-33`).
 
 ```mermaid
 sequenceDiagram
@@ -118,20 +118,21 @@ sequenceDiagram
 | Round trip | `repl/client.py:141` | restarts a dead REPL; on timeout (`limits.repl_timeout`, 1800s) kills the process tree and restarts: "[timed out…all variables were lost]" |
 | Callbacks | `repl/client.py:160`, `:166` | any `{"type":"call"}` is dispatched to `handlers[name]`; exceptions come back as `RuntimeError` in the worker's code |
 | Output cap | `repl/client.py:31` | 60% head + 40% tail, "… [N chars omitted; use peek() or slice] …" |
-| Tool Jev usage | `repl/server.py:404-410` | `decide.TOTALS` delta per exec → `ExecResult.usage` → event `tool_usage` → usage.db `jev_tools` |
+| Secret scrub | `repl/server.py:354` | an exec's output has unmistakable secret formats (`GOCSPX-…`, Slack/GitHub tokens, AWS key ids, Stripe live keys, private keys) replaced by `[secret hidden]` before it goes back to the model |
+| Tool Jev usage | `repl/server.py:424-430` | `decide.TOTALS` delta per exec → `ExecResult.usage` → event `tool_usage` → usage.db `jev_tools` |
 | Kill | `repl/client.py:39` | process group (POSIX) or `taskkill /T` (Windows): Chromium and jobs go with it |
-| `input()` | `repl/server.py:62` | disabled: "ask the user by finishing with final()" (the worker has `ask_user` instead) |
+| `input()` | `repl/server.py:63` | disabled: "ask the user by finishing with final()" (the worker has `ask_user` instead) |
 
-### What the worker's code can call (`repl/server.py:248`)
+### What the worker's code can call (`repl/server.py:251`)
 
 | Helper | Runs where | Goes to |
 |---|---|---|
-| `peek`, `save_artifact` (a `data=` string that is only an existing file's name is treated as `path=`, `repl/server.py:178`), `load_artifact`, `list_artifacts`, `start_job`, `job_status`, `job_wait` | in the REPL | local files, subprocesses |
+| `peek`, `save_artifact` (a `data=` string that is only an existing file's name is treated as `path=`, `repl/server.py:181`), `load_artifact`, `list_artifacts`, `start_job`, `job_status`, `job_wait` | in the REPL | local files, subprocesses |
 | `final(answer, artifacts, answer_var)` | in the REPL | sets `_FINAL`; non-string answers become JSON; bare artifact names resolve into the store; `changed` = files `project` touched |
 | `llm_query(prompt, data)` | callback | the task's own model, one message (data clipped to 60k) |
 | `jev(state, questions)` | callback | `Jev._ask("worker_jev")` |
 | `request`, `request_async`, `wait`, `request_all` | callback | `Handles`, see [06](06-handoffs.md) |
-| `ask_user(question, options)` | callback | `Harness._ask_user`, see [10](10-observability.md) |
+| `ask_user(question, options, secret=False)` | callback | `Harness._ask_user`, see [10](10-observability.md); `secret=True`: typed hidden, `(hidden)` in events |
 | `recall(query, k)`, `remember(fact)` | callback | Memory FTS + Jev gate; Learner fact store |
 | `report_failure(what, detail)` | callback | `FailureWatch.report`: a `model` row in the failure log; the worker carries on ([11](11-failure-log.md)) |
 | `mcp(tool, **args)` | callback | `McpHub.call` (only tools the persona's `mcp` globs allow) |
@@ -141,7 +142,7 @@ sequenceDiagram
 ### Snapshot and restore
 
 After every step, `_save` asks the REPL to `snapshot` its user variables
-(`repl/server.py:289`). Imports and top-level `def` / `class` sources are kept as source text.
+(`repl/server.py:292`). Imports and top-level `def` / `class` sources are kept as source text.
 Values are pickled (dill if installed); anything over 16 MB or unpicklable is skipped. On resume,
 `restore` replays imports, then defs, then values, and the worker is told which came back
 (`RESTORED_NOTE`).

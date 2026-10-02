@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "jevh.web", "--port", "8741", "--no-browser"],
+      "port": 8741,
+      "url": "http://127.0.0.1:8741"
+    }
+  ]
+}

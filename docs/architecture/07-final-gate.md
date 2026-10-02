@@ -10,7 +10,7 @@ under it. It is never accepted silently.
 sequenceDiagram
   autonumber
   participant W as Worker._bounce
-  participant VF as _verify_fn (orchestrator.py:653)
+  participant VF as _verify_fn (orchestrator.py:661)
   participant V as Verifier.check
   participant FS as files / headless Chromium
   participant PT as project tests
@@ -53,32 +53,38 @@ sequenceDiagram
   end
 ```
 
-## Answer rules (`answer_rules`, `verify.py:154`)
+## Answer rules (`answer_rules`, `verify.py:194`)
 
 | Problem raised | Condition |
 |---|---|
-| Unsupported numbers | the answer has 2+ digit numbers (not years) that appear nowhere in the request, prior turns, or tool outputs (`grounding`, `verify.py:138`); only once tools ran |
+| Unsupported numbers | the answer has 2+ digit numbers (not years) that appear nowhere in the request, prior turns, or tool outputs (`grounding`, `verify.py:167`); only once tools ran |
 | Claims not in the log (first of these three that applies) | `claims ≥ verify_claims 0.80` |
 | … else doesn't deliver | `delivers < 0.80` and not `honest ≥ 0.80` |
-| … else inaccurate report | code was run (the log isn't empty), `accurate < verify_accurate 0.40`, not honest, and the numbers aren't grounded (2+ supported, none unsupported) (`verify.py:177`) |
+| … else inaccurate report | code was run (the log isn't empty), `accurate < verify_accurate 0.40`, not honest, and the numbers aren't grounded (2+ supported, none unsupported) (`verify.py:206`) |
 | Too few deliverables | the request says "three logos" (2 to 20) and fewer files came, unless honest |
-| Browser claim without browser use | "checked … in the browser" and no `browser.` in the log |
+| Browser claim without browser use | "checked … in the browser" and no `browser.` in the log, unless the log shows `nango.open_page` / `connect_and_wait` / `start` (a page opened in the user's own browser, `OPENED_FOR_USER`) |
 | Promise instead of work | "next I'll …" and not a question to the user |
+| Secret asked for in the chat (nango in use) | the answer asks the user to paste or send a password, key or client secret (`asks_for_secret`) and doesn't say it is asked hidden: `nango.setup()` asks, typed hidden |
+| Nango step claimed or promised, not done | `nango` is the topic (in the evidence, request or answer) and no `nango.…(` call is in this reply's log, and the answer says an account "is connected" / "all set up" (`NANGO_CLAIM`) or "I'll hand it to Nango" (`NANGO_PROMISE`) |
+
+The harness also hides the answer to any free-text `ask_user` whose question asks for a password or
+key (`asks_for_secret`, used by `Harness._ask_user`), whatever the worker passed: the same check as
+the first of the two nango rules, applied to a question instead of an answer.
 
 `work_log` (`learn.py:151`) is the compact log Jev reads: code heads and 350-char outputs, plus
 the output lines that mention the answer's numbers and words. `seen_text` (`learn.py:137`) is the
 uncut evidence for grounding: everything the worker was shown, but not its own replies.
 
-## File checks (`Verifier._file`, `verify.py:254`)
+## File checks (`Verifier._file`, `verify.py:296`)
 
 | Type | Checks |
 |---|---|
-| any | exists; not empty; its whole content isn't just a file name (`save_artifact("planets.csv", "planets.csv")` once handed over an 11-byte file; `_names_a_file`, `verify.py:93`) |
+| any | exists; not empty; its whole content isn't just a file name (`save_artifact("planets.csv", "planets.csv")` once handed over an 11-byte file; `_names_a_file`, `verify.py:122`) |
 | `.png .jpg .jpeg .gif .webp` | magic bytes match |
 | `.py` | compiles |
 | `.json` | parses |
 | `.html .htm .svg .md .txt .css .js .csv` | no placeholder text (lorem ipsum, TODO, `[Your Company]`, `{{ x }}`, example.com…); HTML visible text only |
-| `.html .htm` | no `src`/`href` to local files that don't exist; renders without script errors or a blank body (`_render`, `verify.py:292`) |
+| `.html .htm` | no `src`/`href` to local files that don't exist; renders without script errors or a blank body (`_render`, `verify.py:307`) |
 
 ## Risky project changes
 
