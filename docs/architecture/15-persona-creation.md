@@ -1,7 +1,10 @@
 # 15. Persona creation
 
-Status: built (`jevh/forge.py`). The Jev thresholds are untuned: `evals/persona_cases.py` has the cases,
-run it live on semif first. Only fake-Jev tests have been run (`tests/test_forge.py`).
+Status: built (`jevh/forge.py`), run live on 2026-10-02 with `evals/bench/persona_creation.py`: **not working end
+to end**. The trigger never fires (routing confidence stays above 0.45, and `no_fit` scores 0.44-0.62 against
+0.80) and the routing gate holds back every real draft (the request a persona came from counts as stolen). The
+writer, the fence, the skill-ownership hand-over and approve/delete work. Numbers are in the README's Persona
+creation section.
 
 ## Why
 

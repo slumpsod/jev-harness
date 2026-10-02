@@ -12,7 +12,10 @@ set them from the sweeps below, then put the numbers in the config comments like
   unrelated requests into one persona; misses make a persona wait for more requests.
 
     python evals/persona_cases.py            # live, sweep
-    python evals/persona_cases.py --offline  # re-sweep the cached raw answers
+    python evals/persona_cases.py --holdout  # the held-out cases (run once the thresholds are set)
+    python evals/persona_cases.py --offline  # re-sweep the cached raw answers (with or without --holdout)
+
+The whole feature (the drafting model, the routing gate, a real turn) is in evals/bench/persona_creation.py.
 """
 from __future__ import annotations
 
@@ -76,19 +79,62 @@ SKILLS = [  # (name, description, belongs to no persona?)
 ]
 
 
-def run_live() -> dict:
+# The held-out set: written after the thresholds were first looked at, from different domains, so it
+# shows whether they only fit the cases above. Its negatives include requests that sit between two
+# personas (a meal plan around training, a bash script that logs workouts): those must NOT start a persona.
+NO_FIT_HELD = [
+    ("Summarize the rebate form I uploaded", False),
+    ("Why does pytest say fixture 'db' not found?", False),
+    ("Make my site's navbar look cleaner", False),
+    ("How many sets per week do I need for back hypertrophy?", False),
+    ("Upscale and sharpen this product photo", False),
+    ("Text my crew that the job moved to Friday", False),
+    ("Build me a meal prep plan around my training week", False),
+    ("Write a bash script that logs my workouts to a CSV", False),
+    ("Make a logo for my insulation company", False),
+    ("Help me write a cover letter for a project manager job", False),
+    ("How do I overwinter dahlia tubers in zone 5?", True),
+    ("Explain cricket's LBW rule and how DRS works", True),
+    ("Teach me ii-V-I chord voicings on piano", True),
+    ("What's a good sourdough starter feeding schedule for a 75% hydration loaf?", True),
+    ("Walk me through filing quarterly estimated taxes as a sole proprietor", True),
+    ("Help me read my blood panel's lipid numbers", True),
+]
+SAME_HELD = [
+    ("How do I overwinter dahlia tubers?", "When should I start tomatoes indoors in zone 5?", True),
+    ("Explain cricket's LBW rule", "How does DRS work in test matches?", True),
+    ("Teach me ii-V-I voicings on piano", "What scales work over a minor 7b5 chord?", True),
+    ("What's a good sourdough feeding schedule?", "Why is my loaf dense with a tight crumb?", True),
+    ("How do I overwinter dahlia tubers?", "Explain cricket's LBW rule", False),
+    ("Teach me ii-V-I voicings on piano", "Review this tenancy clause for risks", False),
+    ("What's a good sourdough feeding schedule?", "Which slicer settings stop stringing in PETG?", False),
+    ("Explain cricket's LBW rule", "How do I fix a TypeError in Flask?", False),
+]
+SKILLS_HELD = [
+    ("learned-dahlia-overwintering", "Use when storing and overwintering dahlia tubers in a cold climate.", True),
+    ("learned-sourdough-hydration", "Use when adjusting sourdough hydration and feeding schedule for a loaf.", True),
+    ("learned-jazz-voicings", "Use when teaching jazz chord voicings and ii-V-I progressions on piano.", True),
+    ("learned-cricket-dls-method", "Use when explaining the Duckworth-Lewis-Stern method in a rain-affected cricket match.", True),
+    ("learned-fastapi-dependency-override", "Use when a FastAPI test needs a dependency override.", False),
+    ("learned-hero-image-aspect-ratios", "Use when generating a hero image at the right aspect ratio in ComfyUI.", False),
+    ("learned-calendar-recurring-events", "Use when creating recurring calendar events with exceptions.", False),
+    ("learned-progressive-overload-plateau", "Use when a lifter's progress has plateaued on a main lift.", False),
+]
+
+
+def run_live(no_fit_cases=NO_FIT, same_cases=SAME, skill_cases=SKILLS, raw_path: Path = RAW) -> dict:
     cfg = load_config()
     jev = Jev(cfg)
-    personas = load_personas(cfg.personas_dir)
+    personas = load_personas(cfg.personas_dirs)
     raw = {"no_fit": [], "same": [], "orphan": []}
-    for request, _ in NO_FIT:
+    for request, _ in no_fit_cases:
         raw["no_fit"].append(jev.no_fit(request, personas))
-    for a, b, _ in SAME:
+    for a, b, _ in same_cases:
         raw["same"].append(jev.same_specialist(a, [b])[0])
-    for name, desc, _ in SKILLS:
+    for name, desc, _ in skill_cases:
         best, none, _probs = jev.skill_home(Skill(name, desc, "", ""), personas)
         raw["orphan"].append({"none": none, "best": best})
-    RAW.write_text(json.dumps(raw, indent=1), encoding="utf-8")
+    raw_path.write_text(json.dumps(raw, indent=1), encoding="utf-8")
     return raw
 
 
@@ -104,15 +150,19 @@ def sweep(name: str, scores: list[float], labels: list[bool]) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
-    raw = json.loads(RAW.read_text(encoding="utf-8")) if ap.parse_args().offline else run_live()
-    sweep("no_fit: no persona is for the request", raw["no_fit"], [c[1] for c in NO_FIT])
-    sweep("same_specialist: one specialist suits both", raw["same"], [c[2] for c in SAME])
+    ap.add_argument("--holdout", action="store_true", help="the held-out cases instead of the tuning ones")
+    a = ap.parse_args()
+    no_fit, same, skills = (NO_FIT_HELD, SAME_HELD, SKILLS_HELD) if a.holdout else (NO_FIT, SAME, SKILLS)
+    path = RAW.with_name("persona_cases_holdout_raw.json") if a.holdout else RAW
+    raw = json.loads(path.read_text(encoding="utf-8")) if a.offline else run_live(no_fit, same, skills, path)
+    sweep("no_fit: no persona is for the request", raw["no_fit"], [c[1] for c in no_fit])
+    sweep("same_specialist: one specialist suits both", raw["same"], [c[2] for c in same])
     # the skill is an orphan when "none of these" leads (forge.note_skill also needs it >= orphan)
     sweep("orphan: P(none of the personas) for a learned skill", [r["none"] for r in raw["orphan"]],
-          [c[2] for c in SKILLS])
+          [c[2] for c in skills])
     led = [r["best"] is None for r in raw["orphan"]]
-    print(f"  none-of-these led on {sum(l and c[2] for l, c in zip(led, SKILLS))}/{sum(c[2] for c in SKILLS)} orphans, "
-          f"{sum(l and not c[2] for l, c in zip(led, SKILLS))} skills with a home")
+    print(f"  none-of-these led on {sum(l and c[2] for l, c in zip(led, skills))}/{sum(c[2] for c in skills)} orphans, "
+          f"{sum(l and not c[2] for l, c in zip(led, skills))} skills with a home")
 
 
 if __name__ == "__main__":

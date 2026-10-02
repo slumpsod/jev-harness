@@ -45,6 +45,8 @@ python evals/tier_cases.py             # live fast/strong tier accuracy + sweep
 python evals/tool_cases.py             # live tool-guide picking accuracy + sweep
 python evals/browser_cases.py --live   # Jev browser agent on a local test shop (+ Wikipedia)
 python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness turns (flights, tickets, forms...)
+python evals/bench/persona_creation.py   # persona creation, live: Jev checks, the writer, the gate, routing, full turns
+                                         #   (--stage, --split dev|held, --reps, --budget/--resume for a runner with a time cap)
 python evals/bench/nango_setup.py        # connecting an account: a simulated user + the real local Nango (Docker), multi-turn
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
@@ -598,9 +600,25 @@ skills learned before) or the CLI (`/personas`, `/persona approve|activate|delet
 Deleting a draft gives its skills back to the personas that were offered them. `persona_creation.enabled:
 false` turns it all off.
 
-**Not tuned yet.** The `no_fit`, `orphan` and `same_specialist` thresholds are first guesses and the gate
-has only been run against fake Jev answers: run `python evals/persona_cases.py` on semif and set them
-from its sweeps before trusting the drafts. Moving skills between existing personas is a later step.
+**Live bench: it does not work end to end yet** (`python evals/bench/persona_creation.py`, 2026-10-02, semif Jev,
+Qwen 3.8 27B writing, 3 reps per case; see `evals/bench/runs/persona_creation/`). What holds: the
+writer produces a narrow, correctly fenced persona (24/24 drafts valid, 0 fence breaks, 24s each), the draft wins
+72/72 new requests in its domain, `orphan` and `same_specialist` separate cleanly (8/8, 9/9, 0 false positives, dev
+and held-out), no existing persona's routing changes (37 requests, 36/37 before and after), delete and
+approve work. What does not:
+- **The "no assistant fits" trigger never fires.** `daily_assistant` is a generalist, so Jev routes specialist
+  requests to it at 0.85-1.0 confidence and the `no_fit` question (asked under `thresholds.route`, 0.45) is asked on
+  0 of 14; when asked it scores 0.44-0.62 against `no_fit: 0.80`.
+- **The routing gate rejects drafts in real use.** Memory always holds the request a persona came from, handled
+  by another persona, and the gate counts it as stolen (`max_steals: 0`): with that request in memory 0/27 drafts
+  went live (24/24 were held back with 1 steal) and 3/24 orphan-skill drafts. Without it (the offline tests'
+  setup) 24/27 and 22/24 went live.
+- A near-duplicate of an existing persona (a strength-only coach beside `fitness_coach`) was created in 3 of 4 runs.
+- Tenancy requests were never pooled (similarity 0.38, 0.41, 0.59 against 0.60); the writer returned an unusable
+  reply for 2 of 3 sourdough-skill runs.
+
+Until the trigger and the gate are fixed and the bench passes, treat this as unverified;
+`persona_creation.enabled: false` turns it off. Moving skills between existing personas is a later step.
 
 ## Failure log
 
