@@ -45,6 +45,17 @@ python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness t
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
+python evals/verify_evidence_cases.py  # does the final() check see evidence deep inside long tool outputs
+python evals/compact_cases.py          # which earlier steps compaction must keep in full
+python evals/button_intent_cases.py    # browser: a click the goal asked for vs one with a side effect
+python evals/expect_cases.py           # browser.test: does the page show the expected result
+python evals/find_cases.py             # project.find: does it point at where a question is answered
+python evals/risk_cases.py             # is a code change risky enough for a full review
+python evals/severity_cases.py         # a risky change: strong-model or fast-model review
+python evals/rule_cases.py             # does an edit break the project's AGENTS.md / CLAUDE.md rules
+python evals/search_cases.py           # a long think: searching theories, or checking one idea
+python evals/thinking_watch_cases.py   # when to pause a long think and test the idea in code
+# most evals take --holdout (the held-out cases) and/or --offline (re-sweep saved scores)
 jevh failures                          # logged failures; `export out.jsonl` to study them
 jevh review                            # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
 ```
@@ -100,8 +111,8 @@ CLI or dashboard afterwards to load the new code, and if `pyproject.toml` change
   `code: false` makes it a plain chat persona.
 - **MCP server**: add it under `mcp_servers:` in `config.yaml` (`command`, `args`, `env`) and give a persona
   `mcp: ["server.*"]`. Servers start on first use.
-- **Skill**: `skills/<name>/SKILL.md` with `name` and `description` frontmatter. The Hermes skills folder is
-  also a root (hidden `.archive` dirs are skipped). A picked skill's first 6k chars go in the prompt, and the
+- **Skill**: `skills/<name>/SKILL.md` with `name` and `description` frontmatter. Extra roots (e.g. a Hermes
+  skills folder) go in `skills_dirs` in `config.local.yaml` (hidden `.archive` dirs are skipped). A picked skill's first 6k chars go in the prompt, and the
   full text is in `ctx['skills'][name]`.
 - **Model provider**: any OpenAI-compatible server works as `type: openai`. Claude uses the `anthropic`
   SDK (`pip install anthropic`, and set `ANTHROPIC_API_KEY` or run `ant auth login`).

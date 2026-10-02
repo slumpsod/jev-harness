@@ -122,8 +122,7 @@ prices: {}
 default_persona: daily_assistant
 personas_dir: personas
 skills_dirs:                    # first root wins on name clashes; hidden dirs (.archive) skipped
-  - skills
-  - C:/Users/Jedidiah/AppData/Local/hermes/skills
+  - skills                      # add more roots in config.local.yaml, e.g. a Hermes skills folder
 workspace: workspace
 
 # Jev sends easy tasks here (per task, incl. hand-offs); hard ones keep the persona's own model.
@@ -167,6 +166,6 @@ tools:
 # Personas opt in with `mcp: ["server.*"]`.
 mcp_servers: {}
 #  blender:
-#    command: C:/Users/Jedidiah/AppData/Local/hermes/bin/uvx
+#    command: uvx
 #    args: [--python, "3.11", blender-mcp]
 #    timeout: 90
