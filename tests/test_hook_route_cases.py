@@ -158,8 +158,11 @@ def test_hook_state_uses_the_learn_skill_window():
     assert s["task"] == "T" * 1500 and len(s["work_log"]) == 3500 and s["work_log"].endswith("end")
 
 
+# explicit ids: pytest puts the id in an environment variable, and Windows refuses one over 32767 characters
+# (the escaped long non-ASCII parameters made the default id ~40000)
 @pytest.mark.parametrize("task,log", [("", ""), ("a", ""), ("", "b"), ("short", "short"), ("é" * 1500, "🙂" * 3500),
-                                      ("x" * 1500, "y" * 3500)])
+                                      ("x" * 1500, "y" * 3500)],
+                         ids=["empty", "task-only", "log-only", "short", "long-non-ascii", "long-ascii"])
 def test_hook_state_edges(task, log):
     s = hook_state(task, log)
     assert s == {"task": task[:1500], "work_log": log[-3500:]}

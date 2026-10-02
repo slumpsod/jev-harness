@@ -89,6 +89,12 @@ def harness(cfg):
     return h
 
 
+def said(capsys) -> str:
+    """What was printed, with the line wrapping undone: the chat commands print through rich, which wraps at the
+    terminal's width (80 columns under pytest on Windows), so "cookie banners" can end up across a line break."""
+    return " ".join(capsys.readouterr().out.split())
+
+
 def test_chat_commands_write_and_manage_entries(cfg, capsys):
     h = harness(cfg)
     notebook_chat(h, "idea", "cache the router decisions")
@@ -97,23 +103,23 @@ def test_chat_commands_write_and_manage_entries(cfg, capsys):
     notebook_chat(h, "jot", "")
     e = h.notebook.list(kind="idea")[0]
     assert e["session"] == h.session and e["text"] == "cache the router decisions"
-    assert "usage: /jot" in capsys.readouterr().out
+    assert "usage: /jot" in said(capsys)
     notebook_chat(h, "notebook", "")
-    out = capsys.readouterr().out
+    out = said(capsys)
     assert "cache the router decisions" in out and "cookie banners" in out and "open: 1 ideas, 1 problems, 1 notes" in out
     notebook_chat(h, "notebook", "problems")
-    out = capsys.readouterr().out
+    out = said(capsys)
     assert "cookie banners" in out and "router decisions" not in out
     notebook_chat(h, "notebook", "GPU")                                            # any other words search
-    assert "ask about the GPU" in capsys.readouterr().out
+    assert "ask about the GPU" in said(capsys)
     notebook_chat(h, "notebook", f"done {e['id']}")
     notebook_chat(h, "notebook", "done")
-    assert "router decisions" in capsys.readouterr().out
+    assert "router decisions" in said(capsys)
     notebook_chat(h, "notebook", f"pin {e['id']}")
     notebook_chat(h, "notebook", f"show {e['id']}")
-    assert "cache the router decisions" in capsys.readouterr().out
+    assert "cache the router decisions" in said(capsys)
     notebook_chat(h, "notebook", f"rm {e['id']}")
     notebook_chat(h, "notebook", "show 999")
     notebook_chat(h, "notebook", "rm nope")
-    out = capsys.readouterr().out
+    out = said(capsys)
     assert "no entry #999" in out and "usage: /notebook rm <id>" in out and h.notebook.get(e["id"]) is None
