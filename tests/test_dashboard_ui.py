@@ -161,3 +161,88 @@ def _appearance(page, dashboard):
     page.click("[data-areset]")
     assert page.evaluate(f"{root}.dataset.theme") == "aurora"
     assert not page.errors
+
+
+def test_the_notebook_takes_ideas_and_problems(dashboard, browse):
+    browse(lambda page: _notebook(page, dashboard))
+
+
+def _notebook(page, dashboard):
+    page.goto(dashboard)
+    page.wait_for_selector(".hello")
+    page.click("#jotbtn")                                                    # the Jot button opens the notebook, ready to type
+    page.wait_for_function("document.getElementById('side').getBoundingClientRect().width > 300")
+    assert page.inner_text("#ptitle") == "Notebook"
+    page.wait_for_function("document.activeElement && document.activeElement.id === 'nbtext'")
+    page.fill("#nbtext", "Try a **second** model as the checker")
+    page.keyboard.press("Control+Enter")
+    page.wait_for_selector("#nblist .nbitem")
+    assert page.inner_text("#nblist .nbtext b") == "second" and "from session" in page.inner_text("#nblist .nbsess")
+    page.click('[data-nbkind="problem"]')
+    page.uncheck("#nbtie")
+    page.fill("#nbtext", "The chart axis had no units")
+    page.click("#nbadd")
+    page.wait_for_function("document.querySelectorAll('#nblist .nbitem').length === 2")
+    assert page.inner_text("#nblist .nbitem:first-child .badge") == "Problem"          # newest first
+    assert page.locator("#nblist .nbsess").count() == 1                                # only the idea is tied to a session
+    assert page.inner_text("#nbcount") == "2"
+
+    page.click('[data-nbfilter="problem"]')
+    assert page.locator("#nblist .nbitem").count() == 1
+    page.click('[data-nbfilter="all"]')
+    page.fill("#nbsearch", "second")
+    assert page.locator("#nblist .nbitem").count() == 1
+    page.fill("#nbsearch", "")
+    page.click('[data-nbfilter="open"]')
+
+    page.click('#nblist .nbitem:first-child [data-nbact="toggle"]')                    # the problem is solved: off the open list
+    page.wait_for_function("document.querySelectorAll('#nblist .nbitem').length === 1")
+    assert page.inner_text("#nbcount") == "1"
+    page.click('[data-nbfilter="done"]')
+    assert page.inner_text("#nblist .nbitem .badge.done") == "solved"
+    page.click('[data-nbfilter="open"]')
+
+    page.click('#nblist .nbitem [data-nbact="edit"]')
+    page.fill("#nbedit", "Try a second model as the checker, on hard cases")
+    page.click('#nblist [data-nbact="save"]')
+    page.wait_for_selector("#nblist .nbitem .nbtext")
+    assert "on hard cases" in page.inner_text("#nblist .nbitem .nbtext")
+    page.click('#nblist .nbitem [data-nbact="pin"]')
+    page.wait_for_selector("#nblist .nbitem.pin")
+
+    page.reload()                                                            # it is kept: the rail shows what is still open
+    page.wait_for_function("document.getElementById('nbcount').textContent === '1'")
+    page.click('#tabs [data-tab="notebook"]')
+    page.once("dialog", lambda d: d.accept())
+    page.click('#nblist .nbitem [data-nbact="delete"]')
+    page.wait_for_function("document.querySelectorAll('#nblist .nbitem').length === 0")
+    assert "Nothing" in page.inner_text("#nblist")
+    assert not page.errors
+
+
+def test_the_phone_layout_fits_and_every_tab_stays_reachable(dashboard, browse):
+    browse(lambda page: _phone(page, dashboard))
+
+
+def _phone(page, dashboard):
+    page.set_viewport_size({"width": 360, "height": 640})
+    page.goto(dashboard)
+    page.wait_for_selector(".hello")
+    too_wide = "document.documentElement.scrollWidth > innerWidth"
+    assert not page.evaluate(too_wide)
+    assert page.evaluate("document.getElementById('send').getBoundingClientRect().right <= innerWidth")     # the composer fits
+    assert page.evaluate("getComputedStyle(document.getElementById('input')).fontSize") == "16px"          # no zoom-on-tap on iOS
+    for tab in ("timeline", "inspector", "artifacts", "memory", "browser", "review", "notebook", "status"):
+        page.click(f'#tabs [data-tab="{tab}"]')                              # a panel never covers the tab bar, so the next click works
+        page.wait_for_function("document.getElementById('app').dataset.panel === 'open'")
+        assert not page.evaluate(too_wide), tab
+        colour = page.evaluate("getComputedStyle(document.getElementById('side')).backgroundColor")
+        assert not colour.startswith("rgba") or colour.endswith(", 1)"), f"{tab}: the panel is see-through ({colour})"
+        assert page.evaluate("document.getElementById('side').getBoundingClientRect().bottom"
+                             " <= document.querySelector('.rail').getBoundingClientRect().top + 1"), tab
+    page.click('#tabs [data-tab="notebook"]')
+    page.fill("#nbtext", "an idea from my phone")                            # the notebook works with a thumb
+    assert page.evaluate("getComputedStyle(document.getElementById('nbtext')).fontSize") == "16px"
+    page.click("#nbadd")
+    page.wait_for_selector("#nblist .nbitem")
+    assert not page.evaluate(too_wide) and not page.errors

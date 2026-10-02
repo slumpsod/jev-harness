@@ -57,6 +57,14 @@ def test_tool_calls_are_summarised_not_dumped():
         assert part in PAGE, part
 
 
+def test_the_page_is_made_for_phones():
+    assert "viewport-fit=cover" in PAGE                                      # so the safe-area insets (notch, home bar) apply
+    assert "@media (max-width: 900px)" in CSS and "@media (pointer: coarse)" in CSS
+    assert "env(safe-area-inset-bottom" in CSS
+    assert "font-size: 16px !important" in CSS                               # smaller fields make iOS zoom the page on tap
+    assert re.search(r'\.app\[data-panel="open"\] \.side \{[^}]*background: var\(--bg\)', CSS)   # the panel covers the chat: opaque
+
+
 def test_the_panel_starts_closed():
     assert '<div class="app" id="app" data-panel="closed">' in PAGE
     assert "$(\"side\").inert = true" in PAGE

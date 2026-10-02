@@ -11,7 +11,7 @@ The home folder is `~/.jevh` (or wherever `JEVH_HOME` points). It is used only i
 ├── config.yaml     your settings, laid over the checkout's config.yaml (relative paths: relative to ~/.jevh)
 ├── personas/       your personas; one named like a built-in persona replaces it
 ├── skills/         your skills (same rule), learned skills (learned/) and lesson notes (_lessons/)
-└── workspace/      memory, failure log, reviews, usage, sessions, data snapshots
+└── workspace/      memory, failure log, reviews, notebook, usage, sessions, data snapshots
 ```
 
 ## Moving to it

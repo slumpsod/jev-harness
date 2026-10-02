@@ -334,3 +334,31 @@ def test_a_failed_model_review_is_reported_as_an_event(cfg):
     err = next(e for e in app.state.hub.events if e["kind"] == "review_error")
     assert err["data"]["flag"]["id"] == fid and "no JSON" in err["data"]["error"]
     assert client.get(f"/api/reviews/{fid}", headers=auth()).json()["flag"]["status"] == "open"
+
+
+def test_notebook_api_adds_edits_filters_and_deletes(cfg):
+    client, app = make_client(cfg)
+    h = app.state.hub.harness
+    assert client.get("/api/notebook", headers=auth()).json()["entries"] == []
+    a = client.post("/api/notebook", json={"text": "show cost per turn", "kind": "idea", "session": True},
+                    headers=auth()).json()["entry"]
+    b = client.post("/api/notebook", json={"text": "the chart had no units", "kind": "problem"}, headers=auth()).json()["entry"]
+    assert (a["session"], b["session"], a["title"]) == (h.session, "", "show cost per turn")
+    assert client.post("/api/notebook", json={"text": "  "}, headers=auth()).status_code == 400
+    assert client.post("/api/notebook", json={"text": "x", "kind": "rant"}, headers=auth()).status_code == 400
+    got = client.get("/api/notebook", headers=auth()).json()
+    assert [e["id"] for e in got["entries"]] == [b["id"], a["id"]]
+    assert got["counts"] == {"open": 2, "done": 0, "all": 2, "idea": 1, "problem": 1, "note": 0}
+    assert [e["id"] for e in client.get("/api/notebook?kind=idea", headers=auth()).json()["entries"]] == [a["id"]]
+    assert [e["id"] for e in client.get("/api/notebook?q=units", headers=auth()).json()["entries"]] == [b["id"]]
+    assert client.get("/api/notebook?status=weird", headers=auth()).status_code == 400
+    up = client.post("/api/notebook/update", json={"id": a["id"], "pinned": True, "status": "done", "text": "cost per turn"},
+                     headers=auth()).json()["entry"]
+    assert (up["pinned"], up["status"], up["text"]) == (True, "done", "cost per turn")
+    assert client.post("/api/notebook/update", json={"id": 999, "text": "x"}, headers=auth()).status_code == 404
+    assert client.post("/api/notebook/update", json={"id": a["id"], "status": "?"}, headers=auth()).status_code == 400
+    assert client.post("/api/notebook/delete", json={"id": b["id"]}, headers=auth()).json() == {"ok": True}
+    assert client.post("/api/notebook/delete", json={"id": b["id"]}, headers=auth()).status_code == 404
+    assert [e["id"] for e in h.notebook.list()] == [a["id"]]
+    assert client.post("/api/notebook", json={"text": "x"}, headers=auth(Origin="https://evil.example")).status_code == 403
+    assert client.get("/api/notebook").status_code == 403                              # needs the token like the rest

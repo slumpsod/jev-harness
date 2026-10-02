@@ -473,6 +473,58 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         hub.harness.review.reviews.set_status(f["id"], "decided" if status == "open" and f["verdict"] else status)
         return {"flag": flag_out(flag_or_404(f["id"]))}
 
+    # -- notebook: ideas and problems to come back to (jevh/notebook.py) -------------------------------
+    def entry_or_404(eid) -> dict:
+        try:
+            e = hub.harness.notebook.get(int(eid))
+        except (TypeError, ValueError):
+            e = None
+        if e is None:
+            raise HTTPException(404, "no such notebook entry")
+        return e
+
+    @app.get("/api/notebook")
+    def notebook_list(kind: str | None = None, status: str | None = None, q: str | None = None,
+                      limit: int = 500) -> dict:
+        nb = hub.harness.notebook
+        try:
+            entries = nb.list(kind=kind or None, status=status or None, query=q, limit=max(1, min(limit, 2000)))
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        return {"counts": nb.counts(), "entries": entries}
+
+    @app.post("/api/notebook")
+    async def notebook_add(request: Request) -> dict:
+        """Jot something down. `session: true` ties it to the session you are in."""
+        body = await request.json()
+        h = hub.harness
+        try:
+            e = h.notebook.add(str(body.get("text") or ""), str(body.get("kind") or "note"),
+                               h.session if body.get("session") else "", bool(body.get("pinned")))
+        except ValueError as err:
+            raise HTTPException(400, str(err)) from None
+        return {"entry": e}
+
+    @app.post("/api/notebook/update")
+    async def notebook_update(request: Request) -> dict:
+        body = await request.json()
+        e = entry_or_404(body.get("id"))
+        change = {k: body[k] for k in ("text", "kind", "status", "pinned") if k in body}
+        try:
+            out = hub.harness.notebook.update(e["id"], **change)
+        except ValueError as err:
+            raise HTTPException(400, str(err)) from None
+        if out is None:
+            raise HTTPException(404, "no such notebook entry")
+        return {"entry": out}
+
+    @app.post("/api/notebook/delete")
+    async def notebook_delete(request: Request) -> dict:
+        body = await request.json()
+        e = entry_or_404(body.get("id"))
+        hub.harness.notebook.delete(e["id"])
+        return {"ok": True}
+
     @app.get("/api/thinking")
     def thinking() -> dict:
         """The running turn's newest live thinking file (its end): workers stream each step's

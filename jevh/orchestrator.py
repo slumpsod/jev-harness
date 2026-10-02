@@ -33,6 +33,7 @@ from .lmstudio import gate_for
 from .mcp import McpHub
 from .memory import Memory
 from .personas import Persona, load_learned, load_personas
+from .notebook import Notebook
 from .review import Reviewer
 from .skills import load_roster, parse_skill
 from .tools import TOOLS
@@ -240,6 +241,8 @@ class Harness:
         self.usage = Usage(self.cfg.workspace / "usage.db", self.cfg.raw.get("prices"))
         # sessions the user flagged for review, with their notes; a model can judge one (jevh/review.py)
         self.review = Reviewer(self.cfg, self.memory, self.failures, model_override=model_override)
+        # the user's own ideas and problems to come back to; nothing in it reaches a worker (jevh/notebook.py)
+        self.notebook = Notebook(self.cfg.workspace / "notebook.db")
         self.turn_no = 0
         self.turns_seen: dict[int, dict[str, Any]] = {}   # turn -> request, answer, lead task's folder (for flag())
         self._tl = threading.local()                 # which turn/task/persona this thread works for

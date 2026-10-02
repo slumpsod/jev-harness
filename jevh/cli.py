@@ -4,6 +4,7 @@
     jevh dashboard [--port 8740] [--no-browser]    # the dashboard (python -m jevh.web)
     jevh update [--check]                          # update from GitHub (python -m jevh.update)
     jevh failures | jevh review                    # the failure log, flagged sessions
+    jevh notebook                                  # your notebook of ideas and problems
     jevh home [move]                               # move your own things out of the checkout
 
 (`python -m jevh.cli` works the same as `jevh` without installing it.)
@@ -19,6 +20,8 @@ browser tool work in a visible window), /facts, /forget <id>, /usage, /failures 
 /flag [note] (flag this session for review), /note <text> (add a note to its flag),
 /flags [all] (flagged sessions), /review [id] (a model reviews the flagged session against the notes
 and says whether it failed), /verdict failure|not_failure [why] (your own verdict on it),
+/idea <text>, /problem <text>, /jot <text> (write it in the notebook), /notebook [ideas|problems|notes|done|all|words]
+(list it; /notebook done|reopen|pin|unpin|rm|show <id>),
 /personas, /persona approve|activate|delete <name> (personas the harness created), /forge,
 /skills, /trace, /verbose, /jev (health), /update [check|test|undo|channel [name]] (update the harness from GitHub),
 /reset, /quit
@@ -40,6 +43,7 @@ from rich.panel import Panel
 from .config import load_config
 from .orchestrator import Harness
 from . import update
+from .notebook import describe as describe_entry, show as show_entry
 from .review import ReviewError, describe, show
 from .usage import brief
 
@@ -212,6 +216,46 @@ def show_problems(h, limit: int = 8) -> None:
         console.print(f"[yellow]... and {len(probs) - limit} more[/] [dim](the dashboard's Status tab lists them all)[/]")
 
 
+def notebook_chat(h, cmd: str, arg: str) -> None:
+    """/idea /problem /jot <text> write an entry (tied to this session); /notebook lists and changes them."""
+    arg = arg.strip()
+    nb = h.notebook
+    if cmd in ("idea", "problem", "jot"):
+        if not arg:
+            console.print(f"usage: /{cmd} <text>")
+            return
+        e = nb.add(arg, "note" if cmd == "jot" else cmd, session=h.session)
+        console.print(f"[green]#{e['id']}[/] {e['kind']} written in the notebook [dim](/notebook to see it)[/]")
+        return
+    word, _, rest = arg.partition(" ")
+    if word in ("done", "reopen", "pin", "unpin", "rm", "show"):
+        if not rest.strip().isdigit():
+            console.print(f"usage: /notebook {word} <id>")
+            return
+        e = nb.get(int(rest))
+        if e is None:
+            console.print(f"no entry #{esc(rest.strip())}")
+        elif word == "show":
+            console.print(esc(show_entry(e)))
+        elif word == "rm":
+            nb.delete(e["id"])
+            console.print(f"deleted #{e['id']}")
+        else:
+            change = {"done": {"status": "done"}, "reopen": {"status": "open"}, "pin": {"pinned": True},
+                      "unpin": {"pinned": False}}[word]
+            console.print(esc(describe_entry(nb.update(e["id"], **change))))
+        return
+    kinds = {"ideas": "idea", "idea": "idea", "problems": "problem", "problem": "problem", "notes": "note", "note": "note"}
+    status = "done" if word == "done" else None if word == "all" else "open"
+    query = arg if arg and word not in kinds and word not in ("done", "all") else None
+    entries = nb.list(status=status, kind=kinds.get(word), query=query, limit=50)
+    for e in entries:
+        console.print(esc(describe_entry(e)))
+    c = nb.counts()
+    console.print(f"[dim]open: {c['idea']} ideas, {c['problem']} problems, {c['note']} notes; {c['done']} done[/]"
+                  if c["all"] else "the notebook is empty (/idea, /problem or /jot to start it)")
+
+
 def subcommand(name: str):
     """`jevh <name> ...` -> that module's main(argv), imported only when used (the dashboard needs fastapi)."""
     if name in ("dashboard", "web"):
@@ -222,6 +266,8 @@ def subcommand(name: str):
         from .failures import main
     elif name == "review":
         from .review import main
+    elif name == "notebook":
+        from .notebook import main
     elif name == "home":
         from .home import main
     else:
@@ -420,6 +466,8 @@ def main(argv: list[str] | None = None) -> int | None:
                     console.print("not flagged: /flag [note] first")
                 else:
                     console.print(esc(show(h.review.decide(f["id"], verdict, why.strip()))))
+            elif cmd in ("idea", "problem", "jot", "notebook"):
+                notebook_chat(h, cmd, arg)
             elif cmd == "facts":
                 for f in h.memory.facts(None, 50):
                     console.print(f"[bold]{f.id}[/] {esc(f.chunk())}")
