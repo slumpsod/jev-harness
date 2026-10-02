@@ -49,6 +49,7 @@ python evals/bench/persona_creation.py   # persona creation, live: Jev checks, t
                                          #   (--stage, --split dev|held, --reps, --budget/--resume for a runner with a time cap)
 python evals/bench/nango_setup.py        # connecting an account: a simulated user + the real local Nango (Docker), multi-turn
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
+python evals/hook_route_cases.py     # skill/hook router: "could a program check this?" (NOT TUNED yet: run it, then set route_hook)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
 python evals/verify_evidence_cases.py  # does the final() check see evidence deep inside long tool outputs

@@ -41,6 +41,8 @@ thresholds:
   same_specialist: 0.60  # ...two unhandled requests: "one expert in the subject of each" (28/29 same-subject pairs, 0 of 244 different ones)
   failure_gave_up: 0.85  # failure log's Jev check: "the answer says it couldn't (fully) do it" (not tuned yet:
   failure_missed: 0.85   # evals/failure_cases.py) ... "the answer doesn't deliver what was asked"
+  route_hook: 0.85      # skill/hook router: "a program could check the main requirements" noul (NOT TUNED, NOT TESTED
+                         # on a live Jev: a placeholder until evals/hook_route_cases.py is run; the router isn't built yet)
 
 limits:
   max_skills: 1                 # evals: every extra skill was mostly noise
