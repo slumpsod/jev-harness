@@ -56,7 +56,7 @@ export TYPESAFE_API_KEY="your-key-here"
 ## 5. Check it works
 
 ```bash
-python -m pytest -q                               # offline tests (no models needed), ~2-3 minutes
+python -m pytest -q                               # offline tests (no models needed), about a minute or two
 jevh -c "what's 17 * 23? use code"   # one real turn: Jev + your LM Studio model
 jevh                                # chat in the terminal
 jevh dashboard                      # the dashboard: http://127.0.0.1:8740/

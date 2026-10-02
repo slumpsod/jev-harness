@@ -17,7 +17,6 @@ import subprocess
 import threading
 from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import Any
 
 PROTOCOL = "2025-06-18"
 

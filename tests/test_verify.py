@@ -144,9 +144,9 @@ def test_render_catches_script_errors_and_blank_pages(cfg, tmp_path):
                                           encoding="utf-8")
     (tmp_path / "blank.html").write_text("<html><body><div></div></body></html>", encoding="utf-8")
     v = Verifier(Jev(gate_on(cfg, render=True), FakeSystemOne(answer_scores())), cfg)
-    probs = " | ".join(v.check("build", "Built.", [str(tmp_path / "broken.html"), str(tmp_path / "blank.html")],
-                               "log").problems)
-    if "throws errors" not in probs and "skipped" in str(v.checks):
+    res = v.check("build", "Built.", [str(tmp_path / "broken.html"), str(tmp_path / "blank.html")], "log")
+    probs = " | ".join(res.problems)
+    if "throws errors" not in probs and "skipped" in str(res.checks):
         pytest.skip("no chromium here")
     assert "broken.html throws errors" in probs and "undefinedFn" in probs and "blank.html renders as a blank" in probs
 

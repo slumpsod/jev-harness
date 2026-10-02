@@ -201,7 +201,7 @@ usage row and model call is tagged from it (`_where`, `orchestrator.py:585`).
 | What a turn's answer was based on | `memory.db` table `turn_notes` | `turn_notes()` (`orchestrator.py:78`) via `Memory.append` | follow-up history (`session_turns`) |
 | Remembered facts | `memory.db` tables `facts` + `facts_fts` | Learner, `remember()` | candidates, `recall` |
 | Human-readable logs | `workspace/memory/<persona>.jsonl`, `timeline.jsonl` | `Memory.append` | you |
-| Every model, Jev and swap cost | `workspace/usage.db` table `usage` | `Harness._record` (`orchestrator.py:589`) | CLI footer, `/usage`, dashboard Usage tab |
+| Every model, Jev and swap cost | `workspace/usage.db` table `usage` | `Harness._record` (`orchestrator.py:589`) | CLI footer, `/usage`, dashboard (per turn, context popover) |
 | A task's working folder | `workspace/sessions/<session>/u<turn>t<task>-<persona>/` | the worker's REPL (its cwd) | the worker, `_harvest` |
 | Worker conversation after each step | `…/checkpoint.json` | `Worker._save` (`worker.py:944`) | `resume` |
 | REPL variables, imports, defs | `…/repl_state.pkl` | `repl.snapshot` (`repl/server.py:289`) | `repl.restore` on resume |
@@ -211,7 +211,7 @@ usage row and model call is tagged from it (`_where`, `orchestrator.py:585`).
 | Deliverables | `workspace/sessions/<session>/artifacts/` | `save_artifact`, `_resolve_artifact`, `_harvest` | the gate, the user, other workers (`inputs=`) |
 | Docked browser ports | `workspace/sessions/<session>/browsers/<pid>.json` | browser `Session` (`tools/browser.py:440`) | dashboard BrowserDock |
 | Learned skills and lessons | `skills/learned/learned-*/SKILL.md`, `skills/_lessons/<name>.md` | Learner | `load_roster` (next turn) |
-| Failures | `workspace/failures.db` table `failures` | `FailureLog.record` (`failures.py:72`) | `/failures`, dashboard, `python -m jevh.failures`, refine |
+| Failures | `workspace/failures.db` table `failures` | `FailureLog.record` (`failures.py:87`) | `/failures`, dashboard, `python -m jevh.failures`, refine |
 | Flagged sessions, notes, verdicts | `workspace/reviews.db` tables `flags`, `notes` | `ReviewLog` (`review.py:51`) | `/flags`, dashboard, `python -m jevh.review` |
 | Refinement attempts | `workspace/refine/<id>/`: state, `cases.json`, `results.jsonl`, `try<k>.diff`, `report.md`; `rejections.jsonl` | `Refiner` (`refine/loop.py:117`) | `python -m jevh.refine status / report` |
 | Config | `config.yaml` + `config.local.yaml` | you | `load_config` (`config.py:73`) |

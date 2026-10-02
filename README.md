@@ -34,7 +34,7 @@ openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in c
 jevh                                 # chat; /help for commands
 jevh dashboard                       # the dashboard (see Dashboard)
 jevh --as fitness_coach -c "plan my week"   # one-shot, pinned persona
-python -m pytest -q                  # 126 offline tests (fake Jev + scripted LLMs, a fake MCP server)
+python -m pytest -q                  # offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
 python evals/memory_cases.py           # live memory-gating accuracy + sweep
@@ -45,14 +45,26 @@ python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness t
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
+python evals/verify_evidence_cases.py  # does the final() check see evidence deep inside long tool outputs
+python evals/compact_cases.py          # which earlier steps compaction must keep in full
+python evals/button_intent_cases.py    # browser: a click the goal asked for vs one with a side effect
+python evals/expect_cases.py           # browser.test: does the page show the expected result
+python evals/find_cases.py             # project.find: does it point at where a question is answered
+python evals/risk_cases.py             # is a code change risky enough for a full review
+python evals/severity_cases.py         # a risky change: strong-model or fast-model review
+python evals/rule_cases.py             # does an edit break the project's AGENTS.md / CLAUDE.md rules
+python evals/search_cases.py           # a long think: searching theories, or checking one idea
+python evals/thinking_watch_cases.py   # when to pause a long think and test the idea in code
+# most evals take --holdout (the held-out cases) and/or --offline (re-sweep saved scores)
 jevh failures                          # logged failures; `export out.jsonl` to study them
 jevh review                            # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
 ```
 
-CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`,
-`/flag [note]`, `/note <text>`, `/flags`, `/review`, `/verdict failure|not_failure [why]` (see Session review),
-`/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
-`/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
+CLI commands: `/as <persona>`, `/auto`, `/tier auto|fast|strong`, `/project <path>` (or `--project`),
+`/watch [on|off]` (the browser tool in a visible window), `/facts`, `/forget <id>`, `/usage`, `/failures`,
+`/resume [n|list]`, `/flag [note]`, `/note <text>`, `/flags`, `/review`, `/verdict failure|not_failure [why]`
+(see Session review), `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn),
+`/verbose` (show code + REPL output), `/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
 
 ## The `jevh` command
 
@@ -61,6 +73,7 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
 | `jevh` | chat in the terminal (`jevh --help` for its options) |
 | `jevh dashboard` | the dashboard in your browser |
 | `jevh update` | update the harness from GitHub |
+| `jevh home` | where your own things are; `jevh home move` moves them out of the checkout |
 | `jevh failures`, `jevh review` | the failure log, flagged sessions |
 
 `pip install -e .` inside the venv puts `jevh` on the PATH while that venv is active. To have it in every
@@ -79,19 +92,50 @@ it from. Every command also still works as `python -m jevh.cli`, `python -m jevh
 ## Updating
 
 ```bash
-jevh update            # or /update in the chat, or "Check for updates" in the dashboard's Status tab
+jevh update            # or /update in the chat, or the Harness version card in the dashboard's Status tab
 jevh update --check    # only list what's new on GitHub
+jevh update --test     # also run the test suite on the new version; undo the update if it fails
+jevh update --undo     # back to the version before the last update (/update undo, or "Undo update")
+jevh update --set-channel main     # every change as it lands, instead of stable (default: stable)
+jevh update --snapshots            # data snapshots taken before updates; --restore-data <name> puts one back
 ```
 
-The checkout is fast-forwarded to its GitHub branch (normally `origin/main`). It is never merged or
-rebased: local commits, or edits to a file the update changes, stop it with a message and nothing is
-touched (`config.local.yaml` and `workspace/` are ignored by git, so they're never in the way). Restart the
-CLI or dashboard afterwards to load the new code, and if `pyproject.toml` changed, rerun
-`pip install -e ".[web,browser,dev]"` first (the update says so). The dashboard won't update during a turn.
+**Channels.** Every push to `main` runs the tests on GitHub (`.github/workflows/stable.yml`); when
+they pass, the `stable` branch moves to that commit. `jevh update` follows `stable` by default, so a
+commit that breaks the tests never reaches you. `--set-channel main` (or the channel menu in the
+dashboard) follows `main` instead; `--channel main` does it for one update.
+
+An update either works or leaves everything as it was:
+
+- **Your edits are kept.** Edited harness files (a persona, a skill, the code) are saved with `git stash`,
+  carried onto the new version and put back. A dry-run merge checks first that they still apply; if
+  one clashes with the update (you and the update changed the same lines), it stops before anything
+  moves and says which file. A file you added that the update would overwrite stops it the same way.
+  `config.local.yaml` and `workspace/` are ignored by git, so updates never touch them.
+- **New dependencies are installed.** If `pyproject.toml` changed, the update runs `pip install -e`
+  with the extras you already have.
+- **A broken version is rolled back.** The new version must import (with `--test`, or the dashboard's
+  "run the tests first" box, it must pass the tests too). If that or the install fails, you're put back on
+  the old version with your edits as they were.
+- **You can undo it.** The version you came from is kept for `--undo`, which also keeps your edits.
+- **Your data is snapshotted first.** The workspace databases, learned skills and config files are
+  copied to `<workspace>/snapshots/` (the last 5 are kept), since a newer version may change data in a
+  way the older one can't read; `--restore-data` puts a snapshot back.
+- **A broken persona or skill is skipped.** One that can't be loaded (bad YAML, missing fields, an
+  unknown model provider), or an MCP server that won't start, is left out with the reason (shown when
+  the CLI starts and in the dashboard's Status tab) instead of stopping the harness.
+
+The fewer of your own things live in the checkout, the less an update has to work around: see
+[Your things, outside the checkout](docs/your-data.md) (`jevh home move` does the moving).
+
+Copies stay in git as `refs/jevh/pre-update` (the old version) and `refs/jevh/pre-update-edits` (your
+edits, `git stash apply refs/jevh/pre-update-edits`). Local commits that aren't on GitHub stop the update
+(`git pull` merges them). Restart the CLI or dashboard afterwards to load the new code. The dashboard
+won't update during a turn.
 
 ## Adding things
 
-- **Persona**: drop a YAML in `personas/`. Jev routes on `description`, so make it concrete.
+- **Persona**: drop a YAML in `personas/` (your own ones: `~/.jevh/personas/`, see [your data](docs/your-data.md)). Jev routes on `description`, so make it concrete.
   `model` picks the provider from `config.yaml` (an optional `fallback:` is used if the primary errors);
   `skills_allowed` holds globs over the skill roster; `can_request` lists who it may delegate to (Jev's
   collaborator suggestions add to this per turn); `tools` are modules from `jevh/tools/` pre-imported
@@ -99,8 +143,8 @@ CLI or dashboard afterwards to load the new code, and if `pyproject.toml` change
   `code: false` makes it a plain chat persona.
 - **MCP server**: add it under `mcp_servers:` in `config.yaml` (`command`, `args`, `env`) and give a persona
   `mcp: ["server.*"]`. Servers start on first use.
-- **Skill**: `skills/<name>/SKILL.md` with `name` and `description` frontmatter. The Hermes skills folder is
-  also a root (hidden `.archive` dirs are skipped). A picked skill's first 6k chars go in the prompt, and the
+- **Skill**: `skills/<name>/SKILL.md` with `name` and `description` frontmatter. Extra roots (e.g. a Hermes
+  skills folder) go in `skills_dirs` in `config.local.yaml` (hidden `.archive` dirs are skipped). A picked skill's first 6k chars go in the prompt, and the
   full text is in `ctx['skills'][name]`.
 - **Model provider**: any OpenAI-compatible server works as `type: openai`. Claude uses the `anthropic`
   SDK (`pip install anthropic`, and set `ANTHROPIC_API_KEY` or run `ant auth login`).
@@ -183,6 +227,8 @@ The chat is on the left, and every event streams in live on the right:
 - **Timeline**: one lane per task, positioned in time and coloured by tier (fast/strong). It shows nested hand-offs, refused requests, LM Studio swap markers, and "parallel saved Xs".
 - **Inspector**: every Jev decision for the selected turn, with probabilities and threshold markers: routing, tier, skill Choice + fits, memory kept/checked, collaborators and hand-off approvals.
 - **Artifacts**: files produced in this session. HTML is previewed live in a sandboxed iframe, images and video inline, and code or text as source.
+- **Memory**: facts (with "forget"), learned skills and lesson notes.
+- **Browser**: the worker's docked browser, live.
 - **Review**: sessions flagged for review (see below), with their notes, a model's review and your verdict.
 - **Status**: the harness version, with new commits on GitHub and an Update button (a count on the tab when there are any); which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
 
@@ -340,7 +386,8 @@ Where you see it:
 - Each answer shows a line like `12.1k in / 597 out (308 thinking) · model 24s · Jev 19.0s, 33 calls`,
   in both the CLI footer and the dashboard.
 - `/usage` in the CLI covers this session, the last 24h and the last 7 days.
-- The dashboard's Usage tab has totals, breakdowns by kind, model and persona, and per-turn history.
+- The dashboard shows each turn's usage under its answer and the session total in the context popover;
+  `GET /api/usage` has the breakdowns by kind, model and persona, and per-turn history.
 
 It showed right away that on a web lookup, 16 of the 19s of Jev time is the web tool's
 passage picking, not the harness's decisions (3.1s for 14).

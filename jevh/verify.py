@@ -19,13 +19,12 @@ from __future__ import annotations
 import csv
 import io
 import json
-import os
 import re
 import subprocess
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 from .config import shell_env
 from .decide import noul

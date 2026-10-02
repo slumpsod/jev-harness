@@ -25,5 +25,6 @@ models:
   strong: {provider: lmstudio, model: qwen3.8-27b}
   fast: {provider: lmstudio, model: google/gemma-4-12b-qat}
 
-# Skills: this repo's own folder only (config.yaml also lists a folder that only exists on Jed's PC).
+# Skills: this repo's own folder. Add more roots (a Hermes skills folder, say) to this list;
+# the first root is where learned skills and lessons are written.
 skills_dirs: [skills]

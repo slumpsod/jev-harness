@@ -1,4 +1,14 @@
-"""Load config.yaml and resolve its relative paths."""
+"""Load config.yaml and resolve its relative paths.
+
+Settings are laid on top of each other, last wins:
+  config.yaml (in the checkout, updated with it)
+  <home>/config.yaml (your own folder outside the checkout: JEVH_HOME, default ~/.jevh, if it exists;
+                      its relative paths are relative to that folder)
+  config.local.yaml (next to config.yaml, ignored by git)
+With a home folder, <home>/personas and <home>/skills are searched before the built-in ones, so a
+persona or skill of yours with the same name replaces the built-in one; learned skills go to
+<home>/skills. See docs/your-data.md.
+"""
 from __future__ import annotations
 
 import os
@@ -24,9 +34,11 @@ class Config:
     models: dict[str, dict[str, Any]] = field(default_factory=dict)   # e.g. {'fast': {...}}
     mcp_servers: dict[str, dict[str, Any]] = field(default_factory=dict)
     default_persona: str = "daily_assistant"
-    personas_dir: Path = ROOT / "personas"
-    skills_dirs: list[Path] = field(default_factory=list)
+    personas_dir: Path = ROOT / "personas"                       # the built-in personas
+    skills_dirs: list[Path] = field(default_factory=list)          # first one gets learned skills
     workspace: Path = ROOT / "workspace"
+    personas_dirs: list[Path] = field(default_factory=list)       # searched in order; first wins on a name
+    home: Path | None = None                                       # your folder outside the checkout
 
     def t(self, name: str) -> float:
         return float(self.thresholds[name] if name in self.thresholds else DEFAULT_THRESHOLDS[name])
@@ -70,10 +82,36 @@ def merged(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+PATH_KEYS = ("workspace", "personas_dir")
+PATH_LISTS = ("skills_dirs", "personas_dirs")
+
+
+def home_path() -> Path:
+    """Where your own folder goes (it is used only if it exists): JEVH_HOME, default ~/.jevh."""
+    return Path(os.path.expandvars(os.path.expanduser(os.environ.get("JEVH_HOME") or "~/.jevh")))
+
+
+def _expand(p: str, base: Path) -> str:
+    q = Path(os.path.expandvars(os.path.expanduser(str(p))))
+    return str(q if q.is_absolute() else base / q)
+
+
 def load_config(path: str | os.PathLike | None = None) -> Config:
     path = Path(path or os.environ.get("JEVH_CONFIG") or ROOT / "config.yaml")
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     base = path.resolve().parent
+    # your own folder outside the checkout (tests ignore it unless they set JEVH_HOME)
+    home = home_path() if os.environ.get("JEVH_HOME") or not os.environ.get("JEVH_NO_LOCAL_CONFIG") else None
+    home = home if home and home.is_dir() else None
+    if home and (home / "config.yaml").is_file():
+        over = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8")) or {}
+        for k in PATH_KEYS:   # relative paths in it are relative to the home folder
+            if isinstance(over.get(k), str):
+                over[k] = _expand(over[k], home)
+        for k in PATH_LISTS:
+            if isinstance(over.get(k), list):
+                over[k] = [_expand(p, home) for p in over[k]]
+        raw = merged(raw, over)
     # this machine's own settings (models, Jev, paths), kept out of git: config.local.yaml next to it
     local = base / "config.local.yaml"
     if local.is_file() and not os.environ.get("JEVH_NO_LOCAL_CONFIG"):
@@ -83,6 +121,14 @@ def load_config(path: str | os.PathLike | None = None) -> Config:
         q = Path(os.path.expandvars(os.path.expanduser(p)))
         return q if q.is_absolute() else base / q
 
+    def dirs(own: Path | None, listed: list[Path]) -> list[Path]:
+        out: list[Path] = []
+        for d in ([own] if own else []) + listed:
+            if d.resolve() not in [o.resolve() for o in out]:
+                out.append(d)
+        return out
+
+    personas_dir = rel(raw.get("personas_dir", "personas"))
     return Config(
         raw=raw,
         root=base,
@@ -94,7 +140,10 @@ def load_config(path: str | os.PathLike | None = None) -> Config:
         models=raw.get("models") or {},
         mcp_servers=raw.get("mcp_servers") or {},
         default_persona=raw.get("default_persona", "daily_assistant"),
-        personas_dir=rel(raw.get("personas_dir", "personas")),
-        skills_dirs=[rel(p) for p in raw.get("skills_dirs", ["skills"])],
+        personas_dir=personas_dir,
+        skills_dirs=dirs(home / "skills" if home else None, [rel(p) for p in raw.get("skills_dirs", ["skills"])]),
         workspace=rel(raw.get("workspace", "workspace")),
+        personas_dirs=dirs(home / "personas" if home else None,
+                           [rel(p) for p in raw.get("personas_dirs", [])] + [personas_dir]),
+        home=home,
     )

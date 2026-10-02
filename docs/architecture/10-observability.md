@@ -33,7 +33,7 @@ flowchart LR
 
 | Event | Emitted by | Data | Shown in |
 |---|---|---|---|
-| `turn_start` / `turn_done` / `turn_error` | `Hub.start_turn` (`web/server.py:97`) | turn record (answer, tasks, trace, usage) | chat, timeline |
+| `turn_start` / `turn_done` / `turn_error` | `Hub.start_turn` (`web/server.py:99`) | turn record (answer, tasks, trace, usage) | chat, timeline |
 | `route` | `_turn` | `RouteDecision` (probabilities, continues, replies, follows, reason) | Inspector, CLI |
 | `skills` | `run_task` | `SkillDecision` (probs, none, fits, picked) | Inspector |
 | `memory` | `run_task` | `MemoryDecision` (kept, scores) + candidate count | Inspector |
