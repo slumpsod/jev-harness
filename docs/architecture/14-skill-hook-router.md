@@ -1,7 +1,16 @@
 # 14 · Skill / hook router (proposed)
 
-**Status: design, nothing built yet.** Line numbers are for the commit this page was written on;
-search for the function name if they drift.
+**Status: design. Nothing here is built, tested or tuned.** Line numbers are for the commit this page
+was written on; search for the function name if they drift.
+
+> **Untested and untuned.** The router's first question (`HOOK_Q`, `jevh/learn.py`) and its threshold
+> (`thresholds.route_hook`, 0.85) are first guesses that have **never been run against a live Jev**.
+> Nothing calls them yet. What exists is the tuning set and its tests: 42 tuning and 15 held-out
+> labelled work logs (`evals/hook_route_data.py`) and a sweep that recommends a threshold
+> (`python evals/hook_route_cases.py`; offline tests in `tests/test_hook_route_cases.py`). Run the
+> eval against Jev, set `route_hook` from the sweep, and only then build the router on it. The
+> "NOT TUNED" notes in `config.yaml`, `jevh/learn.py` and the eval come off when the scores are saved.
+> Gate hooks themselves (section 1) have no code yet either.
 
 A skill's body is injected into the worker's prompt every time Jev picks it (`skills.py`,
 `Skill.body`). Many skills are really rules a program can check on the finished work. A rule
@@ -117,16 +126,23 @@ involved, as in `jevh.refine`.
 
 ### The test a hook has to pass
 
-A learned hook's "bad" example can't come from the task that produced it: by the end of that task
-the worker has usually fixed the mistake. So the model writes fixtures, and the harness checks:
+No hook runs at the gate, even in shadow mode, until it has passed all of this. A learned hook's
+"bad" example can't come from the task that produced it: by the end of that task the worker has
+usually fixed the mistake. So the model writes fixtures, and the harness checks:
 
 | Check | Pass condition |
 |---|---|
 | Code scan | `check.py` parses; no network, subprocess, delete or write calls (AST denylist) |
-| Bad fixtures | every `cases/bad/*` is flagged |
+| Bad fixtures | every `cases/bad/*` is flagged, and each names the rule it breaks |
 | Good fixtures | every `cases/good/*` passes |
+| Minimal pairs | each bad fixture is a good one with a single violation added, so a flag can only come from that rule |
+| Odd inputs | none of these crash it or get it flagged: an empty file, a binary file, a 5 MB file, non-UTF-8 bytes, malformed markup, a missing path, a directory instead of a file, an artifact list with no matching file, unicode and emoji. A crash is the hook's error and fails the test |
+| Deterministic | two runs on the same input give the same output |
+| No side effects | the folder it ran in is byte-for-byte the same afterwards; it wrote nothing |
 | Past tasks | of recent finished tasks it applies to that have no failure rows, at most 10% are flagged; the flagged ones are listed for you, because a flag may be a real miss |
-| Speed | each run under a few seconds |
+| Speed | each run under a few seconds, including on the 5 MB input |
+
+A failed test throws the hook away and keeps the skill, as in the diagram above.
 
 ### Approval
 
@@ -154,11 +170,17 @@ when something checks for it.
 ## Risks and open items
 
 - **Generated code runs before you approve it.** The replay test and shadow mode both execute
-  `check.py`. The code scan, a subprocess with a timeout and no network, and a read-only view of the
-  files are the mitigation; there is no hard sandbox. Needs your sign-off on how strict to be.
-- **`route_hook` is untuned.** Like `failure_gave_up` once was, it ships with a conservative default
-  and an eval to tune it: `evals/hook_route_cases.py`, work logs labelled checkable or not, swept the
-  way `evals/learn_cases.py` sweeps `learn_skill`.
+  `check.py`. Agreed: the code scan, a subprocess with a timeout and no network, and a read-only view
+  of the files are enough, on the condition above: a hook is thoroughly tested before it runs anywhere
+  but the test. There is no hard sandbox.
+- **`route_hook` is untuned and `HOOK_Q` is untested on a live Jev** (see the note at the top).
+  The tuning set is in `evals/hook_route_data.py`: cases of five kinds (clear yes, mixed, clear no,
+  lookalikes that read like yes, and odd inputs: a log cut by the window, a task longer than the
+  window, other languages, emoji, a vague task, text in the log that tries to steer the scorer). It is
+  swept the way `evals/learn_cases.py` sweeps `learn_skill`, with the policy that a false positive
+  (a wasted model call and a hook that may flag good work) costs more than a miss (a draft skill, as
+  today): zero false positives first, then recall, a margin above the highest non-checkable score, and
+  the held-out cases scored once at the chosen threshold.
 - **A bounce costs a model turn.** A rule that is easy to follow up front is cheaper in the skill's
   one-liner (or the persona) than as a hook, which is why the slimmed skill keeps the line.
 - **False positives.** The 10% past-task limit, shadow mode and the two-bounce cap are the guards;
@@ -170,6 +192,7 @@ when something checks for it.
    the `hook_gate` event; `tests/test_hooks.py` (offline, scripted models: match, enforce, shadow,
    broken hook, timeout, two-bounce cap).
 2. `hooks/frontend-design-checks/` and the slimmer `frontend-design` skill, with fixtures.
-3. The router: `route_hook` question and threshold, hook-writing prompt, the replay test, skill
-   slimming, `evals/hook_route_cases.py`, tests with a scripted local model.
+3. The router, only once `route_hook` has been tuned: the hook-writing prompt, the replay test,
+   skill slimming, tests with a scripted local model. (Done already: the `HOOK_Q` placeholder, the
+   threshold placeholder, `evals/hook_route_cases.py` and its data, `tests/test_hook_route_cases.py`.)
 4. Approval: Memory tab list and approve/delete, `jevh hooks`, `/hooks` in the CLI, `home.py`.

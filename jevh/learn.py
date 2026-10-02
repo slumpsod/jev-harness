@@ -40,6 +40,11 @@ FACT_Q = ("Does the user's message state a lasting fact about the user or their 
           "conversations?")
 SAME_FACT_Q = "Is `old_fact` made redundant or outdated by `new_fact`?"
 SKILL_Q = "Did `work_log` involve figuring out non-obvious steps, fixes or settings (not just a single simple step)?"
+# Skill/hook router (docs/architecture/14-skill-hook-router.md). NOT TUNED AND NOT TESTED ON A LIVE JEV:
+# nothing calls this yet, and the wording and the route_hook threshold are first guesses. Tune them on
+# evals/hook_route_cases.py (python evals/hook_route_cases.py) before the router uses them.
+HOOK_Q = ("Could a program decide whether the main requirements of this work were met by reading only the "
+          "finished files, the final answer or `work_log`, without understanding what the request asked for?")
 
 FACT_PROMPT = """From the exchange below, write the lasting facts about the user worth remembering in \
 future conversations: preferences, people, pets, home, work, projects, equipment, goals, schedule. \
@@ -169,6 +174,12 @@ def work_log(transcript: list[dict[str, str]], cap: int = 5000, answer: str | No
             parts.append(entry)
     log = "\n".join(parts)
     return log if len(log) <= cap else "[...]\n" + log[-cap:]
+
+
+def hook_state(task: str, log: str) -> dict[str, str]:
+    """What Jev is shown for HOOK_Q: the same windows as the learn_skill question (`Learner.skill`),
+    so the eval scores what the router will really see (the end of a long log, not its start)."""
+    return {"task": task[:1500], "work_log": log[-3500:]}
 
 
 def slug(text: str) -> str:
