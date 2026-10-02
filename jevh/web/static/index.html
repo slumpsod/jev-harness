@@ -564,6 +564,24 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 .problem .ev { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-top: 4px; white-space: pre-wrap; }
 .rv details { margin: 6px 0; font-size: 12.5px; } .rv details summary, details summary { cursor: pointer; }
 .rv details pre { max-height: 260px; overflow: auto; white-space: pre-wrap; background: var(--code); color: var(--codetext); padding: 10px 12px; border-radius: var(--r-sm); font-size: 12px; }
+.badge.k-idea { background: color-mix(in srgb, var(--strong) 22%, transparent); border-color: color-mix(in srgb, var(--strong) 55%, transparent); color: var(--text); }
+.badge.k-problem { background: color-mix(in srgb, var(--warn) 22%, transparent); border-color: color-mix(in srgb, var(--warn) 55%, transparent); color: var(--text); }
+/* notebook */
+.nbadd textarea, .nbitem textarea { width: 100%; min-height: 76px; padding: 10px 12px; resize: vertical; }
+.nbadd .chips { margin-bottom: 8px; }
+.nbadd label { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.rvrow label input[type=checkbox] { flex: none; min-width: 0; }   /* (.rvrow input is for text boxes) */
+.rvrow .grow { flex: 1; }
+.nbsearch { width: 100%; margin: 0 0 12px; }
+.nbitem { margin-bottom: 10px; }
+.nbitem.pin { border-left: 3px solid var(--accent); }
+.nbitem.done .nbtext { color: var(--muted); }
+.nbhead { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.nbhead .kv { margin-left: auto; }
+.nbtext { font-size: 13.5px; overflow-wrap: anywhere; } .nbtext p { margin: 4px 0; } .nbtext ul { margin: 4px 0; padding-left: 20px; }
+.nbtext pre { background: var(--code); color: var(--codetext); padding: 8px 10px; border-radius: var(--r-sm); overflow-x: auto; font-size: 12px; }
+.nbtext code { font-family: var(--font-mono); font-size: 12px; }
+.nbsess { margin-top: 6px; overflow-wrap: anywhere; }
 .rv textarea, .dlg textarea { width: 100%; min-height: 84px; padding: 10px 12px; resize: vertical; }
 .rverr { color: var(--bad-ink); font-size: 12.5px; margin-top: 8px; overflow-wrap: anywhere; }
 .live { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -757,6 +775,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
   <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></symbol>
   <symbol id="i-browser" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18"/><circle cx="6.5" cy="6.5" r=".6"/><circle cx="9" cy="6.5" r=".6"/></symbol>
   <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7.5h6"/></symbol>
   <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></symbol>
   <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.6-2.1-.5-1.3.4-2.4 1.8-2.4H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.6" cy="11" r="1"/><circle cx="10.2" cy="7.4" r="1"/><circle cx="14.6" cy="7.4" r="1"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -804,6 +823,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
       <button class="rbtn" data-tab="memory" data-tip="Memory" aria-label="Memory"><svg class="ic"><use href="#i-db"/></svg></button>
       <button class="rbtn" data-tab="browser" data-tip="Browser" aria-label="Browser"><svg class="ic"><use href="#i-browser"/></svg><i class="livedot" id="navlive"></i></button>
       <button class="rbtn" data-tab="review" data-tip="Review: flagged sessions, a model's verdict" aria-label="Review"><svg class="ic"><use href="#i-flag"/></svg><i class="count" id="revcount" hidden></i></button>
+      <button class="rbtn" data-tab="notebook" data-tip="Notebook: ideas and problems to come back to" aria-label="Notebook"><svg class="ic"><use href="#i-book"/></svg><i class="count" id="nbcount" hidden></i></button>
       <button class="rbtn" data-tab="status" data-tip="Status and updates" aria-label="Status"><svg class="ic"><use href="#i-pulse"/></svg><i class="count" id="updcount" hidden></i></button>
     </div>
     <div class="grow"></div>
@@ -816,6 +836,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
       <span class="grow"></span>
       <button class="stat" id="stat" type="button" title="LM Studio, Jev and ComfyUI: open Status" aria-label="Service status">
         <i class="sdot" id="pill-lm"></i><i class="sdot" id="pill-jev"></i><i class="sdot" id="pill-comfy"></i><span id="statmodel"></span></button>
+      <button type="button" class="flag" id="jotbtn" title="Jot down an idea or a problem (Notebook tab)"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">Jot</span></button>
       <button type="button" class="flag" id="flagbtn" title="Flag this session for review and say what went wrong"></button>
       <button class="ghost" id="reset" type="button" title="Start a new session"><svg class="ic"><use href="#i-plus"/></svg><span class="lbl">New session</span></button>
     </div>
@@ -860,6 +881,24 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
           yourself); Ctrl/Cmd shortcuts stay with the dashboard, paste goes to the page.</p>
       </div>
       <div class="panel" id="p-review"></div>
+      <div class="panel" id="p-notebook">
+        <form class="card nbadd" id="nbform">
+          <div class="chips" id="nbkinds" role="radiogroup" aria-label="What is it?">
+            <button type="button" role="radio" data-nbkind="idea">Idea</button>
+            <button type="button" role="radio" data-nbkind="problem">Problem</button>
+            <button type="button" role="radio" data-nbkind="note">Note</button>
+          </div>
+          <textarea id="nbtext" rows="3" aria-label="Write it down"></textarea>
+          <div class="rvrow">
+            <label title="Remember which session this came from, so a problem can be flagged for review later"><input type="checkbox" id="nbtie" checked> from this session</label>
+            <span class="grow"></span><span class="kv">Ctrl+Enter</span>
+            <button class="primary" type="submit" id="nbadd">Add</button>
+          </div>
+        </form>
+        <div class="chips" id="nbfilters"></div>
+        <input class="nbsearch" id="nbsearch" type="search" placeholder="Search the notebook" aria-label="Search the notebook">
+        <div id="nblist"></div>
+      </div>
       <div class="panel" id="p-status"></div>
     </div>
   </aside>
@@ -1708,6 +1747,105 @@ $("p-review").addEventListener("keydown", (ev) => {
   if (ev.key === "Enter" && ev.target.id === "rvnote") { ev.preventDefault(); document.querySelector('#p-review button[data-rv="note"]').click(); }
 });
 
+// ---- notebook: ideas and problems to come back to ----
+const N = {entries: [], filter: "open", q: "", kind: "idea", editing: null};
+const NB_KINDS = {
+  idea: ["Idea", "k-idea", "An idea to try later..."],
+  problem: ["Problem", "k-problem", "Something that is wrong or annoying: what happened, and what you expected"],
+  note: ["Note", "", "Anything worth writing down"]};
+const NB_FILTERS = [["open", "Open", (e) => e.status === "open"], ["idea", "Ideas", (e) => e.kind === "idea" && e.status === "open"],
+  ["problem", "Problems", (e) => e.kind === "problem" && e.status === "open"], ["note", "Notes", (e) => e.kind === "note" && e.status === "open"],
+  ["done", "Done", (e) => e.status === "done"], ["all", "All", () => true]];
+function nbShown() {
+  const fn = (NB_FILTERS.find((f) => f[0] === N.filter) || NB_FILTERS[0])[2];
+  const words = N.q.toLowerCase().split(/\s+/).filter(Boolean);
+  return N.entries.filter(fn).filter((e) => words.every((w) => e.text.toLowerCase().includes(w)));
+}
+async function refreshNotebook() {
+  try { N.entries = (await api("/api/notebook")).entries; } catch { return; }
+  const open = N.entries.filter((e) => e.status === "open").length;
+  $("nbcount").textContent = open; $("nbcount").hidden = !open;
+  if (S.tab === "notebook") renderNotebook();
+}
+function nbItem(e) {
+  const [label, cls] = NB_KINDS[e.kind] || [e.kind, ""];
+  if (N.editing === e.id) {
+    return `<div class="card nbitem" data-nb="${e.id}"><textarea id="nbedit" aria-label="Edit the entry">${esc(e.text)}</textarea>
+      <div class="rvrow"><select id="nbeditkind" aria-label="Kind">${Object.entries(NB_KINDS).map(([k, v]) => `<option value="${k}" ${k === e.kind ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
+        <span class="grow"></span><button type="button" data-nbact="cancel">Cancel</button><button type="button" class="primary" data-nbact="save">Save</button></div></div>`;
+  }
+  const done = e.status === "done";
+  const flagged = e.session && R.flags.some((f) => f.session === e.session && f.status !== "dismissed");
+  return `<div class="card nbitem ${done ? "done" : ""} ${e.pinned ? "pin" : ""}" data-nb="${e.id}">
+    <div class="nbhead"><span class="badge ${cls}">${esc(label)}</span>${e.pinned ? '<span class="badge">pinned</span>' : ""}${done ? `<span class="badge done">${e.kind === "problem" ? "solved" : "done"}</span>` : ""}
+      <span class="kv">${new Date(e.ts * 1000).toLocaleString()}</span></div>
+    <div class="nbtext">${md(e.text)}</div>
+    ${e.session ? `<div class="kv nbsess">from session ${esc(e.session)}${e.session === R.session ? " (this one)" : ""}${flagged ? " · flagged for review" : ""}</div>` : ""}
+    <div class="rvrow">
+      <button type="button" data-nbact="toggle">${done ? "Reopen" : e.kind === "problem" ? "Solved" : "Done"}</button>
+      <button type="button" data-nbact="pin">${e.pinned ? "Unpin" : "Pin"}</button>
+      <button type="button" data-nbact="edit">Edit</button>
+      ${e.session && !flagged ? `<button type="button" data-nbact="flag" title="Flag its session for review, with this entry as the note">Flag session</button>` : ""}
+      <button type="button" data-nbact="delete">Delete</button></div></div>`;
+}
+function renderNotebook() {
+  document.querySelectorAll("#nbkinds button").forEach((b) => { const on = b.dataset.nbkind === N.kind; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  $("nbtext").placeholder = NB_KINDS[N.kind][2];
+  $("nbfilters").innerHTML = NB_FILTERS.map(([k, label, fn]) => `<button type="button" data-nbfilter="${k}" class="${N.filter === k ? "on" : ""}">${label} <i class="n">${N.entries.filter(fn).length}</i></button>`).join("");
+  const list = nbShown();
+  $("nblist").innerHTML = list.map(nbItem).join("")
+    || `<div class="empty">${N.entries.length ? "Nothing here." : "Nothing written down yet. Jot an idea, or a problem you want to come back to."}</div>`;
+}
+$("nbform").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const text = $("nbtext").value.trim();
+  if (!text) { $("nbtext").focus(); return; }
+  $("nbadd").disabled = true;
+  try {
+    const {entry} = await api("/api/notebook", {method: "POST", body: JSON.stringify({text, kind: N.kind, session: $("nbtie").checked})});
+    $("nbtext").value = "";
+    const words = N.q.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!(NB_FILTERS.find((f) => f[0] === N.filter) || NB_FILTERS[0])[2](entry) || !words.every((w) => entry.text.toLowerCase().includes(w))) {
+      N.filter = "open"; N.q = ""; $("nbsearch").value = "";   // so the new entry shows
+    }
+  } catch (e) { alert(e.message); }
+  $("nbadd").disabled = false;
+  await refreshNotebook();
+  $("nbtext").focus();
+});
+$("nbtext").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); $("nbform").requestSubmit(); } });
+$("nbsearch").addEventListener("input", () => { N.q = $("nbsearch").value; renderNotebook(); });
+$("jotbtn").addEventListener("click", () => {
+  if (S.tab !== "notebook") openPanel("notebook");
+  setTimeout(() => $("nbtext").focus(), 60);
+});
+$("p-notebook").addEventListener("click", async (ev) => {
+  const kind = ev.target.closest("button[data-nbkind]");
+  if (kind) { N.kind = kind.dataset.nbkind; renderNotebook(); $("nbtext").focus(); return; }
+  const filt = ev.target.closest("button[data-nbfilter]");
+  if (filt) { N.filter = filt.dataset.nbfilter; renderNotebook(); return; }
+  const b = ev.target.closest("button[data-nbact]"); if (!b) return;
+  const id = Number(b.closest("[data-nb]").dataset.nb), e = N.entries.find((x) => x.id === id), act = b.dataset.nbact;
+  const post = (path, body) => api(path, {method: "POST", body: JSON.stringify(body)});
+  if (!e) return;
+  try {
+    if (act === "edit") { N.editing = id; renderNotebook(); $("nbedit").focus(); return; }
+    if (act === "cancel") { N.editing = null; renderNotebook(); return; }
+    if (act === "save") {
+      const text = $("nbedit").value.trim(); if (!text) { $("nbedit").focus(); return; }
+      await post("/api/notebook/update", {id, text, kind: $("nbeditkind").value}); N.editing = null;
+    } else if (act === "toggle") await post("/api/notebook/update", {id, status: e.status === "done" ? "open" : "done"});
+    else if (act === "pin") await post("/api/notebook/update", {id, pinned: !e.pinned});
+    else if (act === "delete") { if (!confirm("Delete this entry?")) return; await post("/api/notebook/delete", {id}); }
+    else if (act === "flag") { await post("/api/reviews/flag", {session: e.session, note: e.text}); await refreshReviews(); }
+  } catch (err) { alert(err.message); }
+  refreshNotebook();
+});
+$("p-notebook").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey) && ev.target.id === "nbedit") { ev.preventDefault(); document.querySelector('#p-notebook button[data-nbact="save"]').click(); }
+  if (ev.key === "Escape" && N.editing != null) { ev.stopPropagation(); N.editing = null; renderNotebook(); }
+});
+
 // ---- status ----
 function ring(frac, label, value, size = 104) {
   const r = 40, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, frac || 0));
@@ -1811,7 +1949,7 @@ $("p-status").addEventListener("click", async (ev) => {
 });
 
 // ---- the side panel: closed until you open a tab, the browser goes live, or an artifact is made ----
-const TITLES = {timeline: "Timeline", inspector: "Inspector", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", status: "Status"};
+const TITLES = {timeline: "Timeline", inspector: "Inspector", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", status: "Status"};
 $("side").inert = true;
 function openPanel(tab) {
   S.tab = tab;
@@ -1824,6 +1962,7 @@ function openPanel(tab) {
   if (tab === "memory") refreshMemory();
   if (tab === "browser") paintBrowser();
   if (tab === "review") { refreshReviews(); refreshSessions(); }
+  if (tab === "notebook") { renderNotebook(); refreshNotebook(); }
   render();
 }
 function closePanel() {
@@ -2018,7 +2157,7 @@ async function refreshPersonas() {
   refreshStatus(); setInterval(refreshStatus, 5000);
   refreshVersion(); setInterval(() => refreshVersion(), 30 * 60 * 1000);
   paintBrowser(); browserTick();
-  refreshReviews();
+  refreshReviews(); refreshNotebook();
   setInterval(() => { if (S.order.some((id) => S.turns.get(id).status === "running")) schedule(); }, 1000);
   setInterval(pollThinking, 2000);
   render();

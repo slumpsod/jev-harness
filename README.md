@@ -58,12 +58,13 @@ python evals/thinking_watch_cases.py   # when to pause a long think and test the
 # most evals take --holdout (the held-out cases) and/or --offline (re-sweep saved scores)
 jevh failures                          # logged failures; `export out.jsonl` to study them
 jevh review                            # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
+jevh notebook                          # your notebook; `idea "..."`, `problem "..."`, `done <id>`, `-q words`
 ```
 
 CLI commands: `/as <persona>`, `/auto`, `/tier auto|fast|strong`, `/project <path>` (or `--project`),
 `/watch [on|off]` (the browser tool in a visible window), `/facts`, `/forget <id>`, `/usage`, `/failures`,
 `/resume [n|list]`, `/flag [note]`, `/note <text>`, `/flags`, `/review`, `/verdict failure|not_failure [why]`
-(see Session review), `/personas`, `/persona approve|activate|delete <name>` and `/forge` (personas the harness
+(see Session review), `/idea <text>`, `/problem <text>`, `/jot <text>`, `/notebook` (see Notebook), `/personas`, `/persona approve|activate|delete <name>` and `/forge` (personas the harness
 created), `/skills`, `/trace` (raw Jev answers for the last turn),
 `/verbose` (show code + REPL output), `/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
 
@@ -76,6 +77,7 @@ created), `/skills`, `/trace` (raw Jev answers for the last turn),
 | `jevh update` | update the harness from GitHub |
 | `jevh home` | where your own things are; `jevh home move` moves them out of the checkout |
 | `jevh failures`, `jevh review` | the failure log, flagged sessions |
+| `jevh notebook` | your notebook of ideas and problems |
 
 `pip install -e .` inside the venv puts `jevh` on the PATH while that venv is active. To have it in every
 terminal with no venv to activate, install it once with [pipx](https://pipx.pypa.io)
@@ -263,6 +265,17 @@ failure verdict is written to the failure log as `review_failure` (source `revie
 work on it; overruling it with "not a failure" marks that row ignored. Flags and notes live in
 `workspace/reviews.db`; `jevh review` does the same from a terminal, for any session
 (`sessions` lists them).
+
+### Notebook
+
+A place to jot down ideas and problems to come back to. In the dashboard, **Jot** (top bar) opens the
+**Notebook** tab with the cursor in the box: pick *Idea*, *Problem* or *Note*, write (a little markdown
+works), and press Ctrl+Enter. Entries can be marked done (a problem: solved), pinned to the top, edited,
+deleted, filtered by kind and searched. An entry remembers the session it was written in; for a problem
+that was really a session going wrong, **Flag session** sends it to the Review tab with the entry as the
+note. In the CLI: `/idea`, `/problem` and `/jot` write an entry, and `/notebook [ideas|problems|notes|done|all|words]`
+lists them (`/notebook done|reopen|pin|unpin|rm|show <id>`); `jevh notebook` does the same from a terminal.
+The notebook is only for you, so nothing in it reaches a worker or Jev. It lives in `workspace/notebook.db`.
 
 ## Fast tier: Jev picks the model per task
 
