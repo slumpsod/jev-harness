@@ -51,7 +51,7 @@ jevh review                            # flagged sessions; `flag <session> "note
 
 CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`,
 `/flag [note]`, `/note <text>`, `/flags`, `/review`, `/verdict failure|not_failure [why]` (see Session review),
-`/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
+`/personas`, `/persona approve|activate|delete <name>`, `/forge`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
 `/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
 
 ## The `jevh` command
@@ -493,6 +493,34 @@ Seen live (ornith as every worker, semif as Jev):
   top stories for "current top 5" and a skill claiming "current" was learned from it.
 - Everything runs on a background thread after the turn has returned. The Memory tab lists facts
   (with "forget"), learned skills and lesson notes. `learning: false` in config turns it all off.
+
+## Persona creation
+
+When no persona fits, the harness drafts one (`jevh/forge.py`, design in
+`docs/architecture/14-persona-creation.md`). Two triggers:
+
+- **A request no persona fits.** Only when routing is already unsure, one more Jev noul asks whether
+  the request is outside every assistant's purpose. Those requests are pooled; when `min_cluster`
+  similar ones have gathered (Jev compares each new one with the pool), a persona is drafted for them.
+- **A learned skill no persona wants.** A new learned skill is shown to Jev blind (a Choice over the
+  personas plus "none of these"); if none claims it, a persona is drafted around it at once.
+
+A draft is a file in `personas/learned/` (not committed) and is **live straight away**, so you can try
+it, but fenced: no MCP, no `can_request`, the REPL tools in `persona_creation.tools` (none by default),
+and the skill that made it, which it now **owns**: no other persona is offered that skill. Before it goes
+live it must pass a routing gate: win the requests that made it, and take none of the last
+`gate_probes` requests other personas handled. One that fails is written **inactive** (with the reason)
+for you to switch on or delete. A new description that Jev finds to suit the same specialist as an
+existing persona is not created, and at most `max_live_drafts` drafts wait for approval.
+
+Review in the dashboard's Memory tab (approve / switch on / delete, and "check learned skills" for
+skills learned before) or the CLI (`/personas`, `/persona approve|activate|delete <name>`, `/forge`).
+Deleting a draft gives its skills back to the personas that were offered them. `persona_creation.enabled:
+false` turns it all off.
+
+**Not tuned yet.** The `no_fit`, `orphan` and `same_specialist` thresholds are first guesses and the gate
+has only been run against fake Jev answers: run `python evals/persona_cases.py` on semif and set them
+from its sweeps before trusting the drafts. Moving skills between existing personas is a later step.
 
 ## Failure log
 

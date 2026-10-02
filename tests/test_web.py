@@ -151,6 +151,33 @@ def test_memory_tab_lists_facts_and_reviews_learned_skills(cfg, tmp_path):
     assert not d.exists() and "learned-x" not in h.roster
 
 
+def test_created_personas_are_reviewed_through_the_api(cfg, tmp_path):
+    import yaml
+    learned = cfg.personas_dir / "learned"
+    learned.mkdir()
+    base = {"description": "Handles tax questions for people.", "system_prompt": "You help with tax.",
+            "model": {"provider": "lmstudio", "model": "m"}, "draft": True}
+    (learned / "tax_helper.yaml").write_text(yaml.safe_dump({"name": "tax_helper", **base}))
+    (learned / "off.yaml").write_text(yaml.safe_dump({"name": "off", **base, "active": False, "source": "gate: no"}))
+    client, app = make_client(cfg)
+    h = app.state.hub.harness
+    assert "tax_helper" in h.personas and "off" not in h.personas
+    st = client.get("/api/state", headers=auth()).json()
+    assert st["personas"]["tax_helper"]["draft"] is True
+    m = client.get("/api/memory", headers=auth()).json()
+    assert {(p["name"], p["active"], p["live"]) for p in m["persona_drafts"]} == {("tax_helper", True, True), ("off", False, False)}
+    assert client.post("/api/personas/review", json={"name": "daily_assistant", "action": "delete"},
+                       headers=auth()).status_code == 404            # a hand-written persona can not be touched
+    assert client.post("/api/personas/review", json={"name": "off", "action": "activate"}, headers=auth()).status_code == 200
+    assert "off" in h.personas and h.personas["off"].draft
+    client.post("/api/personas/review", json={"name": "off", "action": "approve"}, headers=auth())
+    assert h.personas["off"].draft is False
+    assert [p["name"] for p in client.get("/api/memory", headers=auth()).json()["persona_drafts"]] == ["tax_helper"]
+    client.post("/api/personas/review", json={"name": "tax_helper", "action": "delete"}, headers=auth())
+    assert "tax_helper" not in h.personas and not (learned / "tax_helper.yaml").exists()
+    assert client.post("/api/personas/review", json={"name": "off", "action": "bogus"}, headers=auth()).status_code in (400, 404)
+
+
 def test_project_setting_validates_the_folder(cfg, tmp_path):
     client, app = make_client(cfg)
     assert client.post("/api/settings", json={"project": str(tmp_path / "nope")}, headers=auth()).status_code == 400

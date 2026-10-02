@@ -34,6 +34,9 @@ thresholds:
   review_risk: 0.65    # cheap first pass: a changed file this risky gets a full review by the strong model (18/19, 0/18; risk_cases.py)
   review_severe: 0.20  # ...reviewed by the strong model if a mistake could be severe (15/15, 13/13 with plain code; severity_cases.py)
   learn_skill: 0.50   # learning: "non-obvious steps, fixes or settings" noul before a skill is written (3/3, 0 false)
+  no_fit: 0.80         # persona creation (not tuned yet; evals/persona_cases.py): "no assistant is for this request"
+  orphan: 0.50         #   ...P("none of these assistants") for a learned skill guide
+  same_specialist: 0.60  # ...two unhandled requests "suit one specialist" (they are counted together)
   failure_gave_up: 0.85  # failure log's Jev check: "the answer says it couldn't (fully) do it" (not tuned yet:
   failure_missed: 0.85   # evals/failure_cases.py) ... "the answer doesn't deliver what was asked"
 
@@ -62,6 +65,16 @@ limits:
   max_mcp_tools: 3              # MCP tool descriptions per task, after Jev's pick
 
 learning: true                  # remember facts and learn skills after successful turns (jevh/learn.py)
+
+persona_creation:                # jevh/forge.py: a persona drafted when a request or a learned skill fits none
+  enabled: true
+  min_cluster: 3                 # similar unhandled requests that make one (a learned skill with no home makes one at once)
+  max_live_drafts: 4             # drafts waiting for approval; no more are created until some are approved or deleted
+  max_pending: 40                # unhandled requests kept while waiting for similar ones
+  tools: []                      # REPL tools a draft gets (project, web, browser, nango): none until you widen them
+  max_steps: 30
+  gate_probes: 8                 # earlier requests re-routed to check the draft takes none of them
+  max_steals: 0                  # ...and how many it may take before it stays inactive
 
 # The final() gate (jevh/verify.py): the harness checks work before accepting it.
 verify:

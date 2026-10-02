@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 from .config import Config
-from .decide import SystemOneClient, choice, noul, score
+from .decide import SystemOneClient, SystemOneError, choice, noul, score
 from .personas import Persona
 from .skills import Skill
 
@@ -42,6 +42,17 @@ MEMORY_TOP_N = 4           # Choice leaders that get the noul
 # Together: 14/14, 0/8. "only makes sense together with" rated every new topic ~0.75: unusable.
 CONTINUES_Q = "Is the latest request a continuation of the recent conversation's topic?"
 REPLY_Q = "Is the latest message a reply to the assistant's last message, or a follow-up to it?"
+
+# Persona creation (jevh/forge.py). NOT tuned yet: evals/persona_cases.py holds labelled cases to run live
+# on semif before the thresholds (no_fit, orphan, same_specialist) are trusted. No-fit is asked only
+# when routing is already unsure, so it adds no call to a confident route.
+NO_FIT_Q = "Does `latest_request` fall outside what every one of the `assistants` is for?"
+SKILL_HOME_Q = "Which assistant would use this skill guide, if any?"
+SKILL_HOME_NONE = ("none_of_these", "None of these assistants: the guide is about something they are not for.")
+SAME_SPECIALIST_Q = "Would one specialist assistant be the right one to handle both `request_a` and `request_b`?"
+SAME_SPECIALIST_TOP_N = 8    # earlier unhandled requests a new one is compared with
+
+ROUTE_Q = "Which assistant is best suited to handle the user's latest request?"
 
 TIER_Q = "Which model should handle this task?"
 TIER_OPTIONS = {"fast": "a small fast model - good for quick answers, lookups, short scripts and simple edits",
@@ -87,6 +98,7 @@ class RouteDecision:
     reason: str
     replies: float | None = None
     follows: bool = False      # the message follows up on the recent exchange: it goes along as context
+    no_fit: float | None = None   # P(no assistant is for this); asked only on a low-confidence route that stays put
 
 
 @dataclass
@@ -168,9 +180,7 @@ class Jev:
         if len(personas) == 1:
             only = next(iter(personas))
             return RouteDecision(only, 1.0, {only: 1.0}, None, "only persona")
-        questions = {"persona": choice(
-            "Which assistant is best suited to handle the user's latest request?",
-            {name: p.description for name, p in personas.items()})}
+        questions = {"persona": choice(ROUTE_Q, {name: p.description for name, p in personas.items()})}
         state: dict[str, Any] = {"latest_request": request}
         if recent:
             state["recent_conversation"] = _clip(recent, 1500)
@@ -185,14 +195,61 @@ class Jev:
         if follows and current and current in personas and pick != current and conf < self.cfg.t("route"):
             return RouteDecision(current, conf, probs, cont, f"follow-up; stays with {current}", rep, True)
         if pick == current:
-            return RouteDecision(pick, conf, probs, cont, "choice (same persona)", rep, follows)
+            fit = self.no_fit(request, personas) if conf < self.cfg.t("route") else None
+            return RouteDecision(pick, conf, probs, cont, self._unfit(fit, "choice (same persona)", f"stays with {pick}"),
+                                 rep, follows, no_fit=fit)
         if conf >= self.cfg.t("route"):
             return RouteDecision(pick, conf, probs, cont, "choice", rep, follows)
         if current and cont is not None and cont >= self.cfg.t("stick"):
             return RouteDecision(current, conf, probs, cont, f"low confidence for {pick}; conversation continues",
                                  rep, follows)
+        fit = self.no_fit(request, personas)
         return RouteDecision(default if default in personas else pick, conf, probs, cont,
-                             f"low confidence for {pick}; default", rep, follows)
+                             self._unfit(fit, f"low confidence for {pick}; default", "default"), rep, follows, no_fit=fit)
+
+    def _unfit(self, fit: float | None, usual: str, outcome: str) -> str:
+        """The route's reason: says so when Jev finds that no assistant is for the request."""
+        return f"no assistant fits; {outcome}" if fit is not None and fit >= self.cfg.t("no_fit") else usual
+
+    def pick_persona(self, request: str, personas: dict[str, Persona]) -> str:
+        """The persona the routing Choice alone would pick (no follow-up or fallback rules)."""
+        probs = self.choice_probs("route_probe", {"latest_request": request}, ROUTE_Q,
+                                  {n: p.description for n, p in personas.items()})
+        return max(probs, key=probs.get)
+
+    def no_fit(self, request: str, personas: dict[str, Persona]) -> float | None:
+        """P(the request is outside every assistant's purpose); None when persona creation is off
+        or Jev could not be asked (routing itself must never fail because of this extra check)."""
+        if not (self.cfg.raw.get("persona_creation") or {}).get("enabled", True):
+            return None
+        try:
+            r = self._ask("route_fit", {"latest_request": request,
+                                        "assistants": {n: p.description for n, p in personas.items()}},
+                          {"no_fit": noul(NO_FIT_Q)})
+            return r["no_fit"].noul
+        except SystemOneError:
+            return None
+
+    def skill_home(self, skill: Skill, personas: dict[str, Persona]) -> tuple[str | None, float, dict[str, float]]:
+        """Which persona a skill belongs with, blind to where it currently lives: (best persona,
+        P(none of them), probabilities). The best is None when "none of these" leads."""
+        none_key, none_desc = SKILL_HOME_NONE
+        state = {"skill_guide": f"{skill.name}: {skill.description}\n{skill.excerpt[:500]}"}
+        probs = self.choice_probs("skill_home", state, SKILL_HOME_Q,
+                                  {n: p.description for n, p in personas.items()}, {none_key: none_desc})
+        none = probs.get(none_key, 0.0)
+        named = {n: v for n, v in probs.items() if n in personas}
+        best = max(named, key=named.get) if named else None
+        return (None if none >= max(named.values(), default=0.0) else best), none, probs
+
+    def same_specialist(self, request: str, others: Sequence[str]) -> list[float]:
+        """For each earlier request, P(one specialist assistant suits both it and `request`)."""
+        if not others:
+            return []
+        qs = {f"s{i}": noul({"question": SAME_SPECIALIST_Q, "request_a": request, "request_b": o})
+              for i, o in enumerate(others)}
+        r = self._ask("same_specialist", {"request_a": request, "earlier_requests": list(others)}, qs)
+        return [r[f"s{i}"].noul for i in range(len(others))]
 
     def _follows(self, cont: float | None, rep: float | None) -> bool:
         return (cont or 0.0) >= self.cfg.t("follow_topic") or (rep or 0.0) >= self.cfg.t("follow_reply")
@@ -206,7 +263,7 @@ class Jev:
 
     # -- 2. which skills -----------------------------------------------------------
     def pick_skills(self, request: str, persona: Persona, roster: dict[str, Skill]) -> SkillDecision:
-        cands = [s for s in roster.values() if persona.allows_skill(s.name)]
+        cands = [s for s in roster.values() if persona.offered_skill(s)]
         if not cands:
             return SkillDecision([])
         by_name = {s.name: s for s in cands}

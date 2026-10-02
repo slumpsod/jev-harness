@@ -476,6 +476,15 @@ function handle(e) {
       if (S.tab === "memory") refreshMemory();
       break;
     }
+    case "persona_drafted": {
+      const c = d.created || {};
+      t.activity.push({ts: e.ts, kind: "learn", text: `created persona ${c.name}${c.active ? " (draft, live: approve or delete it in the Memory tab)" : " (inactive: " + ((c.gate || {}).note || "failed the routing gate") + ")"}`});
+      refreshPersonas();
+      if (S.tab === "memory") refreshMemory();
+      break;
+    }
+    case "persona_proposal": t.activity.push({ts: e.ts, kind: "learn", text: `no persona fits this request (${d.similar + 1}/${d.needed} similar ones gathered for a new persona)`}); if (S.tab === "memory") refreshMemory(); break;
+    case "persona_skipped": t.activity.push({ts: e.ts, kind: "learn", text: `persona not created: ${d.reason}`}); break;
     case "question": t.questions.set(d.question.id, {...d.question, state: "waiting"}); focusAnswer(); break;
     case "answered": { const q = t.questions.get(d.question.id); if (q) { q.state = "answered"; q.answer = d.answer; } break; }
     case "question_timeout": { const q = t.questions.get(d.question.id); if (q) q.state = "timed out"; break; }
@@ -829,10 +838,20 @@ async function refreshMemory() {
     ${s.draft ? '<span class="badge running">draft</span>' : '<span class="badge done">approved</span>'} - ${esc(s.description)}</span>
     <span>${s.draft ? `<button data-skill="${esc(s.name)}" data-act="approve" title="Workers stop treating it as unverified">approve</button>` : ""}
     <button data-skill="${esc(s.name)}" data-act="delete" title="Delete skills/learned/${esc(s.name)}">delete</button></span></div>`).join("");
+  const drafts = (m.persona_drafts || []).map((p) => `<div class="prob"><span class="name" style="white-space:normal" title="${esc(p.source)}"><b>${esc(p.name)}</b>
+    ${p.active ? '<span class="badge running">draft - live</span>' : '<span class="badge">inactive</span>'} - ${esc(p.description)}
+    <span class="kv">${p.skills.length ? "skill: " + esc(p.skills.join(", ")) + " | " : ""}tools: ${esc(p.tools.join(", ") || "none")} | ${esc(p.source)}</span></span>
+    <span>${p.active ? "" : `<button data-persona="${esc(p.name)}" data-act="activate" title="Route requests to it (it stays a draft)">switch on</button>`}
+    ${p.draft ? `<button data-persona="${esc(p.name)}" data-act="approve" title="Keep it for good">approve</button>` : ""}
+    <button data-persona="${esc(p.name)}" data-act="delete" title="Delete personas/learned/${esc(p.name)}.yaml; its skills go back to being offered as before">delete</button></span></div>`).join("");
+  const pending = (m.persona_pending || []).map((p) => `<div class="kv">${esc(p.text)}</div>`).join("");
   const lessons = m.lessons.map((s) => `<div class="kv"><b>${esc(s.name)}</b>: ${s.entries} lesson note(s)</div>`).join("");
   $("p-memory").innerHTML = `<div class="card"><h3>Remembered facts <span class="kv">${m.facts.length} active | ${m.turns} past turns searchable</span></h3>
       ${facts || '<div class="kv">None yet. Tell an assistant something lasting (e.g. "my gym is closed on Sundays") and it is kept here.</div>'}</div>
     <div class="card"><h3>Learned skills</h3>${skills || '<div class="kv">None yet. After a multi-step task that needed fixes or non-obvious steps, a how-to is written to skills/learned/.</div>'}</div>
+    <div class="card"><h3>Created personas <button data-forge="1" title="Check every learned skill that has no owner for one no persona wants">check learned skills</button></h3>
+      ${drafts || '<div class="kv">None yet. When no persona fits a request, or a learned skill fits none, one is drafted here. Drafts are live (routable) until you approve or delete them.</div>'}
+      ${pending ? `<h4>Requests no persona fit, waiting for similar ones</h4>${pending}` : ""}</div>
     <div class="card"><h3>Lessons added to existing skills</h3>${lessons || '<div class="kv">None yet.</div>'}</div>`;
 }
 
@@ -1109,7 +1128,17 @@ $("tabs").addEventListener("click", (ev) => {
 });
 $("p-memory").addEventListener("click", async (ev) => {
   const f = ev.target.closest("button[data-forget]"), k = ev.target.closest("button[data-skill]");
-  if (f) await api("/api/memory/forget", {method: "POST", body: JSON.stringify({id: Number(f.dataset.forget)})});
+  const pe = ev.target.closest("button[data-persona]"), fg = ev.target.closest("button[data-forge]");
+  if (pe) {
+    if (pe.dataset.act === "delete" && !confirm(`Delete the created persona ${pe.dataset.persona}?`)) return;
+    try { await api("/api/personas/review", {method: "POST", body: JSON.stringify({name: pe.dataset.persona, action: pe.dataset.act})}); }
+    catch (e) { alert(e.message); }
+    await refreshPersonas();
+  } else if (fg) {
+    fg.disabled = true;
+    try { const r = await api("/api/personas/forge", {method: "POST"}); alert(r.created.length ? `Created: ${r.created.join(", ")}` : "No learned skill needed a new persona."); }
+    catch (e) { alert(e.message); }
+  } else if (f) await api("/api/memory/forget", {method: "POST", body: JSON.stringify({id: Number(f.dataset.forget)})});
   else if (k) {
     if (k.dataset.act === "delete" && !confirm(`Delete the learned skill ${k.dataset.skill}?`)) return;
     await api("/api/skills/review", {method: "POST", body: JSON.stringify({name: k.dataset.skill, action: k.dataset.act})});
@@ -1158,14 +1187,24 @@ function connect() {
   es.onerror = () => { es.close(); setTimeout(connect, 2000); };
 }
 
+// the "Jev routes" picker follows the personas the harness has (it creates and drops some)
+async function refreshPersonas() {
+  let st;
+  try { st = await api("/api/state"); } catch { return; }
+  S.personas = st.personas;
+  const keep = $("pin").value;
+  $("pin").innerHTML = '<option value="">Jev routes</option>';
+  for (const [n, p] of Object.entries(st.personas)) {
+    const o = document.createElement("option"); o.value = n; o.textContent = p.draft ? `${n} (draft)` : n; o.title = p.description; $("pin").appendChild(o);
+  }
+  $("pin").value = st.personas[keep] ? keep : "";
+}
 (async function boot() {
   const st = await api("/api/state");
   S.personas = st.personas; S.thresholds = st.thresholds || {};
   $("sess").textContent = `session ${st.session}`;
   $("tier").value = st.tier_mode;
-  for (const [n, p] of Object.entries(st.personas)) {
-    const o = document.createElement("option"); o.value = n; o.textContent = n; o.title = p.description; $("pin").appendChild(o);
-  }
+  await refreshPersonas();
   $("pin").value = st.pin || "";
   $("project").value = st.project || "";
   $("watch").checked = !!st.watch_browser;

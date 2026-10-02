@@ -6,7 +6,7 @@ worker's system prompt when Jev picks the skill.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable
 
@@ -23,6 +23,7 @@ class Skill:
     body: str
     path: str
     draft: bool = False    # learned from one run and not yet approved by the user
+    owner: str = ""        # a persona (jevh/forge.py) this skill belongs to: only that persona is offered it
 
     @property
     def excerpt(self) -> str:
@@ -45,7 +46,8 @@ def parse_skill(path: Path) -> Skill | None:
     desc = " ".join(str(meta.get("description") or "").split())
     if not name or not desc:
         return None
-    return Skill(name=name, description=desc, body=body.strip(), path=str(path), draft=bool(meta.get("draft")))
+    return Skill(name=name, description=desc, body=body.strip(), path=str(path), draft=bool(meta.get("draft")),
+                 owner=str(meta.get("owner") or "").strip())
 
 
 def load_roster(roots: Iterable[Path], lessons: Path | None = None) -> dict[str, Skill]:
@@ -68,5 +70,5 @@ def load_roster(roots: Iterable[Path], lessons: Path | None = None) -> dict[str,
             if s:
                 extra = note.read_text(encoding="utf-8", errors="replace").strip()
                 body = f"{s.body}\n\n## Lessons from past runs\n{extra}"
-                roster[s.name] = Skill(s.name, s.description, body, s.path, s.draft)
+                roster[s.name] = replace(s, body=body)
     return roster

@@ -1,82 +1,110 @@
-# 14. Persona creation (design, not yet built)
+# 14. Persona creation
 
-Status: design agreed in conversation; nothing implemented yet.
+Status: built (`jevh/forge.py`). The Jev thresholds are untuned: `evals/persona_cases.py` has the cases,
+run it live on semif first. Only fake-Jev tests have been run (`tests/test_forge.py`).
 
 ## Why
 
 Skills and personas are the harness's context-isolation mechanism: a persona's `skills_allowed`
-decides which skill guides can reach a worker's prompt. Two gaps weaken that:
+decides which skill guides can reach a worker's prompt. Two gaps weakened that:
 
 - A skill that fits no persona (typically a learned one) lands under `learned-*`, which several
-  personas allow. Every one of them can be shown it, which is the context poisoning the split is
-  meant to prevent.
+  personas allow. Every one of them can be shown it: context poisoning.
 - A request that fits no persona is routed to the current or default persona
-  (`Jev.route_persona`, `low confidence for X; default`). The task runs with the wrong persona's
-  prompt, tools and skills.
+  (`Jev.route_persona`, `low confidence for X; default`), with the wrong prompt, tools and skills.
 
-When neither fits, the harness should create a new persona rather than stretch an existing one.
+When neither fits, the harness drafts a new persona rather than stretch an existing one.
 
 ## Scope (v1)
 
-**Create new personas only.** Moving or narrowing skills on existing personas is a later step
+**Creates new personas only.** Moving or narrowing skills on existing personas is a later step
 (see "Later: blind skill assignment").
 
-## Two triggers
+## The two triggers
 
-1. **No fit (routing).** Low confidence alone is not enough: it also happens when two good personas
-   split the probability. Add a "none of these" option to the persona Choice, the way
-   `SKILL_NONE_OPTION` works for skills, or a noul "does any assistant here cover this request?".
-   Only a high "none" score counts as no fit. The request is logged to a proposal pool.
-2. **Orphaned skill.** A skill (usually `learned-*`) that no persona's `skills_allowed` would
-   pick on its own: ask Jev to Choice persona for the skill's description with a none option, and
-   treat a high "none" as an orphan.
+1. **No fit (routing).** Low confidence alone also happens when two good personas split the
+   probability, so `Jev.route_persona` asks one more noul, `no_fit` ("does the request fall outside
+   what every one of the assistants is for?"), but only on a low-confidence route that is not a
+   follow-up. A confident route costs no extra call, and the tuned routing Choice is unchanged (no
+   "none of these" option was added to it). The decision carries `no_fit`; the orchestrator hands the
+   request to `Forge.note_no_fit` after the turn, on the learning thread, using the task's own
+   already-loaded model.
+   The request goes into a pool (`workspace/persona_proposals.json`, newest `max_pending` kept). Jev
+   compares each new one with the last 8 pooled ones (`same_specialist`). When `min_cluster` similar
+   ones have gathered, one persona is drafted for them and they leave the pool.
+2. **Orphaned skill.** After a learning run creates a skill, `Forge.note_skill` shows it to Jev
+   blind: a Choice over every active persona's description plus "none of these". If "none of these"
+   leads and reaches `orphan`, a persona is drafted around it immediately. Only unowned skills under
+   `skills/learned/` (the ones the harness may edit) are considered. `/forge` and the dashboard's
+   "check learned skills" run this over skills learned before.
 
-One event does not create a persona. Events go to a proposal pool and a persona is drafted when
-similar ones cluster (a few no-fit requests close in embedding/Choice space, or an orphaned skill
-whose description is far from every persona). Orphaned skills may draft immediately; they are the
-more reliable signal.
+A turn that was pinned (`/as`, the dashboard's persona picker) never feeds either trigger.
 
-## Drafts are live, but fenced
+## What a draft is
 
-Drafts are routable straight away, so they can be tested in real use before being committed to.
-That makes the fence matter:
+A plain YAML file in `personas/learned/` (gitignored), loaded beside the hand-written personas
+(`load_personas`; a hand-written persona wins a name clash, an unreadable file is skipped). It is live
+straight away, so it can be tried in use, but fenced:
 
-- Minimal permissions: no `mcp`, no `can_request`, a short `tools` list, `skills_allowed` limited
-  to the skills that triggered it. Same model as the other personas; the system prompt comes from
-  a template plus a description written by the task's model.
-- Labelled `draft: true` everywhere the persona shows (CLI route line, dashboard).
-- Stored apart from hand-written personas, e.g. `personas/learned/` (gitignored like
-  `skills/learned/`). `load_personas` only globs `personas/*.y*ml` today, so it needs to load this
-  folder too and set the flag.
-- Eval gate before going live: it must not steal cases that `evals/routing_cases.py` currently
-  routes correctly, and its own triggering requests must route to it. Fails -> stays inactive.
-- Cap on live drafts, and a near-duplicate check against existing descriptions (merge into the
-  existing draft instead of making a second).
-- Promote / delete in the dashboard; unused drafts are flagged from usage tracking.
+- `draft: true`, shown as a draft in the CLI, the dashboard and the persona picker.
+- `mcp: []`, `can_request: []`, `tools: persona_creation.tools` (empty by default), `max_steps: 30`,
+  the default persona's model.
+- No `skills_allowed` globs: the skill that made it is **owned** by it (`owner:` in the skill's
+  frontmatter, `Persona.offered_skill`). An owned skill is offered to its owner only, so it leaves
+  every other persona's context. Ownership is given when the persona goes live, not before: a skill
+  owned by an inactive persona would be offered to nobody. Deleting the persona gives it back.
+- The persona's description and system prompt are written by the model that just ran the task, from
+  the requests or the skill, shown the existing personas' descriptions so it makes a distinct one.
 
-## Later: blind skill assignment (noted, not in v1)
+### The gate
+
+Before it goes live a draft must pass `Forge.gate`:
+
+- it wins at least half of the requests that made it (the routing Choice alone, no follow-up rules),
+  and
+- it takes at most `max_steals` (0) of the last `gate_probes` (8) earlier requests that other
+  personas handled (read from memory; the triggering requests themselves are not counted).
+
+A draft that fails is written `active: false` with the reason in `source`. It is out of routing
+until you switch it on. The gate re-routes recent requests rather than running
+`evals/routing_cases.py` (which needs the eval corpus and a live backend); that remains the check
+for tuning.
+
+### Limits
+
+- `max_live_drafts` (4): drafts waiting for approval; no more are made until some are approved or deleted.
+- A near-duplicate check: if Jev finds the new description to suit the same specialist as an existing
+  persona (`same_specialist`), it is not created.
+
+## Review
+
+Dashboard, Memory tab: approve (keep for good), switch on (inactive -> live, stays a draft), delete;
+pending unhandled requests are listed. CLI: `/personas`, `/persona approve|activate|delete <name>`,
+`/forge`. The harness reloads its persona list after each (`Harness.reload_personas`).
+
+## Later: blind skill assignment (noted, not built)
 
 Idea: have Jev assign each skill to a persona blind, repeat it 10 times, and award the skill to the
 persona it picks most consistently.
-
-Notes for when it is built:
 
 - Jev's Choice is probably near-deterministic for identical input, so 10 identical rounds give one
   answer ten times. Vary the rounds: shuffle option order (position bias), reword the question,
   and use the mean probability over rounds rather than the count of wins.
 - Blind = the persona is described by its description only, the skill by name, description and
-  excerpt; nothing about where it currently lives.
+  excerpt; nothing about where it currently lives. (`Jev.skill_home` already does one such round.)
 - Award only on a stable win: leader in most rounds and a margin over second place. A close
   result can mean the skill belongs to both, or to a persona that does not exist yet, which feeds
-  the orphan path above.
+  the orphan trigger.
 - Risk: a wrong assignment silently removes a skill from the persona that needed it. Make the
   first version additive (propose, show the vote table), keep removal behind live testing, and
-  check against the requests that previously loaded that skill (the usage log has them).
-- `skills_allowed` is a hand-written glob list in persona YAML. Assignments should be an overlay
-  file (e.g. `skills/assignments.yaml`) read at load time rather than edits to those files.
+  check against the requests that previously loaded that skill (the usage log has them). The
+  `owner:` mechanism above is the natural place to record an award.
 
 ## Open items
 
-- Clustering method for the proposal pool (Jev nouls vs. embeddings).
-- How many drafts may be live, and how long before an unused one is flagged.
-- Whether a draft's system prompt is written once or refined as more requests route to it.
+- Tune `no_fit`, `orphan`, `same_specialist` and the gate on semif (`evals/persona_cases.py`).
+- A draft only gets the tools in `persona_creation.tools`; a web-ish specialist needs them widened by hand.
+- Clustering compares a new request with the last 8 pooled ones only; pairwise similarity is not transitive.
+- How long before an unused draft is flagged (usage tracking is there; nothing reads it yet).
+- Whether a draft's system prompt is refined as more requests route to it.
+- No-fit requests that earlier turns already sent to another persona count against the gate as "stolen".
