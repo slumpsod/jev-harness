@@ -1,7 +1,7 @@
 # 08 · Tools and their own Jev loops
 
 Tools are Python modules imported into a worker's REPL under their name (`init` op,
-`repl/server.py:364`). Jev picks per task which tools' **guides** go into the prompt (step
+`repl/server.py:374`). Jev picks per task which tools' **guides** go into the prompt (step
 `tools`). All of the persona's tools are importable either way. The tools run inside the REPL
 process. Several of them run their own Jev loops, talking straight to the adapter
 ([02](02-jev-decisions.md#tool-side-decisions-inside-the-repl-recorded-as-kind-jev_tools)).

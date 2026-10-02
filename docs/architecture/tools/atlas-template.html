@@ -1,0 +1,337 @@
+<title>Jev Harness Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: a working atlas. Component map with a live connection panel on top;
+   the eleven loop pages below, with a sticky index on the left. */
+:root {
+  --bg: #EDF0EF;
+  --surface: #FFFFFF;
+  --surface-2: #F5F7F6;
+  --band: #E3E8E6;
+  --ink: #13201E;
+  --muted: #56645F;
+  --line: #CDD6D3;
+  --send: #0F766E;      /* data this component sends */
+  --recv: #C2410C;      /* data it receives */
+  --send-soft: #0F766E1F;
+  --recv-soft: #C2410C1C;
+  --code-bg: #E7ECEA;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1413; --surface: #141D1B; --surface-2: #19231F; --band: #111917;
+    --ink: #E2EBE8; --muted: #93A39E; --line: #2A3834;
+    --send: #2DD4BF; --recv: #FB923C; --send-soft: #2DD4BF24; --recv-soft: #FB923C22;
+    --code-bg: #1C2825; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1413; --surface: #141D1B; --surface-2: #19231F; --band: #111917;
+  --ink: #E2EBE8; --muted: #93A39E; --line: #2A3834;
+  --send: #2DD4BF; --recv: #FB923C; --send-soft: #2DD4BF24; --recv-soft: #FB923C22;
+  --code-bg: #1C2825; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body);
+  padding-inline: 16px; padding-block: 0 64px;
+}
+a { color: var(--send); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--send); outline-offset: 2px; }
+code, .ref { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 4px; }
+.ref { color: var(--send); text-decoration: none; white-space: nowrap; background: var(--send-soft); padding: 0.08em 0.35em; border-radius: 4px; }
+.ref:hover { text-decoration: underline; }
+
+.wrap { max-width: 1400px; margin: 0 auto; }
+
+/* ---------- header */
+.top { padding-block: 40px 20px; display: grid; gap: 10px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 700 clamp(34px, 5vw, 52px)/1.02 var(--display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.lede { max-width: 68ch; color: var(--muted); margin: 0; font-size: 16px; }
+.lede b { color: var(--ink); font-weight: 600; }
+
+/* ---------- component map */
+.atlas { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; margin-top: 8px; }
+@media (min-width: 1240px) { .atlas { grid-template-columns: minmax(0, 1fr) 360px; } }
+.map-shell { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+.map-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.map-bar h2 { font: 600 20px/1.2 var(--display); margin: 0; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 22px; height: 0; border-top: 2px solid var(--send); display: inline-block; }
+.legend i.in { border-top: 2px dashed var(--recv); }
+
+.map { position: relative; display: grid; gap: 10px; grid-template-columns: minmax(0, 0.8fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
+.group { background: var(--band); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.group > header { display: grid; gap: 2px; padding: 0 2px 2px; }
+.group > header b { font: 600 13px/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.group > header span { font-size: 11.5px; color: var(--muted); line-height: 1.3; }
+.nodes { display: grid; gap: 8px; }
+.g-harness .nodes { grid-template-columns: 1fr 1fr; }
+.g-disk, .g-improve { grid-column: 1 / -1; }
+.g-disk .nodes, .g-improve .nodes { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.node {
+  position: relative; z-index: 1; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  padding: 7px 9px; display: grid; gap: 1px; min-width: 0;
+  transition: opacity .15s, border-color .15s, background .15s;
+}
+.node b { font-weight: 600; font-size: 13.5px; line-height: 1.25; }
+.node small { font: 11px/1.3 var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node:hover { border-color: var(--ink); }
+.map.has-sel .node { opacity: 0.34; }
+.map.has-sel .node.sel, .map.has-sel .node.out, .map.has-sel .node.in { opacity: 1; }
+.node.sel { border: 2px solid var(--ink); padding: 6px 8px; }
+.node.out { border-color: var(--send); background: var(--send-soft); }
+.node.in { border-color: var(--recv); background: var(--recv-soft); }
+.node.out.in { background: linear-gradient(90deg, var(--send-soft), var(--recv-soft)); }
+.node .badge { position: absolute; top: -8px; right: -6px; display: none; gap: 3px; }
+.node.out .badge, .node.in .badge { display: flex; }
+.badge em { font: 600 10.5px/16px var(--mono); font-style: normal; min-width: 18px; height: 18px; padding: 1px 4px; border-radius: 9px; text-align: center; color: var(--surface); }
+.badge em.o { background: var(--send); }
+.badge em.i { background: var(--recv); }
+svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
+svg.wires path { fill: none; stroke-width: 1.6; }
+svg.wires path.o { stroke: var(--send); }
+svg.wires path.i { stroke: var(--recv); stroke-dasharray: 5 4; }
+svg.wires .ah-o { fill: var(--send); }
+svg.wires .ah-i { fill: var(--recv); }
+@media (max-width: 899px) {
+  .map { grid-template-columns: minmax(0, 1fr); }
+  svg.wires { display: none; }
+}
+
+/* ---------- detail panel */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 16px 18px; display: grid; gap: 12px; min-width: 0; }
+@media (min-width: 1240px) { .panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; } }
+.panel .kicker { font: 500 11.5px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.panel h3 { font: 700 26px/1.1 var(--display); margin: 0; }
+.panel p { margin: 0; }
+.panel .watch { font-size: 13.5px; color: var(--muted); }
+.panel .watch b { color: var(--ink); font-weight: 600; }
+.panel h4 { font: 600 13px/1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; margin: 4px 0 0; display: flex; align-items: center; gap: 8px; }
+.panel h4::before { content: ""; width: 16px; border-top: 2px solid var(--send); }
+.panel h4.in::before { border-top: 2px dashed var(--recv); }
+.flows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.flows li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 13.5px; line-height: 1.4; }
+.flows li em { font: 600 10.5px/18px var(--mono); font-style: normal; height: 18px; border-radius: 9px; text-align: center; color: var(--surface); background: var(--send); margin-top: 1px; }
+.flows.in li em { background: var(--recv); }
+.flows button { font: 600 13.5px var(--body); color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.flows button:hover { text-decoration-color: var(--ink); }
+.flows span { color: var(--muted); }
+.loops { display: flex; flex-wrap: wrap; gap: 6px; }
+.loops a { font-size: 13px; text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--ink); }
+.loops a:hover { border-color: var(--send); color: var(--send); }
+.empty { color: var(--muted); font-size: 13.5px; }
+
+/* ---------- docs */
+.docs { display: grid; gap: 28px; grid-template-columns: minmax(0, 1fr); margin-top: 44px; }
+@media (min-width: 1040px) { .docs { grid-template-columns: 230px minmax(0, 1fr); } }
+.toc { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.toc a { display: flex; gap: 10px; align-items: baseline; text-decoration: none; color: var(--muted); font-size: 14px; padding: 5px 10px; border-radius: 6px; white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+.toc a .n { font: 500 11.5px var(--mono); color: var(--muted); }
+.toc a:hover { color: var(--ink); }
+.toc a.on { color: var(--ink); border-color: var(--ink); }
+.toc-title { display: none; }
+@media (min-width: 1040px) {
+  .toc { flex-direction: column; overflow: visible; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); align-self: start; gap: 2px; }
+  .toc a { border: 0; background: none; white-space: normal; padding: 5px 8px; }
+  .toc a.on { background: var(--surface); box-shadow: inset 2px 0 0 var(--ink); border-radius: 0 6px 6px 0; }
+  .toc-title { display: block; font: 600 12px var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 8px 6px; }
+}
+.content { min-width: 0; display: grid; gap: 22px; }
+.doc { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: clamp(16px, 3vw, 32px); min-width: 0; scroll-margin-top: 12px; }
+.doc-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 8px; }
+.doc-head .n { font: 500 13px var(--mono); color: var(--muted); }
+.doc-head h2 { font: 700 30px/1.1 var(--display); margin: 0; text-wrap: balance; }
+.doc-head .src { margin-left: auto; font: 12px var(--mono); color: var(--muted); }
+.doc h3 { font: 600 21px/1.25 var(--display); margin: 30px 0 6px; text-wrap: balance; scroll-margin-top: 12px; }
+.doc h4 { font: 600 17px/1.3 var(--display); margin: 22px 0 4px; scroll-margin-top: 12px; }
+.doc p, .doc li { max-width: 78ch; }
+.doc ul, .doc ol { padding-left: 1.3em; }
+.doc li { margin: 3px 0; }
+.diagram { overflow-x: auto; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin: 14px 0; }
+.diagram pre.mermaid { margin: 0; background: transparent; font-family: var(--mono); font-size: 12px; white-space: pre; color: var(--muted); }
+.diagram svg { max-width: 100%; height: auto; }
+pre.code { overflow-x: auto; background: var(--code-bg); border-radius: 8px; padding: 12px; font: 13px/1.5 var(--mono); }
+pre.code code { background: none; padding: 0; }
+.table-wrap { overflow-x: auto; margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; }
+.table-wrap table { border-collapse: collapse; width: 100%; font-size: 13.5px; line-height: 1.45; }
+.table-wrap th { text-align: left; font: 600 12px/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); position: sticky; top: 0; }
+.table-wrap th, .table-wrap td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.table-wrap tr:last-child td { border-bottom: 0; }
+.table-wrap td { font-variant-numeric: tabular-nums; }
+.filter { display: flex; gap: 8px; align-items: center; margin: 14px 0 -4px; font-size: 13px; color: var(--muted); }
+.filter input { font: 14px var(--body); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; width: min(320px, 100%); }
+footer.foot { margin-top: 40px; color: var(--muted); font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">jev-harness · commit %%COMMIT%% · %%COUNTS%%</div>
+    <h1>Jev Harness Atlas</h1>
+    <p class="lede">Every part of the harness, where it runs, and what data it hands to what. <b>Pick a component</b> to draw its connections; the numbered list says exactly what crosses each one. Below the map, each loop gets its own page with sequence diagrams and code references.</p>
+  </header>
+
+  <div class="atlas">
+    <div class="map-shell">
+      <div class="map-bar">
+        <h2>Component map</h2>
+        <div class="legend"><span><i></i>sends</span><span><i class="in"></i>receives</span></div>
+      </div>
+      <div class="map" id="map"></div>
+    </div>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </div>
+
+  <div class="docs">
+    <nav class="toc" id="toc" aria-label="Loops"><div class="toc-title">Loops</div>%%NAV%%</nav>
+    <main class="content">%%CONTENT%%</main>
+  </div>
+  <footer class="foot">Built from <code>docs/architecture/*.md</code>. Code links open GitHub at commit %%COMMIT%%; line numbers match that commit.</footer>
+</div>
+
+<script>
+const DATA = %%DATA%%;
+const byId = Object.fromEntries(DATA.nodes.map(n => [n.id, n]));
+const secName = Object.fromEntries(DATA.sections.map(s => [s.id, s.num + " " + s.short]));
+const map = document.getElementById("map"), panel = document.getElementById("panel");
+const el = (tag, attrs = {}, html = "") => { const e = document.createElement(tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (html) e.innerHTML = html; return e; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const refHtml = r => { const m = /^([\w/]+\.py):(\d+)$/.exec(r); return m ? `<a class="ref" href="${DATA.gh}${m[1]}#L${m[2]}" target="_blank" rel="noopener">${esc(r)}</a>` : `<code>${esc(r)}</code>`; };
+
+// ---- build the map
+const svgNS = "http://www.w3.org/2000/svg";
+const wires = document.createElementNS(svgNS, "svg");
+wires.setAttribute("class", "wires"); wires.setAttribute("aria-hidden", "true");
+wires.innerHTML = `<defs>
+  <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-o" d="M0,0 L10,5 L0,10 z"/></marker>
+  <marker id="ah-i" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-i" d="M0,0 L10,5 L0,10 z"/></marker></defs><g id="wg"></g>`;
+map.appendChild(wires);
+const buttons = {};
+for (const g of DATA.groups) {
+  const box = el("div", { class: "group g-" + g.id });
+  box.appendChild(el("header", {}, `<b>${esc(g.name)}</b><span>${esc(g.note)}</span>`));
+  const list = el("div", { class: "nodes" });
+  for (const n of DATA.nodes.filter(n => n.g === g.id)) {
+    const b = el("button", { class: "node", type: "button", id: "n-" + n.id, "aria-pressed": "false" },
+      `<b>${esc(n.name)}</b><small>${esc(n.ref)}</small><span class="badge"></span>`);
+    b.addEventListener("click", () => select(n.id, true));
+    buttons[n.id] = b; list.appendChild(b);
+  }
+  box.appendChild(list); map.appendChild(box);
+}
+
+let current = null;
+function flowsOf(id) {
+  const out = DATA.edges.filter(e => e[0] === id).map(e => ({ peer: e[1], label: e[2], dir: "o" }));
+  const inn = DATA.edges.filter(e => e[1] === id).map(e => ({ peer: e[0], label: e[2], dir: "i" }));
+  let k = 0; out.forEach(f => f.n = ++k); inn.forEach(f => f.n = ++k);
+  return { out, inn };
+}
+
+function select(id, fromUser) {
+  current = id;
+  const n = byId[id], { out, inn } = flowsOf(id);
+  map.classList.add("has-sel");
+  for (const k in buttons) {
+    const b = buttons[k]; b.classList.remove("sel", "out", "in"); b.querySelector(".badge").innerHTML = ""; b.setAttribute("aria-pressed", "false");
+  }
+  buttons[id].classList.add("sel"); buttons[id].setAttribute("aria-pressed", "true");
+  for (const f of [...out, ...inn]) {
+    const b = buttons[f.peer]; b.classList.add(f.dir === "o" ? "out" : "in");
+    b.querySelector(".badge").insertAdjacentHTML("beforeend", `<em class="${f.dir}">${f.n}</em>`);
+  }
+  const item = f => `<li><em>${f.n}</em><div><button type="button" data-go="${f.peer}">${esc(byId[f.peer].name)}</button> <span>${esc(f.label)}</span></div></li>`;
+  const group = DATA.groups.find(g => g.id === n.g);
+  panel.innerHTML = `
+    <div class="kicker">${esc(group.name)}</div>
+    <h3>${esc(n.name)}</h3>
+    <div>${refHtml(n.ref)}</div>
+    <p>${esc(n.blurb)}</p>
+    ${n.watch ? `<p class="watch"><b>Watch it:</b> ${esc(n.watch)}</p>` : ""}
+    <h4>Sends</h4>${out.length ? `<ol class="flows">${out.map(item).join("")}</ol>` : `<p class="empty">Nothing: it only answers.</p>`}
+    <h4 class="in">Receives</h4>${inn.length ? `<ol class="flows in">${inn.map(item).join("")}</ol>` : `<p class="empty">Nothing: it only starts things.</p>`}
+    <h4>Read more</h4><div class="loops">${n.loops.map(l => `<a href="#${l}">${esc(secName[l] || l)}</a>`).join("")}</div>`;
+  panel.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => select(b.dataset.go, true)));
+  draw();
+  try { localStorage.setItem("jev-atlas-sel", id); } catch (e) {}
+  if (fromUser && matchMedia("(max-width: 1239px)").matches) panel.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+}
+
+function draw() {
+  const g = wires.querySelector("#wg"); g.innerHTML = "";
+  if (!current || getComputedStyle(wires).display === "none") return;
+  const base = map.getBoundingClientRect();
+  const R = id => { const r = buttons[id].getBoundingClientRect(); return { l: r.left - base.left, t: r.top - base.top, r: r.right - base.left, b: r.bottom - base.top, cx: (r.left + r.right) / 2 - base.left, cy: (r.top + r.bottom) / 2 - base.top }; };
+  const { out, inn } = flowsOf(current);
+  const S = R(current);
+  const used = {};
+  for (const f of [...out, ...inn]) {
+    const P = R(f.peer);
+    const [A, B] = f.dir === "o" ? [S, P] : [P, S];
+    let x1, y1, x2, y2, c1, c2;
+    const key = f.peer; used[key] = (used[key] || 0) + 1;
+    const off = (used[key] - 1) * 8;
+    if (B.l - A.r > 6 || A.l - B.r > 6) {       // side by side: leave from the facing sides
+      const right = B.l > A.r;
+      x1 = right ? A.r : A.l; x2 = right ? B.l : B.r; y1 = A.cy + off; y2 = B.cy + off;
+      const d = Math.max(30, Math.abs(x2 - x1) / 2);
+      c1 = [x1 + (right ? d : -d), y1]; c2 = [x2 + (right ? -d : d), y2];
+    } else if (Math.max(B.t - A.b, A.t - B.b) > 20) {   // same column, boxes between: go around the side
+      const left = A.cx < base.width / 2;
+      const s = left ? -1 : 1, bulge = 26 + off;
+      x1 = left ? A.l : A.r; x2 = left ? B.l : B.r; y1 = A.cy; y2 = B.cy;
+      c1 = [x1 + s * bulge, y1]; c2 = [x2 + s * bulge, y2];
+    } else {                                      // stacked neighbours: top/bottom
+      const down = B.t > A.b;
+      x1 = A.cx + off; x2 = B.cx + off; y1 = down ? A.b : A.t; y2 = down ? B.t : B.b;
+      const d = Math.max(20, Math.abs(y2 - y1) / 2);
+      c1 = [x1, y1 + (down ? d : -d)]; c2 = [x2, y2 + (down ? -d : d)];
+      if (Math.abs(y2 - y1) < 4) { c1 = [x1, y1 - 30]; c2 = [x2, y2 - 30]; }
+    }
+    const p = document.createElementNS(svgNS, "path");
+    p.setAttribute("d", `M${x1},${y1} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${x2},${y2}`);
+    p.setAttribute("class", f.dir);
+    p.setAttribute("marker-end", `url(#ah-${f.dir})`);
+    g.appendChild(p);
+  }
+}
+window.addEventListener("resize", () => requestAnimationFrame(draw));
+if (document.fonts) document.fonts.ready.then(draw);
+
+let start = "worker";
+try { const s = localStorage.getItem("jev-atlas-sel"); if (s && byId[s]) start = s; } catch (e) {}
+const h = location.hash.replace("#c-", "");
+if (location.hash.startsWith("#c-") && byId[h]) start = h;
+select(start, false);
+
+// ---- tables with many rows get a filter
+document.querySelectorAll(".doc .table-wrap").forEach((w, i) => {
+  const rows = [...w.querySelectorAll("tbody tr")];
+  if (rows.length < 10) return;
+  const f = el("label", { class: "filter" }, `Filter <input type="search" id="flt-${i}" placeholder="e.g. memory, verify, 0.8">`);
+  w.before(f);
+  f.querySelector("input").addEventListener("input", e => {
+    const q = e.target.value.trim().toLowerCase();
+    rows.forEach(r => r.hidden = q && !r.textContent.toLowerCase().includes(q));
+  });
+});
+
+// ---- index highlights the page in view
+const links = [...document.querySelectorAll("#toc a")];
+const obs = new IntersectionObserver(es => {
+  es.forEach(e => { if (e.isIntersecting) links.forEach(a => a.classList.toggle("on", a.dataset.sec === e.target.id)); });
+}, { rootMargin: "-20% 0px -70% 0px" });
+document.querySelectorAll("section.doc").forEach(s => obs.observe(s));
+</script>

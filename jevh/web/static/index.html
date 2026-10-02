@@ -157,9 +157,6 @@ main { flex: 1; display: grid; grid-template-columns: 210px minmax(380px, 5fr) 7
 .msg.user { background: var(--grad-soft), var(--panel); border-color: rgba(67, 227, 138, .35); align-self: flex-end; max-width: 85%; border-bottom-right-radius: 6px; }
 .msg.assistant { border-bottom-left-radius: 6px; cursor: pointer; }
 .msg.assistant.selected { box-shadow: var(--shadow), 0 0 0 2px rgba(67, 227, 138, .6), var(--glow); }
-.msg .who .flag { margin-left: auto; font-size: 11.5px; padding: 1px 8px; border-radius: 8px; color: var(--muted); cursor: pointer; }
-.msg .who .flag:hover { color: var(--bad-ink); border-color: var(--bad); }
-.msg .who .flagged { margin-left: auto; }
 .msg .who { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-weight: 600; }
 .msg pre { background: var(--code); color: var(--codetext); padding: 10px 12px; border-radius: 10px; overflow-x: auto; font-size: 12.5px; }
 .msg code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; }
@@ -262,12 +259,48 @@ tr:last-child td { border-bottom: 0; }
 th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; }
 a { color: var(--link); }
 .card h3 button { padding: 3px 12px; border-radius: 999px; font-size: 12px; }
+/* harness version: update from GitHub */
+.commits { margin: 8px 0 0; padding: 0; list-style: none; font-size: 12.5px; max-height: 220px; overflow: auto; }
+.commits li { padding: 3px 0; border-bottom: 1px solid var(--line); } .commits li:last-child { border-bottom: 0; }
+.commits code { color: var(--muted); margin-right: 6px; }
+/* review: flag a session, notes, the model's verdict */
+#tabs button .count { margin-left: auto; font-style: normal; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+                      display: inline-grid; place-items: center; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn-ink); }
+#tabs button .count[hidden] { display: none; }
+.controls button.flag { height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+.controls button.flag svg, .msg .flagturn svg { width: 15px; height: 15px; }
+button.flag.on { color: var(--warn-ink); border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 10%, var(--glass2)); }
+.msg .flagturn { margin-left: auto; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 500; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+.msg .flagturn.on { color: var(--warn-ink); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.dlg { border: 1px solid var(--glass-line); border-radius: 18px; padding: 18px 20px; width: min(520px, calc(100vw - 32px)); background: var(--panel); color: var(--text);
+       box-shadow: var(--shadow), var(--glow); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.dlg::backdrop { background: rgba(8, 13, 16, .35); }
+.dlg h3 { margin: 0 0 2px; font-size: 16px; }
+.dlg label { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--muted); margin: 12px 0 8px; }
+.dlg label select { flex: 1; min-width: 0; }
+.dlg textarea, .rv textarea { width: 100%; min-height: 84px; padding: 10px 12px; resize: vertical; }
+.dlg .btnrow { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.chips button { padding: 4px 12px; border-radius: 999px; font-size: 12.5px; }
+.chips button.on { background: var(--grad); color: var(--on-grad); border-color: transparent; font-weight: 650; }
+.chips button .n { font-style: normal; opacity: .7; margin-left: 2px; }
+.rvrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.rvrow input { flex: 1; min-width: 140px; }
+.rvrow select { max-width: 150px; }
+.note { font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.note:last-child { border-bottom: 0; }
+.problem { padding: 8px 10px; border-radius: 10px; background: var(--panel2); margin: 6px 0; font-size: 13px; overflow-wrap: anywhere; }
+.problem .ev { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; color: var(--muted); margin-top: 4px; white-space: pre-wrap; }
+.rv details { margin: 6px 0; font-size: 12.5px; }
+.rv details pre { max-height: 260px; overflow: auto; white-space: pre-wrap; background: var(--code); color: var(--codetext); padding: 10px 12px; border-radius: 10px; font-size: 12px; }
+.rverr { color: var(--bad-ink); font-size: 12.5px; margin-top: 8px; overflow-wrap: anywhere; }
 
 /* responsive: icon-only sidebar, then a single column */
 @media (max-width: 1180px) {
   main { grid-template-columns: 76px minmax(340px, 5fr) 7fr; }
   #tabs button { justify-content: center; padding: 11px 0; } #tabs button span { display: none; }
   #tabs button .livedot { position: absolute; top: 8px; right: 8px; }
+  #tabs button .count { position: absolute; top: 3px; right: 3px; min-width: 18px; height: 18px; padding: 0 4px; }
   .mini h4, #sys, .ctx .ctx-t { display: none; } .ctx { justify-content: center; padding: 4px 0; } .ctx svg { width: 52px; height: 52px; }
   .ring.sm .rt b { font-size: 12px; }
 }
@@ -311,7 +344,8 @@ a { color: var(--link); }
       <button data-tab="artifacts"><svg class="ic" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Artifacts</span></button>
       <button data-tab="memory"><svg class="ic" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg><span>Memory</span></button>
       <button data-tab="browser"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18"/><circle cx="6.5" cy="6.5" r=".6"/><circle cx="9" cy="6.5" r=".6"/></svg><span>Browser</span><i class="livedot" id="navlive"></i></button>
-      <button data-tab="status"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></svg><span>Status</span></button>
+      <button data-tab="review" title="Flagged sessions: notes, a model's review, the verdict"><svg class="ic" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></svg><span>Review</span><i class="count" id="revcount" hidden></i></button>
+      <button data-tab="status"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></svg><span>Status</span><i class="count" id="updcount" hidden></i></button>
     </nav>
     <div class="mini">
       <div class="ctx" id="ctxring" tabindex="0" role="button" aria-haspopup="dialog"></div>
@@ -323,6 +357,7 @@ a { color: var(--link); }
       <label>Persona <select id="pin"><option value="">Jev routes</option></select></label>
       <label>Tier <select id="tier"><option value="auto">Jev decides</option><option value="fast">fast</option><option value="strong">strong</option></select></label>
       <label title="Show the browser tool in the Browser panel, with the element Jev picks outlined before each action - click and type into it to take over. Applies from the next task.">Watch browser <input type="checkbox" id="watch"></label>
+      <button type="button" class="flag" id="flagbtn" title="Flag this session for review and say what went wrong"></button>
       <span class="sess" id="sess"></span>
     </div>
     <div class="log" id="log"><div class="hello" id="hello"><b>Ask anything.</b>Jev picks the persona, skills, memory and model tier, and you can watch every decision in the panels.</div></div>
@@ -345,9 +380,21 @@ a { color: var(--link); }
       <p class="kv">Live view of the browser Jev is driving. Click into it and type to take over (e.g. to enter a password or card
         yourself); Ctrl/Cmd shortcuts stay with the dashboard, paste goes to the page.</p>
     </div>
+    <div class="panel" id="p-review"></div>
     <div class="panel" id="p-status"></div>
   </section>
 </main>
+<dialog class="dlg" id="flagdlg" aria-labelledby="flagh">
+  <form id="flagform">
+    <h3 id="flagh">Flag this session for review</h3>
+    <div class="kv" id="flagsess"></div>
+    <div id="flagnotes"></div>
+    <label>About <select id="flagturn"><option value="">the whole session</option></select></label>
+    <textarea id="flagnote" placeholder="What went wrong? e.g. the totals in the table don't add up, or it never opened the file I gave it"></textarea>
+    <div class="kv">A model can later read the session against your notes and say whether it was a failure (Review tab).</div>
+    <div class="btnrow"><button type="button" id="flagcancel">Cancel</button><button class="primary" type="submit" id="flagok">Flag session</button></div>
+  </form>
+</dialog>
 <div class="pop" id="ctxpop" role="dialog" aria-label="Context breakdown" hidden></div>
 <script>
 "use strict";
@@ -406,7 +453,8 @@ function dec(t, taskId) { if (!t.decisions.has(taskId)) t.decisions.set(taskId, 
 function handle(e) {
   S.lastSeq = Math.max(S.lastSeq, e.seq);
   const d = e.data || {};
-  if (e.kind === "reset") { S.turns.clear(); S.order = []; S.selected = null; S.live = {}; S.ctx = null; $("sess").textContent = `session ${d.session}`; return; }
+  if (e.kind === "reset") { S.turns.clear(); S.order = []; S.selected = null; S.live = {}; S.ctx = null; $("sess").textContent = `session ${d.session}`; refreshReviews(); return; }
+  if (e.kind.startsWith("review_")) { reviewEvent(e.kind, d); return; }
   if (e.turn == null) return;
   const t = turn(e.turn);
   if (d.task) upsertTask(t, d.task);
@@ -648,8 +696,7 @@ function renderChat() {
           ${t.status !== "running" ? `<span>${secs(t.seconds)}</span>` : ""}
           ${t.status === "error" ? '<span class="badge failed">error</span>' : ""}
           ${t.status === "cancelled" ? '<span class="badge cancelled">stopped</span>' : ""}
-          ${t.status === "done" ? (t.flagged ? `<span class="badge failed flagged" title="in the failure log: python -m jevh.refine groups">flagged #${t.flagged}</span>`
-            : `<button class="flag" data-flag="${id}" title="This answer was wrong: log it as a failure, so the refinement loop works on it">&#128078; wrong</button>`) : ""}</div>
+          ${t.status !== "running" ? `<button type="button" class="flagturn ${flaggedTurns().has(id) ? "on" : ""}" data-flagturn="${id}" title="Flag this session for review, with a note about this turn"><svg class="ic" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></svg>${flaggedTurns().has(id) ? "flagged" : "flag"}</button>` : ""}</div>
         ${body}
         ${arts ? `<div class="kv" style="margin-top:6px">artifacts: ${arts}</div>` : ""}
         ${t.usage && t.usage.total ? `<div class="kv" style="margin-top:4px" title="tokens and time for this turn">${esc(usageBrief(t.usage))}</div>` : ""}
@@ -812,6 +859,165 @@ function renderArtifacts() {
   else pv.innerHTML = `<div class="empty">No preview for ${esc(type)} - use "open in new tab".</div>`;
 }
 
+// ---- review: flag a session with notes; a model reads it against them and says whether it failed ----
+const R = {flags: [], current: null, session: "", filter: "open", sel: null, detail: null, errors: {}, sessions: []};
+const FLAG_IC = '<svg class="ic" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></svg>';
+const VERDICT = {failure: ["failed", "failure"], not_failure: ["done", "not a failure"]};
+const live = (f) => f && f.status !== "dismissed";
+function flaggedTurns() { return new Set(live(R.current) ? R.current.notes.map((n) => n.turn).filter(Boolean) : []); }
+function stateBadge(f) {
+  if (f.running) return '<span class="badge running">model reviewing</span>';
+  if (f.status === "decided") { const [cls, txt] = VERDICT[f.verdict] || ["", f.verdict]; return `<span class="badge ${cls}">${esc(txt)}</span> <span class="kv">by ${esc(f.verdict_by)}</span>`; }
+  return `<span class="badge">${esc(f.status === "open" ? "to review" : f.status)}</span>`;
+}
+async function refreshReviews() {
+  let r;
+  try { r = await api("/api/reviews"); } catch { return; }
+  Object.assign(R, {flags: r.flags, current: r.current, session: r.session});
+  const c = R.current, b = $("flagbtn"), n = live(c) ? c.notes.length : 0;
+  b.classList.toggle("on", live(c));
+  b.innerHTML = FLAG_IC + (live(c) ? `Flagged${n ? ` · ${n} note${n > 1 ? "s" : ""}` : ""}` : "Flag for review");
+  const open = R.flags.filter((f) => f.status === "open").length;
+  $("revcount").textContent = open; $("revcount").hidden = !open;
+  if (S.tab === "review") {
+    if (R.sel == null || !R.flags.some((f) => f.id === R.sel)) R.sel = (shown()[0] || {}).id ?? null;
+    if (R.sel != null && (!R.detail || R.detail.flag.id !== R.sel)) return loadDetail(R.sel);
+    renderReview();
+  }
+  schedule();
+}
+async function loadDetail(id) {
+  try { R.detail = await api(`/api/reviews/${id}`); } catch (e) { R.detail = null; }
+  if (S.tab === "review") renderReview();
+}
+async function refreshSessions() {
+  try { R.sessions = await api("/api/sessions?limit=40"); } catch { R.sessions = []; }
+  if (S.tab === "review") renderReview();
+}
+function reviewEvent(kind, d) {
+  const id = d.flag && d.flag.id;
+  if (kind === "review_error") R.errors[id] = d.error;
+  if (kind === "review_start" || kind === "review_done") delete R.errors[id];
+  if (kind === "review_start") { const f = R.flags.find((x) => x.id === id); if (f) f.running = true; if (R.detail && R.detail.flag.id === id) R.detail.flag.running = true; if (S.tab === "review") renderReview(); }
+  if (R.detail && R.detail.flag.id === id && kind !== "review_start") R.detail = null;   // reload it with the verdict
+  refreshReviews();
+}
+
+// the flag dialog: this session, optionally about one turn
+function openFlag(turnId) {
+  const c = live(R.current) ? R.current : null;
+  $("flagh").textContent = c ? "Add a note to this flagged session" : "Flag this session for review";
+  $("flagok").textContent = c ? "Add note" : "Flag session";
+  $("flagsess").textContent = `session ${R.session}`;
+  $("flagnotes").innerHTML = c && c.notes.length ? `<h4 class="kv" style="margin:10px 0 2px">Notes so far</h4>${c.notes.map(noteRow).join("")}` : "";
+  $("flagturn").innerHTML = `<option value="">the whole session</option>` + S.order.map((id) => {
+    const t = S.turns.get(id); return `<option value="${id}">turn ${id}: ${esc((t.message || "").slice(0, 70))}</option>`; }).join("");
+  $("flagturn").value = turnId ? String(turnId) : "";
+  $("flagnote").value = "";
+  $("flagdlg").showModal();
+  $("flagnote").focus();
+}
+const noteRow = (n, i) => `<div class="note"><b>${i + 1}.</b> ${n.turn ? `<span class="badge">turn ${n.turn}</span> ` : ""}${esc(n.text)}
+  <span class="kv"> - ${new Date(n.ts * 1000).toLocaleString()}</span></div>`;
+$("flagbtn").addEventListener("click", () => openFlag(null));
+$("flagcancel").addEventListener("click", () => $("flagdlg").close());
+$("flagform").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const note = $("flagnote").value.trim(), turn = Number($("flagturn").value) || null;
+  if (live(R.current) && !note) { $("flagnote").focus(); return; }
+  try {
+    await api("/api/reviews/flag", {method: "POST", body: JSON.stringify({note, turn})});
+    $("flagdlg").close();
+  } catch (e) { alert(e.message); }
+  refreshReviews();
+});
+
+// the Review tab
+const FILTERS = [["open", "To review", (f) => f.status === "open"], ["failure", "Failures", (f) => f.status === "decided" && f.verdict === "failure"],
+  ["not_failure", "Not failures", (f) => f.status === "decided" && f.verdict === "not_failure"], ["dismissed", "Dismissed", (f) => f.status === "dismissed"],
+  ["all", "All", () => true]];
+function shown() { const f = FILTERS.find((x) => x[0] === R.filter) || FILTERS[4]; return R.flags.filter(f[2]); }
+function turnOptions(rec) {
+  const ns = [...new Set([...rec.turns.map((t) => t.n), ...rec.tasks.map((t) => t.turn)])].sort((a, b) => a - b);
+  return `<option value="">whole session</option>` + ns.map((n) => `<option value="${n}">turn ${n}</option>`).join("");
+}
+function renderReview() {
+  const el = $("p-review");
+  const keep = {};   // typed text survives a re-render
+  for (const id of ["rvnote", "rvmodel", "rvreason", "rvother", "rvothernote"]) if ($(id)) keep[id] = $(id).value;
+  const list = shown();
+  const chips = `<div class="chips">${FILTERS.map(([k, label, fn]) => `<button data-rvfilter="${k}" class="${R.filter === k ? "on" : ""}">${label} <i class="n">${R.flags.filter(fn).length}</i></button>`).join("")}</div>`;
+  const items = list.map((f) => `<div class="art ${f.id === R.sel ? "on" : ""}" data-rvsel="${f.id}"><div class="n">${esc(f.title || f.session)}</div>
+    <div class="m">${esc(f.session)} · ${f.notes.length} note${f.notes.length === 1 ? "" : "s"}</div><div style="margin-top:4px">${stateBadge(f)}</div></div>`).join("")
+    || `<div class="kv" style="padding:8px">${R.flags.length ? "Nothing here." : "No flagged sessions yet. Use <b>Flag for review</b> above the chat, or the flag on any answer."}</div>`;
+  const others = R.sessions.filter((x) => !x.flag || !R.flags.some((f) => f.id === x.flag && f.status !== "dismissed"));
+  const flagOther = `<details class="card"><summary><b>Flag an earlier session</b></summary>
+    <div class="rvrow"><select id="rvother" style="max-width:none;flex:1">${others.map((x) => `<option value="${esc(x.session)}">${esc(x.session)}${x.current ? " (this one)" : ""} - ${x.turns} turns - ${esc((x.title || "").slice(0, 60))}</option>`).join("") || "<option value=''>no sessions recorded</option>"}</select></div>
+    <div class="rvrow"><input id="rvothernote" placeholder="What went wrong? (optional)"><button data-rv="flagother">Flag</button></div></details>`;
+  el.innerHTML = `${chips}<div class="arts"><div class="artlist">${items}${flagOther}</div><div class="rv">${reviewDetail()}</div></div>`;
+  for (const [id, v] of Object.entries(keep)) if ($(id) && v) $(id).value = v;
+}
+function reviewDetail() {
+  const D = R.detail;
+  if (!D || D.flag.id !== R.sel) return R.sel == null ? `<div class="empty">Pick a flagged session to see its notes, have a model review it, and decide whether it failed.</div>` : `<div class="empty">Loading...</div>`;
+  const f = D.flag, rec = D.record, r = f.review;
+  const head = `<div class="card"><h3>${esc(f.title || f.session)} ${stateBadge(f)}</h3>
+    <div class="kv">session ${esc(f.session)}${f.session === R.session ? " (this one)" : ""} · flagged ${new Date(f.ts * 1000).toLocaleString()} ·
+      ${rec.turns.length} turns, ${rec.tasks.length} tasks, ${rec.failures.length} failures logged${f.failure_id ? ` · in the failure log as #${f.failure_id}` : ""}</div>
+    ${f.verdict_by === "user" && f.reason ? `<div class="kv">your reason: ${esc(f.reason)}</div>` : ""}
+    <h4>Notes</h4>${f.notes.map(noteRow).join("") || '<div class="kv">No notes yet: say what looked wrong, so the reviewing model knows where to look.</div>'}
+    <div class="rvrow"><select id="rvturn">${turnOptions(rec)}</select><input id="rvnote" placeholder="Add a note: what went wrong?"><button data-rv="note">Add note</button></div>
+    <h4>Decide</h4>
+    <div class="rvrow"><button class="primary" data-rv="run" ${f.running ? "disabled" : ""} title="A model reads the conversation, every task's work log and the logged failures against your notes">${f.running ? "Reviewing..." : r ? "Review again with a model" : "Ask a model to review"}</button>
+      <input id="rvmodel" placeholder="model (default: config review.model)" title="provider:model, e.g. lmstudio:qwen3.8-27b@q6_k - empty uses config review.model, else models.strong, else the default persona's"></div>
+    ${f.running ? `<div class="live" style="margin-top:8px"><span class="eq"><i></i><i></i><i></i><i></i><i></i></span> the model is reading the session...</div>` : ""}
+    ${R.errors[f.id] ? `<div class="rverr">Review failed: ${esc(R.errors[f.id])}</div>` : ""}
+    <div class="rvrow"><input id="rvreason" placeholder="Your reason (optional)"><button data-rv="failure">Mark failure</button><button data-rv="not_failure">Not a failure</button>
+      ${f.status === "dismissed" ? '<button data-rv="open">Restore</button>' : '<button data-rv="dismissed" title="Take it off the review list">Dismiss</button>'}</div></div>`;
+  const review = r ? `<div class="card"><h3>Model review <span class="badge ${(VERDICT[r.verdict] || [""])[0]}">${esc((VERDICT[r.verdict] || ["", r.verdict])[1])}</span>
+      ${r.confidence != null ? `<span class="kv">confidence ${pct(r.confidence)}</span>` : ""}<span class="kv">${esc(r.model || "")} · ${new Date(r.ts * 1000).toLocaleString()}</span></h3>
+    ${r.summary ? `<p style="margin:4px 0 8px">${esc(r.summary)}</p>` : ""}
+    ${f.verdict_by === "user" && f.verdict !== r.verdict ? `<div class="kv">You overruled this verdict: ${esc((VERDICT[f.verdict] || ["", f.verdict])[1])}.</div>` : ""}
+    <h4>Problems found (${(r.problems || []).length})</h4>
+    ${(r.problems || []).map((p) => `<div class="problem"><span class="badge ${p.severity === "high" ? "failed" : p.severity === "medium" ? "running" : ""}">${esc(p.severity || "?")}</span>
+      ${p.turn ? `<span class="badge">turn ${esc(p.turn)}</span>` : ""}${p.note ? `<span class="badge">note ${esc(p.note)}</span>` : ""} ${esc(p.what || "")}
+      ${p.evidence ? `<div class="ev">${esc(p.evidence)}</div>` : ""}</div>`).join("") || '<div class="kv">none</div>'}
+    ${(r.notes_checked || []).length ? `<h4>Your notes, checked</h4>${r.notes_checked.map((c) => `<div class="kv">${c.holds ? "&#10003;" : "&#10007;"} note ${esc(c.note)}: ${esc(c.why || "")}</div>`).join("")}` : ""}
+    <details><summary>raw reply</summary><pre>${esc(r.raw || "")}</pre></details></div>` : "";
+  const convo = rec.turns.map((t) => `<details><summary><b>turn ${t.n}</b> (${esc(t.persona)}): ${esc(t.user.slice(0, 100))}</summary>
+    <div class="kv"><b>User:</b> ${esc(t.user)}</div><div style="margin-top:4px">${md(t.assistant)}</div></details>`).join("");
+  const tasks = rec.tasks.map((t) => `<details><summary>turn ${t.turn} · task ${t.task} <b>${esc(t.persona)}</b> ${t.stopped ? `<span class="badge failed">${esc(t.stopped)}</span>` : ""} ${t.steps ?? "?"} steps: ${esc(t.request.slice(0, 90))}</summary>
+    <pre>${esc(t.work_log || "(no code was run)")}</pre></details>`).join("");
+  const fails = rec.failures.map((x) => `<div class="kv">#${x.id} turn ${x.turn ?? "-"} ${esc(x.persona || "-")}: <b>${esc(x.kind)}</b> (${esc(x.source)}) ${esc(x.summary)} <span class="badge">${esc(x.status)}</span></div>`).join("");
+  return head + review + `<div class="card"><h3>The session</h3><h4>Conversation</h4>${convo || '<div class="kv">nothing in memory (a turn that crashed is only in its task folder)</div>'}
+    <h4>Tasks and work logs</h4>${tasks || '<div class="kv">no task folders</div>'}<h4>Failures logged</h4>${fails || '<div class="kv">none</div>'}</div>`;
+}
+$("p-review").addEventListener("click", async (ev) => {
+  const chip = ev.target.closest("button[data-rvfilter]");
+  if (chip) { R.filter = chip.dataset.rvfilter; R.sel = (shown()[0] || {}).id ?? null; R.detail = null; return refreshReviews(); }
+  const item = ev.target.closest("[data-rvsel]");
+  if (item) { R.sel = Number(item.dataset.rvsel); renderReview(); return loadDetail(R.sel); }
+  const b = ev.target.closest("button[data-rv]"); if (!b) return;
+  const act = b.dataset.rv, id = R.sel, post = (path, body) => api(path, {method: "POST", body: JSON.stringify(body)});
+  try {
+    if (act === "note") {
+      const text = $("rvnote").value.trim(); if (!text) { $("rvnote").focus(); return; }
+      await post("/api/reviews/note", {id, text, turn: Number($("rvturn").value) || null}); $("rvnote").value = "";
+    } else if (act === "run") { await post("/api/reviews/run", {id, model: $("rvmodel").value.trim() || null}); return; }
+    else if (act === "failure" || act === "not_failure") { await post("/api/reviews/verdict", {id, verdict: act, reason: $("rvreason").value.trim()}); $("rvreason").value = ""; }
+    else if (act === "dismissed" || act === "open") await post("/api/reviews/status", {id, status: act});
+    else if (act === "flagother") {
+      const session = $("rvother").value; if (!session) return;
+      const r = await post("/api/reviews/flag", {session, note: $("rvothernote").value.trim()});
+      $("rvothernote").value = ""; R.filter = "open"; R.sel = r.flag.id; refreshSessions();
+    }
+  } catch (e) { alert(e.message); }
+  R.detail = null; refreshReviews();
+});
+$("p-review").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && ev.target.id === "rvnote") { ev.preventDefault(); document.querySelector('#p-review button[data-rv="note"]').click(); }
+});
+
 // ---- status ----
 function ring(frac, label, value, size = 104) {
   const r = 40, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, frac || 0));
@@ -835,7 +1041,7 @@ async function refreshStatus() {
     <div class="rings-row">${ring(g.used_mb / g.total_mb, "VRAM", pct(g.used_mb / g.total_mb))}${ring(g.util / 100, "Busy", `${g.util}%`)}</div>
     <div class="kv" style="text-align:center">${(g.used_mb / 1024).toFixed(1)} / ${(g.total_mb / 1024).toFixed(1)} GB</div></div>`).join("");
   const swaps = (st.swaps || []).slice().reverse().map((s) => `<tr><td>${new Date(s.ts * 1000).toLocaleTimeString()}</td><td>${esc((s.unloaded || []).join(", ") || "-")}</td><td>${esc(s.loaded)}</td><td>${secs(s.seconds)}</td></tr>`).join("");
-  $("p-status").innerHTML = `<div class="grid2">
+  $("p-status").innerHTML = `${versionCard()}<div class="grid2">
     ${svc("LM Studio", st.lmstudio, st.lmstudio?.up ? `<div class="kv">loaded: <b>${esc(st.lmstudio.loaded.join(", ") || "nothing")}</b></div><div class="kv">gate: ${esc(st.lmstudio.gate.current || "-")}, ${st.lmstudio.gate.inflight} in flight</div>` : "")}
     ${svc("Jev adapter", st.jev_adapter)}
     ${st.jev_backend ? svc(`Jev backend (${esc(st.jev_backend.name)})`, st.jev_backend, st.jev_backend.info?.model ? `<div class="kv">${esc(st.jev_backend.info.model)}</div>` : "") : ""}
@@ -844,17 +1050,61 @@ async function refreshStatus() {
     <div class="card"><h3>LM Studio swaps</h3>${swaps ? `<table><tr><th>time</th><th>unloaded</th><th>loaded</th><th>took</th></tr>${swaps}</table>` : '<div class="kv">none yet</div>'}</div>`;
 }
 
+// ---- harness version: check GitHub, fast-forward to the latest (jevh/update.py) ----
+const U = {st: null, checking: false, updating: false, msg: "", err: ""};
+async function refreshVersion(refresh = false) {
+  U.checking = true; if (S.tab === "status") refreshStatus();
+  try { U.st = await api(`/api/version${refresh ? "?refresh=1" : ""}`); U.err = ""; } catch (e) { U.err = e.message; }
+  U.checking = false;
+  const n = U.st && !U.st.error ? U.st.behind : 0;
+  $("updcount").textContent = n; $("updcount").hidden = !n || !!U.st.restart_needed;
+  $("updcount").title = `${n} update${n === 1 ? "" : "s"} on GitHub`;
+  if (S.tab === "status") refreshStatus();
+}
+function versionCard() {
+  const v = U.st, busy = U.checking || U.updating;
+  const btn = `<button data-upd="check" ${busy ? "disabled" : ""}>${U.checking ? "Checking..." : "Check for updates"}</button>`;
+  if (!v) return `<div class="card"><h3>Harness version ${btn}</h3><div class="kv">${U.err ? esc(U.err) : "checking GitHub..."}</div></div>`;
+  const c = (x) => x ? `<code>${esc(x.sha)}</code> ${esc(x.date)} · ${esc(x.subject)}` : "-";
+  let body = `<div class="kv">running: ${c(v.current)}</div>`
+    + (v.branch ? `<div class="kv">branch ${esc(v.branch)}${v.upstream ? ` → ${esc(v.upstream)}` : ""}${v.dirty.length ? ` · ${v.dirty.length} locally edited file${v.dirty.length > 1 ? "s" : ""}` : ""}</div>` : "");
+  if (v.restart_needed) body += `<div class="kv" style="color:var(--warn-ink);margin-top:6px"><b>Updated to ${esc(v.restart_needed.to)}.</b> Restart the dashboard (Ctrl+C, then <code>jevh dashboard</code>) to load it.${v.restart_needed.deps_changed ? ' Dependencies changed: run <code>pip install -e ".[web,browser,dev]"</code> first.' : ""}</div>`;
+  else if (v.error) body += `<div class="kv" style="color:var(--bad-ink);margin-top:6px">${esc(v.error)}</div>`;
+  else if (!v.behind) body += `<div class="kv" style="margin-top:6px"><span class="badge done">up to date</span></div>`;
+  else {
+    const more = v.behind - v.incoming.length;
+    body += `<div style="margin-top:8px"><b>${v.behind} new commit${v.behind > 1 ? "s" : ""}</b> <span class="kv">latest: ${c(v.latest)}</span></div>
+      <ul class="commits">${v.incoming.map((x) => `<li><code>${esc(x.sha)}</code>${esc(x.subject)} <span class="kv">${esc(x.date)}</span></li>`).join("")}${more > 0 ? `<li class="kv">... and ${more} more</li>` : ""}</ul>
+      ${v.deps_changed ? '<div class="kv">Dependencies changed: after updating, run <code>pip install -e ".[web,browser,dev]"</code>.</div>' : ""}
+      <div style="margin-top:8px"><button data-upd="apply" ${busy || anyRunning() ? "disabled" : ""} title="${anyRunning() ? "Wait for the running turn to finish" : "Fast-forward this checkout to the latest commit"}">${U.updating ? "Updating..." : "Update now"}</button></div>`;
+  }
+  if (U.msg) body += `<div class="kv" style="margin-top:6px">${esc(U.msg)}</div>`;
+  return `<div class="card"><h3>Harness version ${btn}</h3>${body}</div>`;
+}
+$("p-status").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("button[data-upd]"); if (!b || b.disabled) return;
+  U.msg = "";
+  if (b.dataset.upd === "check") return refreshVersion(true);
+  if (!confirm(`Update the harness to ${U.st.latest.sha}? Running code stays as is until you restart the dashboard.`)) return;
+  U.updating = true; refreshStatus();
+  try { const r = await api("/api/update", {method: "POST"}); U.msg = r.message; }
+  catch (e) { U.msg = `Update failed: ${e.message}`; }
+  U.updating = false;
+  refreshVersion(false);
+});
+
 // ---- wiring ----
 $("tabs").addEventListener("click", (ev) => {
   const b = ev.target.closest("button[data-tab]"); if (!b) return;
   S.tab = b.dataset.tab;
-  $("ptitle").textContent = b.textContent.trim();
+  $("ptitle").textContent = b.querySelector("span").textContent.trim();
   document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("on", p.id === `p-${S.tab}`));
   if (S.tab === "artifacts") refreshArtifacts();
   if (S.tab === "status") refreshStatus();
   if (S.tab === "memory") refreshMemory();
   if (S.tab === "browser") paintBrowser();
+  if (S.tab === "review") { refreshReviews(); refreshSessions(); }
   render();
 });
 $("p-memory").addEventListener("click", async (ev) => {
@@ -877,16 +1127,8 @@ $("log").addEventListener("click", async (ev) => {
   if (opt) { try { await api("/api/answer", {method: "POST", body: JSON.stringify({id: opt.dataset.q, answer: opt.dataset.a})}); } catch (e) { alert(e.message); } return; }
   const a = ev.target.closest("a[data-art]");
   if (a) { ev.preventDefault(); S.artSel = a.dataset.art; document.querySelector('#tabs button[data-tab="artifacts"]').click(); return; }
-  const fl = ev.target.closest("button[data-flag]");
-  if (fl) {   // thumbs-down: the turn goes to the failure log, with the note, for the refinement loop
-    const note = prompt("What was wrong with this answer? (optional - it helps the fix)");
-    if (note === null) return;
-    try {
-      const r = await api("/api/failures/flag", {method: "POST", body: JSON.stringify({turn: Number(fl.dataset.flag), note})});
-      const t = S.turns.get(Number(fl.dataset.flag)); if (t) t.flagged = r.id; render();
-    } catch (e) { alert(e.message); }
-    return;
-  }
+  const fl = ev.target.closest("button[data-flagturn]");
+  if (fl) { openFlag(Number(fl.dataset.flagturn)); return; }
   const m = ev.target.closest(".msg.assistant");
   if (m && !ev.target.closest("details")) { S.selected = Number(m.dataset.turn); render(); }
 });
@@ -929,7 +1171,9 @@ function connect() {
   $("watch").checked = !!st.watch_browser;
   connect();
   refreshStatus(); setInterval(refreshStatus, 5000);
+  refreshVersion(); setInterval(() => refreshVersion(), 30 * 60 * 1000);
   paintBrowser(); browserTick();
+  refreshReviews();
   setInterval(() => { if (S.order.some((id) => S.turns.get(id).status === "running")) schedule(); }, 1000);
   setInterval(pollThinking, 2000);
   render();

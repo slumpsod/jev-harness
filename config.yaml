@@ -92,6 +92,14 @@ failures:
   #  - on: [output]
   #    python: checks.repl:bad_output       # fn(event) -> None | str | {kind, summary, detail} | list
 
+# Session review (jevh/review.py): flag a session (dashboard "Flag for review", CLI /flag) and write notes on
+# what went wrong; a model then reads the session against the notes, lists the problems and says whether it
+# was a failure. A failure verdict also goes into the failure log (source "review").
+review:
+  model: null              # "provider:model" that reviews (default: models.strong, else the default persona's)
+  max_tokens: 32768        # per review reply, thinking included
+  prompt_chars: 60000      # the session is cut to about this size (work logs keep their ends)
+
 # Refinement (jevh/refine/): logged failures -> tests -> a fix by a local model -> old vs new on every
 # local model -> a report you approve or reject. `python -m jevh.refine nightly` runs it; see README.
 refine:

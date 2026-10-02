@@ -1,6 +1,11 @@
-"""Terminal chat for the harness.
+"""Terminal chat for the harness, and the `jevh` command.
 
-    python -m jevh.cli [--as persona] [--project path] [--watch] [--verbose] [--config path]
+    jevh [--as persona] [--project path] [--watch] [--verbose] [--config path]   # chat
+    jevh dashboard [--port 8740] [--no-browser]    # the dashboard (python -m jevh.web)
+    jevh update [--check]                          # update from GitHub (python -m jevh.update)
+    jevh failures | jevh review                    # the failure log, flagged sessions
+
+(`python -m jevh.cli` works the same as `jevh` without installing it.)
 
 Ctrl-C during a turn stops it (model, running code, hand-offs); a worker's question is
 asked right here in the terminal.
@@ -10,7 +15,11 @@ Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
 browser tool work in a visible window), /facts, /forget <id>, /usage, /failures [n|kind],
 /bad [what was wrong] (the last answer was wrong: logged as a failure for refinement),
 /resume [n|list] (continue an interrupted task: stopped, step limit, stalled, crashed),
-/personas, /skills, /trace, /verbose, /jev (health), /reset, /quit
+/flag [note] (flag this session for review), /note <text> (add a note to its flag),
+/flags [all] (flagged sessions), /review [id] (a model reviews the flagged session against the notes
+and says whether it failed), /verdict failure|not_failure [why] (your own verdict on it),
+/personas, /skills, /trace, /verbose, /jev (health), /update [check] (update the harness from GitHub),
+/reset, /quit
 """
 from __future__ import annotations
 
@@ -27,6 +36,8 @@ from rich.panel import Panel
 
 from .config import load_config
 from .orchestrator import Harness
+from . import update
+from .review import ReviewError, describe, show
 from .usage import brief
 
 console = Console()
@@ -179,8 +190,27 @@ class Printer:
                           f"{esc(data['error'][:160])}[/]")
 
 
-def main(argv: list[str] | None = None) -> None:
-    ap = argparse.ArgumentParser(prog="jevh")
+def subcommand(name: str):
+    """`jevh <name> ...` -> that module's main(argv), imported only when used (the dashboard needs fastapi)."""
+    if name in ("dashboard", "web"):
+        from .web.__main__ import main
+    elif name == "update":
+        main = update.main
+    elif name == "failures":
+        from .failures import main
+    elif name == "review":
+        from .review import main
+    else:
+        return None
+    return main
+
+
+def main(argv: list[str] | None = None) -> int | None:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and (sub := subcommand(argv[0])):
+        return sub(argv[1:])
+    ap = argparse.ArgumentParser(prog="jevh", epilog="other commands: jevh dashboard | update | failures | review "
+                                                      "(each takes --help)")
     ap.add_argument("--config")
     ap.add_argument("--as", dest="pin", help="pin a persona (skip routing)")
     ap.add_argument("--verbose", action="store_true")
@@ -190,7 +220,10 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--model", help="put every persona on one model for testing, e.g. lmstudio:qwen3-4b")
     ap.add_argument("--project", help="open a project folder for personas with the project tool")
     ap.add_argument("--watch", action="store_true", help="show the browser tool's window with Jev's picks outlined")
+    ap.add_argument("--update", action="store_true", help="same as: jevh update")
     a = ap.parse_args(argv)
+    if a.update:
+        return update.main([])
 
     printer = Printer(a.verbose)
     h = Harness(load_config(a.config), on_event=printer, model_override=a.model)
@@ -322,6 +355,45 @@ def main(argv: list[str] | None = None) -> None:
                 counts = h.failures.counts()["by_kind"]
                 console.print(("open: " + ", ".join(f"{k} {v}" for k, v in counts.items())) if counts
                               else "no failures logged")
+            elif cmd in ("flag", "note"):
+                if cmd == "note" and not arg.strip():
+                    console.print("usage: /note <what went wrong>")
+                    continue
+                f = h.review.flag(h.session, arg.strip())
+                console.print((f"note added to this session's flag (#{f['id']}, {len(f['notes'])} notes)" if cmd == "note"
+                               else f"session {h.session} flagged for review (#{f['id']}, {len(f['notes'])} notes)")
+                              + ("" if arg.strip() else "; /note <text> to say what went wrong"))
+            elif cmd == "flags":
+                flags = h.review.reviews.list(status=None if arg.strip() == "all" else "open") + \
+                    ([] if arg.strip() == "all" else h.review.reviews.list(status="decided"))
+                for f in sorted(flags, key=lambda f: -f["updated"]):
+                    console.print(esc(describe(f)))
+                if not flags:
+                    console.print("no flagged sessions (/flag to flag this one)")
+            elif cmd == "review":
+                f = h.review.reviews.resolve(arg) if arg.strip() else h.review.reviews.find(h.session)
+                if f is None:
+                    console.print("not flagged: /flag [note] first" if not arg.strip() else f"no flag {esc(arg)}")
+                    continue
+                try:
+                    with console.status(f"reviewing session {f['session']}..."):
+                        f = h.review.run(f["id"])
+                    console.print(esc(show(f)))
+                except (ReviewError, ValueError, KeyError) as e:
+                    console.print(f"[red]review failed: {esc(str(e))}[/]")
+                except KeyboardInterrupt:
+                    console.print("[yellow]review abandoned[/]")
+                except Exception as e:  # noqa: BLE001 - a model error must not end the chat
+                    console.print(f"[red]review failed: {type(e).__name__}: {esc(str(e)[:300])}[/]")
+            elif cmd == "verdict":
+                verdict, _, why = arg.strip().partition(" ")
+                f = h.review.reviews.find(h.session)
+                if verdict not in ("failure", "not_failure"):
+                    console.print("usage: /verdict failure|not_failure [why]")
+                elif f is None:
+                    console.print("not flagged: /flag [note] first")
+                else:
+                    console.print(esc(show(h.review.decide(f["id"], verdict, why.strip()))))
             elif cmd == "facts":
                 for f in h.memory.facts(None, 50):
                     console.print(f"[bold]{f.id}[/] {esc(f.chunk())}")
@@ -349,6 +421,20 @@ def main(argv: list[str] | None = None) -> None:
                     console.print_json(json.dumps(h.jev.client.health()))
                 except Exception as e:  # noqa: BLE001
                     console.print(f"[red]{esc(str(e))}[/]")
+            elif cmd == "update":
+                with console.status("checking GitHub for updates..."):
+                    st = update.check()
+                console.print(esc(update.describe(st)))
+                if arg.strip() == "check" or st["error"] or not st["behind"]:
+                    continue
+                if input(f"update to {st['latest']['sha']} now? [y/N] ").strip().lower() not in ("y", "yes"):
+                    continue
+                try:
+                    with console.status("updating..."):
+                        r = update.apply()
+                    console.print(f"[green]{esc(update.done(r))}[/]" + (" (/quit, then start jevh again)" if r["updated"] else ""))
+                except update.UpdateError as e:
+                    console.print(f"[red]update failed: {esc(str(e))}[/]")
             elif cmd == "reset":
                 mode, project, watch = h.tier_mode, h.project, h.watch_browser
                 h = Harness(h.cfg, on_event=printer, model_override=a.model)

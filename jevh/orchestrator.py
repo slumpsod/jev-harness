@@ -32,6 +32,7 @@ from .lmstudio import gate_for
 from .mcp import McpHub
 from .memory import Memory
 from .personas import Persona, load_personas
+from .review import Reviewer
 from .skills import load_roster
 from .tools import TOOLS
 from .tools import nango
@@ -217,6 +218,8 @@ class Harness:
         os.environ.setdefault("JEVH_JEV_BACKEND", str(self.cfg.jev.get("backend", "semif")))
         self.verifier = Verifier(self.jev, self.cfg)
         self.usage = Usage(self.cfg.workspace / "usage.db", self.cfg.raw.get("prices"))
+        # sessions the user flagged for review, with their notes; a model can judge one (jevh/review.py)
+        self.review = Reviewer(self.cfg, self.memory, self.failures, model_override=model_override)
         self.turn_no = 0
         self.turns_seen: dict[int, dict[str, Any]] = {}   # turn -> request, answer, lead task's folder (for flag())
         self._tl = threading.local()                 # which turn/task/persona this thread works for

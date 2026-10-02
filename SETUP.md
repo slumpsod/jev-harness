@@ -25,6 +25,9 @@ pip install -e ".[web,browser,dev]"
 python -m playwright install chromium
 ```
 
+This gives you the `jevh` command while the venv is active. To use `jevh` from any terminal without
+activating anything, also install it with pipx: see [the `jevh` command](README.md#the-jevh-command).
+
 ## 3. LM Studio
 
 1. Download the models you want to use (a bigger one for hard tasks, optionally a smaller fast one).
@@ -54,11 +57,12 @@ export TYPESAFE_API_KEY="your-key-here"
 
 ```bash
 python -m pytest -q                               # offline tests (no models needed), ~2-3 minutes
-python -m jevh.cli -c "what's 17 * 23? use code"   # one real turn: Jev + your LM Studio model
-python -m jevh.web                                # the dashboard: http://127.0.0.1:8740/
+jevh -c "what's 17 * 23? use code"   # one real turn: Jev + your LM Studio model
+jevh                                # chat in the terminal
+jevh dashboard                      # the dashboard: http://127.0.0.1:8740/
 ```
 
-Browser check: `python -m jevh.cli -c "open news.ycombinator.com in the browser and tell me the top story"`.
+Browser check: `jevh -c "open news.ycombinator.com in the browser and tell me the top story"`.
 To watch the browser work, type `/watch` in the CLI chat (or tick "Watch browser" in the dashboard).
 
 ## Connected accounts (Nango)
@@ -132,7 +136,7 @@ Google (Gmail, Calendar, Drive, Docs, Sheets), once for all of them:
 On the dashboard's Connections page, or just ask ("connect my Gmail"): the assistant gives you a link, you
 sign in, and reply "done".
 
-Check: `python -m jevh.cli -c "what's on my calendar tomorrow?"`. When an assistant wants to send, create,
+Check: `jevh -c "what's on my calendar tomorrow?"`. When an assistant wants to send, create,
 change or delete something, you're asked first and shown exactly what goes out.
 
 ## Good to know

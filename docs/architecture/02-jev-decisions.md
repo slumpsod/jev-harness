@@ -46,19 +46,20 @@ slower and less accurate (see README "Measured").
 | `mcp_rank`, `mcp_fits` | `jev.py:267` | `latest_request` | choice over the MCP catalog + none, then noul on top 3 | fits ≥ `mcp_fits .50`, max `max_mcp_tools` 3 | all guides |
 | `tier` | `jev.py:301` | `task` (task text only, on purpose) | choice fast / strong | P(strong) ≥ `tier_strong .55` → strong | strong |
 | `approve` | `jev.py:336` | `requesting_assistant`, `target`, `task` | `in_scope`, `necessary` nouls | both ≥ `approve .50` | approved |
-| `worker_jev` | `orchestrator.py:460` | whatever the worker passes to `jev()` | whatever the worker asks | the worker decides | error in the worker's code |
-| `memory_rank` / `memory` via `recall()` | `orchestrator.py:658` | the worker's query | same as the memory gate, over FTS turns + facts | same | first k chunks |
-| `progress` | `orchestrator.py:605` | `request` (1.5k), `work_log` (last 4k) | `circles` noul | ≥ `stall .60` → a strike | no check |
-| `compact` | `orchestrator.py:612` | `task`, `now` (2k), `step` (4.5k) | `info` noul per old step | ≥ `compact_keep .80` → keep in full | notes only |
-| `thinking_watch` | `orchestrator.py:622` | `task`, `thinking` (last 2.5k) | `testable`, `stuck`, `checking` | testable ≥ `testable .55`, or stuck − checking > `searching .25` → pause | no pause |
-| `verify` | `verify.py:223` | `request`, `answer`, `artifacts`, `work_log` (3.5k) | `claims`, `delivers`, `honest`, `accurate` | see [07](07-final-gate.md) | file and test checks only |
-| `risk` | `verify.py:341` | `request`, `file`, `change` | `risky` per changed file | ≥ `review_risk .65` → full review | review everything |
-| `severity` | `verify.py:376` | `request`, `file`, `change` | `severe` | ≥ `review_severe .20` (or a severe-looking regex) → strong reviewer | strong reviewer |
+| `worker_jev` | `orchestrator.py:475` | whatever the worker passes to `jev()` | whatever the worker asks | the worker decides | error in the worker's code |
+| `memory_rank` / `memory` via `recall()` | `orchestrator.py:674` | the worker's query | same as the memory gate, over FTS turns + facts | same | first k chunks |
+| `progress` | `orchestrator.py:621` | `request` (1.5k), `work_log` (last 4k) | `circles` noul | ≥ `stall .60` → a strike | no check |
+| `compact` | `orchestrator.py:628` | `task`, `now` (2k), `step` (4.5k) | `info` noul per old step | ≥ `compact_keep .80` → keep in full | notes only |
+| `thinking_watch` | `orchestrator.py:638` | `task`, `thinking` (last 2.5k) | `testable`, `stuck`, `checking` | testable ≥ `testable .55`, or stuck − checking > `searching .25` → pause | no pause |
+| `verify` | `verify.py:238` | `request`, `answer`, `artifacts`, `work_log` (3.5k) | `claims`, `delivers`, `honest`, `accurate` | see [07](07-final-gate.md) | file and test checks only |
+| `risk` | `verify.py:359` | `request`, `file`, `change` | `risky` per changed file | ≥ `review_risk .65` → full review | review everything |
+| `severity` | `verify.py:394` | `request`, `file`, `change` | `severe` | ≥ `review_severe .20` (or a severe-looking regex) → strong reviewer | strong reviewer |
+| `failure_check` | `failures.py:336` | `request`, `answer`, `artifacts` (file names), `work_log` | `gave_up`, `missed` | ≥ `failure_gave_up .85` / `failure_missed .85` → a failure row ([11](11-failure-log.md)) | no check |
 | `learn_fact` | `learn.py:190` | `user_message`, `assistant_reply` | `fact` | ≥ `fact .88` → model writes facts | skipped |
 | `learn_same_fact` | `learn.py:206` | `new_fact`, `old_facts` | one noul per old fact | ≥ `same_fact .50` → retire old | — |
 | `learn_skill` | `learn.py:221` | `task`, `work_log` | `skill` | ≥ `learn_skill .50` → write skill or lessons | skipped |
 
-`_safe` (`orchestrator.py:711`) wraps the harness decisions made before and around a task. On
+`_safe` (`orchestrator.py:727`) wraps the harness decisions made before and around a task. On
 `SystemOneError` it emits `jev_error` and returns the fallback shown above, so a dead adapter
 degrades the harness instead of crashing it.
 

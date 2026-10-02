@@ -1,8 +1,8 @@
 # 04 · Model calls
 
-A worker step calls `Worker._llm` (`worker.py:1017`). That goes through `Metered`
+A worker step calls `Worker._llm` (`worker.py:1021`). That goes through `Metered`
 (`usage.py:132`), then the provider client, which for LM Studio also passes the one-model gate
-(`lmstudio.py:63`). The reply streams in, and two side threads can cut it short.
+(`lmstudio.py:69`). The reply streams in, and two side threads can cut it short.
 
 ## The call chain
 
@@ -61,12 +61,12 @@ flowchart TD
   B -- yes --> END["stop watching:<br/>model is acting"]
   B -- no --> C{"text ≥ watch_after (6000)<br/>and ≥ watch_every (4000) new chars?"}
   C -- no --> T
-  C -- yes --> D["Worker.watch(text, answering)<br/>worker.py:1040"]
+  C -- yes --> D["Worker.watch(text, answering)<br/>worker.py:1044"]
   D --> E{"repeating(text)?<br/>a 3+ word line 8× in last 4k chars<br/>worker.py:93"}
   E -- yes --> STOP2["stop: reason repeating"]
   E -- no --> F{"code has run this task,<br/>thinking watch on,<br/>not writing the final reply?"}
   F -- no --> T
-  F -- yes --> G["Jev thinking_watch<br/>orchestrator.py:622"]
+  F -- yes --> G["Jev thinking_watch<br/>orchestrator.py:638"]
   G -- "testable / searching" --> STOP3["stop: pause the think"]
   G -- none --> T
 ```
@@ -74,8 +74,8 @@ flowchart TD
 The watcher and the thinking watch together make the step return `interrupted=True`. The worker
 then keeps the reasoning, trims the reply, and adds a pause message saying *why*: "you were
 working out by hand something code does exactly…", "trying one theory after another…", or "you
-were repeating yourself" (`worker.py:581-615`). After two ignored pauses in a row the next check
-waits twice as long (`watch_after × 2`, `worker.py:1050`). The Jev thinking watch is off by
+were repeating yourself" (`worker.py:585-619`). After two ignored pauses in a row the next check
+waits twice as long (`watch_after × 2`, `worker.py:1054`). The Jev thinking watch is off by
 default (`limits.thinking_watch: 0`); the repetition check always runs.
 
 ## Failure handling
@@ -84,7 +84,7 @@ default (`limits.thinking_watch: 0`); the repetition check always runs.
 |---|---|---|
 | Nothing streams within the first-chunk limit | `llm.py:205` | `LLMError "no tokens for Ns (nothing streamed)"` |
 | A gap between chunks > `idle_timeout` (180s) | `llm.py:205` | `LLMError "no tokens for 180s"` |
-| Either of the above | `worker.py:1053` | the step is retried up to 2 more times (`SILENT_RETRIES`); sampling differs on a retry |
+| Either of the above | `worker.py:1057` | the step is retried up to 2 more times (`SILENT_RETRIES`); sampling differs on a retry |
 | HTTP error / unreachable | `llm.py:205` | `LLMError`: the task fails (`stopped=error`, resumable) |
 | `finish_reason: length` | `llm.py:205` | "[output cut off at max_tokens…]" appended → the worker is told to use smaller steps |
 | Template tokens leaked into call args | `llm.py:70` | cut at the first leaked token (`clean_call_args`) |
@@ -107,10 +107,16 @@ stateDiagram-v2
   Lingering --> Swapping: other model waited ≥ linger<br/>or max_wait (180s) passed
   Idle --> Swapping: other model requested
   Swapping --> Serving: unload every other LLM, then load (12–23s)
+  Lingering --> Rechecking: idle ≥ recheck (30s)
+  Rechecking --> Swapping: forget what it believed is loaded,<br/>ask LM Studio again (a no-op swap if it's still ours)
 ```
 
+`current` is only this process's belief. Another process on the same LM Studio (refine's test runs,
+the dashboard next to a CLI) may have swapped models meanwhile, so after 30 idle seconds the gate
+asks LM Studio again (`lmstudio.py:72`).
+
 Swaps show up as the `swap` event (dashboard timeline markers) and as usage rows of kind `swap`
-(`orchestrator.py:195`). Embedding models are never unloaded.
+(`orchestrator.py:208`). Embedding models are never unloaded.
 
 ## Metering (`Metered`, `usage.py:132`)
 

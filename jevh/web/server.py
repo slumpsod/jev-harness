@@ -1,6 +1,6 @@
 """Local dashboard: chat + live view of Jev's decisions, hand-offs, swaps and artifacts.
 
-    python -m jevh.web [--port 8740] [--model provider:model] [--no-browser]
+    jevh dashboard [--port 8740] [--model provider:model] [--no-browser]
 
 Security (the agent runs code, so the browser must not become a remote control):
 - binds 127.0.0.1 only, and rejects any Host header but 127.0.0.1/localhost:<port>
@@ -33,10 +33,12 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
+from .. import update as updater
 from ..bus import jsonable, task_json
 from ..config import Config, load_config
 from ..lmstudio import gate_for
 from ..orchestrator import Harness
+from ..review import ReviewError, list_sessions
 from ..skills import load_roster
 
 STATIC = Path(__file__).with_name("static")
@@ -65,6 +67,7 @@ class Hub:
         self._subs: list[asyncio.Queue] = []
         self.loop: asyncio.AbstractEventLoop | None = None
         self.pin: str | None = None
+        self.updated: dict | None = None   # set once the code on disk was updated: a restart loads it
 
     # events from worker threads -> history + every open SSE stream
     def publish(self, kind: str, data: dict | None = None) -> None:
@@ -104,7 +107,7 @@ class Hub:
         def run() -> None:
             try:
                 r = self.harness.resume(resume) if resume else self.harness.turn(message, force=self.pin)
-                turn.update(usage=r.usage, checkpoint=r.checkpoint, harness_turn=self.harness.turn_no)
+                turn.update(usage=r.usage, checkpoint=r.checkpoint)
                 turn.update(status="cancelled" if r.cancelled else "done", persona=r.persona, answer=r.answer, artifacts=r.artifacts,
                             seconds=r.seconds, trace=jsonable(r.trace), tasks=[task_json(t) for t in r.tasks])
                 self.publish("turn_done", {"turn": dict(turn)})
@@ -346,18 +349,109 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             raise HTTPException(404, "no such failure")
         return {"ok": True}
 
-    @app.post("/api/failures/flag")
-    async def failure_flag(request: Request) -> dict:
-        """Thumbs-down on an answer: log the turn as a failure (the user's note says what was wrong)."""
+    # -- session review: flag a session, add notes, have a model judge it (jevh/review.py) ------------
+    def flag_or_404(fid) -> dict:
+        try:
+            f = hub.harness.review.reviews.get(int(fid))
+        except (TypeError, ValueError):
+            f = None
+        if f is None:
+            raise HTTPException(404, "no such flagged session")
+        return f
+
+    def flag_out(f: dict) -> dict:
+        return {**f, "running": f["id"] in hub.harness.review.running}
+
+    @app.get("/api/reviews")
+    def reviews(status: str | None = None) -> dict:
+        rv = hub.harness.review
+        current = rv.reviews.find(hub.harness.session)
+        return {"session": hub.harness.session, "counts": rv.reviews.counts(),
+                "current": flag_out(current) if current else None,
+                "flags": [flag_out(f) for f in rv.reviews.list(status=status or None, limit=200)]}
+
+    @app.get("/api/reviews/{fid}")
+    def review_detail(fid: int) -> dict:
+        f = flag_or_404(fid)
+        rec = hub.harness.review.record(f["session"])
+        for t in rec["tasks"]:
+            t["work_log"] = t["work_log"][-6000:]
+        return {"flag": flag_out(f), "record": rec}
+
+    @app.get("/api/sessions")
+    def sessions(limit: int = 30) -> list:
+        h = hub.harness
+        flagged = {f["session"]: f["id"] for f in h.review.reviews.list(limit=10 ** 6)}
+        return [{**s, "flag": flagged.get(s["session"]), "current": s["session"] == h.session}
+                for s in list_sessions(h.cfg.workspace, h.memory, min(limit, 200))]
+
+    @app.post("/api/reviews/flag")
+    async def review_flag(request: Request) -> dict:
+        """Flag a session (default: this one) with an optional note, or add a note to its flag."""
         body = await request.json()
-        turn = next((t for t in hub.turns if t["id"] == int(body.get("turn", 0))), None)
-        if turn is None or turn.get("status") != "done" or not turn.get("harness_turn"):
-            raise HTTPException(404, "no finished turn with that id")
-        row = hub.harness.flag(str(body.get("note") or ""), turn["harness_turn"])
-        if row is None:
-            raise HTTPException(404, "that turn is no longer in this session")
-        turn["flagged"] = row["id"]
-        return {"id": row["id"]}
+        h = hub.harness
+        session = str(body.get("session") or h.session)
+        if session != h.session and session not in {s["session"] for s in list_sessions(h.cfg.workspace, h.memory, 10 ** 6)}:
+            raise HTTPException(404, "no such session")
+        turn = body.get("turn")
+        f = h.review.flag(session, str(body.get("note") or ""), int(turn) if turn else None)
+        hub.publish("review_flag", {"flag": {"id": f["id"], "session": f["session"]}})
+        return {"flag": flag_out(f)}
+
+    @app.post("/api/reviews/note")
+    async def review_note(request: Request) -> dict:
+        body = await request.json()
+        f = flag_or_404(body.get("id"))
+        turn = body.get("turn")
+        try:
+            hub.harness.review.reviews.add_note(f["id"], str(body.get("text") or ""), int(turn) if turn else None)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        return {"flag": flag_out(flag_or_404(f["id"]))}
+
+    @app.post("/api/reviews/run")
+    async def review_run(request: Request) -> dict:
+        """Start a model review of a flagged session; review_done / review_error events report the end."""
+        body = await request.json()
+        f = flag_or_404(body.get("id"))
+        rv = hub.harness.review
+        if f["id"] in rv.running:
+            raise HTTPException(409, "a review of this session is already running")
+        model = str(body.get("model") or "").strip() or None
+        hub.publish("review_start", {"flag": {"id": f["id"], "session": f["session"]}})
+
+        def run() -> None:
+            try:
+                out = rv.run(f["id"], model)
+                hub.publish("review_done", {"flag": {"id": out["id"], "session": out["session"],
+                                                     "verdict": out["verdict"], "verdict_by": out["verdict_by"]}})
+            except Exception as e:  # noqa: BLE001 - reported to the page, never kills the server
+                hub.publish("review_error", {"flag": {"id": f["id"], "session": f["session"]},
+                                             "error": f"{type(e).__name__}: {e}"[:600]})
+
+        threading.Thread(target=run, name=f"review-{f['id']}", daemon=True).start()
+        return {"running": True}
+
+    @app.post("/api/reviews/verdict")
+    async def review_verdict(request: Request) -> dict:
+        body = await request.json()
+        f = flag_or_404(body.get("id"))
+        try:
+            out = hub.harness.review.decide(f["id"], str(body.get("verdict", "")), str(body.get("reason") or ""))
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        return {"flag": flag_out(out)}
+
+    @app.post("/api/reviews/status")
+    async def review_status(request: Request) -> dict:
+        body = await request.json()
+        f = flag_or_404(body.get("id"))
+        status = str(body.get("status", ""))
+        if status not in ("open", "dismissed"):
+            raise HTTPException(400, "status must be open|dismissed (a verdict decides a flag)")
+        # a dismissed flag that already had a verdict comes back decided
+        hub.harness.review.reviews.set_status(f["id"], "decided" if status == "open" and f["verdict"] else status)
+        return {"flag": flag_out(flag_or_404(f["id"]))}
 
     @app.get("/api/thinking")
     def thinking() -> dict:
@@ -545,6 +639,32 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         if h.cfg.tools.get("comfy_url"):
             out["comfyui"] = probe(str(h.cfg.tools["comfy_url"]).rstrip("/") + "/system_stats", 2.0)
         return out
+
+    # -- updating the harness from GitHub (jevh/update.py) --------------------------------------------
+    version_cache: dict[str, Any] = {"ts": 0.0, "data": None}
+
+    @app.get("/api/version")
+    def version(refresh: bool = False) -> dict:
+        """This checkout against its GitHub branch. Asks GitHub at most every 10 minutes unless refresh."""
+        if refresh or version_cache["data"] is None or time.time() - version_cache["ts"] > 600:
+            version_cache.update(ts=time.time(), data=updater.check(fetch=True))
+        return {**version_cache["data"], "restart_needed": hub.updated}
+
+    @app.post("/api/update")
+    def update() -> dict:
+        """Fast-forward to the latest version. The running server keeps its loaded code until restarted."""
+        if not hub.busy.acquire(blocking=False):
+            raise HTTPException(409, "wait for the running turn to finish")
+        try:
+            r = updater.apply()
+        except updater.UpdateError as e:
+            raise HTTPException(409, str(e)) from None
+        finally:
+            hub.busy.release()
+        if r["updated"]:
+            hub.updated = {"from": r["from"], "to": r["to"], "commits": r["commits"], "deps_changed": r["deps_changed"]}
+        version_cache.update(ts=time.time(), data=updater.check(fetch=False))
+        return {**r, "message": updater.done(r), "restart_needed": hub.updated}
 
     @app.get("/api/artifacts")
     def artifacts() -> list[dict]:

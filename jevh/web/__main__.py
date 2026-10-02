@@ -1,4 +1,4 @@
-"""python -m jevh.web [--port 8740] [--model provider:model] [--no-browser]"""
+"""jevh dashboard [--port 8740] [--model provider:model] [--no-browser]   (or python -m jevh.web)"""
 from __future__ import annotations
 
 import argparse
@@ -11,13 +11,13 @@ from ..config import load_config
 from .server import create_app
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(prog="jevh.web")
+def main(argv: list[str] | None = None) -> None:
+    ap = argparse.ArgumentParser(prog="jevh dashboard")
     ap.add_argument("--port", type=int, default=8740)
     ap.add_argument("--config")
     ap.add_argument("--model", help="put every persona on one model for testing, e.g. lmstudio:ornith-1.5-35b-a3b")
     ap.add_argument("--no-browser", action="store_true")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     app = create_app(load_config(a.config), port=a.port, model_override=a.model)
     url = f"http://127.0.0.1:{a.port}/"
     print(f"jev-harness dashboard: {url}  (local only; Ctrl+C to stop)")

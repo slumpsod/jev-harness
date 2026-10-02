@@ -27,10 +27,13 @@ crosses between them, with Mermaid diagrams and `file:line` references.
 On a Mac, Linux, or with the hosted Jev instead of a local one: see [SETUP.md](SETUP.md). A machine's own
 settings (models, Jev, paths) go in `config.local.yaml`, laid over `config.yaml` and ignored by git.
 
+The `jevh` command works from any folder once installed (see [the `jevh` command](#the-jevh-command)).
+
 ```bash
 openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
-python -m jevh.cli                   # chat; /help for commands
-python -m jevh.cli --as fitness_coach -c "plan my week"   # one-shot, pinned persona
+jevh                                 # chat; /help for commands
+jevh dashboard                       # the dashboard (see Dashboard)
+jevh --as fitness_coach -c "plan my week"   # one-shot, pinned persona
 python -m pytest -q                  # 126 offline tests (fake Jev + scripted LLMs, a fake MCP server)
 python evals/routing_cases.py --sweep   # live routing/collab accuracy + threshold sweep
 python evals/skill_cases.py            # live skill-picking accuracy + sweep (--offline to re-sweep)
@@ -42,13 +45,49 @@ python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness t
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
 python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
-python evals/audit_cases.py            # spot checks: does a model rereading a task catch a wrong answer (--model)
-python -m jevh.failures                # logged failures; `export out.jsonl` to study them
+jevh failures                          # logged failures; `export out.jsonl` to study them
+jevh review                            # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
 ```
 
-CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`, `/bad [note]`,
+CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/facts`, `/forget <id>`, `/failures`,
+`/flag [note]`, `/note <text>`, `/flags`, `/review`, `/verdict failure|not_failure [why]` (see Session review),
 `/personas`, `/skills`, `/trace` (raw Jev answers for the last turn), `/verbose` (show code + REPL output),
-`/jev` (adapter health), `/reset`, `/quit`.
+`/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
+
+## The `jevh` command
+
+| Command | Does |
+|---|---|
+| `jevh` | chat in the terminal (`jevh --help` for its options) |
+| `jevh dashboard` | the dashboard in your browser |
+| `jevh update` | update the harness from GitHub |
+| `jevh failures`, `jevh review` | the failure log, flagged sessions |
+
+`pip install -e .` inside the venv puts `jevh` on the PATH while that venv is active. To have it in every
+terminal with no venv to activate, install it once with [pipx](https://pipx.pypa.io)
+(`brew install pipx` on a Mac, `py -m pip install --user pipx` on Windows, then `pipx ensurepath` and open a new terminal):
+
+```bash
+pipx install -e ".[web,browser]"       # from the repo folder; -e keeps it pointing at this checkout
+pipx run --spec playwright playwright install chromium   # the browser tool's Chromium, if not installed yet
+```
+
+Because it's editable, it always runs this folder's code: `jevh update` (or a `git pull`) updates the
+global command too, and memory, logs and `config.local.yaml` stay in this folder whichever folder you start
+it from. Every command also still works as `python -m jevh.cli`, `python -m jevh.web` and so on.
+
+## Updating
+
+```bash
+jevh update            # or /update in the chat, or "Check for updates" in the dashboard's Status tab
+jevh update --check    # only list what's new on GitHub
+```
+
+The checkout is fast-forwarded to its GitHub branch (normally `origin/main`). It is never merged or
+rebased: local commits, or edits to a file the update changes, stop it with a message and nothing is
+touched (`config.local.yaml` and `workspace/` are ignored by git, so they're never in the way). Restart the
+CLI or dashboard afterwards to load the new code, and if `pyproject.toml` changed, rerun
+`pip install -e ".[web,browser,dev]"` first (the update says so). The dashboard won't update during a turn.
 
 ## Adding things
 
@@ -94,7 +133,7 @@ CLI commands: `/as <persona>`, `/auto`, `/project <path>` (or `--project`), `/fa
 | Memory gating | `memory_cases.py`, 18 requests over an 18-turn history | 95% of needed turns passed, 0 leaks | ~1.5s |
 | Model tier (fast/strong) | `tier_cases.py`, 39 tasks + 15 held out | 100% and 15/15, 0 hard tasks sent fast | ~0.2s |
 | Tool guides | `tool_cases.py`, 54 requests x 5 tools | 50/54 exact, 3 needless (nango: 10/10 picked, 1 needless) | ~0.3s |
-| final() answer check | `verify_cases.py`, 22 tuning + 2 held-out sets of 12 + 19 real gate inputs (`--live`) | 23/30 bad caught, 0 false alarms on all four sets; live set 3/7 (was 2/7 with 2 false) | ~0.3s |
+| final() answer check | `verify_cases.py`, 22 tuning + 2 held-out sets of 12 | 12/12 tuning; fresh held-out 4/6 bad caught, 0 false alarms | ~0.3s |
 | Progress check (long tasks) | `progress_cases.py`, 14 work logs | 6/6 stalls caught, 0/8 healthy runs interrupted | every 8 steps |
 | Browser agent | `browser_cases.py`, 16 tuning + 12 held-out + 2 Wikipedia goals | 29-30/30, 0 false "done" | ~2.3s per goal |
 | Learning gates | `learn_cases.py`, 25 + 10 + 7 cases | 12/12 facts, 5/5 replacements, 3/3 skills; 0 false positives | ~0.2s each |
@@ -136,15 +175,16 @@ Lessons from getting there (all handled in code now):
 ## Dashboard
 
 ```bash
-python -m jevh.web                 # http://127.0.0.1:8740/ opens in your browser
-python -m jevh.web --no-browser --port 8740 --model lmstudio:ornith-1.5-35b-a3b
+jevh dashboard                     # http://127.0.0.1:8740/ opens in your browser
+jevh dashboard --no-browser --port 8740 --model lmstudio:ornith-1.5-35b-a3b
 ```
 
 The chat is on the left, and every event streams in live on the right:
 - **Timeline**: one lane per task, positioned in time and coloured by tier (fast/strong). It shows nested hand-offs, refused requests, LM Studio swap markers, and "parallel saved Xs".
 - **Inspector**: every Jev decision for the selected turn, with probabilities and threshold markers: routing, tier, skill Choice + fits, memory kept/checked, collaborators and hand-off approvals.
 - **Artifacts**: files produced in this session. HTML is previewed live in a sandboxed iframe, images and video inline, and code or text as source.
-- **Status**: which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
+- **Review**: sessions flagged for review (see below), with their notes, a model's review and your verdict.
+- **Status**: the harness version, with new commits on GitHub and an Update button (a count on the tab when there are any); which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
 
 In the header you can pin a persona and set the tier (Jev decides / fast / strong). Click an answer to inspect that turn,
 and reload any time: the event history replays. **Security:** the agent executes code, so the dashboard binds to 127.0.0.1 only.
@@ -152,6 +192,19 @@ and reload any time: the event history replays. **Security:** the agent executes
 - Every API call needs a per-launch token embedded in the page.
 - It refuses POSTs from other origins, which blocks CSRF from websites you visit.
 - It serves files only from the workspace. HTML artifacts get a CSP sandbox, so a generated page can't reach the dashboard.
+
+### Session review
+
+When a session went wrong in a way no detector caught, flag it: **Flag for review** above the chat (or the
+**flag** on any answer, to point a note at that turn), or `/flag <note>` in the CLI. Add as many notes as you
+like on what looked wrong. In the **Review** tab, **Ask a model to review** has a model (config
+`review.model`, else `models.strong`) read the whole session against your notes: the conversation, every
+task's work log, and the failures already logged. It lists the problems it found (severity, turn, the note
+each bears on, the evidence) and says **failure** or **not a failure**; you can overrule it either way. A
+failure verdict is written to the failure log as `review_failure` (source `review`), so `jevh.refine` can
+work on it; overruling it with "not a failure" marks that row ignored. Flags and notes live in
+`workspace/reviews.db`; `jevh review` does the same from a terminal, for any session
+(`sessions` lists them).
 
 ## Fast tier: Jev picks the model per task
 
@@ -193,7 +246,7 @@ for every persona that's generating, each task's duration, and a summary such as
 (parallel saved 79s)`. Your semif bridge serializes forward passes, so parallel Jev calls queue safely, and
 LM Studio runs concurrent requests in parallel (measured with 2 streams at once: 3.5s vs 3.1s for one).
 
-Test with one fast model for every persona: `python -m jevh.cli --model lmstudio:ornith-1.5-35b-a3b`.
+Test with one fast model for every persona: `jevh --model lmstudio:ornith-1.5-35b-a3b`.
 
 Safeguards added after watching a weaker model (ornith) work:
 - If the same error repeats 3 times, the worker is told to stop retrying and report the blocker.
@@ -225,26 +278,6 @@ Measured (`evals/verify_cases.py`, answer check):
 - Tuning set: 12/12 bad answers caught, 0/10 false alarms.
 - First held-out set: only 1/5 caught before I added the "accurate report" question.
 - Second, fresh held-out set, run once: 4/6 caught, 0/6 false alarms.
-- Live set (`--live`, 19 real gate inputs from 2026-09-30): 3/7 caught, 0/12 false alarms; it was 2/7
-  with 2 false alarms. The live misses on 2026-09-30 sent back 4 of about 20 correct answers and
-  delivered a correct 28.4 under a "Not verified" warning. The causes, and what changed:
-  - The web tool read an arXiv page's MathML twice ("28.428.4"), so the answer's number was in no output.
-    Formula annotations are now skipped.
-  - The work log kept the first 200 chars of a long paragraph, and the number came after them. It now
-    keeps the part around the answer's number.
-  - "16:9 widescreen" was taken for a made-up figure. Aspect ratios are left out of the number check.
-  - "Grounded numbers overrule 'accurate'" let a wrong row through: "United at $455, 18:05", three
-    numbers from the log, the wrong flight. It now applies only on a long log (1500+ chars), where
-    semif's 'accurate' stops telling right from wrong (a shop page: right price 0.18, wrong 0.13).
-    On short logs it does: the wrong flight 0.13, the wrong total 0.20 (a wrong largest file, at 0.53,
-    still gets through).
-  - Tried and left out: `verify_accurate` 0.6, and a narrower question about the answer's numbers ("do the
-    figures match what the log shows"). Over the four sets plus `verify_evidence_cases.py`, neither caught
-    more without sending back a right answer (a recipe at 0.53, a live 28.4 at 0.56, an order # read as
-    the answer).
-- Still missed, by design: an answer that is wrong but matches its log's numbers (a regex summary that
-  miscounted its own tests), and answers from knowledge or done by hand with no code. Nothing in the
-  log can disprove them; the spot checks (Failure log, below) catch those.
 
 It catches loud false claims reliably and about two-thirds of subtle ones (a number or item that
 differs from the log). It hasn't flagged an honest partial answer yet. The file, page and test
@@ -465,27 +498,15 @@ Seen live (ornith as every worker, semif as Jev):
 
 Every way a task goes wrong is written to `workspace/failures.db` (`jevh/failures.py`), to improve
 the harness from later. Logging only watches the harness's events; it never changes how a task runs.
-Failures come from seven sources:
+Failures come from five sources:
 - **harness**: a crash, the step limit, a stall, going in circles (progress check), a reply cut
   off or empty, Jev unreachable, a hand-off refused, the user pressing Stop.
 - **gate**: the final() gate sent work back (`gate_bounce`, with the answer it rejected), or
-  accepted it with problems still listed (`gate_unresolved`). Besides Jev's questions it checks in plain
-  code: handed-over files exist and aren't empty, open as what they claim (images, Office files, PDFs),
-  parse (Python, JSON, CSV rows the header's width), hold more than their own file name; a file the
-  request names ("write leap.py") is among them; and the answer isn't a tool call written out as text.
+  accepted it with problems still listed (`gate_unresolved`).
 - **jev**: after every task that ended normally, one Jev call reads the request, the answer and the
   work log: does the answer say it couldn't (fully) do it (`gave_up`), or does it not deliver what
-  was asked (`missed_request`)? It sees the names of the files handed over. `failures.jev_check: false`
-  turns it off. `evals/failure_cases.py`: 11/11 failures caught, 0/10 good answers flagged at 0.60-0.90.
-- **audit** (spot checks): a sample of finished tasks (`failures.audit`, 0.25) is reread in the
-  background by a model - the request, the answer as delivered, the files handed over (their text) and
-  the work log - for confident wrong answers, which read fine and pass every check of the answer's text
-  (`wrong_answer`). `failures.audit_model`: `same` (the task's own model: no swap) or `strong`.
-  `evals/audit_cases.py` (8 wrong, 12 right, mostly real runs: a CSV holding its own name, "Ana" turned
-  into "name", a leaked tool call, a regex summary that miscounted its own tests, the wrong row's price):
-  Qwen 3.8 27B caught 8/8 with 0 false alarms (50s a check), ornith 7/8 with 0 (14s).
-- **user**: the dashboard's "wrong" button on an answer, or `/bad [what was wrong]` in the CLI, logs the
-  turn (`user_flagged`) with the note, the answer and the lead task's work log - for what nothing caught.
+  was asked (`missed_request`)? `failures.jev_check: false` turns it off. The questions aren't
+  tuned yet: run `evals/failure_cases.py` and set `failure_gave_up` / `failure_missed` from its sweep.
 - **model**: a worker calls `report_failure(what, detail)` in its REPL: a tool that misbehaved, a
   skill or instruction that was wrong. It's logged and the worker carries on.
 - **hook**: your own checks in `failures.hooks`, run on any harness event. A hook is a shell
@@ -507,7 +528,7 @@ gone. Rows have a triage `status` (open / reviewed / fixed / ignored) and a note
 
 Where you see them: new failures show in the CLI and the dashboard's activity feed as they happen;
 `/failures [n|kind]` in the CLI; `GET /api/failures` and `POST /api/failures/status` on the dashboard
-server; and `python -m jevh.failures` (list, `--kind`, `export out.jsonl`, `status <id> fixed "note"`, and
+server; and `jevh failures` (list, `--kind`, `export out.jsonl`, `status <id> fixed "note"`, and
 `add <kind> "<summary>" --workdir <task folder>` for a failure no detector caught: it reads the request,
 persona, work log and answer from the task's checkpoint).
 

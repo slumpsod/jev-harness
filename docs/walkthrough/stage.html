@@ -1,0 +1,245 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: Plex; src: url(assets/fonts/IBMPlexSans-Regular.woff2); font-weight: 400; }
+@font-face { font-family: Plex; src: url(assets/fonts/IBMPlexSans-Medium.woff2); font-weight: 500; }
+@font-face { font-family: Plex; src: url(assets/fonts/IBMPlexSans-SemiBold.woff2); font-weight: 600; }
+@font-face { font-family: Plex; src: url(assets/fonts/IBMPlexSans-Bold.woff2); font-weight: 700; }
+@font-face { font-family: PlexMono; src: url(assets/fonts/IBMPlexMono-Regular.woff2); font-weight: 400; }
+@font-face { font-family: PlexMono; src: url(assets/fonts/IBMPlexMono-Medium.woff2); font-weight: 500; }
+@font-face { font-family: PlexCond; src: url(assets/fonts/IBMPlexSansCondensed-SemiBold.woff2); font-weight: 600; }
+@font-face { font-family: PlexCond; src: url(assets/fonts/IBMPlexSansCondensed-Bold.woff2); font-weight: 700; }
+html, body { margin: 0; background: #0D1413; }
+svg { display: block; }
+</style></head>
+<body>
+<svg id="s" width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="#16211F"/><stop offset="1" stop-color="#0D1413"/></radialGradient>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5E716C"/></marker>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#glow)"/>
+  <g id="scene"></g>
+  <g id="chrome"></g>
+</svg>
+<script src="scenes.js"></script>
+<script>
+const C = {
+  ink: "#E4ECEA", muted: "#93A39E", line: "#2E3D39", surface: "#152120", band: "#111A18",
+  jev: "#2DD4BF", model: "#F5A524", repl: "#A78BFA", disk: "#8FA6C2", ui: "#E4ECEA", fail: "#FB7185", h: "#C8D3D0", data: "#7DD3FC",
+};
+const KIND_FILL = { jev: "#12302C", model: "#33280F", repl: "#231E3A", disk: "#1A2433", ui: "#1C2725", fail: "#3A1A22", h: "#182321", title: "#0D1413", group: "#111A18" };
+const NS = "http://www.w3.org/2000/svg";
+const GAP = 0.5, INTRO = 0.9, OUTRO = 0.8;   // keep in step with timeline.js
+const ease = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+const clamp = x => Math.max(0, Math.min(1, x));
+
+// ---- timeline from narration durations (window.DUR: {beatId: seconds})
+const TL = []; let T = 0;
+SCENES.forEach((sc, si) => {
+  const s = { sc, si, start: T, beats: [] }; T += INTRO;
+  sc.beats.forEach((b, bi) => {
+    const d = (window.DUR && window.DUR[b.id]) || Math.max(2.5, b.say.length / 15);
+    s.beats.push({ b, start: T, dur: d }); T += d + GAP;
+  });
+  T += OUTRO; s.end = T; TL.push(s);
+});
+window.TOTAL = T;
+window.BEATS = TL.flatMap(s => s.beats.map(x => ({ id: x.b.id, start: x.start, dur: x.dur })));
+
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+const meas = document.createElement("canvas").getContext("2d");
+function wrap(text, font, maxW) {
+  meas.font = font; const out = [];
+  for (const para of String(text).split("\n")) {
+    let line = "";
+    for (const w of para.split(" ")) {
+      const t = line ? line + " " + w : w;
+      if (meas.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+// ---- build a scene's DOM once
+let built = null;
+function build(s) {
+  const g = document.getElementById("scene"); g.innerHTML = "";
+  const sc = s.sc, nodes = {}, flows = [], links = [], notes = {};
+  for (const n of sc.nodes) {
+    const k = n.kind || "h";
+    const grp = el("g", {}, g);
+    if (k === "group") {
+      el("rect", { x: n.x, y: n.y, width: n.w, height: n.h, rx: 18, fill: KIND_FILL.group, stroke: "#22302D", "stroke-width": 2 }, grp);
+      const t = el("text", { x: n.x + 22, y: n.y + 38, fill: C.muted, "font-family": "PlexCond", "font-weight": 700, "font-size": 22, "letter-spacing": "2" }, grp);
+      t.textContent = n.label.toUpperCase();
+      nodes[n.id] = { n, grp, rect: null };
+      continue;
+    }
+    if (k === "note") {
+      const lines = wrap(n.label, "400 25px Plex", n.w - 40);
+      const h = n.h || lines.length * 36 + 32;
+      el("rect", { x: n.x, y: n.y, width: n.w, height: h, rx: 12, fill: "#101917", stroke: C[n.c] || "#3A4B47", "stroke-width": 2, "stroke-dasharray": "6 6" }, grp);
+      lines.forEach((ln, i) => { const t = el("text", { x: n.x + 20, y: n.y + 44 + i * 36, fill: C.ink, "font-family": n.mono ? "PlexMono" : "Plex", "font-size": n.mono ? 22 : 25 }, grp); t.textContent = ln; });
+      nodes[n.id] = { n, grp, rect: null, h };
+      continue;
+    }
+    const h = n.h || (n.sub ? 104 : 80);
+    const stroke = k === "title" ? "none" : (C[k] || C.h);
+    const rect = el("rect", { x: n.x, y: n.y, width: n.w, height: h, rx: 14, fill: k === "title" ? "none" : (KIND_FILL[k] || KIND_FILL.h), stroke, "stroke-width": 2.5 }, grp);
+    const hl = el("rect", { x: n.x - 6, y: n.y - 6, width: n.w + 12, height: h + 12, rx: 18, fill: "none", stroke: C[k] || C.ink, "stroke-width": 3, opacity: 0 }, grp);
+    if (k === "title") {
+      const t = el("text", { x: n.x + n.w / 2, y: n.y + 92, fill: C.ink, "text-anchor": "middle", "font-family": "PlexCond", "font-weight": 700, "font-size": 104 }, grp); t.textContent = n.label;
+      if (n.sub) { const s2 = el("text", { x: n.x + n.w / 2, y: n.y + 160, fill: C.jev, "text-anchor": "middle", "font-family": "Plex", "font-size": 36 }, grp); s2.textContent = n.sub; }
+    } else {
+      const fs = n.fs || 30;
+      const lab = el("text", { x: n.x + 24, y: n.y + (n.sub ? 46 : h / 2 + fs * 0.36), fill: C.ink, "font-family": "Plex", "font-weight": 600, "font-size": fs }, grp); lab.textContent = n.label;
+      if (n.sub) {   // one line: shrink the font to fit the box
+        let fz = 21; meas.font = `400 ${fz}px PlexMono`;
+        while (fz > 15 && meas.measureText(n.sub).width > n.w - 44) { fz -= 1; meas.font = `400 ${fz}px PlexMono`; }
+        const t = el("text", { x: n.x + 24, y: n.y + 80, fill: C.muted, "font-family": "PlexMono", "font-size": fz }, grp); t.textContent = n.sub;
+      }
+    }
+    nodes[n.id] = { n, grp, rect, hl, h };
+  }
+  // links + flows need geometry: collect from beats
+  const lg = el("g", {}, g); g.insertBefore(lg, g.firstChild);   // links under nodes
+  const fg = el("g", {}, g);                                        // packets over nodes
+  s.beats.forEach(({ b, start, dur }) => {
+    for (const a of b.acts || []) {
+      const T0 = start + (a.at || 0) * dur;
+      if (a.link || a.flow) {
+        const spec = a.link || a.flow;
+        const d = pathBetween(nodes[spec[0]], nodes[spec[1]], spec[3] || 0);
+        if (a.link) {
+          const p = el("path", { d, fill: "none", stroke: "#5E716C", "stroke-width": 2.5, "marker-end": "url(#ah)" }, lg);
+          const len = p.getTotalLength();
+          p.setAttribute("stroke-dasharray", `${len} ${len}`);
+          let lab = null;
+          if (spec[2]) {
+            const mid = p.getPointAtLength(len / 2);
+            lab = el("g", {}, lg);
+            const tw = Math.max(60, (meas.font = "500 21px Plex", meas.measureText(spec[2]).width) + 24);
+            el("rect", { x: mid.x - tw / 2, y: mid.y - 17, width: tw, height: 34, rx: 17, fill: "#0D1413", stroke: "#2E3D39" }, lab);
+            const t = el("text", { x: mid.x, y: mid.y + 7, "text-anchor": "middle", fill: C.muted, "font-family": "Plex", "font-weight": 500, "font-size": 21 }, lab); t.textContent = spec[2];
+          }
+          links.push({ T0, p, len, lab, end: null });
+        } else {
+          const p = el("path", { d, fill: "none", stroke: "none" }, fg);
+          const len = p.getTotalLength();
+          const pk = el("g", { opacity: 0 }, fg);
+          const col = C[a.c || "data"];
+          el("circle", { r: 11, fill: col }, pk);
+          meas.font = "600 22px Plex";
+          const tw = spec[2] ? meas.measureText(spec[2]).width + 28 : 0;
+          if (spec[2]) {
+            el("rect", { x: 18, y: -19, width: tw, height: 38, rx: 19, fill: "#0D1413", stroke: col, "stroke-width": 2 }, pk);
+            const t = el("text", { x: 18 + tw / 2, y: 8, "text-anchor": "middle", fill: col, "font-family": "Plex", "font-weight": 600, "font-size": 22 }, pk); t.textContent = spec[2];
+          }
+          const trail = el("path", { d, fill: "none", stroke: col, "stroke-width": 3, opacity: 0, "stroke-linecap": "round" }, lg);
+          flows.push({ T0, D: a.d || 1.8, p, len, pk, trail, tw });
+        }
+      }
+    }
+  });
+  // title + chrome
+  const ch = document.getElementById("chrome"); ch.innerHTML = "";
+  if (sc.num) {
+    const t1 = el("text", { x: 80, y: 92, fill: C.jev, "font-family": "PlexMono", "font-weight": 500, "font-size": 30 }, ch); t1.textContent = sc.num;
+    const t2 = el("text", { x: 140, y: 94, fill: C.ink, "font-family": "PlexCond", "font-weight": 700, "font-size": 50 }, ch); t2.textContent = sc.title;
+    if (sc.code) { const t3 = el("text", { x: 1840, y: 92, "text-anchor": "end", fill: C.muted, "font-family": "PlexMono", "font-size": 22 }, ch); t3.textContent = sc.code; }
+    // chapter dots
+    const chapters = SCENES.filter(x => x.num);
+    const idx = chapters.indexOf(sc);
+    chapters.forEach((x, i) => el("rect", { x: 80 + i * 34, y: 118, width: 26, height: 5, rx: 2.5, fill: i === idx ? C.jev : i < idx ? "#3D5B55" : "#22302D" }, ch));
+  }
+  const cap = el("g", {}, ch);
+  built = { s, nodes, flows, links, cap, capKey: null };
+}
+
+function anchor(a, b) { // from rect a toward rect b
+  const ax = a.x + a.w / 2, ay = a.y + a.h / 2, bx = b.x + b.w / 2, by = b.y + b.h / 2;
+  const dx = bx - ax, dy = by - ay;
+  const hgap = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w)), vgap = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h));
+  if (hgap > vgap) return [dx > 0 ? a.x + a.w : a.x, ay, dx > 0 ? 1 : -1, 0];
+  return [ax, dy > 0 ? a.y + a.h : a.y, 0, dy > 0 ? 1 : -1];
+}
+function pathBetween(A, B, bend) {
+  const ra = { x: A.n.x, y: A.n.y, w: A.n.w, h: A.h }, rb = { x: B.n.x, y: B.n.y, w: B.n.w, h: B.h };
+  const [x1, y1, ux, uy] = anchor(ra, rb), [x2, y2, vx, vy] = anchor(rb, ra);
+  const dist = Math.hypot(x2 - x1, y2 - y1), k = Math.min(140, dist * 0.4);
+  const bx = bend ? -(y2 - y1) / dist * bend : 0, by = bend ? (x2 - x1) / dist * bend : 0;
+  return `M${x1},${y1} C${x1 + ux * k + bx},${y1 + uy * k + by} ${x2 + vx * k + bx},${y2 + vy * k + by} ${x2},${y2}`;
+}
+
+// ---- state at time t
+window.renderAt = function (t) {
+  let s = TL.find(x => t >= x.start && t < x.end) || TL[TL.length - 1];
+  if (!built || built.s !== s) build(s);
+  const { nodes, flows, links } = built;
+  const sceneFade = Math.min(ease((t - s.start) / 0.5), ease((s.end - t) / 0.5));
+  document.getElementById("scene").setAttribute("opacity", sceneFade.toFixed(3));
+  document.getElementById("chrome").setAttribute("opacity", sceneFade.toFixed(3));
+  // node visibility / highlight / dim from acts so far
+  const vis = {}, hl = {}, dim = {};
+  for (const n of s.sc.nodes) vis[n.id] = n.hidden ? 0 : ease((t - s.start - 0.15) / 0.5);
+  let cur = null;
+  for (const bt of s.beats) {
+    if (t >= bt.start - 0.05) cur = bt;
+    for (const a of bt.b.acts || []) {
+      const T0 = bt.start + (a.at || 0) * bt.dur, lv = ease((t - T0) / 0.5);
+      if (t < T0) continue;
+      for (const id of a.show || []) vis[id] = lv;
+      for (const id of a.hide || []) vis[id] = Math.min(vis[id] ?? 1, 1 - lv);
+      for (const id of a.hl || []) hl[id] = lv;
+      for (const id of a.unhl || []) hl[id] = Math.min(hl[id] || 0, 1 - lv);
+      for (const id of a.dim || []) dim[id] = lv;
+      for (const id of a.undim || []) dim[id] = Math.min(dim[id] || 0, 1 - lv);
+      if (a.clear) for (const id in vis) if (!(a.keep || []).includes(id)) vis[id] = Math.min(vis[id], 1 - lv);
+    }
+  }
+  let key = sceneFade.toFixed(3);
+  for (const id in nodes) {
+    const o = (vis[id] ?? 1) * (1 - 0.65 * (dim[id] || 0));
+    nodes[id].grp.setAttribute("opacity", o.toFixed(3));
+    if (nodes[id].hl) nodes[id].hl.setAttribute("opacity", (hl[id] || 0).toFixed(3));
+    key += o.toFixed(3) + (hl[id] || 0).toFixed(3);
+  }
+  for (const L of links) {
+    const lv = ease((t - L.T0) / 0.7);
+    L.p.setAttribute("stroke-dashoffset", (L.len * (1 - lv)).toFixed(1));
+    L.p.setAttribute("opacity", lv > 0 ? 1 : 0);
+    if (lv >= 0.97) L.p.setAttribute("marker-end", "url(#ah)"); else L.p.removeAttribute("marker-end");
+    if (L.lab) L.lab.setAttribute("opacity", ease((t - L.T0 - 0.4) / 0.4).toFixed(3));
+    key += lv.toFixed(3);
+  }
+  for (const F of flows) {
+    const u = (t - F.T0) / F.D;
+    if (u < 0 || u > 1.25) { F.pk.setAttribute("opacity", 0); F.trail.setAttribute("opacity", 0); key += "x"; continue; }
+    const pos = ease(Math.min(1, u));
+    const pt = F.p.getPointAtLength(F.len * pos);
+    const fade = u > 1 ? 1 - (u - 1) / 0.25 : Math.min(1, u * 6);
+    F.pk.setAttribute("transform", `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`);
+    F.pk.setAttribute("opacity", fade.toFixed(3));
+    F.trail.setAttribute("stroke-dasharray", `${(F.len * pos).toFixed(1)} ${F.len}`);
+    F.trail.setAttribute("opacity", (0.55 * fade).toFixed(3));
+    key += pt.x.toFixed(0) + pt.y.toFixed(0) + fade.toFixed(2);
+  }
+  // caption
+  const say = cur ? cur.b.say : "";
+  const capO = cur ? Math.min(ease((t - cur.start + 0.05) / 0.25), ease((cur.start + cur.dur + GAP - t) / 0.2)) : 0;
+  if (built.capKey !== say) {
+    built.capKey = say; built.cap.innerHTML = "";
+    if (say) {
+      const lines = wrap(say, "500 34px Plex", 1560);
+      const h = lines.length * 48 + 34, y0 = 1040 - h;
+      el("rect", { x: 160 - 30, y: y0, width: 1660, height: h, rx: 16, fill: "#0A100F", opacity: 0.88 }, built.cap);
+      lines.forEach((ln, i) => { const tx = el("text", { x: 960, y: y0 + 52 + i * 48, "text-anchor": "middle", fill: "#F1F5F4", "font-family": "Plex", "font-weight": 500, "font-size": 34 }, built.cap); tx.textContent = ln; });
+    }
+  }
+  built.cap.setAttribute("opacity", capO.toFixed(3));
+  return key + "|" + say + capO.toFixed(2) + s.si;
+};
+</script>
+</body></html>
