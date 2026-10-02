@@ -112,8 +112,8 @@ Cost is computed only for models priced under `prices:` in config.
 | Routing, skills, memory, tools, tier, collaborators, approvals | dashboard **Inspector** (select a turn); CLI `/trace` shows raw Jev answers |
 | Every task and hand-off over time | dashboard **Timeline** (one lane per task, tier colours, swap markers) |
 | A step's thinking as it streams | `…/task folder/thinking/step-NN.txt`, dashboard `/api/thinking` |
-| Code and output per step | CLI `/verbose`; `code` / `output` events |
-| Context size and compaction | context ring (`context` event); `compact` events |
+| Code and output per step | CLI `/verbose`; `code` / `output` events; dashboard: the chips under an answer open to one line per step, and a step opens to its code and output |
+| Context size and compaction | context ring under the message box (`context` event); `compact` events |
 | Stalls, pauses, gate bounces | `progress_check`, `thinking_watch`, `verify`, `escalate` events |
 | The browser tool | "Watch browser": a window, or docked in the dashboard's Browser panel (CDP mirror, `/api/browser/frame`, `/api/browser/input`) |
 | LM Studio, Jev adapter, semif, ComfyUI, GPU | dashboard **Status** (`/api/status`); CLI `/jev` |

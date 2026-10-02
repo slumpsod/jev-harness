@@ -223,7 +223,9 @@ jevh dashboard                     # http://127.0.0.1:8740/ opens in your browse
 jevh dashboard --no-browser --port 8740 --model lmstudio:ornith-1.5-35b-a3b
 ```
 
-The chat is on the left, and every event streams in live on the right:
+The chat is the whole screen. Everything else is one click away on the left rail and opens beside the chat; the
+panel stays closed until you open a tab, the browser tool goes live, or a turn makes a file (then the Artifacts
+panel opens on it). Click the same tab again, press Esc, or use the X to close it; drag its edge to resize it.
 - **Timeline**: one lane per task, positioned in time and coloured by tier (fast/strong). It shows nested hand-offs, refused requests, LM Studio swap markers, and "parallel saved Xs".
 - **Inspector**: every Jev decision for the selected turn, with probabilities and threshold markers: routing, tier, skill Choice + fits, memory kept/checked, collaborators and hand-off approvals.
 - **Artifacts**: files produced in this session. HTML is previewed live in a sandboxed iframe, images and video inline, and code or text as source.
@@ -232,8 +234,17 @@ The chat is on the left, and every event streams in live on the right:
 - **Review**: sessions flagged for review (see below), with their notes, a model's review and your verdict.
 - **Status**: the harness version, with new commits on GitHub and an Update button (a count on the tab when there are any); which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
 
-In the header you can pin a persona and set the tier (Jev decides / fast / strong). Click an answer to inspect that turn,
-and reload any time: the event history replays. **Security:** the agent executes code, so the dashboard binds to 127.0.0.1 only.
+**Tool calls are summarised, not dumped.** A turn that ran 31 steps shows a row of chips (Web x3, Files x6, Edits x2,
+Commands x4, 1 error, verified). Click it for one line per step ("Read `jevh/web/server.py`", "Searched the web ..."),
+and click a step for its code and output. While a turn runs, the same row is one live line ("Reading `server.py`",
+step 7, 412 tok). **Appearance** (the palette at the bottom of the rail) sets how much you see: Compact, Steps,
+Verbatim or Hidden, plus the theme, accent, type, width, density and corners. See [docs/dashboard.md](docs/dashboard.md).
+
+The persona, model tier, Watch browser, project folder and context ring sit under the message box. Pin a persona or
+set the tier (Jev decides / fast / strong) there. Click an answer's avatar to inspect that turn,
+and reload any time: the event history replays.
+
+**Security:** the agent executes code, so the dashboard binds to 127.0.0.1 only.
 - It rejects foreign Host headers, which blocks DNS rebinding.
 - Every API call needs a per-launch token embedded in the page.
 - It refuses POSTs from other origins, which blocks CSRF from websites you visit.
@@ -241,7 +252,7 @@ and reload any time: the event history replays. **Security:** the agent executes
 
 ### Session review
 
-When a session went wrong in a way no detector caught, flag it: **Flag for review** above the chat (or the
+When a session went wrong in a way no detector caught, flag it: **Flag for review** at the top of the chat (or the
 **flag** on any answer, to point a note at that turn), or `/flag <note>` in the CLI. Add as many notes as you
 like on what looked wrong. In the **Review** tab, **Ask a model to review** has a model (config
 `review.model`, else `models.strong`) read the whole session against your notes: the conversation, every
