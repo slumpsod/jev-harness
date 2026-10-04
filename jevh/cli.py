@@ -10,7 +10,9 @@
 (`python -m jevh.cli` works the same as `jevh` without installing it.)
 
 Ctrl-C during a turn stops it (model, running code, hand-offs); a worker's question is
-asked right here in the terminal.
+asked right here in the terminal. What you type while a task runs is added to its prompt (jevh/interject.py);
+a question about progress ("how's it going?") is answered on the side instead. /queue <text> holds a message
+for after, /btw <question> asks, /stop stops (Ctrl-C does too), /steer <text> always adds.
 
 Commands: /as <persona> (pin), /auto (let Jev route), /tier auto|fast|strong,
 /project <path> (open a project folder; "/project off" closes it), /watch [on|off] (see the
@@ -31,6 +33,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
+import os
 import sys
 import threading
 import time
@@ -48,6 +51,47 @@ from .review import ReviewError, describe, show
 from .usage import brief
 
 console = Console()
+
+
+class LineReader:
+    """A line typed at the terminal, read without blocking: the loop that waits for a turn asks poll() between
+    checks, so what you type while a task runs reaches it. On Windows keys are read one at a time (msvcrt) and
+    echoed here; elsewhere the terminal does both and a line shows up once Enter is pressed. With no terminal
+    (piped input) there is never a line."""
+
+    def __init__(self) -> None:
+        self.buf = ""
+
+    def clear(self) -> None:
+        self.buf = ""
+
+    def poll(self) -> str | None:
+        if not sys.stdin or not sys.stdin.isatty():
+            return None
+        if os.name == "nt":
+            import msvcrt
+            while msvcrt.kbhit():
+                ch = msvcrt.getwch()
+                if ch in ("\r", "\n"):
+                    line, self.buf = self.buf, ""
+                    print()
+                    return line
+                if ch == "\x03":   # Ctrl-C arrives as a key here: it still stops the turn
+                    raise KeyboardInterrupt
+                if ch in ("\x00", "\xe0"):   # an arrow or function key: the code that follows is not text
+                    msvcrt.getwch()
+                elif ch == "\x08":
+                    if self.buf:
+                        self.buf = self.buf[:-1]
+                        print("\b \b", end="", flush=True)
+                elif ch.isprintable():
+                    self.buf += ch
+                    print(ch, end="", flush=True)
+            return None
+        import select
+        if select.select([sys.stdin], [], [], 0)[0]:
+            return sys.stdin.readline().rstrip("\n")
+        return None
 
 
 def handoff_overlap(tasks) -> tuple[float, float]:
@@ -204,6 +248,27 @@ class Printer:
         elif kind == "hook_error":
             console.print(f"[red]    failure hook {esc(data['hook'])} broke on {data['event']}: "
                           f"{esc(data['error'][:160])}[/]")
+        elif kind == "steer":
+            console.print(f"[green]    heard you at step {data['step']}:[/] {esc(data['text'][:120])}")
+        elif kind == "redirect":
+            console.print(f"[yellow]    cut the model's reply to hear you (step {data['step']}; nothing in it ran)[/]")
+        elif kind == "interject":
+            o = data["outcome"]
+            if o == "corrected":
+                console.print("[green]  → added to the running task's prompt:[/] it hears you with its next step")
+            elif o == "queued":
+                console.print(f"[cyan]  → queued: it runs after this one ({len(data.get('queue') or [])} waiting)[/]")
+            elif o == "status":
+                console.print(f"[cyan]  → {esc(data['answer'])}[/]")
+            elif o == "stopped":
+                console.print("[yellow]  → stopping...[/]")
+        elif kind == "aside" and data.get("source") == "model":
+            console.print(f"[cyan]  → {esc(data['answer'])}[/] [dim]({data.get('seconds', 0)}s)[/]")
+        elif kind == "queued":
+            console.print(f"[cyan]  kept for after: {esc(' | '.join(data.get('texts') or []))}[/]")
+        elif kind == "cancel" and data.get("dropped"):
+            console.print(f"[yellow]  dropped {len(data['dropped'])} waiting message(s): "
+                          f"{esc(' | '.join(data['dropped'])[:200])}[/]")
 
 
 def show_problems(h, limit: int = 8) -> None:
@@ -304,6 +369,7 @@ def main(argv: list[str] | None = None) -> int | None:
         h.watch_browser = True
     pin = a.pin
     last = None
+    hints: list[int] = []   # the typing hint is shown once per session
 
     def run(msg: str, resume_path: str | None = None, resuming: bool = False) -> None:
         """The turn runs on a thread so this one can answer ask_user() questions, and Ctrl-C
@@ -320,6 +386,11 @@ def main(argv: list[str] | None = None) -> int | None:
         worker = threading.Thread(target=go, daemon=True)
         worker.start()
         asked: set[str] = set()
+        reader = LineReader()
+        if a.command is None and sys.stdin and sys.stdin.isatty() and not hints:
+            hints.append(1)   # once a session
+            console.print("[dim]  (what you type is added to the running task's prompt · /queue to run it after · "
+                          "/btw to ask how it is going · /stop · Ctrl-C stops it)[/]")
         while worker.is_alive():
             try:
                 worker.join(0.2)
@@ -327,10 +398,18 @@ def main(argv: list[str] | None = None) -> int | None:
                     if q["id"] in asked:
                         continue
                     asked.add(q["id"])
+                    reader.clear()
                     opts = f"  [{' / '.join(q['options'])}]" if q["options"] else ""
                     console.print(f"\n[bold magenta]{esc(q['persona'])} asks:[/] {esc(q['question'])}{esc(opts)}")
                     reply = getpass.getpass("answer (hidden) › ") if q.get("secret") else input("answer › ")
                     h.answer(q["id"], reply.strip() or "(no answer)")
+                said = reader.poll() if not h.pending_questions() else None
+                if said and said.strip():   # a message for the running task (jevh/interject.py)
+                    res = h.interject(said)
+                    if res["outcome"] == "idle":   # the turn ended as it was typed: it is the next request
+                        h.enqueue(res["text"] or said)
+                    elif res["outcome"] in ("refused", "empty"):
+                        console.print(f"[yellow]  {esc(res.get('reason') or 'nothing to send')}[/]")
             except KeyboardInterrupt:
                 if h.cancel():
                     console.print("[yellow]stopping... (the model, running code and hand-offs)[/]")
@@ -350,6 +429,10 @@ def main(argv: list[str] | None = None) -> int | None:
         if work:
             console.print(f"  [dim]hand-offs: {work:.0f}s of work in {wall:.0f}s wall "
                           f"(parallel saved {work - wall:.0f}s)[/]")
+        nxt = h.take_queued()   # a request sent while this one ran: its turn now
+        if nxt is not None and a.command is None:
+            console.print(f"\n[bold]next, from what you sent while it ran:[/] {esc(nxt)}")
+            run(nxt)
 
     if a.command:
         run(a.command)

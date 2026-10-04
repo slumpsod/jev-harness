@@ -87,7 +87,8 @@ def cfg(tmp_path):
     c.workspace = tmp_path / "ws"
     c.personas_dir = tmp_path / "personas"   # a copy: persona creation writes personas/learned/ here, not in the repo
     c.personas_dirs = [c.personas_dir]
-    shutil.copytree(ROOT / "personas", c.personas_dir)
+    # (not personas/learned/: personas the harness drafted on this machine are runtime output, not part of the tests)
+    shutil.copytree(ROOT / "personas", c.personas_dir, ignore=shutil.ignore_patterns("learned"))
     c.skills_dirs = [ROOT / "skills"]  # deterministic: local skills only
     c.limits["repl_timeout"] = 20
     # the final() gate asks Jev about every answer; tests about other things use scripted workers

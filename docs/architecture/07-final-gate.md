@@ -62,6 +62,7 @@ sequenceDiagram
 | … else doesn't deliver | `delivers < 0.80` and not `honest ≥ 0.80` |
 | … else inaccurate report | code was run (the log isn't empty), `accurate < verify_accurate 0.40`, not honest, and the numbers aren't grounded (2+ supported, none unsupported) (`verify.py:206`) |
 | Too few deliverables | the request says "three logos" (2 to 20) and fewer files came, unless honest |
+| Named file not handed over | the request names a file to make after a making verb ("write leap.py"; `DELIVERABLE`) and no handed-over file has that name, unless honest. A file the harness collected itself is stored as `<persona>_<name>` and counts. After a message the user sent mid-task that names a file, only that message's names are due (`files_from`, [16](16-interjection.md)): a redirect from `fib.py` to `primes.py` no longer asks for `fib.py` |
 | Browser claim without browser use | "checked … in the browser" and no `browser.` in the log, unless the log shows `nango.open_page` / `connect_and_wait` / `start` (a page opened in the user's own browser, `OPENED_FOR_USER`) |
 | Promise instead of work | "next I'll …" and not a question to the user |
 | Secret asked for in the chat (nango in use) | the answer asks the user to paste or send a password, key or client secret (`asks_for_secret`) and doesn't say it is asked hidden: `nango.setup()` asks, typed hidden |

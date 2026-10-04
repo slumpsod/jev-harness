@@ -1,0 +1,11 @@
+INTERJECTION BENCH  20261004-092637  model=lmstudio:qwen3.8-27b@q6_k  reps=2
+
+add  (2 reps)
+  ok   added_to_the_prompt: 2/2
+  ok   finished: 2/2
+  ok   not_queued: 2/2
+  ok   task_did_both: 2/2
+  ok   task_heard_it: 2/2
+  medians: delivered_s 0.8, gate_bounces 0.0, total_s 41.8
+
+total 84s; raw results in C:\Users\Jedidiah\Projects\jev-harness\evals\bench\runs\interject\20261004-092637

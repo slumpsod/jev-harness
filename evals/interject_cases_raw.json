@@ -1,0 +1,2192 @@
+{
+ "dev": [
+  {
+   "i": 0,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "Actually check my calendar instead",
+   "label": "correction",
+   "probs": {
+    "correction": 0.0097,
+    "status": 0.0008,
+    "separate": 0.0005,
+    "stop": 0.0009,
+    "replace": 0.9881
+   }
+  },
+  {
+   "i": 1,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "only the last two weeks please",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9933,
+    "status": 0.0028,
+    "separate": 0.0009,
+    "stop": 0.0008,
+    "replace": 0.0022
+   }
+  },
+  {
+   "i": 2,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "use the work account, not the personal one",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9963,
+    "status": 0.0009,
+    "separate": 0.0006,
+    "stop": 0.0012,
+    "replace": 0.001
+   }
+  },
+  {
+   "i": 3,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "also include the spam folder in the search",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9929,
+    "status": 0.0017,
+    "separate": 0.0015,
+    "stop": 0.0012,
+    "replace": 0.0028
+   }
+  },
+  {
+   "i": 4,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "make it Sunday morning only",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9991,
+    "status": 0.0002,
+    "separate": 0.0,
+    "stop": 0.0001,
+    "replace": 0.0006
+   }
+  },
+  {
+   "i": 5,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "nonstop flights only, and under $300",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9988,
+    "status": 0.0003,
+    "separate": 0.0001,
+    "stop": 0.0003,
+    "replace": 0.0006
+   }
+  },
+  {
+   "i": 6,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "stop using that site, try Google Flights",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9455,
+    "status": 0.0039,
+    "separate": 0.001,
+    "stop": 0.0324,
+    "replace": 0.0173
+   }
+  },
+  {
+   "i": 7,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "use a soft delete, not a hard one",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9985,
+    "status": 0.0004,
+    "separate": 0.0001,
+    "stop": 0.0003,
+    "replace": 0.0007
+   }
+  },
+  {
+   "i": 8,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "put it in its own file instead",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9819,
+    "status": 0.0028,
+    "separate": 0.0017,
+    "stop": 0.004,
+    "replace": 0.0096
+   }
+  },
+  {
+   "i": 9,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "and add tests for it too",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9805,
+    "status": 0.0058,
+    "separate": 0.004,
+    "stop": 0.0045,
+    "replace": 0.0051
+   }
+  },
+  {
+   "i": 10,
+   "task": "Write a script that prints the first 20 Fibonacci numbers, save it as fib.py and run it.",
+   "doing": "the model is writing its next step",
+   "message": "make it primes instead, the first 15",
+   "label": "correction",
+   "probs": {
+    "correction": 0.0758,
+    "status": 0.0004,
+    "separate": 0.0001,
+    "stop": 0.0002,
+    "replace": 0.9234
+   }
+  },
+  {
+   "i": 11,
+   "task": "Write a script that prints the first 20 Fibonacci numbers, save it as fib.py and run it.",
+   "doing": "the model is writing its next step",
+   "message": "use recursion with memoization",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9879,
+    "status": 0.0036,
+    "separate": 0.0017,
+    "stop": 0.004,
+    "replace": 0.0028
+   }
+  },
+  {
+   "i": 12,
+   "task": "Plan a week of dinners for two, vegetarian, under $80.",
+   "doing": "the model is writing its next step",
+   "message": "no mushrooms, my partner hates them",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9993,
+    "status": 0.0002,
+    "separate": 0.0001,
+    "stop": 0.0002,
+    "replace": 0.0003
+   }
+  },
+  {
+   "i": 13,
+   "task": "Plan a week of dinners for two, vegetarian, under $80.",
+   "doing": "the model is writing its next step",
+   "message": "make it four people, not two",
+   "label": "correction",
+   "probs": {
+    "correction": 0.973,
+    "status": 0.0027,
+    "separate": 0.001,
+    "stop": 0.0031,
+    "replace": 0.0202
+   }
+  },
+  {
+   "i": 14,
+   "task": "Summarize the three PDFs in my downloads folder into one page.",
+   "doing": "running code: for f in pdfs: extract_text(f)",
+   "message": "keep it to half a page",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9932,
+    "status": 0.0019,
+    "separate": 0.0006,
+    "stop": 0.0015,
+    "replace": 0.0028
+   }
+  },
+  {
+   "i": 15,
+   "task": "Summarize the three PDFs in my downloads folder into one page.",
+   "doing": "running code: for f in pdfs: extract_text(f)",
+   "message": "skip the third one, it is an old draft",
+   "label": "correction",
+   "probs": {
+    "correction": 0.7087,
+    "status": 0.0167,
+    "separate": 0.0079,
+    "stop": 0.1087,
+    "replace": 0.1581
+   }
+  },
+  {
+   "i": 16,
+   "task": "Get quotes for insulating a 1,800 sq ft attic from three local companies.",
+   "doing": "running code: web.search('attic insulation quote')",
+   "message": "only companies that do spray foam",
+   "label": "correction",
+   "probs": {
+    "correction": 0.997,
+    "status": 0.0007,
+    "separate": 0.0002,
+    "stop": 0.0006,
+    "replace": 0.0015
+   }
+  },
+  {
+   "i": 17,
+   "task": "Make a bar chart of monthly sales from sales.csv and save it as a PNG.",
+   "doing": "running code: df.groupby('month').sum()",
+   "message": "make the bars blue and add a title",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9829,
+    "status": 0.0046,
+    "separate": 0.0022,
+    "stop": 0.0058,
+    "replace": 0.0046
+   }
+  },
+  {
+   "i": 18,
+   "task": "Plan my workouts for next week: 4 days, full gym.",
+   "doing": "the model is writing its next step",
+   "message": "I hurt my shoulder, no overhead pressing",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9901,
+    "status": 0.0017,
+    "separate": 0.0012,
+    "stop": 0.0025,
+    "replace": 0.0046
+   }
+  },
+  {
+   "i": 19,
+   "task": "Find a time next week for a 30 minute call with Dave.",
+   "doing": "running code: nango.calendar.events(next_week)",
+   "message": "mornings only, he is in another timezone",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9467,
+    "status": 0.0119,
+    "separate": 0.0135,
+    "stop": 0.0105,
+    "replace": 0.0173
+   }
+  },
+  {
+   "i": 20,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "don't book anything yet, just list the options",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9564,
+    "status": 0.0198,
+    "separate": 0.0044,
+    "stop": 0.0136,
+    "replace": 0.0057
+   }
+  },
+  {
+   "i": 21,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "what if you searched for the lease number instead of the sender?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9922,
+    "status": 0.0025,
+    "separate": 0.0006,
+    "stop": 0.0007,
+    "replace": 0.0041
+   }
+  },
+  {
+   "i": 22,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "how's it going?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0326,
+    "status": 0.9518,
+    "separate": 0.0106,
+    "stop": 0.0027,
+    "replace": 0.0024
+   }
+  },
+  {
+   "i": 23,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "any update?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0418,
+    "status": 0.952,
+    "separate": 0.0014,
+    "stop": 0.0021,
+    "replace": 0.0027
+   }
+  },
+  {
+   "i": 24,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "what are you doing right now?",
+   "label": "status",
+   "probs": {
+    "correction": 0.011,
+    "status": 0.9875,
+    "separate": 0.0003,
+    "stop": 0.0005,
+    "replace": 0.0007
+   }
+  },
+  {
+   "i": 25,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "have you found anything yet?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0097,
+    "status": 0.9896,
+    "separate": 0.0001,
+    "stop": 0.0001,
+    "replace": 0.0005
+   }
+  },
+  {
+   "i": 26,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "are you stuck?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1671,
+    "status": 0.6608,
+    "separate": 0.0373,
+    "stop": 0.1148,
+    "replace": 0.02
+   }
+  },
+  {
+   "i": 27,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "which file are you editing?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1986,
+    "status": 0.693,
+    "separate": 0.0345,
+    "stop": 0.0502,
+    "replace": 0.0237
+   }
+  },
+  {
+   "i": 28,
+   "task": "Write a script that prints the first 20 Fibonacci numbers, save it as fib.py and run it.",
+   "doing": "the model is writing its next step",
+   "message": "status?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0046,
+    "status": 0.9944,
+    "separate": 0.0001,
+    "stop": 0.0006,
+    "replace": 0.0002
+   }
+  },
+  {
+   "i": 29,
+   "task": "Plan a week of dinners for two, vegetarian, under $80.",
+   "doing": "the model is writing its next step",
+   "message": "how much longer will this take?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0991,
+    "status": 0.8294,
+    "separate": 0.0322,
+    "stop": 0.0322,
+    "replace": 0.0072
+   }
+  },
+  {
+   "i": 30,
+   "task": "Summarize the three PDFs in my downloads folder into one page.",
+   "doing": "running code: for f in pdfs: extract_text(f)",
+   "message": "which step are you on?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0203,
+    "status": 0.9772,
+    "separate": 0.0004,
+    "stop": 0.0008,
+    "replace": 0.0013
+   }
+  },
+  {
+   "i": 31,
+   "task": "Summarize the three PDFs in my downloads folder into one page.",
+   "doing": "running code: for f in pdfs: extract_text(f)",
+   "message": "is it still running?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0124,
+    "status": 0.9866,
+    "separate": 0.0001,
+    "stop": 0.0003,
+    "replace": 0.0005
+   }
+  },
+  {
+   "i": 32,
+   "task": "Get quotes for insulating a 1,800 sq ft attic from three local companies.",
+   "doing": "running code: web.search('attic insulation quote')",
+   "message": "what have you got so far?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0097,
+    "status": 0.9896,
+    "separate": 0.0001,
+    "stop": 0.0002,
+    "replace": 0.0004
+   }
+  },
+  {
+   "i": 33,
+   "task": "Make a bar chart of monthly sales from sales.csv and save it as a PNG.",
+   "doing": "running code: df.groupby('month').sum()",
+   "message": "why is this taking so long?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0924,
+    "status": 0.8771,
+    "separate": 0.0046,
+    "stop": 0.0206,
+    "replace": 0.0052
+   }
+  },
+  {
+   "i": 34,
+   "task": "Plan my workouts for next week: 4 days, full gym.",
+   "doing": "the model is writing its next step",
+   "message": "hello? still there?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1234,
+    "status": 0.8049,
+    "separate": 0.0215,
+    "stop": 0.0401,
+    "replace": 0.0101
+   }
+  },
+  {
+   "i": 35,
+   "task": "Find a time next week for a 30 minute call with Dave.",
+   "doing": "running code: nango.calendar.events(next_week)",
+   "message": "did the calendar lookup work?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0597,
+    "status": 0.9344,
+    "separate": 0.0014,
+    "stop": 0.0018,
+    "replace": 0.0026
+   }
+  },
+  {
+   "i": 36,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "why did you pick that search query?",
+   "label": "status",
+   "probs": {
+    "correction": 0.519,
+    "status": 0.458,
+    "separate": 0.0051,
+    "stop": 0.0058,
+    "replace": 0.0122
+   }
+  },
+  {
+   "i": 37,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "what site are you on?",
+   "label": "status",
+   "probs": {
+    "correction": 0.2237,
+    "status": 0.6081,
+    "separate": 0.1057,
+    "stop": 0.0389,
+    "replace": 0.0236
+   }
+  },
+  {
+   "i": 38,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "can you tell me what you have done so far?",
+   "label": "status",
+   "probs": {
+    "correction": 0.014,
+    "status": 0.9841,
+    "separate": 0.0003,
+    "stop": 0.0005,
+    "replace": 0.001
+   }
+  },
+  {
+   "i": 39,
+   "task": "Plan a week of dinners for two, vegetarian, under $80.",
+   "doing": "the model is writing its next step",
+   "message": "ETA?",
+   "label": "status",
+   "probs": {
+    "correction": 0.059,
+    "status": 0.9225,
+    "separate": 0.0043,
+    "stop": 0.0116,
+    "replace": 0.0026
+   }
+  },
+  {
+   "i": 40,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "remind me to call Dave at 3pm",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0329,
+    "status": 0.0016,
+    "separate": 0.961,
+    "stop": 0.0024,
+    "replace": 0.0021
+   }
+  },
+  {
+   "i": 41,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "what's the capital of Utah?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0124,
+    "status": 0.0017,
+    "separate": 0.983,
+    "stop": 0.0015,
+    "replace": 0.0015
+   }
+  },
+  {
+   "i": 42,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "after that, turn off the living room lights",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0259,
+    "status": 0.0003,
+    "separate": 0.9731,
+    "stop": 0.0002,
+    "replace": 0.0005
+   }
+  },
+  {
+   "i": 43,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "also write me a haiku about coffee",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0259,
+    "status": 0.0005,
+    "separate": 0.9724,
+    "stop": 0.0003,
+    "replace": 0.0009
+   }
+  },
+  {
+   "i": 44,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "when you're done, summarize my unread Slack messages",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0259,
+    "status": 0.0008,
+    "separate": 0.9713,
+    "stop": 0.0008,
+    "replace": 0.0013
+   }
+  },
+  {
+   "i": 45,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "next I need a quote for the Smith job",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0594,
+    "status": 0.0043,
+    "separate": 0.9287,
+    "stop": 0.0033,
+    "replace": 0.0043
+   }
+  },
+  {
+   "i": 46,
+   "task": "Write a script that prints the first 20 Fibonacci numbers, save it as fib.py and run it.",
+   "doing": "the model is writing its next step",
+   "message": "separately, what's 17% of 2,340?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.014,
+    "status": 0.0009,
+    "separate": 0.9838,
+    "stop": 0.0005,
+    "replace": 0.0008
+   }
+  },
+  {
+   "i": 47,
+   "task": "Write a script that prints the first 20 Fibonacci numbers, save it as fib.py and run it.",
+   "doing": "the model is writing its next step",
+   "message": "and then check my calendar for tomorrow",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0292,
+    "status": 0.0015,
+    "separate": 0.9654,
+    "stop": 0.0021,
+    "replace": 0.0019
+   }
+  },
+  {
+   "i": 48,
+   "task": "Plan a week of dinners for two, vegetarian, under $80.",
+   "doing": "the model is writing its next step",
+   "message": "later, order more printer paper",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0259,
+    "status": 0.0004,
+    "separate": 0.9724,
+    "stop": 0.0005,
+    "replace": 0.0007
+   }
+  },
+  {
+   "i": 49,
+   "task": "Summarize the three PDFs in my downloads folder into one page.",
+   "doing": "running code: for f in pdfs: extract_text(f)",
+   "message": "one more thing for after: draft a thank-you note to the client",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0533,
+    "status": 0.0005,
+    "separate": 0.9451,
+    "stop": 0.0004,
+    "replace": 0.0008
+   }
+  },
+  {
+   "i": 50,
+   "task": "Get quotes for insulating a 1,800 sq ft attic from three local companies.",
+   "doing": "running code: web.search('attic insulation quote')",
+   "message": "also, what time does the post office close today?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0124,
+    "status": 0.0004,
+    "separate": 0.9863,
+    "stop": 0.0003,
+    "replace": 0.0006
+   }
+  },
+  {
+   "i": 51,
+   "task": "Make a bar chart of monthly sales from sales.csv and save it as a PNG.",
+   "doing": "running code: df.groupby('month').sum()",
+   "message": "after this, plan my workouts for the week",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0159,
+    "status": 0.0004,
+    "separate": 0.982,
+    "stop": 0.0008,
+    "replace": 0.0009
+   }
+  },
+  {
+   "i": 52,
+   "task": "Plan my workouts for next week: 4 days, full gym.",
+   "doing": "the model is writing its next step",
+   "message": "once that's done, find me a good sci-fi movie",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0259,
+    "status": 0.0007,
+    "separate": 0.9721,
+    "stop": 0.0003,
+    "replace": 0.001
+   }
+  },
+  {
+   "i": 53,
+   "task": "Find a time next week for a 30 minute call with Dave.",
+   "doing": "running code: nango.calendar.events(next_week)",
+   "message": "I also need to renew my car registration, can you look up how?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0229,
+    "status": 0.0005,
+    "separate": 0.9754,
+    "stop": 0.0004,
+    "replace": 0.0007
+   }
+  },
+  {
+   "i": 54,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "also check my calendar",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0845,
+    "status": 0.0018,
+    "separate": 0.9081,
+    "stop": 0.002,
+    "replace": 0.0037
+   }
+  },
+  {
+   "i": 55,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "btw how do I center a div in CSS?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0259,
+    "status": 0.0017,
+    "separate": 0.9704,
+    "stop": 0.0008,
+    "replace": 0.0013
+   }
+  },
+  {
+   "i": 56,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "stop",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0097,
+    "status": 0.0012,
+    "separate": 0.0001,
+    "stop": 0.9881,
+    "replace": 0.0009
+   }
+  },
+  {
+   "i": 57,
+   "task": "Check my email for anything from the landlord about the lease.",
+   "doing": "running code: nango.gmail.search(query='from:landlord')",
+   "message": "cancel that",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0329,
+    "status": 0.0011,
+    "separate": 0.0001,
+    "stop": 0.9614,
+    "replace": 0.0045
+   }
+  },
+  {
+   "i": 58,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "never mind, forget it",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0106,
+    "status": 0.0005,
+    "separate": 0.0001,
+    "stop": 0.9519,
+    "replace": 0.0369
+   }
+  },
+  {
+   "i": 59,
+   "task": "Find flights to Denver next weekend.",
+   "doing": "running code: web.search('flights to Denver next weekend')",
+   "message": "stop what you're doing",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0067,
+    "status": 0.0002,
+    "separate": 0.0,
+    "stop": 0.9927,
+    "replace": 0.0004
+   }
+  },
+  {
+   "i": 60,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "abort",
+   "label": "stop",
+   "probs": {
+    "correction": 0.2538,
+    "status": 0.2538,
+    "separate": 0.0098,
+    "stop": 0.4184,
+    "replace": 0.0642
+   }
+  },
+  {
+   "i": 61,
+   "task": "Add a DELETE endpoint for jobs to the Flask app.",
+   "doing": "running code: project.edit('app/routes.py', ...)",
+   "message": "drop it, I'll do it myself",
+   "label": "stop",
+   "probs": {
+    "correction": 0.128,
+    "status": 0.0034,
+    "separate": 0.0014,
+    "stop": 0.8348,
+    "replace": 0.0324
+   }
+  },
+  {
+   "i": 62,
+   "task": "Write a script that prints the first 20 Fibonacci numbers, save it as fib.py and run it.",
+   "doing": "the model is writing its next step",
+   "message": "that's enough, stop now",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0025,
+    "status": 0.0001,
+    "separate": 0.0,
+    "stop": 0.9972,
+    "replace": 0.0002
+   }
+  },
+  {
+   "i": 63,
+   "task": "Plan a week of dinners for two, vegetarian, under $80.",
+   "doing": "the model is writing its next step",
+   "message": "I changed my mind, don't do this at all",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0326,
+    "status": 0.0009,
+    "separate": 0.0002,
+    "stop": 0.9527,
+    "replace": 0.0136
+   }
+  },
+  {
+   "i": 64,
+   "task": "Summarize the three PDFs in my downloads folder into one page.",
+   "doing": "running code: for f in pdfs: extract_text(f)",
+   "message": "please stop",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0041,
+    "status": 0.0003,
+    "separate": 0.0,
+    "stop": 0.9952,
+    "replace": 0.0004
+   }
+  },
+  {
+   "i": 65,
+   "task": "Get quotes for insulating a 1,800 sq ft attic from three local companies.",
+   "doing": "running code: web.search('attic insulation quote')",
+   "message": "nvm, cancel",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0258,
+    "status": 0.001,
+    "separate": 0.0001,
+    "stop": 0.9686,
+    "replace": 0.0045
+   }
+  },
+  {
+   "i": 66,
+   "task": "Make a bar chart of monthly sales from sales.csv and save it as a PNG.",
+   "doing": "running code: df.groupby('month').sum()",
+   "message": "kill it",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0292,
+    "status": 0.0011,
+    "separate": 0.0003,
+    "stop": 0.9666,
+    "replace": 0.0027
+   }
+  },
+  {
+   "i": 67,
+   "task": "Find a time next week for a 30 minute call with Dave.",
+   "doing": "running code: nango.calendar.events(next_week)",
+   "message": "forget the call, stop looking",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0076,
+    "status": 0.0004,
+    "separate": 0.0001,
+    "stop": 0.9907,
+    "replace": 0.0013
+   }
+  }
+ ],
+ "held": [
+  {
+   "i": 0,
+   "task": "Look up the opening hours of the three nearest hardware stores.",
+   "doing": "running code: web.search('hardware store hours near me')",
+   "message": "just the ones that are open on Sundays",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9941,
+    "status": 0.0017,
+    "separate": 0.0004,
+    "stop": 0.0013,
+    "replace": 0.0025
+   }
+  },
+  {
+   "i": 1,
+   "task": "Look up the opening hours of the three nearest hardware stores.",
+   "doing": "the model is writing its next step",
+   "message": "how's it going?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0289,
+    "status": 0.9573,
+    "separate": 0.0083,
+    "stop": 0.0039,
+    "replace": 0.0016
+   }
+  },
+  {
+   "i": 2,
+   "task": "Look up the opening hours of the three nearest hardware stores.",
+   "doing": "running code: web.read(url)",
+   "message": "put a reminder in my calendar to buy paint on Saturday",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0229,
+    "status": 0.0005,
+    "separate": 0.975,
+    "stop": 0.0008,
+    "replace": 0.0008
+   }
+  },
+  {
+   "i": 3,
+   "task": "Look up the opening hours of the three nearest hardware stores.",
+   "doing": "running code: web.read(url)",
+   "message": "okay stop, I've got what I need",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0369,
+    "status": 0.0073,
+    "separate": 0.0007,
+    "stop": 0.9527,
+    "replace": 0.0024
+   }
+  },
+  {
+   "i": 4,
+   "task": "Refactor utils.py so the date helpers live in their own module.",
+   "doing": "running code: project.edit('utils.py', ...)",
+   "message": "name the new module dates.py, not date_utils.py",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9917,
+    "status": 0.0013,
+    "separate": 0.0006,
+    "stop": 0.0012,
+    "replace": 0.0052
+   }
+  },
+  {
+   "i": 5,
+   "task": "Refactor utils.py so the date helpers live in their own module.",
+   "doing": "running code: project.grep('def .*date')",
+   "message": "what are you changing?",
+   "label": "status",
+   "probs": {
+    "correction": 0.2956,
+    "status": 0.6259,
+    "separate": 0.0189,
+    "stop": 0.0353,
+    "replace": 0.0243
+   }
+  },
+  {
+   "i": 6,
+   "task": "Refactor utils.py so the date helpers live in their own module.",
+   "doing": "the model is writing its next step",
+   "message": "also, can you check whether the nightly job is still failing?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.1171,
+    "status": 0.0066,
+    "separate": 0.8656,
+    "stop": 0.0021,
+    "replace": 0.0085
+   }
+  },
+  {
+   "i": 7,
+   "task": "Refactor utils.py so the date helpers live in their own module.",
+   "doing": "running code: project.edit('utils.py', ...)",
+   "message": "undo everything, I don't want that refactor anymore",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0059,
+    "status": 0.0004,
+    "separate": 0.0001,
+    "stop": 0.9895,
+    "replace": 0.004
+   }
+  },
+  {
+   "i": 8,
+   "task": "Convert my notes.docx to a markdown file.",
+   "doing": "running code: docx2md(path)",
+   "message": "keep the headings as they are",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9906,
+    "status": 0.0036,
+    "separate": 0.0009,
+    "stop": 0.0028,
+    "replace": 0.0022
+   }
+  },
+  {
+   "i": 9,
+   "task": "Convert my notes.docx to a markdown file.",
+   "doing": "running code: docx2md(path)",
+   "message": "done yet?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0159,
+    "status": 0.9831,
+    "separate": 0.0002,
+    "stop": 0.0003,
+    "replace": 0.0005
+   }
+  },
+  {
+   "i": 10,
+   "task": "Convert my notes.docx to a markdown file.",
+   "doing": "the model is writing its next step",
+   "message": "afterwards, email the result to Maria",
+   "label": "separate",
+   "probs": {
+    "correction": 0.2368,
+    "status": 0.0081,
+    "separate": 0.7295,
+    "stop": 0.0151,
+    "replace": 0.0104
+   }
+  },
+  {
+   "i": 11,
+   "task": "Convert my notes.docx to a markdown file.",
+   "doing": "the model is writing its next step",
+   "message": "hold on, cancel it",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0179,
+    "status": 0.0009,
+    "separate": 0.0002,
+    "stop": 0.9795,
+    "replace": 0.0015
+   }
+  },
+  {
+   "i": 12,
+   "task": "Compare the prices of the Pixel 9 and the Galaxy S25 at three stores.",
+   "doing": "running code: web.search('Pixel 9 price')",
+   "message": "include the iPhone 16 too",
+   "label": "correction",
+   "probs": {
+    "correction": 0.993,
+    "status": 0.0013,
+    "separate": 0.0009,
+    "stop": 0.0012,
+    "replace": 0.0036
+   }
+  },
+  {
+   "i": 13,
+   "task": "Compare the prices of the Pixel 9 and the Galaxy S25 at three stores.",
+   "doing": "running code: web.read(url)",
+   "message": "which stores have you checked?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0838,
+    "status": 0.9006,
+    "separate": 0.0042,
+    "stop": 0.0061,
+    "replace": 0.0054
+   }
+  },
+  {
+   "i": 14,
+   "task": "Compare the prices of the Pixel 9 and the Galaxy S25 at three stores.",
+   "doing": "the model is writing its next step",
+   "message": "separate question: is it worth upgrading my phone this year?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0417,
+    "status": 0.0039,
+    "separate": 0.9496,
+    "stop": 0.0021,
+    "replace": 0.0027
+   }
+  },
+  {
+   "i": 15,
+   "task": "Compare the prices of the Pixel 9 and the Galaxy S25 at three stores.",
+   "doing": "running code: web.search('Galaxy S25 price')",
+   "message": "scrap this comparison",
+   "label": "stop",
+   "probs": {
+    "correction": 0.7433,
+    "status": 0.0419,
+    "separate": 0.0254,
+    "stop": 0.1006,
+    "replace": 0.0888
+   }
+  },
+  {
+   "i": 16,
+   "task": "Write a cover letter for the barista job at Blue Door Cafe.",
+   "doing": "the model is writing its next step",
+   "message": "mention that I speak Spanish",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9954,
+    "status": 0.0013,
+    "separate": 0.0008,
+    "stop": 0.0013,
+    "replace": 0.0012
+   }
+  },
+  {
+   "i": 17,
+   "task": "Write a cover letter for the barista job at Blue Door Cafe.",
+   "doing": "the model is writing its next step",
+   "message": "how far along are you?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1293,
+    "status": 0.8433,
+    "separate": 0.0073,
+    "stop": 0.0136,
+    "replace": 0.0064
+   }
+  },
+  {
+   "i": 18,
+   "task": "Write a cover letter for the barista job at Blue Door Cafe.",
+   "doing": "the model is writing its next step",
+   "message": "then find the cafe's address",
+   "label": "separate",
+   "probs": {
+    "correction": 0.8107,
+    "status": 0.0404,
+    "separate": 0.0587,
+    "stop": 0.0314,
+    "replace": 0.0587
+   }
+  },
+  {
+   "i": 19,
+   "task": "Write a cover letter for the barista job at Blue Door Cafe.",
+   "doing": "the model is writing its next step",
+   "message": "I got the job elsewhere, stop",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0052,
+    "status": 0.0001,
+    "separate": 0.0,
+    "stop": 0.9941,
+    "replace": 0.0006
+   }
+  },
+  {
+   "i": 20,
+   "task": "Back up my Documents folder to the external drive.",
+   "doing": "running code: shutil.copytree(...)",
+   "message": "skip the Downloads subfolder",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9928,
+    "status": 0.0019,
+    "separate": 0.0006,
+    "stop": 0.0019,
+    "replace": 0.0028
+   }
+  },
+  {
+   "i": 21,
+   "task": "Back up my Documents folder to the external drive.",
+   "doing": "running code: shutil.copytree(...)",
+   "message": "how much has been copied?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0597,
+    "status": 0.9334,
+    "separate": 0.0012,
+    "stop": 0.0023,
+    "replace": 0.0034
+   }
+  },
+  {
+   "i": 22,
+   "task": "Back up my Documents folder to the external drive.",
+   "doing": "running code: shutil.copytree(...)",
+   "message": "while it copies, tell me what the weather is tomorrow",
+   "label": "separate",
+   "probs": {
+    "correction": 0.1309,
+    "status": 0.0051,
+    "separate": 0.8538,
+    "stop": 0.0058,
+    "replace": 0.0045
+   }
+  },
+  {
+   "i": 23,
+   "task": "Back up my Documents folder to the external drive.",
+   "doing": "running code: shutil.copytree(...)",
+   "message": "don't copy anything, pull the plug",
+   "label": "stop",
+   "probs": {
+    "correction": 0.033,
+    "status": 0.0006,
+    "separate": 0.0001,
+    "stop": 0.9636,
+    "replace": 0.0027
+   }
+  },
+  {
+   "i": 24,
+   "task": "Find a vegetarian restaurant near the office for Friday lunch.",
+   "doing": "running code: web.search('vegetarian restaurant near me')",
+   "message": "somewhere with parking",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9375,
+    "status": 0.0152,
+    "separate": 0.0321,
+    "stop": 0.0081,
+    "replace": 0.0072
+   }
+  },
+  {
+   "i": 25,
+   "task": "Find a vegetarian restaurant near the office for Friday lunch.",
+   "doing": "running code: web.search('vegetarian restaurant near me')",
+   "message": "found anything?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0229,
+    "status": 0.9753,
+    "separate": 0.0003,
+    "stop": 0.0005,
+    "replace": 0.001
+   }
+  },
+  {
+   "i": 26,
+   "task": "Find a vegetarian restaurant near the office for Friday lunch.",
+   "doing": "the model is writing its next step",
+   "message": "and add 'send the invoice' to my to-do list",
+   "label": "separate",
+   "probs": {
+    "correction": 0.1059,
+    "status": 0.0015,
+    "separate": 0.887,
+    "stop": 0.0019,
+    "replace": 0.0036
+   }
+  },
+  {
+   "i": 27,
+   "task": "Find a vegetarian restaurant near the office for Friday lunch.",
+   "doing": "the model is writing its next step",
+   "message": "forget lunch, stop searching",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0085,
+    "status": 0.0002,
+    "separate": 0.0001,
+    "stop": 0.9871,
+    "replace": 0.004
+   }
+  },
+  {
+   "i": 28,
+   "task": "Draft a polite reply declining the meeting invitation from Pat.",
+   "doing": "the model is writing its next step",
+   "message": "make it warmer, and suggest next month instead",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9982,
+    "status": 0.0006,
+    "separate": 0.0002,
+    "stop": 0.0004,
+    "replace": 0.0007
+   }
+  },
+  {
+   "i": 29,
+   "task": "Draft a polite reply declining the meeting invitation from Pat.",
+   "doing": "the model is writing its next step",
+   "message": "what are you writing?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1031,
+    "status": 0.8629,
+    "separate": 0.0066,
+    "stop": 0.0179,
+    "replace": 0.0096
+   }
+  },
+  {
+   "i": 30,
+   "task": "Draft a polite reply declining the meeting invitation from Pat.",
+   "doing": "the model is writing its next step",
+   "message": "also draft one to Lee, same thing",
+   "label": "separate",
+   "probs": {
+    "correction": 0.5987,
+    "status": 0.0067,
+    "separate": 0.3631,
+    "stop": 0.0052,
+    "replace": 0.0263
+   }
+  },
+  {
+   "i": 31,
+   "task": "Draft a polite reply declining the meeting invitation from Pat.",
+   "doing": "the model is writing its next step",
+   "message": "actually don't reply at all, stop",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0076,
+    "status": 0.0009,
+    "separate": 0.0001,
+    "stop": 0.9908,
+    "replace": 0.0007
+   }
+  },
+  {
+   "i": 32,
+   "task": "Debug why test_parse fails in the parser project.",
+   "doing": "running code: project.sh('pytest -x tests/test_parse.py')",
+   "message": "it only fails on Windows, look at the path handling",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9302,
+    "status": 0.0525,
+    "separate": 0.0034,
+    "stop": 0.0023,
+    "replace": 0.0117
+   }
+  },
+  {
+   "i": 33,
+   "task": "Debug why test_parse fails in the parser project.",
+   "doing": "running code: project.sh('pytest -x tests/test_parse.py')",
+   "message": "is the test still running?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0665,
+    "status": 0.9178,
+    "separate": 0.0029,
+    "stop": 0.0079,
+    "replace": 0.0048
+   }
+  },
+  {
+   "i": 34,
+   "task": "Debug why test_parse fails in the parser project.",
+   "doing": "the model is writing its next step",
+   "message": "afterwards bump the version number",
+   "label": "separate",
+   "probs": {
+    "correction": 0.6382,
+    "status": 0.0594,
+    "separate": 0.1828,
+    "stop": 0.0524,
+    "replace": 0.0673
+   }
+  },
+  {
+   "i": 35,
+   "task": "Debug why test_parse fails in the parser project.",
+   "doing": "the model is writing its next step",
+   "message": "enough, I'll look at it tomorrow, stop",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0109,
+    "status": 0.0012,
+    "separate": 0.0019,
+    "stop": 0.9849,
+    "replace": 0.0012
+   }
+  },
+  {
+   "i": 36,
+   "task": "Find me a recipe for sourdough focaccia.",
+   "doing": "running code: web.search('sourdough focaccia recipe')",
+   "message": "with rosemary, no olives",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9972,
+    "status": 0.0007,
+    "separate": 0.0003,
+    "stop": 0.0005,
+    "replace": 0.0013
+   }
+  },
+  {
+   "i": 37,
+   "task": "Find me a recipe for sourdough focaccia.",
+   "doing": "running code: web.search('sourdough focaccia recipe')",
+   "message": "anything good so far?",
+   "label": "status",
+   "probs": {
+    "correction": 0.011,
+    "status": 0.988,
+    "separate": 0.0002,
+    "stop": 0.0003,
+    "replace": 0.0006
+   }
+  },
+  {
+   "i": 38,
+   "task": "Find me a recipe for sourdough focaccia.",
+   "doing": "the model is writing its next step",
+   "message": "what's a good sourdough starter feeding ratio?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.6512,
+    "status": 0.2715,
+    "separate": 0.0324,
+    "stop": 0.0197,
+    "replace": 0.0252
+   }
+  },
+  {
+   "i": 39,
+   "task": "Find me a recipe for sourdough focaccia.",
+   "doing": "the model is writing its next step",
+   "message": "I'm not baking tonight after all, cancel",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0179,
+    "status": 0.0004,
+    "separate": 0.0001,
+    "stop": 0.9751,
+    "replace": 0.0066
+   }
+  }
+ ],
+ "fresh": [
+  {
+   "i": 0,
+   "task": "Translate the attached contract into Spanish.",
+   "doing": "running code: translate(chunk)",
+   "message": "keep the legal terms in English",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9873,
+    "status": 0.0028,
+    "separate": 0.0012,
+    "stop": 0.0052,
+    "replace": 0.0036
+   }
+  },
+  {
+   "i": 1,
+   "task": "Translate the attached contract into Spanish.",
+   "doing": "running code: translate(chunk)",
+   "message": "use Latin American Spanish, not Spain's",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9983,
+    "status": 0.0004,
+    "separate": 0.0001,
+    "stop": 0.0004,
+    "replace": 0.0008
+   }
+  },
+  {
+   "i": 2,
+   "task": "Order two pizzas from the usual place for 7pm.",
+   "doing": "running code: browser.goto('https://orders.example.com')",
+   "message": "actually just one pizza, we're only two",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9877,
+    "status": 0.0017,
+    "separate": 0.0004,
+    "stop": 0.0017,
+    "replace": 0.0085
+   }
+  },
+  {
+   "i": 3,
+   "task": "Order two pizzas from the usual place for 7pm.",
+   "doing": "running code: browser.goto('https://orders.example.com')",
+   "message": "add garlic knots",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9639,
+    "status": 0.0045,
+    "separate": 0.0137,
+    "stop": 0.0057,
+    "replace": 0.0121
+   }
+  },
+  {
+   "i": 4,
+   "task": "Find the cheapest hotel in Portland for Oct 12-14.",
+   "doing": "running code: web.search('cheap hotel Portland Oct 12')",
+   "message": "it must have free parking and breakfast",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9986,
+    "status": 0.0004,
+    "separate": 0.0001,
+    "stop": 0.0003,
+    "replace": 0.0006
+   }
+  },
+  {
+   "i": 5,
+   "task": "Find the cheapest hotel in Portland for Oct 12-14.",
+   "doing": "running code: web.search('cheap hotel Portland Oct 12')",
+   "message": "stop looking at Booking.com, it's all sold out",
+   "label": "correction",
+   "probs": {
+    "correction": 0.7616,
+    "status": 0.1031,
+    "separate": 0.0027,
+    "stop": 0.1031,
+    "replace": 0.0295
+   }
+  },
+  {
+   "i": 6,
+   "task": "Rename all the photos in the Vacation folder by date.",
+   "doing": "running code: os.rename(old, new)",
+   "message": "use YYYY-MM-DD, not DD-MM-YYYY",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9922,
+    "status": 0.0017,
+    "separate": 0.0003,
+    "stop": 0.0017,
+    "replace": 0.0041
+   }
+  },
+  {
+   "i": 7,
+   "task": "Write a Python function that validates email addresses, and test it.",
+   "doing": "the model is writing its next step",
+   "message": "use a regex, not a library",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9992,
+    "status": 0.0002,
+    "separate": 0.0001,
+    "stop": 0.0003,
+    "replace": 0.0003
+   }
+  },
+  {
+   "i": 8,
+   "task": "Reconcile the March bank statement with the ledger spreadsheet.",
+   "doing": "running code: pd.merge(bank, ledger)",
+   "message": "ignore transactions under $5",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9826,
+    "status": 0.0052,
+    "separate": 0.0019,
+    "stop": 0.0052,
+    "replace": 0.0052
+   }
+  },
+  {
+   "i": 9,
+   "task": "Draft the agenda for Thursday's team meeting.",
+   "doing": "the model is writing its next step",
+   "message": "put the budget review first",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9971,
+    "status": 0.0005,
+    "separate": 0.0003,
+    "stop": 0.0005,
+    "replace": 0.0017
+   }
+  },
+  {
+   "i": 10,
+   "task": "Look up the status of my flight UA 452 tomorrow.",
+   "doing": "running code: web.search('UA 452 flight status')",
+   "message": "check my other flight too, UA 777",
+   "label": "correction",
+   "probs": {
+    "correction": 0.8685,
+    "status": 0.0035,
+    "separate": 0.1175,
+    "stop": 0.0046,
+    "replace": 0.0059
+   }
+  },
+  {
+   "i": 11,
+   "task": "Order two pizzas from the usual place for 7pm.",
+   "doing": "running code: browser.goto('https://orders.example.com')",
+   "message": "scrap the pizza, order sushi from Koi instead",
+   "label": "correction",
+   "probs": {
+    "correction": 0.1462,
+    "status": 0.0018,
+    "separate": 0.0013,
+    "stop": 0.0093,
+    "replace": 0.8413
+   }
+  },
+  {
+   "i": 12,
+   "task": "Translate the attached contract into Spanish.",
+   "doing": "running code: translate(chunk)",
+   "message": "how's the translation going?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0076,
+    "status": 0.9916,
+    "separate": 0.0001,
+    "stop": 0.0004,
+    "replace": 0.0004
+   }
+  },
+  {
+   "i": 13,
+   "task": "Order two pizzas from the usual place for 7pm.",
+   "doing": "running code: browser.goto('https://orders.example.com')",
+   "message": "are you done yet?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0418,
+    "status": 0.9515,
+    "separate": 0.0016,
+    "stop": 0.0024,
+    "replace": 0.0027
+   }
+  },
+  {
+   "i": 14,
+   "task": "Find the cheapest hotel in Portland for Oct 12-14.",
+   "doing": "running code: web.search('cheap hotel Portland Oct 12')",
+   "message": "what hotel are you looking at?",
+   "label": "status",
+   "probs": {
+    "correction": 0.2327,
+    "status": 0.6324,
+    "separate": 0.0404,
+    "stop": 0.0588,
+    "replace": 0.0357
+   }
+  },
+  {
+   "i": 15,
+   "task": "Rename all the photos in the Vacation folder by date.",
+   "doing": "running code: os.rename(old, new)",
+   "message": "is it still renaming?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0471,
+    "status": 0.9469,
+    "separate": 0.001,
+    "stop": 0.0027,
+    "replace": 0.0023
+   }
+  },
+  {
+   "i": 16,
+   "task": "Write a Python function that validates email addresses, and test it.",
+   "doing": "the model is writing its next step",
+   "message": "what's the progress?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0258,
+    "status": 0.9695,
+    "separate": 0.0013,
+    "stop": 0.0019,
+    "replace": 0.0015
+   }
+  },
+  {
+   "i": 17,
+   "task": "Reconcile the March bank statement with the ledger spreadsheet.",
+   "doing": "running code: pd.merge(bank, ledger)",
+   "message": "how many rows have you matched so far?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0748,
+    "status": 0.9118,
+    "separate": 0.0042,
+    "stop": 0.0037,
+    "replace": 0.0054
+   }
+  },
+  {
+   "i": 18,
+   "task": "Draft the agenda for Thursday's team meeting.",
+   "doing": "the model is writing its next step",
+   "message": "give me a quick update",
+   "label": "status",
+   "probs": {
+    "correction": 0.1858,
+    "status": 0.6484,
+    "separate": 0.1447,
+    "stop": 0.0119,
+    "replace": 0.0092
+   }
+  },
+  {
+   "i": 19,
+   "task": "Look up the status of my flight UA 452 tomorrow.",
+   "doing": "running code: web.search('UA 452 flight status')",
+   "message": "anything yet?",
+   "label": "status",
+   "probs": {
+    "correction": 0.011,
+    "status": 0.9877,
+    "separate": 0.0003,
+    "stop": 0.0005,
+    "replace": 0.0006
+   }
+  },
+  {
+   "i": 20,
+   "task": "Find the cheapest hotel in Portland for Oct 12-14.",
+   "doing": "running code: web.search('cheap hotel Portland Oct 12')",
+   "message": "what are you up to?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0254,
+    "status": 0.9542,
+    "separate": 0.0175,
+    "stop": 0.0016,
+    "replace": 0.0013
+   }
+  },
+  {
+   "i": 21,
+   "task": "Rename all the photos in the Vacation folder by date.",
+   "doing": "running code: os.rename(old, new)",
+   "message": "how many files are done?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1036,
+    "status": 0.8671,
+    "separate": 0.0109,
+    "stop": 0.0109,
+    "replace": 0.0075
+   }
+  },
+  {
+   "i": 22,
+   "task": "Translate the attached contract into Spanish.",
+   "doing": "running code: translate(chunk)",
+   "message": "are you waiting on something?",
+   "label": "status",
+   "probs": {
+    "correction": 0.163,
+    "status": 0.7307,
+    "separate": 0.077,
+    "stop": 0.0221,
+    "replace": 0.0072
+   }
+  },
+  {
+   "i": 23,
+   "task": "Reconcile the March bank statement with the ledger spreadsheet.",
+   "doing": "running code: pd.merge(bank, ledger)",
+   "message": "what's the status?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0124,
+    "status": 0.9859,
+    "separate": 0.0003,
+    "stop": 0.0005,
+    "replace": 0.0009
+   }
+  },
+  {
+   "i": 24,
+   "task": "Translate the attached contract into Spanish.",
+   "doing": "running code: translate(chunk)",
+   "message": "remind me to water the plants tonight",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0259,
+    "status": 0.0008,
+    "separate": 0.9718,
+    "stop": 0.0005,
+    "replace": 0.001
+   }
+  },
+  {
+   "i": 25,
+   "task": "Order two pizzas from the usual place for 7pm.",
+   "doing": "running code: browser.goto('https://orders.example.com')",
+   "message": "when's sunset today?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0467,
+    "status": 0.0081,
+    "separate": 0.9383,
+    "stop": 0.003,
+    "replace": 0.0038
+   }
+  },
+  {
+   "i": 26,
+   "task": "Find the cheapest hotel in Portland for Oct 12-14.",
+   "doing": "running code: web.search('cheap hotel Portland Oct 12')",
+   "message": "also, what's the weather in Portland next week?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0179,
+    "status": 0.001,
+    "separate": 0.9794,
+    "stop": 0.0005,
+    "replace": 0.0011
+   }
+  },
+  {
+   "i": 27,
+   "task": "Rename all the photos in the Vacation folder by date.",
+   "doing": "running code: os.rename(old, new)",
+   "message": "can you add milk to the shopping list?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.042,
+    "status": 0.0009,
+    "separate": 0.9551,
+    "stop": 0.0008,
+    "replace": 0.0013
+   }
+  },
+  {
+   "i": 28,
+   "task": "Write a Python function that validates email addresses, and test it.",
+   "doing": "the model is writing its next step",
+   "message": "afterwards, book me a table for Friday",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0372,
+    "status": 0.0013,
+    "separate": 0.9587,
+    "stop": 0.0013,
+    "replace": 0.0016
+   }
+  },
+  {
+   "i": 29,
+   "task": "Reconcile the March bank statement with the ledger spreadsheet.",
+   "doing": "running code: pd.merge(bank, ledger)",
+   "message": "while you do that, what's 15% tip on $84?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0371,
+    "status": 0.0024,
+    "separate": 0.9572,
+    "stop": 0.0013,
+    "replace": 0.0021
+   }
+  },
+  {
+   "i": 30,
+   "task": "Draft the agenda for Thursday's team meeting.",
+   "doing": "the model is writing its next step",
+   "message": "next up: draft a thank-you note to Chris",
+   "label": "separate",
+   "probs": {
+    "correction": 0.117,
+    "status": 0.0051,
+    "separate": 0.8643,
+    "stop": 0.0051,
+    "replace": 0.0085
+   }
+  },
+  {
+   "i": 31,
+   "task": "Look up the status of my flight UA 452 tomorrow.",
+   "doing": "running code: web.search('UA 452 flight status')",
+   "message": "separately: how do I reset my router?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0124,
+    "status": 0.0002,
+    "separate": 0.987,
+    "stop": 0.0001,
+    "replace": 0.0003
+   }
+  },
+  {
+   "i": 32,
+   "task": "Translate the attached contract into Spanish.",
+   "doing": "running code: translate(chunk)",
+   "message": "I also need the phone number of the DMV",
+   "label": "separate",
+   "probs": {
+    "correction": 0.1188,
+    "status": 0.0009,
+    "separate": 0.8777,
+    "stop": 0.0007,
+    "replace": 0.0019
+   }
+  },
+  {
+   "i": 33,
+   "task": "Find the cheapest hotel in Portland for Oct 12-14.",
+   "doing": "running code: web.search('cheap hotel Portland Oct 12')",
+   "message": "later I want a summary of today's news",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0159,
+    "status": 0.0013,
+    "separate": 0.9808,
+    "stop": 0.0004,
+    "replace": 0.0017
+   }
+  },
+  {
+   "i": 34,
+   "task": "Rename all the photos in the Vacation folder by date.",
+   "doing": "running code: os.rename(old, new)",
+   "message": "whenever you're free: when is the next full moon?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0471,
+    "status": 0.0021,
+    "separate": 0.9466,
+    "stop": 0.0023,
+    "replace": 0.0018
+   }
+  },
+  {
+   "i": 35,
+   "task": "Order two pizzas from the usual place for 7pm.",
+   "doing": "running code: browser.goto('https://orders.example.com')",
+   "message": "and my dentist's number, please",
+   "label": "separate",
+   "probs": {
+    "correction": 0.2196,
+    "status": 0.0024,
+    "separate": 0.7664,
+    "stop": 0.004,
+    "replace": 0.0075
+   }
+  },
+  {
+   "i": 36,
+   "task": "Translate the attached contract into Spanish.",
+   "doing": "running code: translate(chunk)",
+   "message": "stop",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0898,
+    "status": 0.0374,
+    "separate": 0.0011,
+    "stop": 0.8517,
+    "replace": 0.02
+   }
+  },
+  {
+   "i": 37,
+   "task": "Order two pizzas from the usual place for 7pm.",
+   "doing": "running code: browser.goto('https://orders.example.com')",
+   "message": "cancel the order",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0518,
+    "status": 0.0016,
+    "separate": 0.0005,
+    "stop": 0.9184,
+    "replace": 0.0277
+   }
+  },
+  {
+   "i": 38,
+   "task": "Find the cheapest hotel in Portland for Oct 12-14.",
+   "doing": "running code: web.search('cheap hotel Portland Oct 12')",
+   "message": "hold on, don't do that, stop",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0086,
+    "status": 0.0004,
+    "separate": 0.0,
+    "stop": 0.9905,
+    "replace": 0.0005
+   }
+  },
+  {
+   "i": 39,
+   "task": "Rename all the photos in the Vacation folder by date.",
+   "doing": "running code: os.rename(old, new)",
+   "message": "forget it",
+   "label": "stop",
+   "probs": {
+    "correction": 0.1262,
+    "status": 0.0081,
+    "separate": 0.0018,
+    "stop": 0.823,
+    "replace": 0.041
+   }
+  },
+  {
+   "i": 40,
+   "task": "Write a Python function that validates email addresses, and test it.",
+   "doing": "the model is writing its next step",
+   "message": "enough",
+   "label": "stop",
+   "probs": {
+    "correction": 0.2918,
+    "status": 0.2006,
+    "separate": 0.0078,
+    "stop": 0.4812,
+    "replace": 0.0187
+   }
+  },
+  {
+   "i": 41,
+   "task": "Reconcile the March bank statement with the ledger spreadsheet.",
+   "doing": "running code: pd.merge(bank, ledger)",
+   "message": "I'll take it from here, stop",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0159,
+    "status": 0.0019,
+    "separate": 0.0002,
+    "stop": 0.9809,
+    "replace": 0.0011
+   }
+  },
+  {
+   "i": 42,
+   "task": "Draft the agenda for Thursday's team meeting.",
+   "doing": "the model is writing its next step",
+   "message": "abort mission",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0598,
+    "status": 0.0018,
+    "separate": 0.0006,
+    "stop": 0.9352,
+    "replace": 0.0026
+   }
+  },
+  {
+   "i": 43,
+   "task": "Look up the status of my flight UA 452 tomorrow.",
+   "doing": "running code: web.search('UA 452 flight status')",
+   "message": "cancel this",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0203,
+    "status": 0.0011,
+    "separate": 0.0002,
+    "stop": 0.976,
+    "replace": 0.0024
+   }
+  },
+  {
+   "i": 44,
+   "task": "Translate the attached contract into Spanish.",
+   "doing": "running code: translate(chunk)",
+   "message": "no, stop, wrong thing entirely",
+   "label": "stop",
+   "probs": {
+    "correction": 0.046,
+    "status": 0.0023,
+    "separate": 0.0002,
+    "stop": 0.9236,
+    "replace": 0.0279
+   }
+  },
+  {
+   "i": 45,
+   "task": "Find the cheapest hotel in Portland for Oct 12-14.",
+   "doing": "running code: web.search('cheap hotel Portland Oct 12')",
+   "message": "shut it down",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0059,
+    "status": 0.0004,
+    "separate": 0.0001,
+    "stop": 0.9933,
+    "replace": 0.0003
+   }
+  },
+  {
+   "i": 46,
+   "task": "Order two pizzas from the usual place for 7pm.",
+   "doing": "running code: browser.goto('https://orders.example.com')",
+   "message": "stop it right now",
+   "label": "stop",
+   "probs": {
+    "correction": 0.0124,
+    "status": 0.0006,
+    "separate": 0.0001,
+    "stop": 0.9859,
+    "replace": 0.001
+   }
+  },
+  {
+   "i": 47,
+   "task": "Rename all the photos in the Vacation folder by date.",
+   "doing": "running code: os.rename(old, new)",
+   "message": "never mind, I did it by hand",
+   "label": "stop",
+   "probs": {
+    "correction": 0.1036,
+    "status": 0.0066,
+    "separate": 0.0017,
+    "stop": 0.5263,
+    "replace": 0.3617
+   }
+  }
+ ]
+}

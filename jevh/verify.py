@@ -192,9 +192,12 @@ def grounding(answer: str, evidence: str) -> tuple[set[str], set[str]]:
 
 
 def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
-                 scores: dict[str, float], t: Callable[[str], float], evidence: str | None = None) -> list[str]:
+                 scores: dict[str, float], t: Callable[[str], float], evidence: str | None = None,
+                 files_from: str | None = None) -> list[str]:
     """Problems with the answer itself. Shared with evals/verify_cases.py. `evidence`: everything
-    the worker saw (request, prior turns, full tool outputs); `log` is the condensed version."""
+    the worker saw (request, prior turns, full tool outputs); `log` is the condensed version.
+    `files_from`: the text whose file names must be handed over, when that is not the whole request (the user
+    changed it while it ran and the last message names a file: "primes.py" now, not "fib.py")."""
     problems = []
     honest = scores.get("honest", 0.0) >= t("verify_honest")
     supported, unsupported = grounding(answer, request + "\n" + (evidence if evidence is not None else log))
@@ -227,7 +230,11 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
         if 2 <= want <= 20 and 0 < len(artifacts) < want:
             problems.append(f"The request asks for {want} {m.group(0).split()[-1]}, but you delivered "
                             f"{len(artifacts)} file(s). Make the rest, or say which are missing.")
-    wanted = {m.group(1).lower() for m in DELIVERABLE.finditer(request)} - {Path(a).name.lower() for a in artifacts}
+    # (files the harness collects itself, when final() lists none, are stored as <persona>_<name>: "primes.py" is
+    # handed over as "high_end_dev_primes.py" - the bench found the gate asking for the file it had just been given)
+    got = {Path(a).name.lower() for a in artifacts}
+    wanted = {w for w in (m.group(1).lower() for m in DELIVERABLE.finditer(request if files_from is None else files_from))
+              if w not in got and not any(g.endswith("_" + w) for g in got)}
     if wanted and not honest:   # live: refine's control "write leap.py ... hand it over" answered with the code inline
         got = ", ".join(Path(a).name for a in artifacts)
         problems.append(f"The request asks for {', '.join(sorted(wanted))}, but "
@@ -268,9 +275,11 @@ class Verifier:
 
     def check(self, request: str, answer: str, artifacts: list[str], log: str,
               project: str | None = None, changed: list[str] | None = None, evidence: str | None = None,
-              backups: Path | None = None, review: Callable[[str, str], str] | None = None) -> Verdict:
+              backups: Path | None = None, review: Callable[[str, str], str] | None = None,
+              files_from: str | None = None) -> Verdict:
         """`backups`: the worker's copies of the project files as they were before it touched them
-        (the diffs come from these); `review(prompt, tier) -> text`: a model reviews risky changes."""
+        (the diffs come from these); `review(prompt, tier) -> text`: a model reviews risky changes.
+        `files_from`: see answer_rules."""
         v = Verdict(ok=True)
         for a in artifacts:
             for p in self._file(Path(a)):
@@ -313,7 +322,8 @@ class Verifier:
                 v.scores = {k: r[k].noul for k in ("claims", "delivers", "honest", "accurate")}
             except Exception as e:  # noqa: BLE001 - Jev down: file/test checks still count
                 v.checks["answer"] = f"skipped: {type(e).__name__}"
-            probs = answer_rules(request, answer, artifacts, log, v.scores, self.cfg.t, evidence) if v.scores else []
+            probs = (answer_rules(request, answer, artifacts, log, v.scores, self.cfg.t, evidence, files_from)
+                     if v.scores else [])
             v.problems += probs
             if v.scores:
                 v.checks["answer"] = "pass" if not probs else f"fail: {len(probs)} problem(s)"

@@ -423,3 +423,16 @@ def test_one_number_from_the_wrong_row_and_an_aspect_ratio():
     deck = "CODE:\nprs.save('Solar_System.pptx')\nOUTPUT: saved"
     ok = {"claims": .1, "delivers": .99, "honest": .02, "accurate": .85}
     assert not answer_rules("make a 3-slide deck", "Your 3-slide deck (16:9 widescreen) is ready.", [], deck, ok, t)
+
+
+def test_a_file_the_harness_collected_counts_as_handed_over():
+    """final() without artifacts: the harness collects the worker's files as <persona>_<name>."""
+    ok = {"claims": 0.0, "delivers": 1.0, "honest": 0.0, "accurate": 1.0}
+
+    def t(name):
+        return 0.8
+    req = "Write primes.py and run it."
+    assert not answer_rules(req, "Done.", ["/a/high_end_dev_primes.py"], "", ok, t)
+    assert not answer_rules(req, "Done.", ["/a/primes.py"], "", ok, t)
+    assert any("primes.py" in p for p in answer_rules(req, "Done.", ["/a/high_end_dev_fib.py"], "", ok, t))
+    assert any("primes.py" in p for p in answer_rules(req, "Done.", ["/a/high_end_dev_notprimes.py"], "", ok, t))

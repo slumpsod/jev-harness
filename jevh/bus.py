@@ -8,6 +8,8 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any
 
+from .interject import UPDATED
+
 
 @dataclass
 class Task:
@@ -24,6 +26,7 @@ class Task:
     artifacts: list[str] = field(default_factory=list)
     history: list[tuple] = field(default_factory=list)  # (user, assistant[, work notes]) turns this follows up on
     checkpoint: Any = None       # path of this task's worker checkpoint (resume)
+    said: list[tuple[str, bool]] = field(default_factory=list)   # what the user said while it ran: (text, replaces it)
 
     @property
     def jev_text(self) -> str:
@@ -33,6 +36,15 @@ class Task:
             return self.text
         prior = "\n".join(f"User: {u[:400]}\nAssistant: {a[:400]}" for u, a, *_ in self.history)
         return f"Earlier in this conversation:\n{prior}\n\nLatest message: {self.text}"
+
+    @property
+    def current(self) -> str:
+        """The request as the user last put it: the original plus what they said while it was worked on
+        (jevh/interject.py). What the final() gate, the progress check and compaction judge the work against."""
+        text = self.text
+        for said, replaces in self.said:
+            text = said if replaces else text + "\n\n" + UPDATED.format(text=said)
+        return text
 
     @property
     def depth(self) -> int:

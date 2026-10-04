@@ -33,10 +33,10 @@ def rules(k, q, s):
         return noul_ans(0.9)
 
 
-@pytest.fixture
-def dashboard(cfg):
+def serve(cfg, replies):
+    """The dashboard on a free port with a scripted model; yields its address."""
     def factory(on_event):
-        return Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM(list(REPLIES)), on_event=on_event)
+        return Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM(list(replies)), on_event=on_event)
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
@@ -48,6 +48,17 @@ def dashboard(cfg):
         time.sleep(0.05)
     yield f"http://127.0.0.1:{port}/"
     server.should_exit = True
+
+
+@pytest.fixture
+def dashboard(cfg):
+    yield from serve(cfg, REPLIES)
+
+
+@pytest.fixture
+def slow_dashboard(cfg):
+    """A task whose first step takes a few seconds: time to talk to it."""
+    yield from serve(cfg, [py("import time\ntime.sleep(4)\nprint('step one')"), py("final('calendar done')")])
 
 
 def _launch(p):
@@ -246,3 +257,28 @@ def _phone(page, dashboard):
     page.click("#nbadd")
     page.wait_for_selector("#nblist .nbitem")
     assert not page.evaluate(too_wide) and not page.errors
+
+
+def test_a_message_sent_while_the_task_runs_is_heard(slow_dashboard, browse):
+    browse(lambda page: _interject(page, slow_dashboard))
+
+
+def _interject(page, url):
+    page.goto(url)
+    page.fill("#input", "check my email")
+    page.keyboard.press("Enter")
+    page.wait_for_selector(".turn .work.running", timeout=20000)             # it is working
+    assert page.is_enabled("#send") and "running task" in page.get_attribute("#input", "placeholder")
+    page.fill("#input", "/queue and then the weather")                       # another request: waits its turn
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#queuebar .qchip", timeout=10000)
+    assert "and then the weather" in page.inner_text("#queuebar")
+    page.fill("#input", "actually check my calendar")                        # plain: added to the prompt
+    page.keyboard.press("Enter")
+    page.wait_for_selector(".say .saytag.corrected", timeout=15000)
+    assert "actually check my calendar" in page.inner_text(".say:has(.saytag.corrected)")
+    page.wait_for_function("document.querySelectorAll('.turn').length === 2 && "
+                           "document.querySelectorAll('.turn .answer').length === 2", timeout=60000)
+    assert page.inner_text(".turn:nth-child(1) .answer") == "calendar done"     # the correction reached the task
+    assert page.is_hidden("#queuebar")                                       # the queued request started by itself
+    assert not page.errors
