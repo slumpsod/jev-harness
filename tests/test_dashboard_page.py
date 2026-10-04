@@ -42,19 +42,22 @@ def test_script_only_looks_up_elements_that_exist():
 def test_every_icon_the_script_uses_is_defined():
     defined = set(re.findall(r'<symbol id="i-([\w-]+)"', PAGE))
     used = set(re.findall(r'href="#i-([\w-]+)"', PAGE)) | set(re.findall(r'\bico\("([\w-]+)"\)', SCRIPT))
-    opt = SCRIPT[SCRIPT.index("const OPT = {"):SCRIPT.index("const CATS")]
-    used |= set(re.findall(r'\["\w+", "(\w+)", "', opt))                       # OPT rows: [category, icon, past, present]
-    cats = SCRIPT[SCRIPT.index("const CATS"):SCRIPT.index("const CALL")]
-    used |= set(re.findall(r'\w+: \["(\w+)", "', cats))                         # CATS rows: [icon, label]
-    assert len(used) > 25, "the icon scan found almost nothing: the patterns need updating"
+    assert len(used) > 15, "the icon scan found almost nothing: the patterns need updating"
     missing = {u for u in used if u not in defined}
     assert not missing, f"icons used but not defined: {sorted(missing)}"
 
 
 def test_tool_calls_are_summarised_not_dumped():
-    """The chat shows a few chips per turn; the verbatim code is behind a click (and a setting)."""
-    for part in ("parseOps", "wchip", 'activity: "summary"', '"verbatim"', '"hidden"'):
+    """The chat says what was done in one plain sentence; the code is behind a click (and a setting)."""
+    for part in ("parseOps", "const CATS", 'activity: "summary"', '"verbatim"', '"hidden"'):
         assert part in PAGE, part
+    assert "wchip" not in PAGE and "livelabel" not in PAGE, "the chip/shimmer styling should be gone"
+
+
+def test_thinking_is_prose_not_a_terminal_log():
+    css = re.search(r"\.answer\.thought \{[^}]*\}", CSS).group(0)
+    assert "font-family" not in css and "mono" not in css, "reasoning should use the reading font"
+    assert "thoughtOf" in SCRIPT and "md(text)" in SCRIPT
 
 
 def test_the_page_is_made_for_phones():

@@ -359,49 +359,42 @@ button.flag.on { color: var(--warn-ink); border-color: color-mix(in srgb, var(--
 .answer .cb:hover .copy, .answer .cb .copy:focus-visible { opacity: 1; }
 .answer .cb .copy svg { width: 13px; height: 13px; }
 
-/* ---- work: tool calls shown as a compact summary, the verbatim code one click deeper ---- */
-.work { margin: calc(4px * var(--space)) 0 calc(10px * var(--space)); border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, var(--surface) 62%, transparent); overflow: hidden; }
-.workhead { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; color: var(--muted); font-size: 12.5px; text-align: left; }
-.workhead:hover:not(:disabled) { background: var(--hover) !important; }
-.workhead .chev { width: 14px; height: 14px; transition: transform .2s var(--ease); margin-left: auto; color: var(--faint); }
-.work.open .workhead .chev { transform: rotate(90deg); }
-.wchips { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; min-width: 0; align-items: center; }
-.wchip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px 0 6px; border-radius: var(--pill); font-size: 11.5px; font-weight: 550; color: var(--text);
-         background: var(--surface3); border: 1px solid transparent; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.wchip svg { width: 13px; height: 13px; color: var(--muted); }
-.wchip i { font-style: normal; color: var(--muted); font-weight: 500; }
-.wchip.warn { color: var(--warn-ink); background: color-mix(in srgb, var(--warn) 14%, transparent); } .wchip.warn svg { color: var(--warn-ink); }
-.wchip.bad { color: var(--bad-ink); background: color-mix(in srgb, var(--bad) 13%, transparent); } .wchip.bad svg { color: var(--bad-ink); }
-.wchip.ok { color: var(--good-ink); background: color-mix(in srgb, var(--fast) 13%, transparent); } .wchip.ok svg { color: var(--good-ink); }
-.wmeta { color: var(--faint); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.work.running .workhead { color: var(--text); }
-.livelabel { font-weight: 600; background: linear-gradient(100deg, var(--muted) 20%, var(--text) 50%, var(--muted) 80%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 2.2s linear infinite; }
-@keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
-.livedetail { color: var(--muted); font-family: var(--font-mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* ---- work: what the assistant did, said like a sentence; the detail one click deeper ---- */
+.work { margin: calc(2px * var(--space)) 0 calc(8px * var(--space)); font-size: calc(var(--fs-chat) - 1.5px); color: var(--muted); }
+.workhead { display: block; max-width: 100%; padding: 2px 0; text-align: left; color: inherit; font: inherit; line-height: 1.55; }
+.workhead > * + * { margin-left: .4em; }
+.workhead:hover:not(:disabled) { color: var(--text); background: none !important; }
+.workhead:disabled { cursor: default; }
+.workhead .chev { width: 12px; height: 12px; vertical-align: -1px; opacity: .55; transition: transform .2s var(--ease); }
+.work.open > .workhead .chev { transform: rotate(90deg); }
+.workhead .bad, .stline .bad { color: var(--bad-ink); } .workhead .warn { color: var(--warn-ink); }
+.work.running > .workhead { color: var(--text); }
+.workhead .peek { font-style: italic; color: var(--faint); }
+.dots { display: inline-flex; gap: 3px; vertical-align: middle; }
+.dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .25; animation: dot 1.2s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: .18s; } .dots i:nth-child(3) { animation-delay: .36s; }
+@keyframes dot { 0%, 70%, 100% { opacity: .25; } 35% { opacity: 1; } }
 .eq { display: inline-flex; align-items: center; gap: 2px; height: 14px; flex: none; }
 .eq i { width: 3px; height: 100%; border-radius: 2px; background: var(--grad); animation: eq 1s ease-in-out infinite; }
 .eq i:nth-child(2) { animation-delay: -.2s; } .eq i:nth-child(3) { animation-delay: -.45s; } .eq i:nth-child(4) { animation-delay: -.7s; }
 @keyframes eq { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
-.steps { border-top: 1px solid var(--line); max-height: 360px; overflow: auto; padding: 4px 0; }
-.st { padding: 0; }
-.stline { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 9px; width: 100%; padding: 5px 12px; font-size: 12.5px; text-align: left; color: var(--text); }
-.stline:hover:not(:disabled) { background: var(--hover) !important; }
-.stline svg { width: 15px; height: 15px; color: var(--muted); }
-.stline.err svg { color: var(--bad-ink); }
-.stline .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stline .v { font-weight: 600; } .stline .d { color: var(--muted); font-family: var(--font-mono); font-size: 11.5px; margin-left: 2px; }
-.stline .p { color: var(--faint); font-size: 11px; white-space: nowrap; }
-.stline.stnote { color: var(--muted); cursor: default; } .stline.stnote:hover { background: none !important; }
+.steps, .thought { margin: 4px 0 6px 3px; padding: 2px 0 2px 14px; border-left: 2px solid var(--line); }
+.steps { max-height: 320px; overflow: auto; }
+.stline { display: block; width: 100%; padding: 2px 0; text-align: left; color: var(--muted); font: inherit; line-height: 1.55; overflow-wrap: anywhere; }
+button.stline:hover:not(:disabled) { color: var(--text); background: none !important; }
+.stline .v { color: var(--text); }
+.stline.stnote { cursor: default; }
 .stline.stnote.k-learn { color: var(--good-ink); } .stline.stnote.k-warn { color: var(--warn-ink); } .stline.stnote.k-swap { color: var(--swap-ink); }
-.stline.stnote .t { white-space: normal; }
-.stdetail { margin: 2px 12px 8px 39px; display: flex; flex-direction: column; gap: 6px; }
-.stdetail pre { margin: 0; padding: 10px 12px; border-radius: var(--r-sm); background: var(--code); color: var(--codetext); font: 12px/1.55 var(--font-mono); max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.stdetail { margin: 4px 0 10px; display: flex; flex-direction: column; gap: 4px; }
+.stdetail pre { margin: 0; padding: 9px 12px; border-radius: var(--r-sm); background: var(--code); color: var(--codetext); font: 12px/1.55 var(--font-mono); max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .stdetail pre.out { background: color-mix(in srgb, var(--code) 70%, var(--surface)); }
 .stdetail pre.err { box-shadow: inset 3px 0 0 var(--bad); }
-.stdetail .lbl { font: 600 10.5px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-bottom: -2px; }
-.thinkrow { border-top: 1px solid var(--line); }
-.thinkrow pre { margin: 0 12px 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; font: 12px/1.55 var(--font-mono); color: var(--muted); }
-
+.stdetail .lbl { font-size: 11.5px; color: var(--faint); }
+/* the model's reasoning, read like a note rather than a log */
+.answer.thought { max-height: 260px; overflow: auto; margin-top: 4px; color: var(--muted); font-size: calc(var(--fs-chat) - 1px); line-height: 1.65; }
+.thought p { margin: .55em 0; } .thought > :first-child { margin-top: 0; } .thought > :last-child { margin-bottom: 0; }
+.thought .cb { background: var(--surface3); border-color: transparent; } .thought .cb pre { color: var(--text); font-size: 12px; }
+.thought :not(pre) > code { background: var(--surface3); }
 .ask { margin: 8px 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: var(--r); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
 .ask .q { font-weight: 600; margin-bottom: 8px; }
 .ask .opts { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -652,7 +645,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
    Theme details: the parts that make each one itself
    ====================================================================== */
 /* Aurora */
-:root[data-theme="aurora"] .cbox, :root[data-theme="aurora"] .work, :root[data-theme="aurora"] .card { backdrop-filter: blur(var(--blur)) saturate(1.3); -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3); }
+:root[data-theme="aurora"] .cbox, :root[data-theme="aurora"] .card { backdrop-filter: blur(var(--blur)) saturate(1.3); -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3); }
 :root[data-theme="aurora"] .rail .logo svg { filter: drop-shadow(0 0 8px rgba(67, 227, 138, .45)); }
 :root[data-theme="aurora"] .log-inner { }
 
@@ -661,7 +654,6 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 :root[data-theme="sumi"] .who b, :root[data-theme="sumi"] .hello h2, :root[data-theme="sumi"] .sidehead h2 { font-weight: 600; letter-spacing: .04em; }
 :root[data-theme="sumi"] .avatar { font-family: var(--font-jp); font-weight: 700; box-shadow: 0 0 0 1px rgba(255, 255, 255, .06) inset, 0 0 14px rgba(196, 81, 60, .22); }
 :root[data-theme="sumi"] .msg.user { box-shadow: none; border-radius: var(--r-sm); border-left: 2px solid var(--accent); }
-:root[data-theme="sumi"] .work { border-left: 2px solid var(--accent); border-radius: 0 var(--r-sm) var(--r-sm) 0; background: rgba(255, 255, 255, .02); }
 :root[data-theme="sumi"] .topbar { border-bottom: 1px solid transparent; background: linear-gradient(90deg, transparent, var(--line) 50%, transparent) bottom / 100% 1px no-repeat; }
 :root[data-theme="sumi"] .hello .mark { border-radius: 50%; border-color: var(--accent); background: transparent; }
 
@@ -677,10 +669,6 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 :root[data-theme="paper"] .avatar { border: 1.5px solid var(--text); background: var(--surface); color: var(--text); box-shadow: 2px 2px 0 var(--text); }
 :root[data-theme="paper"] .answer strong, :root[data-theme="paper"] .answer b { background: linear-gradient(transparent 55%, var(--hl) 55%); font-weight: 700; }
 :root[data-theme="paper"] .answer :not(pre) > code { border-radius: 0; }
-:root[data-theme="paper"] .work { border: 1.5px dashed var(--line2); border-radius: 0; background: transparent; }
-:root[data-theme="paper"] .wchip { border-radius: 0; background: transparent; border: 1px solid var(--line2); }
-:root[data-theme="paper"] .livelabel { background: none; color: var(--accent); -webkit-text-fill-color: currentColor; animation: none; }
-:root[data-theme="paper"] .livelabel::after { content: "\2588"; margin-left: 2px; animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 :root[data-theme="paper"] .cbox { border: 2px solid var(--text); border-radius: 0; box-shadow: 4px 4px 0 var(--text); background: var(--surface); }
 :root[data-theme="paper"] .cbox:focus-within { box-shadow: 4px 4px 0 var(--accent); border-color: var(--text); }
@@ -718,7 +706,6 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 :root[data-theme="obsidian"] .cbox { background: linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .04) 40%, rgba(226, 181, 100, .1)) border-box; border: 1px solid transparent; }
 :root[data-theme="obsidian"] .cbox:focus-within { background: linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(180deg, rgba(226, 181, 100, .6), rgba(226, 181, 100, .12)) border-box; }
 :root[data-theme="obsidian"] .rbtn.on::before { box-shadow: 0 0 10px var(--accent); }
-:root[data-theme="obsidian"] .wchip svg { color: var(--accent); }
 
 /* Nocturne */
 :root[data-theme="nocturne"] .avatar { box-shadow: 0 0 18px rgba(150, 132, 255, .5); }
@@ -734,7 +721,6 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 :root[data-theme="phosphor"] .avatar { background: transparent; border: 1px solid var(--accent); color: var(--accent); box-shadow: var(--glow); }
 :root[data-theme="phosphor"] .msg.user { padding: 2px 0 2px 18px; border: 0; box-shadow: none; position: relative; align-self: stretch; max-width: none; color: #e8fff0; }
 :root[data-theme="phosphor"] .msg.user::before { content: ">"; position: absolute; left: 0; color: var(--accent); text-shadow: 0 0 8px rgba(61, 255, 134, .6); }
-:root[data-theme="phosphor"] .work { background: transparent; border-style: dashed; border-color: var(--line2); }
 :root[data-theme="phosphor"] .cbox { border-color: var(--line2); background: var(--surface); }
 :root[data-theme="phosphor"] #input { caret-color: var(--accent); caret-shape: block; }
 :root[data-theme="phosphor"] .rbtn.on { background: transparent; box-shadow: inset 0 0 0 1px var(--accent), var(--glow); }
@@ -743,7 +729,6 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 :root[data-theme="phosphor"] .hello h2::before { content: "> "; color: var(--accent); }
 :root[data-theme="phosphor"] .hello h2::after { content: "_"; color: var(--accent); animation: blink 1s steps(2) infinite; }
 :root[data-theme="phosphor"] .hello .mark { border-radius: 0; }
-:root[data-theme="phosphor"] .livelabel { background: none; color: var(--accent); -webkit-text-fill-color: currentColor; animation: none; text-shadow: 0 0 8px rgba(61, 255, 134, .5); }
 
 /* the conversation column adapts to its own width: opening the panel narrows it */
 @container chat (max-width: 800px) { .topbar .lbl, .topbar .sess, .stat span { display: none; } button.flag, button.ghost { padding: 0 9px; } .cchip.proj { display: none; } }
@@ -1321,33 +1306,43 @@ $("watch").addEventListener("change", paintBrowser);
 
 // ---- compact tool steps: what the model's code did, in a few words (the verbatim code stays one click away) ----
 const PR = JUI.p;   // appearance preferences, kept in this browser
-const OPT = {   // call -> [category, icon, past tense, present tense]
-  "web.search": ["web", "globe", "Searched the web", "Searching the web"], "web.ask": ["web", "globe", "Researched", "Researching"],
-  "web.read": ["web", "globe", "Read a page", "Reading a page"], "web.fetch": ["web", "globe", "Fetched", "Fetching"],
-  "browser.goto": ["browse", "browser", "Opened", "Opening"], "browser.do": ["browse", "browser", "Browsed", "Browsing"],
-  "browser.click": ["browse", "cursor", "Clicked", "Clicking"], "browser.fill": ["browse", "type", "Typed into", "Typing into"],
-  "browser.select": ["browse", "cursor", "Chose an option", "Choosing an option"], "browser.press": ["browse", "type", "Pressed keys", "Pressing keys"],
-  "browser.read": ["browse", "eye", "Read the page", "Reading the page"], "browser.observe": ["browse", "eye", "Looked at the page", "Looking at the page"],
-  "browser.look": ["browse", "eye", "Looked at the page", "Looking at the page"], "browser.elements": ["browse", "eye", "Listed elements", "Listing elements"],
-  "browser.html": ["browse", "code", "Read the page HTML", "Reading the page HTML"], "browser.screenshot": ["browse", "image", "Took a screenshot", "Taking a screenshot"],
-  "browser.test": ["browse", "check", "Tested a flow", "Testing a flow"], "browser.close": ["browse", "browser", "Closed the browser", "Closing the browser"],
-  "project.open": ["files", "folder", "Opened the project", "Opening the project"], "project.tree": ["files", "list", "Listed files", "Listing files"],
-  "project.read": ["files", "file", "Read", "Reading"], "project.grep": ["files", "search", "Searched code", "Searching code"],
-  "project.find": ["files", "search", "Searched code", "Searching code"], "project.find_files": ["files", "search", "Looked for files", "Looking for files"],
-  "project.changed": ["files", "list", "Checked changes", "Checking changes"], "project.edit": ["edit", "pencil", "Edited", "Editing"],
-  "project.write": ["edit", "pencil", "Wrote", "Writing"], "project.undo": ["edit", "undo", "Undid changes", "Undoing changes"],
-  "project.sh": ["shell", "terminal", "Ran", "Running"], "shell": ["shell", "terminal", "Ran", "Running"], "write": ["edit", "pencil", "Wrote", "Writing"],
-  "request": ["handoff", "handoff", "Handed off to", "Handing off to"], "request_async": ["handoff", "handoff", "Handed off to", "Handing off to"],
-  "mcp": ["mcp", "plug", "Called", "Calling"], "save_artifact": ["art", "box", "Saved", "Saving"], "list_artifacts": ["art", "box", "Listed artifacts", "Listing artifacts"],
-  "final": ["done", "check", "Final answer", "Finishing"], "ask_user": ["ask", "question", "Asked you", "Asking you"],
-  "remember": ["mem", "brain", "Remembered", "Remembering"], "recall": ["mem", "brain", "Recalled", "Recalling"],
-  "report_failure": ["mem", "alert", "Logged a problem", "Logging a problem"], "llm_query": ["jev", "spark", "Asked the model", "Asking the model"],
-  "jev": ["jev", "bolt", "Asked Jev", "Asking Jev"], "start_job": ["shell", "terminal", "Started a job", "Starting a job"],
-  "job_wait": ["shell", "terminal", "Waited on a job", "Waiting on a job"], "job_status": ["shell", "terminal", "Checked a job", "Checking a job"],
+const OPT = {   // call -> [category, past tense, present tense]
+  "web.search": ["web", "Searched the web", "Searching the web"], "web.ask": ["web", "Researched", "Researching"],
+  "web.read": ["web", "Read a page", "Reading a page"], "web.fetch": ["web", "Fetched", "Fetching"],
+  "browser.goto": ["browse", "Opened", "Opening"], "browser.do": ["browse", "Browsed", "Browsing"],
+  "browser.click": ["browse", "Clicked", "Clicking"], "browser.fill": ["browse", "Typed into", "Typing into"],
+  "browser.select": ["browse", "Chose an option", "Choosing an option"], "browser.press": ["browse", "Pressed keys", "Pressing keys"],
+  "browser.read": ["browse", "Read the page", "Reading the page"], "browser.observe": ["browse", "Looked at the page", "Looking at the page"],
+  "browser.look": ["browse", "Looked at the page", "Looking at the page"], "browser.elements": ["browse", "Listed elements", "Listing elements"],
+  "browser.html": ["browse", "Read the page HTML", "Reading the page HTML"], "browser.screenshot": ["browse", "Took a screenshot", "Taking a screenshot"],
+  "browser.test": ["browse", "Tested a flow", "Testing a flow"], "browser.close": ["browse", "Closed the browser", "Closing the browser"],
+  "project.open": ["files", "Opened the project", "Opening the project"], "project.tree": ["files", "Listed files", "Listing files"],
+  "project.read": ["files", "Read", "Reading"], "project.grep": ["files", "Searched code", "Searching code"],
+  "project.find": ["files", "Searched code", "Searching code"], "project.find_files": ["files", "Looked for files", "Looking for files"],
+  "project.changed": ["files", "Checked changes", "Checking changes"], "project.edit": ["edit", "Edited", "Editing"],
+  "project.write": ["edit", "Wrote", "Writing"], "project.undo": ["edit", "Undid changes", "Undoing changes"],
+  "project.sh": ["shell", "Ran", "Running"], "shell": ["shell", "Ran", "Running"], "write": ["edit", "Wrote", "Writing"],
+  "request": ["handoff", "Handed off to", "Handing off to"], "request_async": ["handoff", "Handed off to", "Handing off to"],
+  "mcp": ["mcp", "Called", "Calling"], "save_artifact": ["art", "Saved", "Saving"], "list_artifacts": ["art", "Listed artifacts", "Listing artifacts"],
+  "final": ["done", "Final answer", "Finishing"], "ask_user": ["ask", "Asked you", "Asking you"],
+  "remember": ["mem", "Remembered", "Remembering"], "recall": ["mem", "Recalled", "Recalling"],
+  "report_failure": ["mem", "Logged a problem", "Logging a problem"], "llm_query": ["jev", "Asked the model", "Asking the model"],
+  "jev": ["jev", "Asked Jev", "Asking Jev"], "start_job": ["shell", "Started a job", "Starting a job"],
+  "job_wait": ["shell", "Waited on a job", "Waiting on a job"], "job_status": ["shell", "Checked a job", "Checking a job"],
 };
-const CATS = {web: ["globe", "Web"], browse: ["browser", "Browser"], files: ["file", "Files"], edit: ["pencil", "Edits"], shell: ["terminal", "Commands"],
-  handoff: ["handoff", "Hand-offs"], mcp: ["plug", "MCP"], art: ["box", "Artifacts"], mem: ["brain", "Memory"], ask: ["question", "Questions"],
-  media: ["image", "Media"], link: ["link", "Integrations"], jev: ["bolt", "Jev"], code: ["code", "Code"]};
+const CATS = {   // category -> how the summary sentence says it, given how many
+  web: (n) => n > 1 ? `searched the web ${n} times` : "searched the web",
+  browse: (n) => n > 1 ? `used the browser ${n} times` : "used the browser",
+  files: (n) => n > 1 ? `looked at ${n} files` : "looked at a file",
+  edit: (n) => n > 1 ? `edited ${n} files` : "edited a file",
+  shell: (n) => n > 1 ? `ran ${n} commands` : "ran a command",
+  handoff: (n) => n > 1 ? `asked other assistants ${n} times` : "asked another assistant",
+  mcp: (n) => n > 1 ? `used connected tools ${n} times` : "used a connected tool",
+  art: (n) => n > 1 ? `saved ${n} files` : "saved a file",
+  mem: () => "used its memory", ask: () => "asked you something",
+  media: (n) => n > 1 ? `made ${n} images` : "made an image", link: () => "used an integration",
+  jev: () => "checked with Jev", code: (n) => n > 1 ? `ran code ${n} times` : "ran some code",
+};
 const CALL = /(?<![\w.])(?:(web|browser|project|nango|comfy)\.(\w+)|(request_async|request|mcp|save_artifact|final|ask_user|remember|recall|llm_query|jev|report_failure|start_job|job_wait|job_status|list_artifacts))\s*\(/g;
 const SHELL = /(?<![\w.])(?:subprocess\.\w+|os\.system|os\.popen)\s*\(/g;
 const WRITE = /(?<![\w.])open\s*\(\s*([^()\n]*?),\s*(['"])[wa]b?\+?\2/g;
@@ -1362,10 +1357,8 @@ function opDetail(name, src, i) {
   if (/^project\.(read|edit|write|open|tree|undo)$|^save_artifact$|^write$/.test(name)) return pathTail(a.s);
   if (/^(browser\.goto|web\.read|web\.fetch)$/.test(name)) return short(hostOf(a.s), 56);
   if (/^(web\.search|web\.ask|project\.grep|project\.find|project\.find_files|browser\.do|browser\.read|recall|remember|ask_user|llm_query)$/.test(name)) return `“${short(a.s, 56)}”`;
-  if (/^request(_async)?$/.test(name)) {
-    const b = /^\s*,\s*/.exec(src.slice(a.end, a.end + 12)), t = b ? litAt(src, a.end + b[0].length) : null;
-    return t ? `${short(a.s, 24)}: ${short(t.s, 50)}` : short(a.s, 40);
-  }
+  if (/^request(_async)?$/.test(name)) return short(a.s, 40);
+  if (name === "project.sh" || name === "shell") return short(a.s.trim().replace(/^python3?\s+-m\s+/, "").split(/\s+/).filter((w) => !/^(-|&&|\|\||;|\|)/.test(w)).slice(0, 2).join(" "), 36);
   return short(a.s);
 }
 const opsCache = new Map();
@@ -1381,16 +1374,13 @@ function parseOps(code) {
   const ops = [];
   for (const f of found) {
     const tool = f.name.split(".")[0];
-    const meta = OPT[f.name] || (tool === "comfy" ? ["media", "image", f.name, f.name] : tool === "nango" ? ["link", "link", f.name, f.name]
-      : [{web: "web", browser: "browse", project: "files"}[tool] || "code", "code", f.name, f.name]);
-    const op = {cat: meta[0], icon: meta[1], past: meta[2], ing: meta[3], detail: opDetail(f.name, src, f.i), n: 1};
+    const meta = OPT[f.name] || (tool === "comfy" ? ["media", f.name, f.name] : tool === "nango" ? ["link", f.name, f.name]
+      : [{web: "web", browser: "browse", project: "files"}[tool] || "code", f.name, f.name]);
+    const op = {cat: meta[0], past: meta[1], ing: meta[2], detail: opDetail(f.name, src, f.i), n: 1};
     const prev = ops[ops.length - 1];
     if (prev && prev.past === op.past && prev.detail === op.detail) prev.n++; else ops.push(op);
   }
-  if (!ops.length) {
-    const first = src.split("\n").map((l) => l.trim()).find((l) => l && !/^(import|from)\s/.test(l)) || "";
-    ops.push({cat: "code", icon: "code", past: "Ran code", ing: "Running code", detail: short(first), n: 1});
-  }
+  if (!ops.length) ops.push({cat: "code", past: "Ran some code", ing: "Working it out", detail: "", n: 1});
   if (opsCache.size > 600) opsCache.clear();
   opsCache.set(code, ops);
   return ops;
@@ -1402,7 +1392,7 @@ function itemsOf(t) {   // activity -> steps (code + its output) and short notic
     else if (a.kind === "output") {
       const it = byKey.get(`${a.task}:${a.step}`);
       if (it && it.out === undefined) { it.out = a.text || ""; it.err = !!a.error; }
-      else items.push({type: "step", key: `${a.task}:${a.step}:o`, persona: a.persona, step: a.step, code: "", out: a.text || "", err: !!a.error, ops: [{cat: "code", icon: "code", past: "Output", ing: "Output", detail: "", n: 1}]});
+      else items.push({type: "step", key: `${a.task}:${a.step}:o`, persona: a.persona, step: a.step, code: "", out: a.text || "", err: !!a.error, ops: [{cat: "code", past: "Output", ing: "Output", detail: "", n: 1}]});
     } else items.push({type: "note", kind: a.kind === "swap" || a.kind === "learn" ? a.kind : "warn", text: a.text});
   }
   return items;
@@ -1410,50 +1400,49 @@ function itemsOf(t) {   // activity -> steps (code + its output) and short notic
 const ico = (n) => `<svg class="ic"><use href="#i-${n}"/></svg>`;
 const isOpen = (key, def) => S.open.has(key) ? S.open.get(key) : def;
 function stepLabel(ops) {
-  const one = (o) => `<span class="v">${esc(o.past)}</span>${o.detail ? ` <span class="d">${esc(o.detail)}</span>` : ""}${o.n > 1 ? ` <span class="d">×${o.n}</span>` : ""}`;
-  return ops.slice(0, 2).map(one).join('<span class="d"> · </span>') + (ops.length > 2 ? ` <span class="d">+${ops.length - 2} more</span>` : "");
+  const one = (o) => `<span class="v">${esc(o.past)}</span>${o.detail ? ` ${esc(o.detail)}` : ""}${o.n > 1 ? ` (${o.n} times)` : ""}`;
+  return ops.slice(0, 2).map(one).join(", ") + (ops.length > 2 ? ` and ${ops.length - 2} more` : "");
 }
 function stepHtml(id, it, rootPersona, mode) {
-  if (it.type === "note") return `<div class="st"><div class="stline stnote k-${it.kind}">${ico(it.kind === "learn" ? "check" : it.kind === "swap" ? "bolt" : "alert")}<span class="t">${esc(it.text)}</span><span></span></div></div>`;
+  if (it.type === "note") return `<div class="stline stnote k-${it.kind}">${esc(it.text)}</div>`;
   const k = `s:${id}:${it.key}`, def = mode === "verbatim", open = isOpen(k, def), tag = it.persona && it.persona !== rootPersona ? it.persona : "";
   const code = it.code.length > 6000 ? `${it.code.slice(0, 6000)}\n… ${it.code.length - 6000} more characters` : it.code;
-  return `<div class="st"><button type="button" class="stline plain ${it.err ? "err" : ""}" data-tg="${k}" data-def="${def ? 1 : 0}" aria-expanded="${open}">
-      ${ico(it.err ? "alert" : it.ops[0].icon)}<span class="t">${stepLabel(it.ops)}</span><span class="p">${esc(tag)}${tag && it.step != null ? " · " : ""}${it.step != null ? `#${it.step}` : ""}</span></button>
-    ${open ? `<div class="stdetail">${code ? `<div class="lbl">code</div><pre>${esc(code)}</pre>` : ""}${it.out != null ? `<div class="lbl">${it.err ? "error" : "output"}</div><pre class="out ${it.err ? "err" : ""}">${esc((it.out || "(no output)").slice(-3000))}</pre>` : ""}</div>` : ""}</div>`;
+  return `<div class="st"><button type="button" class="stline plain" data-tg="${k}" data-def="${def ? 1 : 0}" aria-expanded="${open}">${stepLabel(it.ops)}${tag ? ` (${esc(tag)})` : ""}${it.err ? ' <span class="bad">- it failed</span>' : ""}</button>
+    ${open ? `<div class="stdetail">${code ? `<div class="lbl">Code</div><pre>${esc(code)}</pre>` : ""}${it.out != null ? `<div class="lbl">${it.err ? "Error" : "Result"}</div><pre class="out ${it.err ? "err" : ""}">${esc((it.out || "(nothing printed)").slice(-3000))}</pre>` : ""}</div>` : ""}</div>`;
 }
+const listOf = (xs) => xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+function thoughtOf(th) {   // the tail of the step's file: drop the cut-off first line, then read it as text
+  let t = th.text || "";
+  if (th.bytes > 4000) t = t.replace(/^[^\n]*\n/, "");
+  return t.trim();
+}
+function peekOf(text) {   // the last thing it said, as one line, for when the thinking is folded
+  const line = text.split("\n").reverse().find((l) => /^[A-Za-z][^`{}=;]*\s[^`{}=;]*\s/.test(l.trim()));
+  return line ? short(line.trim(), 90) : "";
+}
+const chev = ico("chev").replace('class="ic"', 'class="ic chev"');
 function workHtml(t, id, running, persona, waiting) {
   const mode = PR.activity, items = itemsOf(t), steps = items.filter((i) => i.type === "step");
   if (mode === "hidden" && !running) return "";
-  if (!items.length && !running) return "";
   const th = running && S.thinking && S.thinking.file ? S.thinking : null;
   const def = mode === "steps" || mode === "verbatim", k = `w:${id}`, open = isOpen(k, def) && items.length > 0;
-  const last = steps[steps.length - 1], tok = Object.values(S.live).reduce((a, v) => a + (v.chunks || 0), 0);
   let head;
   if (running) {
-    const o = last && last.ops[0], between = last && last.out !== undefined;
-    const label = waiting ? "Waiting for you" : between && th ? "Thinking" : o ? o.ing : "Working";
-    const detail = waiting || between ? "" : o ? o.detail : persona ? `as ${persona}` : "";
-    head = `<span class="eq"><i></i><i></i><i></i><i></i></span><span class="livelabel">${esc(label)}</span>${detail ? `<span class="livedetail">${esc(detail)}</span>` : ""}
-      <span class="wmeta" style="margin-left:auto">${steps.length ? `step ${steps.length}` : ""}${tok ? `${steps.length ? " · " : ""}${kfmt(tok)} tok` : ""}</span>`;
+    const last = steps[steps.length - 1], o = last && last.ops[0], between = last && last.out !== undefined;
+    const label = waiting ? "Waiting for you" : between || !o ? "Working" : `${o.ing}${o.detail ? ` ${o.detail}` : ""}`;
+    head = `<span>${esc(label)}</span><span class="dots"><i></i><i></i><i></i></span>`;
   } else {
-    const n = new Map(), tips = new Map();
-    for (const s of steps) for (const o of s.ops) if (o.cat !== "done") {
-      n.set(o.cat, (n.get(o.cat) || 0) + o.n);
-      const tp = tips.get(o.cat) || []; if (o.detail && tp.length < 6 && !tp.includes(o.detail)) tp.push(o.detail); tips.set(o.cat, tp);
-    }
+    const n = new Map();
+    for (const s of steps) for (const o of s.ops) if (o.cat !== "done") n.set(o.cat, (n.get(o.cat) || 0) + o.n);
+    const said = listOf(Object.keys(CATS).filter((c) => n.has(c)).map((c) => CATS[c](n.get(c))));
     const errs = steps.filter((s) => s.err).length, warns = items.filter((i) => i.type === "note" && i.kind === "warn").length;
-    const verified = items.some((i) => i.type === "note" && /final\(\) verified/.test(i.text));
-    const chips = Object.keys(CATS).filter((c) => n.has(c)).map((c) => `<span class="wchip" title="${esc(`${CATS[c][1]}: ${(tips.get(c) || []).join("; ") || "no detail"}`)}">${ico(CATS[c][0])}${CATS[c][1]}${n.get(c) > 1 ? ` <i>×${n.get(c)}</i>` : ""}</span>`);
-    if (errs) chips.push(`<span class="wchip bad" title="steps whose code raised an error">${ico("alert")}${errs} error${errs > 1 ? "s" : ""}</span>`);
-    if (warns) chips.push(`<span class="wchip warn">${ico("alert")}${warns} warning${warns > 1 ? "s" : ""}</span>`);
-    if (verified) chips.push(`<span class="wchip ok">${ico("check")}verified</span>`);
-    head = `<span class="wchips">${chips.join("") || '<span class="wmeta">no tool calls</span>'}</span><span class="wmeta">${steps.length} step${steps.length === 1 ? "" : "s"}</span>`;
+    if (!said && !errs && !warns) return "";
+    head = `<span>${esc(said.charAt(0).toUpperCase() + said.slice(1) || "Worked on it")}</span>${errs ? `<span class="bad">· ${errs} failed</span>` : ""}${warns ? `<span class="warn">· ${warns} warning${warns > 1 ? "s" : ""}</span>` : ""}`;
   }
   const rows = open ? `<div class="steps" ${running ? "data-follow" : ""}>${items.map((it) => stepHtml(id, it, persona, mode)).join("")}</div>` : "";
-  const tk = `t:${id}`, thinking = th ? `<div class="thinkrow"><button type="button" class="stline plain" data-tg="${tk}" data-def="${PR.thinking ? 1 : 0}">${ico("spark")}<span class="t"><span class="v">Thinking</span>
-    <span class="d">${Math.round(th.bytes / 1024)} KB${th.idle > 5 ? `, quiet ${Math.round(th.idle)}s` : ""}</span></span><span></span></button>${isOpen(tk, PR.thinking) ? `<pre data-follow>${esc(th.text)}</pre>` : ""}</div>` : "";
-  return `<div class="work ${running ? "running" : ""} ${open ? "open" : ""}"><button type="button" class="workhead plain" data-tg="${k}" data-def="${def ? 1 : 0}" aria-expanded="${open}" ${items.length ? "" : "disabled"}>
-    ${head}${items.length ? ico("chev").replace('class="ic"', 'class="ic chev"') : ""}</button>${rows}${thinking}</div>`;
+  const tk = `t:${id}`, text = th ? thoughtOf(th) : "", tOpen = th && isOpen(tk, PR.thinking);
+  const thinking = th ? `<div class="work think ${tOpen ? "open" : ""}"><button type="button" class="workhead plain" data-tg="${tk}" data-def="${PR.thinking ? 1 : 0}" aria-expanded="${tOpen}"><span>Thinking</span>${tOpen ? "" : peekOf(text) ? `<span class="peek">${esc(peekOf(text))}</span>` : ""}${chev}</button>${tOpen ? `<div class="answer thought" data-follow>${md(text)}</div>` : ""}</div>` : "";
+  return `${head ? `<div class="work ${running ? "running" : ""} ${open ? "open" : ""}"><button type="button" class="workhead plain" data-tg="${k}" data-def="${def ? 1 : 0}" aria-expanded="${open}" ${items.length ? "" : "disabled"}>${head}${items.length ? chev : ""}</button>${rows}</div>` : ""}${thinking}`;
 }
 
 // ---- the conversation ----

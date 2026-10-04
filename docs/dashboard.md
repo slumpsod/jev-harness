@@ -16,21 +16,22 @@ this browser (`localStorage`, key `jevh.ui`), not in `config.yaml`: they are abo
 | Accent | the theme's own, eight presets, or any colour |
 | Type | the theme's own, Sans, Serif or Mono; text size Small, Medium or Large |
 | Layout | chat width Narrow, Medium or Wide; Cozy or Compact spacing; Sharp, Soft or Round corners (default: the theme's) |
-| Tool calls in the chat | **Compact** (chips, one click for steps), **Steps** (steps listed), **Verbatim** (every step opens with its code and output), **Hidden** (only a live status line) |
-| Open live thinking | show the model's reasoning while it streams, instead of a collapsed line |
+| Tool calls in the chat | **Compact** (one sentence, one click for steps), **Steps** (steps listed), **Verbatim** (every step opens with its code and output), **Hidden** (only a live status line) |
+| Open live thinking | show the model's reasoning, as plain text, while it streams, instead of a folded "Thinking" line with its last sentence |
 | Open the panel for you | open the side panel when the browser goes live or a turn makes a file |
 | Visual effects | glass blur, glow and paper grain; off is flatter and lighter on a weak GPU |
 
 The panel's width is remembered when you drag its edge. The expand button next to the X makes it nearly full width.
 
-## How tool calls become chips
+## How tool calls become a sentence
 
 The page never receives a "tool call" event: the worker's `code` event carries the Python it ran, and the
 `output` event what it printed. `parseOps()` reads the code for the calls the REPL offers (`project.read`,
 `web.search`, `browser.goto`, `request(...)`, `save_artifact(...)`, a shell command, a file write, ...) and gives
-each a category, an icon, a past and a present tense, and a short detail (the path, the query, the host). A step
-with none of them shows as "Ran code" with its first line. To teach it a new tool, add a row to `OPT` (and a
-category to `CATS` if it needs its own chip) in the page's script.
+each a category, a past and a present tense, and a short detail (the path, the query, the host, a command's first
+words). A step with none of them shows as "Ran some code". The turn's sentence counts the categories ("looked at 3
+files, edited 2 files"). To teach it a new tool, add a row to `OPT` (and a phrase to `CATS` if it needs its own
+words) in the page's script.
 
 ## Adding a theme
 

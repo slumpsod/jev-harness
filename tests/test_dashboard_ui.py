@@ -121,8 +121,8 @@ def _focus(page, dashboard):
     page.fill("#input", "make me a hello page")
     page.keyboard.press("Enter")
     page.wait_for_selector(".turn .answer", timeout=30000)
-    chips = page.inner_text(".turn .wchips")                                 # the tool calls, as chips, not as code
-    assert "Artifacts" in chips and "save_artifact" not in page.inner_text(".turn")
+    said = page.inner_text(".turn .workhead")                                # the tool calls, as a sentence, not as code
+    assert "saved a file" in said.lower() and "save_artifact" not in page.inner_text(".turn")
     page.wait_for_function("document.getElementById('app').dataset.panel === 'open'", timeout=10000)   # a file was made
     assert page.inner_text("#ptitle") == "Artifacts"
     assert page.locator("#p-artifacts iframe[sandbox]").count() == 1
@@ -140,7 +140,7 @@ def _step(page, dashboard):
     page.wait_for_selector(".turn .answer", timeout=30000)
     page.click(".turn .workhead")
     rows = page.locator(".turn .stline:not(.stnote)")
-    assert rows.count() == 2
+    assert rows.count() == 2 and "Saved hello.html" in page.inner_text(".turn .steps")
     assert page.locator(".turn .stdetail").count() == 0                      # one line each, no code block yet
     rows.first.click()
     assert "sorted([3, 1, 2])" in page.inner_text(".turn .stdetail")

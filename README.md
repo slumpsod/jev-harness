@@ -259,10 +259,11 @@ phone, in landscape, and on a tablet.
 - **Review**: sessions flagged for review (see below), with their notes, a model's review and your verdict.
 - **Status**: the harness version, with new commits on GitHub and an Update button (a count on the tab when there are any); which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
 
-**Tool calls are summarised, not dumped.** A turn that ran 31 steps shows a row of chips (Web x3, Files x6, Edits x2,
-Commands x4, 1 error, verified). Click it for one line per step ("Read `jevh/web/server.py`", "Searched the web ..."),
-and click a step for its code and output. While a turn runs, the same row is one live line ("Reading `server.py`",
-step 7, 412 tok). **Appearance** (the palette at the bottom of the rail) sets how much you see: Compact, Steps,
+**Tool calls are summarised, not dumped.** A turn that ran 31 steps says so in one plain sentence ("Searched the web
+3 times, looked at 6 files, edited 2 files and ran 4 commands · 1 failed"). Click it for one line per step
+("Read jevh/web/server.py"), and click a step for its code and result. While a turn runs it is one live line
+("Reading jevh/web/server.py..."), and the model's reasoning, when you have it open, reads as a quiet paragraph
+under it. **Appearance** (the palette at the bottom of the rail) sets how much you see: Compact, Steps,
 Verbatim or Hidden, plus the theme, accent, type, width, density and corners. See [docs/dashboard.md](docs/dashboard.md).
 
 The persona, model tier, Watch browser, project folder and context ring sit under the message box. Pin a persona or
