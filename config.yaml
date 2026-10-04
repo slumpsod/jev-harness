@@ -43,6 +43,13 @@ thresholds:
   failure_missed: 0.85   # evals/failure_cases.py) ... "the answer doesn't deliver what was asked"
   route_hook: 0.85      # skill/hook router: "a program could check the main requirements" noul (NOT TUNED, NOT TESTED
                          # on a live Jev: a placeholder until evals/hook_route_cases.py is run; the router isn't built yet)
+  interject_status: 0.60 # a message sent while a task runs (jevh/interject.py, evals/interject_cases.py, semif) is added to the task's prompt,
+                         #   unless the Choice leader is "a question about progress" with at least this much: then the task's own model answers
+                         #   it and the task is untouched. 155 of 156 labelled messages right at 0.5-0.6 (dev 67/68, held-out 40/40, fresh 48/48);
+                         #   no correction, other request or stop was ever answered instead of added; the one miss is a question that was added.
+                         #   0.7 catches only 33 of the 40 questions. Queueing and stopping are never guessed: /queue and /stop.
+  interject_replace: 0.50  # a message whose "replace" score reaches this stands alone as the request ("check my calendar instead":
+                         #   0.99, "make it primes instead" 0.92; ordinary refinements 0.16 or less), so the gate stops asking for the old deliverables
 
 limits:
   max_skills: 1                 # evals: every extra skill was mostly noise
@@ -81,6 +88,22 @@ persona_creation:                # jevh/forge.py: a persona drafted when a reque
   max_steps: 30
   gate_probes: 8                 # earlier requests re-routed to check the draft takes none of them
   max_steals: 0                  # ...and how many it may take before it stays inactive
+
+# A message sent while a task runs (jevh/interject.py, docs/architecture/16-interjection.md) is added to the task's prompt;
+# Jev only tells a question about progress (answered on the side, a quick reply) and a swap of the request.
+# /btw asks, /queue holds a message for after, /stop stops, /steer always adds.
+interject:
+  enabled: true
+  classify: true         # Jev tells a question and a swap; false: every message without a command is just added to the prompt
+  redirect: true         # a correction cuts the model's reply in flight; false: it waits for the next step
+  aside_model: true      # a question about progress is also answered by the task's own model
+  aside_context: digest  # what that quick reply is given: digest (the task and its last steps) | full (the worker's whole
+                         # conversation: only worth it on a server that shares one prompt cache between requests, vLLM)
+  aside_max_tokens: 1500 # (a thinking model spends part of it thinking)
+  retry_delay: 0.5       # seconds to wait before asking the model again after cutting its reply: llama.cpp (LM Studio) frees the cancelled
+                         # slot a moment after the hang-up, and a retry that arrives first starts on the other slot with nothing cached
+                         # (the whole prompt read again: 2 of 7 retries at 0 s, 0 of 15 at 0.5-2 s; evals/bench/interject.py --stage retry).
+                         # 0 for a server without slots (vLLM)
 
 # The final() gate (jevh/verify.py): the harness checks work before accepting it.
 verify:

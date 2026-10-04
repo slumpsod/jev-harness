@@ -54,7 +54,8 @@ DEFAULT_THRESHOLDS = {"no_fit": 0.6, "owned": 0.3, "orphan": 0.5, "same_speciali
                       "verify_accurate": 0.4, "stall": 0.6, "testable": 0.55, "searching": 0.25,
                       "compact_keep": 0.8, "rule_block": 0.8,
                       "review_risk": 0.65, "review_severe": 0.2, "failure_gave_up": 0.85, "failure_missed": 0.85,
-                      "route_hook": 0.85}
+                      "route_hook": 0.85,
+                      "interject_status": 0.6, "interject_replace": 0.5}
 DEFAULT_LIMITS = {"max_mcp_tools": 3, "memory_search": 10, "memory_facts": 6, "follow_turns": 2,
                   "ask_timeout": 1800, "progress_every": 8, "compact_tokens": 60000, "keep_steps": 3,
                   "keep_reasoning": 40000, "thinking_watch": 0, "watch_every": 4000, "watch_after": 6000}

@@ -9,7 +9,9 @@ Messages are plain [{"role": "system"|"user"|"assistant", "content": str}].
 """
 from __future__ import annotations
 
+import inspect
 import json
+import socket
 import threading
 import os
 import time
@@ -37,6 +39,7 @@ class LLMResult:
     reasoning: str = ""        # that hidden reasoning's text, where the server returns it
     tool_calls: list = field(default_factory=list)   # native calls: [{"id", "name", "arguments" (JSON text)}]
     interrupted: bool = False   # a `watch` callback stopped it mid-thinking (see OpenAICompat.chat)
+    redirected: bool = False    # the `interrupt` event cut it: the user sent a message that changes the task
 
 
 class LLM(Protocol):
@@ -85,16 +88,16 @@ def _set_read_timeout(response, seconds: float) -> None:
         pass
 
 
-def _close_on_cancel(response, cancel: threading.Event, done: threading.Event) -> None:
-    """Close a streaming response from outside when the user stops the turn: the read in the
-    worker's thread fails at once (even while the server is still processing the prompt)."""
-    while not done.wait(0.2):
-        if cancel.is_set():
-            try:
-                response.close()
-            except Exception:  # noqa: BLE001
-                pass
-            return
+def _abort(response) -> None:
+    """Drop a streaming response's connection from another thread: the server sees it and stops generating. Only
+    shutdown() does it safely: response.close() takes the lock the reading thread holds while it waits for the
+    server, so the caller would wait as long as the read does (measured: 30 s against a silent server), and
+    socket.close() waits for the buffered reader to let go of the socket. The reading thread is left to finish
+    on its own (the server closing its end ends it): the caller has stopped waiting for it (see _chat)."""
+    try:
+        response.fp.raw._sock.shutdown(socket.SHUT_RDWR)
+    except Exception:  # noqa: BLE001 - not a plain socket, or already gone
+        pass
 
 
 def _watch_thinking(response, watch, thought, parts, calls, stop, done, every: int, after: int) -> None:
@@ -111,10 +114,6 @@ def _watch_thinking(response, watch, thought, parts, calls, stop, done, every: i
             if (len(TEMPLATE_TOKEN_RE.findall(args)) >= RUNAWAY_TOKENS or len(args) > MAX_CALL_CHARS
                     or (len(args) > RUNAWAY_MIN_CHARS and _packs(args[-6000:]) < RUNAWAY_RATIO)):
                 stop.set()
-                try:
-                    response.close()
-                except Exception:  # noqa: BLE001
-                    pass
                 return
             continue
         if "```" in reply:
@@ -129,10 +128,6 @@ def _watch_thinking(response, watch, thought, parts, calls, stop, done, every: i
             hit = False
         if hit and not done.is_set():
             stop.set()
-            try:
-                response.close()
-            except Exception:  # noqa: BLE001
-                pass
             return
 
 
@@ -192,20 +187,27 @@ class OpenAICompat:
     def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
              tools: list[dict] | None = None, live: str | os.PathLike | None = None,
              watch: Callable[[str], bool] | None = None, watch_every: int = 4000,
-             watch_after: int = 6000) -> LLMResult:
+             watch_after: int = 6000, interrupt: threading.Event | None = None,
+             body_extra: dict[str, Any] | None = None) -> LLMResult:
         """`live`: a file the reasoning and reply stream into as they are generated (read it any time).
         `watch(reasoning_so_far) -> stop?`: while the reply is still pure thinking, called from a
         side thread every `watch_every` new chars once there are `watch_after`; True closes the
-        stream and returns what was thought so far (interrupted=True)."""
+        stream and returns what was thought so far (interrupted=True).
+        `interrupt`: an event that cuts the reply the same way whenever it is set (redirected=True): the
+        server stops generating, and what was streamed so far comes back instead of a Cancelled.
+        `body_extra`: fields laid over this one request's body (a smaller max_tokens for a quick side question)."""
         if self.gate is None:
-            return self._chat(messages, cancel, tools, live, watch, watch_every, watch_after)
+            return self._chat(messages, cancel, tools, live, watch, watch_every, watch_after, interrupt, body_extra)
         with self.gate.use(self.model):
-            return self._chat(messages, cancel, tools, live, watch, watch_every, watch_after)
+            return self._chat(messages, cancel, tools, live, watch, watch_every, watch_after, interrupt, body_extra)
 
     def _chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
               tools: list[dict] | None = None, live: str | os.PathLike | None = None,
               watch: Callable[[str], bool] | None = None, watch_every: int = 4000,
-              watch_after: int = 6000) -> LLMResult:
+              watch_after: int = 6000, interrupt: threading.Event | None = None,
+              body_extra: dict[str, Any] | None = None) -> LLMResult:
+        if interrupt is not None and interrupt.is_set():   # the redirect came before the request went out
+            return LLMResult(text="", model=self.model, interrupted=True, redirected=True)
         body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True,
                                 "stream_options": {"include_usage": True}, **self.extra}
         if tools:
@@ -214,6 +216,8 @@ class OpenAICompat:
             body["temperature"] = self.temperature
         if self.max_tokens:
             body["max_tokens"] = self.max_tokens
+        if body_extra:
+            body.update(body_extra)
         headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -222,63 +226,102 @@ class OpenAICompat:
         parts: list[str] = []
         thought: list[str] = []
         calls: dict[int, dict[str, str]] = {}   # streamed tool calls, assembled by index
-        usage: dict[str, Any] = {}
-        finish = None
-        chunks = thinking = 0
-        done = threading.Event()
-        stop_watch = threading.Event()   # set by the watcher: close the stream, keep what we have
+        st: dict[str, Any] = {"usage": {}, "finish": None, "chunks": 0, "thinking": 0, "streaming": False,
+                              "r": None, "err": None}
+        finished = threading.Event()     # the reader thread is over
+        ended = threading.Event()        # this call is over (the reader finished, or the caller stopped waiting for it)
+        stopped = threading.Event()      # the caller stopped waiting: the reader must leave the results alone
+        stop_watch = threading.Event()   # set by the watcher: cut the stream, keep what we have
+        stop_interrupt = threading.Event()   # set when `interrupt` cut the stream for a redirect
         feed = _LiveFeed(live, self.model)
         # Until the first chunk, a shorter limit scaled to the prompt (time to read it in): live, Gemma 4 in LM
         # Studio sometimes generated for minutes (12k tokens once) without streaming any of it, and waiting
         # the full idle_timeout never helped. After the first chunk, idle_timeout bounds each gap.
         first_limit = min(self.idle_timeout, FIRST_CHUNK_BASE + len(req.data) / 3.2 / PREFILL_TPS)
-        streaming = False
+
+        def read() -> None:
+            """The stream, read on a thread of its own. A read that waits for a server still reading its prompt
+            (LM Studio: nothing for ~22 s on 6k tokens) cannot be woken from another thread - on Windows neither
+            close() nor shutdown() ends it - so the caller waits on this thread instead and can stop waiting at
+            any moment: a stop, a redirect or the thinking watch. Dropping the connection then stops the server."""
+            try:
+                with urllib.request.urlopen(req, timeout=first_limit) as r:
+                    st["r"] = r
+                    if stopped.is_set():   # cut while still connecting: nothing is waiting for this any more
+                        _abort(r)
+                        return
+                    for raw in r:
+                        if stopped.is_set():
+                            return
+                        line = raw.decode("utf-8", "replace").strip()
+                        if not line.startswith("data:"):
+                            continue
+                        data = line[5:].strip()
+                        if data == "[DONE]":
+                            break
+                        if not st["streaming"]:
+                            st["streaming"] = True
+                            _set_read_timeout(r, self.idle_timeout)
+                        evt = json.loads(data)
+                        st["usage"] = evt.get("usage") or st["usage"]
+                        for ch in evt.get("choices") or []:
+                            delta = ch.get("delta") or {}
+                            parts.append(delta.get("content") or "")
+                            piece = delta.get("reasoning_content") or delta.get("reasoning")
+                            if piece:
+                                st["thinking"] += 1
+                                thought.append(piece if isinstance(piece, str) else "")
+                                feed.write("thinking", thought[-1])
+                            if delta.get("content"):
+                                feed.write("reply", delta["content"])
+                            for tc in delta.get("tool_calls") or []:
+                                slot = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": ""})
+                                slot["id"] = tc.get("id") or slot["id"]
+                                fn = tc.get("function") or {}
+                                slot["name"] += fn.get("name") or ""
+                                slot["arguments"] += fn.get("arguments") or ""
+                                feed.write("tool call", (fn.get("name") or "") + (fn.get("arguments") or ""))
+                            st["finish"] = ch.get("finish_reason") or st["finish"]
+                        st["chunks"] += 1
+                        if self.on_progress and st["chunks"] % 50 == 0:
+                            self.on_progress(st["chunks"], st["thinking"])
+            except BaseException as e:  # noqa: BLE001 - handed to the caller, which maps it to the harness's errors
+                st["err"] = e
+            finally:
+                finished.set()
+
+        threading.Thread(target=read, daemon=True, name="llm-stream").start()
+        if watch is not None:
+            threading.Thread(target=_watch_thinking, daemon=True, args=(
+                None, watch, thought, parts, calls, stop_watch, ended, watch_every, watch_after)).start()
+        cut = ""
+        while not finished.wait(0.1):
+            if cancel is not None and cancel.is_set():
+                cut = "cancel"
+            elif interrupt is not None and interrupt.is_set():
+                stop_interrupt.set()
+                cut = "interrupt"
+            elif stop_watch.is_set():
+                cut = "watch"
+            if cut:
+                break
+        ended.set()   # (the thinking watch must not go on calling Jev for a reader nobody waits for)
+        if cut:
+            stopped.set()
+            if st["r"] is not None:   # dropping the connection is what stops the server's generation
+                _abort(st["r"])
+        feed.close(f"{st['thinking']} thinking chunks")
         try:
-            with urllib.request.urlopen(req, timeout=first_limit) as r:
-                if cancel is not None:  # a stop mid-generation closes the stream: the server stops too
-                    threading.Thread(target=_close_on_cancel, args=(r, cancel, done), daemon=True).start()
-                if watch is not None:
-                    threading.Thread(target=_watch_thinking, daemon=True, args=(
-                        r, watch, thought, parts, calls, stop_watch, done, watch_every, watch_after)).start()
-                for raw in r:
-                    line = raw.decode("utf-8", "replace").strip()
-                    if not line.startswith("data:"):
-                        continue
-                    data = line[5:].strip()
-                    if data == "[DONE]":
-                        break
-                    if not streaming:
-                        streaming = True
-                        _set_read_timeout(r, self.idle_timeout)
-                    evt = json.loads(data)
-                    usage = evt.get("usage") or usage
-                    for ch in evt.get("choices") or []:
-                        delta = ch.get("delta") or {}
-                        parts.append(delta.get("content") or "")
-                        piece = delta.get("reasoning_content") or delta.get("reasoning")
-                        if piece:
-                            thinking += 1
-                            thought.append(piece if isinstance(piece, str) else "")
-                            feed.write("thinking", thought[-1])
-                        if delta.get("content"):
-                            feed.write("reply", delta["content"])
-                        for tc in delta.get("tool_calls") or []:
-                            slot = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": ""})
-                            slot["id"] = tc.get("id") or slot["id"]
-                            fn = tc.get("function") or {}
-                            slot["name"] += fn.get("name") or ""
-                            slot["arguments"] += fn.get("arguments") or ""
-                            feed.write("tool call", (fn.get("name") or "") + (fn.get("arguments") or ""))
-                        finish = ch.get("finish_reason") or finish
-                    chunks += 1
-                    if self.on_progress and chunks % 50 == 0:
-                        self.on_progress(chunks, thinking)
+            if cut == "cancel":
+                raise Cancelled("stopped by the user while the model was replying")
+            if st["err"] is not None and not cut:
+                raise st["err"]
+        except Cancelled:
+            raise
         except Exception as e:
             if cancel is not None and cancel.is_set():
                 raise Cancelled("stopped by the user while the model was replying") from None
-            if stop_watch.is_set():   # the watcher closed it on purpose: return the thinking so far
-                pass
-            elif isinstance(e, urllib.error.HTTPError):
+            if isinstance(e, urllib.error.HTTPError):
                 raise LLMError(f"{self.name}: HTTP {e.code} {e.read().decode('utf-8', 'replace')[:300]}") from e
             elif isinstance(e, urllib.error.URLError):
                 raise LLMError(f"{self.name}: unreachable ({e.reason})") from e
@@ -291,16 +334,14 @@ class OpenAICompat:
                             json.dumps(body), encoding="utf-8")
                     except OSError:
                         pass
-                limit = self.idle_timeout if streaming else first_limit
+                limit = self.idle_timeout if st["streaming"] else first_limit
                 raise LLMError(f"{self.name}: no tokens for {limit:.0f}s"
-                               + ("" if streaming else " (nothing streamed)")) from e
+                               + ("" if st["streaming"] else " (nothing streamed)")) from e
             else:
                 raise
-        finally:
-            done.set()
-            feed.close(f"{thinking} thinking chunks")
         if cancel is not None and cancel.is_set():
             raise Cancelled("stopped by the user while the model was replying")
+        usage, finish, chunks, thinking = st["usage"], st["finish"], st["chunks"], st["thinking"]
         raw = "".join(parts)
         inline = "".join(m.group(0) for m in THINK_RE.finditer(raw))   # models that think inside <think>
         text = THINK_RE.sub("", raw).strip()
@@ -314,7 +355,8 @@ class OpenAICompat:
                          thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning,
                          tool_calls=[{**c, "id": c["id"] or f"call_{i}", "arguments": clean_call_args(c["arguments"])}
                                      for i, c in sorted(calls.items())],
-                         interrupted=stop_watch.is_set())
+                         interrupted=stop_watch.is_set() or stop_interrupt.is_set(),
+                         redirected=stop_interrupt.is_set())
 
 
 class AnthropicLLM:
@@ -330,9 +372,12 @@ class AnthropicLLM:
         self.fallbacks = fallbacks
         self.name = model
 
-    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
+    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
+             interrupt: threading.Event | None = None) -> LLMResult:
         if cancel is not None and cancel.is_set():
             raise Cancelled("stopped by the user")
+        if interrupt is not None and interrupt.is_set():   # (a reply in progress is not cut: it finishes first)
+            return LLMResult(text="", model=self.model, interrupted=True, redirected=True)
         system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
         convo = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
         kwargs: dict[str, Any] = {"model": self.model, "max_tokens": self.max_tokens, "messages": convo}
@@ -363,7 +408,17 @@ class WithFallback:
         self.fallback = fallback
         self.name = f"(primary)->{fallback.name}"
 
-    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None) -> LLMResult:
+    @staticmethod
+    def _call(llm: LLM, messages: list[dict[str, str]], cancel, interrupt) -> LLMResult:
+        """`interrupt` goes only to a model that takes it (the others finish their reply first)."""
+        try:
+            takes = interrupt is not None and "interrupt" in inspect.signature(llm.chat).parameters
+        except (TypeError, ValueError):
+            takes = False
+        return llm.chat(messages, cancel, interrupt=interrupt) if takes else llm.chat(messages, cancel)
+
+    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
+             interrupt: threading.Event | None = None) -> LLMResult:
         if self._primary is None and self._primary_factory is not None:
             try:
                 self._primary = self._primary_factory()
@@ -372,14 +427,14 @@ class WithFallback:
                 self._primary_factory = None
                 self.name = f"{self.fallback.name} (fallback: {type(e).__name__}: {e})"[:160]
         if self._primary is None:
-            return self.fallback.chat(messages, cancel)
+            return self._call(self.fallback, messages, cancel, interrupt)
         try:
-            return self._primary.chat(messages, cancel)
+            return self._call(self._primary, messages, cancel, interrupt)
         except Cancelled:
             raise
         except Exception as e:  # noqa: BLE001 - provider down/refused this call: fall through
             self.name = f"{self.fallback.name} (fallback: {type(e).__name__})"
-            return self.fallback.chat(messages, cancel)
+            return self._call(self.fallback, messages, cancel, interrupt)
 
 
 def see_image(llm: LLM, path: str, question: str) -> str:

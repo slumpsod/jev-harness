@@ -1,5 +1,7 @@
 import time
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from jevh.bus import Task
@@ -78,6 +80,13 @@ def test_an_allowed_remote_host_needs_the_access_key(cfg):
     assert r.status_code == 200                                                    # the cookie carries the key
     assert client.get("/api/state", headers={"Host": f"{host}:10000", **auth()}).status_code == 403
     assert client.get("/").status_code == 200                                      # this machine needs no key
+    # the key changes each launch: a phone still holding the last launch's cookie must get in with the new link
+    stale = {"Host": f"{host}:10000", "Cookie": "jevh_key=last-launch"}
+    r = client.get("/?key=k3y", headers=stale)
+    assert r.status_code == 200 and "jevh_key=k3y" in r.headers["set-cookie"]      # ... and the cookie is replaced
+    assert client.get("/", headers=stale).status_code == 403                       # a stale cookie alone is no key
+    assert client.get("/?key=wrong", headers={**stale, "Cookie": "jevh_key=k3y"}).status_code == 200   # a good cookie still counts
+    assert client.get("/?key=%C3%A9", headers={"Host": f"{host}:10000"}).status_code == 403   # non-ASCII: refused, not a 500
 
 
 def test_api_requires_token(cfg):
@@ -107,11 +116,49 @@ def test_chat_runs_a_turn_and_streams_events(cfg):
     assert code["data"]["task_id"] == 1 and code["turn"] == 1
 
 
-def test_second_turn_while_busy_is_409(cfg):
-    client, _ = make_client(cfg, delay=0.5)
+def test_a_message_while_a_turn_runs_goes_to_the_running_turn(cfg):
+    client, app = make_client(cfg, delay=0.5)
     assert client.post("/api/chat", json={"message": "one"}, headers=auth()).status_code == 200
-    assert client.post("/api/chat", json={"message": "two"}, headers=auth()).status_code == 409
+    r = client.post("/api/chat", json={"message": "two"}, headers=auth())
+    assert r.status_code == 200 and "turn" not in r.json()          # not a second turn: the running one hears it
+    assert r.json()["interjected"]["kind"] == "correction"
+    with pytest.raises(HTTPException) as e:                          # starting a second turn is still refused
+        app.state.hub.start_turn("three")
+    assert e.value.status_code == 409
     wait_done(client)
+
+
+def test_requests_queued_while_a_turn_runs_start_by_themselves(cfg):
+    client, app = make_client(cfg, [py("final('first')"), py("final('second')")], delay=0.5)
+    client.post("/api/chat", json={"message": "one"}, headers=auth())
+    r = client.post("/api/chat", json={"message": "/queue two"}, headers=auth())
+    assert r.json()["interjected"]["outcome"] == "queued"
+    assert client.get("/api/state", headers=auth()).json()["queued"] == ["two"]
+    second = wait_done(client, 2)                                    # started and finished without being asked again
+    assert second["message"] == "two" and second["answer"] == "second"
+    assert client.get("/api/state", headers=auth()).json()["queued"] == []
+
+
+def test_stop_drops_what_was_queued_and_says_so(cfg):
+    client, app = make_client(cfg, [py("import time\ntime.sleep(60)\nfinal('never')")])
+    client.post("/api/chat", json={"message": "long job"}, headers=auth())
+    time.sleep(1.5)
+    assert client.post("/api/chat", json={"message": "/queue milk"}, headers=auth()).json()["interjected"]["outcome"] == "queued"
+    assert client.post("/api/cancel", headers=auth()).json() == {"stopped": True}
+    assert wait_done(client)["status"] == "cancelled"
+    assert client.get("/api/state", headers=auth()).json()["queued"] == []
+    assert next(e for e in app.state.hub.events if e["kind"] == "cancel")["data"]["dropped"] == ["milk"]
+
+
+def test_a_status_question_through_the_api_is_answered_at_once(cfg):
+    cfg.raw = {**cfg.raw, "interject": {"aside_model": False}}
+    client, app = make_client(cfg, [py("import time\ntime.sleep(3)\nfinal('done')")])
+    client.post("/api/chat", json={"message": "long job"}, headers=auth())
+    time.sleep(1.5)
+    r = client.post("/api/chat", json={"message": "/btw how far along are you?"}, headers=auth())
+    j = r.json()["interjected"]
+    assert j["outcome"] == "status" and "running code" in j["answer"]
+    assert wait_done(client)["answer"] == "done"
 
 
 def test_artifacts_listed_and_served_sandboxed(cfg):

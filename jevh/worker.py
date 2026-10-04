@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .errors import Cancelled
+from .interject import UPDATED
 from .llm import LLM, LLMError
 from .personas import Persona
 from .repl.client import Repl
@@ -106,6 +107,18 @@ NOTES_CHARS = 2500         # plus that turn's work notes (the code it ran and wh
 NOTES_HEADER = ("[Harness note, not part of the reply the user saw: the work this reply was based on - "
                 "the code you ran and what came back. Use it to answer questions about sources or steps.]")
 CHARS_PER_TOKEN = 3.2      # conservative for code-heavy transcripts (context-size estimate)
+# A message the user sent while the task ran (jevh/interject.py), as the model reads it. Appended at the end of the
+# conversation, never spliced in: everything before it stays byte for byte what the model server already holds
+# in its cache, so the redirect costs the new tokens only.
+STEER_NOTE = ('[Message from the user, sent while you were working: "{text}"\n'
+              "Take it into account from here on: if it changes what they want, follow it instead of the earlier "
+              "request. Your REPL variables and files are as you left them.]")
+STEER_REPLACE = ('[Message from the user, sent while you were working: "{text}"\n'
+                 "This replaces the request you were given: drop what you were doing for it, do this instead, and "
+                 "hand over only what this asks for. Your REPL variables and files are as you left them.]")
+STEER_HELD = ("\n[final() was not accepted yet: the user sent a message while you were finishing. It follows; "
+              "answer it, then call final() again.]")
+CUT_REPLY = "[stopped before it ran: the user sent a message]"
 
 
 def _msg_chars(m: dict) -> int:
@@ -516,6 +529,15 @@ class Worker:
         self._ran_code = False
         self._pauses = 0   # watch pauses since code last ran: from the 2nd, checks come at 2x watch_after
         self._step = 0
+        # messages the user sends while the task runs (steer(); docs/architecture/16-interjection.md)
+        self._steers: list[tuple[str, bool]] = []   # (text, replaces the request): join the conversation before the next call
+        self._steer_lock = threading.Lock()
+        self.interrupt = threading.Event()    # set by steer(): cuts the model's reply in flight (llm.chat interrupt=)
+        self.corrections: list[str] = []      # the messages delivered so far
+        self._free = 0                        # steps spent hearing the user out: not charged to the step limit
+        self.retry_delay = 0.0                # seconds to wait before asking again after a cut reply (interject.retry_delay)
+        self._live: list[dict] | None = None  # the conversation the model is given (snapshot() copies it)
+        self._doing = ("getting started", time.time())
         self._use(llm)
 
     def _assistant(self, out) -> dict:
@@ -538,6 +560,103 @@ class Worker:
             self._llm_cancel = "cancel" in inspect.signature(llm.chat).parameters
         except (TypeError, ValueError):
             self._llm_cancel = False
+
+    # -- messages from the user while the task runs ------------------------------------------------------------
+    @property
+    def limit(self) -> int:
+        """The step limit: the persona's, plus the steps spent hearing the user out (those are not charged)."""
+        return self.persona.max_steps + self._free
+
+    def steer(self, text: str, abort: bool = True, replaces: bool = False) -> bool:
+        """The user sent a message while this task runs: it joins the conversation before the next model call.
+        `abort`: a reply the model is writing right now is cut and asked for again with the message. Code that
+        is running is never killed: the message arrives with its output. `replaces`: it swaps the request for
+        another (the task, and what the final() gate expects, are then that alone). Safe to call from any thread."""
+        text = (text or "").strip()
+        if not text:
+            return False
+        with self._steer_lock:
+            self._steers.append((text, replaces))
+        if abort:
+            self.interrupt.set()
+        return True
+
+    def _steers_pending(self) -> bool:
+        with self._steer_lock:
+            return bool(self._steers)
+
+    def take_unapplied(self) -> list[str]:
+        """Messages that never reached the model (the task ended first); the caller makes them the next request."""
+        with self._steer_lock:
+            left, self._steers = self._steers, []
+            self.interrupt.clear()
+        return [text for text, _ in left]
+
+    def _deliver_steers(self, messages: list[dict]) -> None:
+        """Before a model call: each pending message joins the conversation as a user message (at the end)."""
+        with self._steer_lock:
+            pending, self._steers = self._steers, []
+            self.interrupt.clear()
+        for text, replaces in pending:
+            messages.append({"role": "user", "content": (STEER_REPLACE if replaces else STEER_NOTE).format(text=text)})
+            self.corrections.append(text)
+            if self._task_text:   # compaction rebuilds the task message from this: the message survives it
+                self._task_text += "\n\n" + UPDATED.format(text=text)
+            self.on_step("steer", {"persona": self.persona.name, "step": self._step, "text": text,
+                                   "replaces": replaces})
+
+    def _redirect(self, messages: list[dict], out, step: int) -> None:
+        """A model reply the user's message cut off, or crossed: what it had written stays as context, but
+        nothing in it runs (the user is changing the task) and the step it cost is not charged."""
+        text = (out.text or "").strip()
+        if text.count("```") % 2:   # cut inside a code block: the half block goes
+            text = text[:text.rfind("```")].rstrip()
+        thought = (getattr(out, "reasoning", "") or "").strip()
+        if text or thought:
+            msg = self._assistant(out)
+            msg["content"] = f"{text}\n{CUT_REPLY}" if text else CUT_REPLY
+            messages.append(msg)
+        self._free += 1
+        self.on_step("redirect", {"persona": self.persona.name, "step": step, "kept": len(text) + len(thought)})
+
+    def _after_cut(self) -> None:
+        """Before the model is asked again with the user's message. llama.cpp frees the cancelled slot a moment after
+        the hang-up; a retry that arrives first starts on the other slot with nothing cached and the whole prompt is
+        read again (measured: 4 of 8 retries). A Stop still ends the wait at once."""
+        if self.retry_delay > 0:
+            self.cancel.wait(self.retry_delay)
+
+    def _note(self, doing: str) -> None:
+        self._doing = (doing, time.time())
+
+    def status(self) -> dict[str, Any]:
+        """What the worker is doing right now (safe to read from another thread): a status answer is made of this."""
+        doing, since = self._doing
+        return {"persona": self.persona.name, "step": self._step, "max_steps": self.limit, "doing": doing,
+                "seconds": round(time.time() - since, 1), "corrections": list(self.corrections),
+                "pending": self._steers_pending()}
+
+    def snapshot(self) -> list[dict]:
+        """A copy of the conversation as the model has it so far, system prompt first."""
+        return [dict(m) for m in list(self._live or [])]
+
+    def digest(self, last: int = 6) -> str:
+        """The task so far in a few lines, for a quick answer about it: steps compaction already condensed, then
+        the last `last` steps (the code that ran, what came back)."""
+        msgs = self.snapshot()
+        body = msgs[self._task_idx + 1:] if 0 < self._task_idx < len(msgs) else msgs[1:]
+        parts = [self._render_log()[-1500:]] if (self._entries or self._progress_log) else []
+        older = len(_steps(body)) - last
+        if older > 0:
+            parts.append(f"({older} earlier steps not shown)")
+        parts.append(self._condense(body[-2 * last:]).strip())
+        return "\n".join(p for p in parts if p).strip()
+
+    def tool_schemas(self) -> list[dict] | None:
+        """The tools the model is offered right now: a prompt that shares this worker's start must offer the same."""
+        if not self.native:
+            return None
+        return [FINAL_TOOL] if self._wrap_step is not None else [PYTHON_TOOL, FINAL_TOOL]
 
     def run(self, task: str, ctx: dict[str, Any], system: str,
             history: list[tuple[str, str]] | None = None, resume: dict | None = None) -> WorkerResult:
@@ -575,14 +694,24 @@ class Worker:
             repl.set("ctx", ctx)
             if resume:
                 self._add_resume_note(messages, repl)
-            for step in range(1, self.persona.max_steps + 1):
+            self._live = messages
+            step = 0
+            while step < self.limit:   # (a step spent hearing the user out raises the limit by one)
+                step += 1
                 self._check()
+                self._deliver_steers(messages)   # the user's messages go in last: the prompt before them is unchanged
                 self._compact(messages, step)
                 self._report_context(messages, step)
                 self._step = step
+                self._note("the model is writing its next step")
                 out = self._llm(messages)
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
+                if getattr(out, "redirected", False) or self._steers_pending():
+                    # the user sent a message while the model was replying: that reply is not acted on
+                    self._redirect(messages, out, step)
+                    self._after_cut()
+                    continue
                 messages.append(self._assistant(out))
                 # (a stream stopped inside a runaway tool call still carries the call: it is acted on below)
                 if getattr(out, "interrupted", False) and not getattr(out, "tool_calls", None):
@@ -680,14 +809,22 @@ class Worker:
                 code = "\n\n".join(blocks)
                 self._ran_code, self._pauses = True, 0
                 self.on_step("code", {"persona": self.persona.name, "step": step, "code": code})
+                self._note("running code: " + ([ln.strip() for ln in code.splitlines() if ln.strip()] or [""])[0][:100])
                 ex = repl.run(code)
                 if ex.timed_out:
                     self._restore_after_timeout(repl, ex)
                 if ex.usage:
                     self.on_step("tool_usage", {"persona": self.persona.name, **ex.usage})
                 self._check()  # a stop kills the REPL mid-run: don't read that as the code failing
+                self._note("reading the output of that code")
                 self.on_step("output", {"persona": self.persona.name, "step": step,
                                         "output": ex.output, "error": ex.error})
+                if ex.final is not None and self._steers_pending():
+                    # the user sent a message while the code ran: nothing is handed over before they are heard
+                    messages += self._replies(call_ids, (ex.output or "(no output)") + STEER_HELD)
+                    self._free += 1
+                    self._save(messages, step, False)
+                    continue
                 if ex.final is not None:
                     artifacts = ex.final["artifacts"] or self._harvest()
                     # (no artifacts but files written in private scratch: ship them, or whoever asked
@@ -986,6 +1123,7 @@ class Worker:
         self._verdict = None
         if self.verify is None:
             return False
+        self._note("checking the answer before handing it over")
         # what the final() block itself printed counts as seen (print(total); final(...) is common)
         seen = messages + ([{"role": "user", "content": prefix.strip()}] if prefix.startswith("Output:") else [])
         try:
@@ -996,7 +1134,7 @@ class Worker:
         # the last-step report of a stalled worker is taken as it is, problems listed under it: sent back,
         # it went on trying (live: a report on Target's bot block bounced for "says it will do more", and the
         # worker then tried Target's API with a faked browser header)
-        can_retry = self._bounces < self.max_bounces and step < self.persona.max_steps and self._wrap_step is None
+        can_retry = self._bounces < self.max_bounces and step < self.limit and self._wrap_step is None
         self.on_step("verify", {"persona": self.persona.name, "step": step, "ok": verdict.ok,
                                 "problems": verdict.problems, "checks": verdict.checks, "scores": verdict.scores,
                                 "bounced": (not verdict.ok) and can_retry, "answer": answer[:4000]})
@@ -1038,8 +1176,7 @@ class Worker:
     def _llm(self, messages):
         # the last step of a stalled worker offers only `final`: told to report, the fast model ran more
         # code instead and the user got raw output (live, Booking.com)
-        kw = {"tools": [FINAL_TOOL] if self._wrap_step is not None else [PYTHON_TOOL, FINAL_TOOL]} \
-            if self.native else {}
+        kw = {"tools": self.tool_schemas()} if self.native else {}
         if self._llm_cancel:
             kw["cancel"] = self.cancel
         try:
@@ -1049,6 +1186,8 @@ class Worker:
             params, takes_all = {}, False
         if takes_all or "live" in params:   # the reply streams to thinking/step-NN.txt as it is generated
             kw["live"] = self.workdir / "thinking" / f"step-{self._step:02d}.txt"
+        if takes_all or "interrupt" in params:   # a message from the user cuts the reply in flight (steer())
+            kw["interrupt"] = self.interrupt
         # A long reply is watched until the model acts. Always, in plain code: is it repeating itself (see
         # repeating())? And the thinking watch (Jev), only once this task has run code - there is data in the
         # REPL that code could read exactly - and only on reasoning, or on the reply of a model that reasons
@@ -1099,7 +1238,7 @@ class Worker:
             for i in call_ids[1:]]
 
     def _steps_left_note(self, step: int) -> str:
-        left = self.persona.max_steps - step
+        left = self.limit - step
         where = "with your next python tool call" if self.native else "in your next block"
         if left == 2:
             return (f"\n\n[2 steps left: save your deliverables with save_artifact() and call "
@@ -1146,8 +1285,16 @@ class Worker:
             extra += "\n\nInputs: " + ", ".join(map(str, ctx["inputs"]))
         messages = [{"role": "system", "content": system}, *(prior or []),
                     {"role": "user", "content": task + extra}]
-        self._check()
-        out = self._llm(messages)
+        self._live = messages
+        while True:   # (asked again, with the user's message, each time one cuts the reply)
+            self._check()
+            self._deliver_steers(messages)
+            self._note("the model is writing its reply")
+            out = self._llm(messages)
+            if not (getattr(out, "redirected", False) or self._steers_pending()):
+                break
+            self._redirect(messages, out, 1)
+            self._after_cut()
         messages.append({"role": "assistant", "content": out.text})
         return WorkerResult(answer=out.text, steps=1, input_tokens=out.input_tokens,
                             output_tokens=out.output_tokens, stopped="plain", transcript=messages)

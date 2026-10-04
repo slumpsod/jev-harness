@@ -48,6 +48,10 @@ python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness t
 python evals/bench/persona_creation.py   # persona creation, live: Jev checks, the writer, the gate, routing, full turns
                                          #   (--stage, --split dev|held, --reps, --budget/--resume for a runner with a time cap)
 python evals/bench/nango_setup.py        # connecting an account: a simulated user + the real local Nango (Docker), multi-turn
+python evals/interject_cases.py        # a message sent while a task runs: a question about progress, or anything else (--holdout, --fresh, --offline)
+python evals/bench/interject.py --model lmstudio:qwen3.8-27b@q6_k   # messages to a running task, live: redirect speed, the gate, quick reply, queue, Stop
+                                         #   (--stage, --reps; --stage retry measures the pause before a retry; needs nothing else using the
+                                         #   model; reads LM Studio's log for the server-side cost)
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/hook_route_cases.py     # skill/hook router: "could a program check this?" (NOT TUNED yet: run it, then set route_hook)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
@@ -74,6 +78,9 @@ CLI commands: `/as <persona>`, `/auto`, `/tier auto|fast|strong`, `/project <pat
 (see Session review), `/idea <text>`, `/problem <text>`, `/jot <text>`, `/notebook` (see Notebook), `/personas`, `/persona approve|activate|delete <name>` and `/forge` (personas the harness
 created), `/skills`, `/trace` (raw Jev answers for the last turn),
 `/verbose` (show code + REPL output), `/jev` (adapter health), `/update [check]` (see Updating), `/reset`, `/quit`.
+While a task runs, what you type is added to its prompt (see Talking to a running task), except a question about
+progress, which is answered on the side. `/queue <text>` holds a message for after, `/btw <question>` asks, `/stop`
+stops, `/steer <text>` always adds.
 
 ## The `jevh` command
 
@@ -262,6 +269,10 @@ The persona, model tier, Watch browser, project folder and context ring sit unde
 set the tier (Jev decides / fast / strong) there. Click an answer's avatar to inspect that turn,
 and reload any time: the event history replays.
 
+**The message box works while a task runs** (see Talking to a running task): what you send is added to the task's
+prompt, or answered at once if it is a question; `/queue` makes it wait its turn (the queue shows above the box). Each
+message shows in the turn with what became of it. On a phone the same box and the same Stop button are there.
+
 **Security:** the agent executes code, so the dashboard binds to 127.0.0.1 only.
 - It rejects foreign Host headers, which blocks DNS rebinding.
 - Every API call needs a per-launch token embedded in the page.
@@ -272,7 +283,8 @@ and reload any time: the event history replays.
 tailnet-only (never `funnel`). Run `tailscale serve --bg --https=10000 http://127.0.0.1:8740`, then
 `jevh dashboard --no-browser --allow-host <this-machine>.<tailnet>.ts.net:10000`. It prints a link ending
 `?key=...`; open it once on the phone, which keeps a cookie. The page carries the API token, so the key is what
-stops other devices on your tailnet from fetching it. The key is new each launch, so keep the link private.
+stops other devices on your tailnet from fetching it. The key is new each launch, so keep the link private; opening a
+new launch's link replaces the cookie the phone kept from the last one.
 
 ### Session review
 
@@ -448,7 +460,10 @@ don't ask for brevity either (a new turn still drops a learning call in progress
 
 - **Stop** (dashboard button, or Ctrl-C in the CLI) ends the turn everywhere at once:
   - A model reply in progress is cut off mid-stream, so LM Studio stops generating (measured live:
-    261 ms after the click, 100 tokens into a long essay).
+    261 ms after the click, 100 tokens into a long essay). While the model is still *reading its prompt* (nothing
+    streams yet) Stop used to wait for the first token, ~22 s on a 6k-token prompt: closing the connection from
+    another thread does not wake a read that is waiting for the server (Windows), so a reply is now read on its own
+    thread and Stop, like a redirect, stops waiting at once and hangs up.
   - Running REPL code is killed along with everything it started (e.g. the browser's Chromium).
   - Hand-offs stop, and new ones are refused.
 
@@ -462,6 +477,54 @@ don't ask for brevity either (a new turn still drops a learning call in progress
   Unanswered questions time out after `limits.ask_timeout` (30 min) and the worker carries on.
 - Background learning yields to you: starting a new turn drops a learning call still in progress
   (on Qwen, writing a skill thought ~1100-1400 hidden tokens, 45-60s, while you'd be waiting).
+
+## Talking to a running task
+
+A message sent while a task runs is **added to the task's prompt**: the message box (and the CLI) stay open and what you
+type reaches the running worker. Only a question about progress is handled differently, and queueing and stopping are
+commands, never guessed from the words:
+
+| You send | What happens |
+|---|---|
+| a plain message ("actually check my calendar", "use km", "also write a haiku") | added to the task's prompt: the model's reply in progress is cut and asked for again with your message (the code it was writing never runs); code that is running is left alone and your message arrives with its output; a `final()` in flight is held until the worker has heard you. The step is not charged to its step limit. `/steer <text>` always adds, skipping the check below |
+| a **question about progress** ("how's it going?") | an instant line from the worker's state ("step 1 of up to 60: running code: import time; ..."), then the task's own model answers in its own words from what it has done so far, while the task carries on. Jev tells (one Choice call, ~0.4 s); `/btw <question>` or `/status` says so. Added to the prompt instead, a question could end the task with a status report |
+| `/queue <text>` | held until the task ends, then runs as the next turn by itself, in order (shown above the message box) |
+| `/stop` | like the Stop button (which also drops what was queued, and puts it back in the message box) |
+
+The same check notices a message that swaps the request ("check my calendar instead"): it is added all the same, but it
+then stands alone as the request the final() gate judges. Any other message is added to the request, and where they
+disagree the latest wins. The gate's file check follows the latest message when it names a file (live: a redirect from
+`fib.py` to `squares.py` was first bounced for not handing over `fib.py`).
+
+How it was checked (2026-10-03/04, Qwen 3.8 27B in LM Studio, semif Jev; `evals/interject_cases.py`,
+`evals/bench/interject.py`; details and the vLLM notes in [docs/architecture/16-interjection.md](docs/architecture/16-interjection.md)):
+
+- **Telling a question from everything else** (156 labelled messages in three sets): 155 right (dev 67/68, held-out
+  40/40, fresh 48/48). Every question but one ("why did you pick that search query?", which is added to the prompt)
+  was answered on the side, and **no correction, other request or stop was answered instead of added**. The first
+  design had Jev also queue "another request" and stop on "stop" (66/68, 35/40, 46/48 on four-way labels, 0 mistaken
+  stops), but in use a correction ("Actually could you just tell me what's on my calendar", sent while a picture was
+  being made) was filed as another request (0.63) and queued behind the task: queueing and stopping are commands now.
+  The fresh set is not an untouched test any more (the `replace` wording was widened and a bar lowered after it was
+  seen). A "stop" guard question (does the message ask for anything else?) was tried and dropped: plain stops scored
+  0.5-0.85 on it. "Actually check my calendar instead" scored as a stop at 0.95 in the first wording, which is why the
+  replace option exists. The live check of the new default (`evals/bench/interject.py --stage add`, 2 reps, all
+  checks): "also write me a haiku about autumn", sent while a script was being written, was added to the prompt, not
+  queued, reached the task in 0.8 s, and the task did both.
+- **Cutting a reply**: a correction sent 9.7 s into a step landed at 28.5 s (the first token), not at once: a read that
+  waits for the server cannot be woken from another thread. Fixed (reader thread); now the cut lands in the same second,
+  and Stop during prompt reading with it. A redirect while the model was writing makes the server read 6-10% of the
+  prompt again (the rest from its cache), but the retry races the server freeing the cancelled slot: with no pause 2 of 7
+  retries started on the other slot and read the whole prompt again; with a pause of 0.5-2 s (`interject.retry_delay`,
+  default 0.5) 0 of 15 did (0 of 5 at 0.5 s, and the final bench at 0.5 s agrees). One while the model was still reading the prompt made it read all of it again with no pause and
+  29% with the pause (two reps each).
+- **Quick reply**: 4-12 s on Qwen (a thinking model; digest median 6.4 s, full 4.5 s over two bench reps), the task
+  untouched; the digest context (default) is safe at any
+  moment, the full context is cheap only while the task is idle (all 2,029 tokens were read cold when it was not).
+- Found on the way: with Qwen and ornith both loaded, LM Studio read prompts at ~30 tokens/s and generated at 0.9
+  (708 and ~31 with Qwen alone); the harness's own gate keeps one model loaded, Hermes, on the same server, does not.
+- The bench also found a gate quirk older than this work: with `final()` called without a file list the harness collects the worker's files as `<persona>_<name>`, and the check for a file the request names compared names exactly, so `primes.py` was "not handed over" while `high_end_dev_primes.py` was. It now counts.
+- Not run on vLLM; the doc lists what its documentation says and what to check.
 
 ## Tools: web, browser, project, nango, MCP
 

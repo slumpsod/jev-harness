@@ -45,6 +45,7 @@ slower and less accurate (see README "Measured").
 | `tools` | `jev.py:257` | `latest_request` | noul per tool the persona lists (`TOOLS[t].description`) | ≥ `tool .65` | all guides |
 | `mcp_rank`, `mcp_fits` | `jev.py:267` | `latest_request` | choice over the MCP catalog + none, then noul on top 3 | fits ≥ `mcp_fits .50`, max `max_mcp_tools` 3 | all guides |
 | `tier` | `jev.py:301` | `task` (task text only, on purpose) | choice fast / strong | P(strong) ≥ `tier_strong .55` → strong | strong |
+| `interject` | `jev.py` (`interject_kind`) | `task` (as it stands, 1.5k), `doing` (what the worker is doing now), `message` | choice over correction / replace / status / separate / stop | status leads with ≥ `interject_status .60` → the quick reply; else the message is added to the task's prompt; replace ≥ `interject_replace .50` → it stands alone as the request. separate and stop never act: `/queue` and `/stop` ([16](16-interjection.md)) | added to the prompt |
 | `approve` | `jev.py:336` | `requesting_assistant`, `target`, `task` | `in_scope`, `necessary` nouls | both ≥ `approve .50` | approved |
 | `worker_jev` | `orchestrator.py:482` | whatever the worker passes to `jev()` | whatever the worker asks | the worker decides | error in the worker's code |
 | `memory_rank` / `memory` via `recall()` | `orchestrator.py:682` | the worker's query | same as the memory gate, over FTS turns + facts | same | first k chunks |

@@ -67,6 +67,41 @@ TIER_Q = "Which model should handle this task?"
 TIER_OPTIONS = {"fast": "a small fast model - good for quick answers, lookups, short scripts and simple edits",
                 "strong": "a large careful model - needed for deep reasoning, hard debugging, long or complex builds"}
 
+# A message the user sent while a task runs (jevh/interject.py; evals/interject_cases.py). A message is added to the
+# running task's prompt unless it is a question about progress, which the task's model answers on the side, and unless
+# it swaps the request for another, which the final() gate must know. Words alone do not tell those apart ("check my
+# calendar" can be either, or an addition), so Jev reads the message against the task and what the assistant is doing
+# at this moment. Another request and a stop are /queue and /stop commands, not guesses; their options stay in the
+# Choice because they keep such a message from being mistaken for a question.
+INTERJECT_Q = ("The user sent `message` while the assistant works on `task` (`doing` is what it is doing at this "
+               "moment). What is the message?")
+INTERJECT_OPTIONS = {
+    "correction": "It changes, narrows or adds to the task the assistant is doing: a correction, an extra requirement, "
+                  "a preference, or advice on how to go about it.",
+    "replace": "It swaps the task, or what the assistant is producing, for something else (\"check my calendar instead\", \"make it primes instead of Fibonacci\", \"never mind that, do this\").",
+    "status": "It asks how the work is going, what the assistant is doing, or what it has found so far, and asks "
+              "for nothing new.",
+    "separate": "It is another request, unrelated to the current task, that can wait until the task is finished.",
+    "stop": "It only tells the assistant to stop, cancel or drop the task, and asks for nothing in its place.",
+}
+# (First wording had one "stop" option: "Actually check my calendar instead" scored stop 0.95, a redirect taken for a
+# cancel. A yes/no "asks for something besides stopping" as a guard was no better: plain stops scored 0.5-0.85 on it.
+# A separate "replace" option, counted as a correction, is the relative choice the Choice can make.)
+
+
+def decide_interject(probs: dict[str, float], status_at: float) -> str:
+    """Pure decision rule (shared with evals/interject_cases.py): "status" when the message is clearly a question
+    about progress (it leads the Choice with at least `status_at`), else "correction": the message is added to the
+    task's prompt. "replace" counts as a correction, and another request or a stop is never acted on from here
+    (/queue and /stop are commands). Adding is the forgiving error: a question steered into the task is answered in
+    its reply, while a message taken for a question never reaches it."""
+    kinds = {k: v for k, v in probs.items() if k in ("correction", "status", "separate", "stop")}
+    if not kinds:
+        return "correction"
+    kinds["correction"] = kinds.get("correction", 0.0) + probs.get("replace", 0.0)
+    top = max(kinds, key=lambda k: kinds[k])
+    return "status" if top == "status" and kinds["status"] >= status_at else "correction"
+
 
 # Tools (tuned on evals/tool_cases.py): which REPL tools' guides the worker's prompt carries.
 TOOL_Q = "Would the assistant need this tool to handle the latest request?"
@@ -365,6 +400,13 @@ class Jev:
         p = r["tier"].probabilities.get("strong", 0.0)
         t = self.cfg.t("tier_strong")
         return TierDecision("strong" if p >= t else "fast", p, f"P(strong)={p:.2f} vs {t:.2f}")
+
+    def interject_kind(self, message: str, task: str, doing: str = "") -> dict[str, float]:
+        """What a message sent while a task runs is: probabilities over correction / replace / status / separate /
+        stop (decide_interject: a question about progress or, else, a correction; replace counts as a correction)."""
+        r = self._ask("interject", {"task": task[:1500], "doing": doing[:300], "message": message[:1500]},
+                      {"kind": choice(INTERJECT_Q, INTERJECT_OPTIONS)})
+        return r["kind"].probabilities
 
     # -- 4. who else ---------------------------------------------------------------
     def collab(self, request: str, lead: Persona, personas: dict[str, Persona]) -> CollabDecision:

@@ -23,6 +23,7 @@ name.
 | [13 Refinement](13-refine.md) | Logged failures → tests → a local model's fix in a worktree → old vs new on every local model → your approval |
 | [14 Skill / hook router](14-skill-hook-router.md) | Proposed: checks that run in the final() gate, and a router that turns checkable skills into hooks |
 | [15 Persona creation](15-persona-creation.md) | A persona drafted when a request or a learned skill fits none: live but fenced, gated, reviewed in the dashboard (live bench: `evals/bench/persona_creation.py`) |
+| [16 Interjection](16-interjection.md) | A message sent while a task runs: added to the task's prompt (cuts the model's reply in progress and steers the task), unless it is a question about progress (an instant line, then a quick reply by the task's own model); `/queue` and `/stop` are commands; how a reply is cut, what LM Studio and vLLM do with it (live bench: `evals/bench/interject.py`) |
 
 Keeping them current: [tools/](tools/README.md) re-anchors every `file:line` after the code moves, checks
 every diagram, and builds the interactive Atlas page. A narrated walkthrough video of the same material is

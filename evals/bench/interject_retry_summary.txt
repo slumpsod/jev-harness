@@ -1,0 +1,47 @@
+INTERJECTION BENCH  20261004-002500  model=lmstudio:qwen3.8-27b@q6_k  reps=5
+
+retry-delay-0.0  (5 reps)
+  ok   classified_as_a_correction: 5/5
+  ok   cut_within_3s: 5/5
+  ok   finished: 5/5
+  ok   gate_does_not_ask_for_the_old_file: 5/5
+  ok   reply_cut: 5/5
+  ok   task_follows_it: 5/5
+  medians: cut_s 0.4, gate_bounces 0, kept_chars 404, retry_reread 0.1, total_s 26.1
+  retry_reread per rep (share of the prompt the server read again; ~0.1 = from its cache, 1.0 = from scratch): [0.08, 0.1, 0.1, 1.0, 0.1]
+  server (llama.cpp, rep 1): slot0 LCP sim 0.382 read None/2059 CUT; slot0 LCP sim 0.919 read 174/2119; slot0 LCP sim 0.927 read 169/2284; slot0 LCP sim 0.943 read 140/2420
+
+retry-delay-0.5  (5 reps)
+  ok   classified_as_a_correction: 5/5
+  ok   cut_within_3s: 5/5
+  ok   finished: 5/5
+  ok   gate_does_not_ask_for_the_old_file: 5/5
+  ok   reply_cut: 5/5
+  ok   task_follows_it: 5/5
+  medians: cut_s 0.4, gate_bounces 0, kept_chars 437, retry_reread 0.1, total_s 26.5
+  retry_reread per rep (share of the prompt the server read again; ~0.1 = from its cache, 1.0 = from scratch): [0.1, 0.07, 0.1, 0.09, 0.1]
+  server (llama.cpp, rep 1): slot1 LCP sim 0.387 read None/2066 CUT; slot1 LCP sim 0.902 read 215/2160; slot1 LCP sim 0.915 read 203/2359
+
+retry-delay-1.0  (5 reps)
+  ok   classified_as_a_correction: 5/5
+  ok   cut_within_3s: 5/5
+  ok   finished: 5/5
+  ok   gate_does_not_ask_for_the_old_file: 5/5
+  ok   reply_cut: 5/5
+  ok   task_follows_it: 5/5
+  medians: cut_s 0.3, gate_bounces 0, kept_chars 303, retry_reread 0.1, total_s 41.0
+  retry_reread per rep (share of the prompt the server read again; ~0.1 = from its cache, 1.0 = from scratch): [0.1, 0.08, 0.07, 0.09, 0.07]
+  server (llama.cpp, rep 1): slot1 LCP sim 0.386 read None/2061 CUT; slot1 LCP sim 0.904 read 211/2156; slot1 LCP sim 0.788 read 582/2734; slot1 LCP sim 0.937 read 188/2918
+
+retry-delay-2.0  (5 reps)
+  ok   classified_as_a_correction: 5/5
+  ok   cut_within_3s: 5/5
+  ok   finished: 5/5
+  ok   gate_does_not_ask_for_the_old_file: 5/5
+  ok   reply_cut: 5/5
+  ok   task_follows_it: 5/5
+  medians: cut_s 0.3, gate_bounces 0, kept_chars 284, retry_reread 0.1, total_s 32.0
+  retry_reread per rep (share of the prompt the server read again; ~0.1 = from its cache, 1.0 = from scratch): [0.09, 0.06, 0.08, 0.1, 0.07]
+  server (llama.cpp, rep 1): slot1 LCP sim 0.386 read None/2041 CUT; slot1 LCP sim 0.911 read 193/2137; slot1 LCP sim 0.905 read 228/2361; slot1 LCP sim 0.918 read 213/2570; slot1 LCP sim 0.939 read 171/2737
+
+total 624s; raw results in C:\Users\Jedidiah\Projects\jev-harness\evals\bench\runs\interject\20261004-002500

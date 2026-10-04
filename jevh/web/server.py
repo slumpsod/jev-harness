@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from .. import update as updater
 from ..bus import jsonable, task_json
 from ..config import Config, load_config
+from ..interject import KINDS
 from ..lmstudio import gate_for
 from ..orchestrator import Harness
 from ..review import list_sessions
@@ -65,6 +66,7 @@ class Hub:
         self.swaps: list[dict] = []
         self.seq = 0
         self.busy = threading.Lock()
+        self._drain = threading.Lock()   # held to decide: run the next queued request, or let go of `busy`
         self._lock = threading.Lock()
         self._subs: list[asyncio.Queue] = []
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -98,26 +100,44 @@ class Hub:
             if q in self._subs:
                 self._subs.remove(q)
 
-    def start_turn(self, message: str, resume: str | None = None) -> dict:
-        if not self.busy.acquire(blocking=False):
-            raise HTTPException(409, "a turn is already running")
+    def _open_turn(self, message: str) -> dict:
         turn = {"id": len(self.turns) + 1, "message": message, "status": "running", "started": time.time(),
                 "pin": self.pin, "tier_mode": self.harness.tier_mode}
         self.turns.append(turn)
         self.publish("turn_start", {"turn": dict(turn)})
+        return turn
+
+    def _run_turn(self, turn: dict, message: str, resume: str | None) -> None:
+        try:
+            r = self.harness.resume(resume) if resume else self.harness.turn(message, force=self.pin)
+            turn.update(usage=r.usage, checkpoint=r.checkpoint)
+            turn.update(status="cancelled" if r.cancelled else "done", persona=r.persona, answer=r.answer, artifacts=r.artifacts,
+                        seconds=r.seconds, trace=jsonable(r.trace), tasks=[task_json(t) for t in r.tasks])
+            self.publish("turn_done", {"turn": dict(turn)})
+        except Exception as e:  # noqa: BLE001 - report, never kill the server
+            turn.update(status="error", answer=f"{type(e).__name__}: {e}", seconds=time.time() - turn["started"])
+            self.publish("turn_error", {"turn": dict(turn)})
+
+    def start_turn(self, message: str, resume: str | None = None) -> dict:
+        if not self.busy.acquire(blocking=False):
+            raise HTTPException(409, "a turn is already running")
+        turn = self._open_turn(message)
 
         def run() -> None:
+            released = False
             try:
-                r = self.harness.resume(resume) if resume else self.harness.turn(message, force=self.pin)
-                turn.update(usage=r.usage, checkpoint=r.checkpoint)
-                turn.update(status="cancelled" if r.cancelled else "done", persona=r.persona, answer=r.answer, artifacts=r.artifacts,
-                            seconds=r.seconds, trace=jsonable(r.trace), tasks=[task_json(t) for t in r.tasks])
-                self.publish("turn_done", {"turn": dict(turn)})
-            except Exception as e:  # noqa: BLE001 - report, never kill the server
-                turn.update(status="error", answer=f"{type(e).__name__}: {e}", seconds=time.time() - turn["started"])
-                self.publish("turn_error", {"turn": dict(turn)})
+                self._run_turn(turn, message, resume)
+                while not released:   # requests sent while it ran (jevh/interject.py): the next turns, in order
+                    with self._drain:
+                        queued = self.harness.take_queued()
+                        if queued is None:
+                            self.busy.release()
+                            released = True
+                    if queued is not None:
+                        self._run_turn(self._open_turn(queued), queued, None)
             finally:
-                self.busy.release()
+                if not released:
+                    self.busy.release()
 
         threading.Thread(target=run, name=f"turn-{turn['id']}", daemon=True).start()
         return turn
@@ -294,6 +314,10 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                   lifespan=lifespan)
     app.state.hub, app.state.token, app.state.access_key = hub, token, access_key
 
+    def is_access_key(value: str | None) -> bool:
+        # bytes: compare_digest refuses a str with non-ASCII characters, which a ?key=%C3%A9 would be
+        return bool(value) and secrets.compare_digest(value.encode(), access_key.encode())
+
     @app.middleware("http")
     async def guard(request: Request, call_next):
         host = request.headers.get("host", "").lower()
@@ -302,8 +326,9 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         remote = host in remote_hosts
         key_sent = request.query_params.get("key")
         if remote:   # not this machine: only a browser holding the access key gets in
-            have = request.cookies.get("jevh_key") or key_sent
-            if not have or not secrets.compare_digest(have, access_key):
+            # the link's ?key= counts beside the cookie: the key changes each launch, so a phone still holding
+            # the last launch's cookie must not be locked out of the new link by it
+            if not (is_access_key(key_sent) or is_access_key(request.cookies.get("jevh_key"))):
                 return JSONResponse({"detail": "missing or bad access key"}, status_code=403)
         if request.url.path.startswith("/api/"):
             sent = request.headers.get("x-jevh-token") or request.query_params.get("token")
@@ -313,7 +338,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             if request.method != "GET" and origin is not None and origin not in allowed_origins:
                 return JSONResponse({"detail": "foreign origin"}, status_code=403)
         response = await call_next(request)
-        if remote and key_sent and secrets.compare_digest(key_sent, access_key):
+        if remote and is_access_key(key_sent):   # (this also replaces a stale cookie)
             response.set_cookie("jevh_key", access_key, httponly=True, secure=True, samesite="strict")
         return response
 
@@ -329,7 +354,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                 "personas": {n: {"description": p.description, "model": p.model.get("model"),
                                  "fast_ok": p.fast_ok, "draft": p.draft} for n, p in h.personas.items()},
                 "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq, "project": h.project,
-                "watch_browser": h.watch_browser, "questions": h.pending_questions(),
+                "watch_browser": h.watch_browser, "questions": h.pending_questions(), "queued": h.queued(),
                 "thresholds": h.cfg.thresholds, "problems": h.problems()}
 
     @app.post("/api/chat")
@@ -338,6 +363,20 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         message = str(body.get("message", "")).strip()
         if not message:
             raise HTTPException(400, "empty message")
+        if hub.busy.locked():
+            # sent while a turn runs: it is added to the running task's prompt, unless it is a question about
+            # progress (Jev tells) or a /command says otherwise: /queue, /stop, /btw, /steer (jevh/interject.py).
+            # Jev is asked off the event loop.
+            kind = body.get("kind") if body.get("kind") in KINDS else None
+            res = await asyncio.to_thread(hub.harness.interject, message, kind)
+            if res["outcome"] != "idle":
+                return {"interjected": res}
+            message = res.get("text") or message
+            with hub._drain:   # the turn ended meanwhile, or the runner is between two queued ones
+                if hub.busy.locked():
+                    hub.harness.enqueue(message)
+                    return {"interjected": {"outcome": "queued", "kind": "separate", "text": message,
+                                            "queue": hub.harness.queued()}}
         return {"turn": hub.start_turn(message)}
 
     @app.get("/api/usage")

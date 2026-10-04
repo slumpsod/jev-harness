@@ -11,8 +11,8 @@ which adds `task_id` and turns `tool_usage` into a usage row instead of an event
 ```mermaid
 flowchart LR
   subgraph Sources
-    H["Harness<br/>route, skills, memory, collab, tools, tier,<br/>start, request, done, unwaited, swap,<br/>jev_error, question, answered, cancel,<br/>thinking_watch, review, progress"]
-    W["Worker.on_step<br/>code, output, context, compact,<br/>progress_check, verify, escalate, tool_usage"]
+    H["Harness<br/>route, skills, memory, collab, tools, tier,<br/>start, request, done, unwaited, swap,<br/>jev_error, question, answered, cancel,<br/>thinking_watch, review, progress,<br/>interject, aside, queued"]
+    W["Worker.on_step<br/>code, output, context, compact,<br/>progress_check, verify, escalate, tool_usage,<br/>steer, redirect"]
     L["Learner<br/>learned, learn_error"]
   end
   W --> OW["Harness._on_worker<br/>+ task_id"]
@@ -59,6 +59,10 @@ flowchart LR
 | `learned` / `learn_error` | Learner | facts, retired, skill, scores / error | Memory tab, CLI |
 | `failure` | FailureWatch | id, source, kind, summary, persona, task | CLI, Failures view |
 | `hook_error` | FailureWatch | hook, event, error (a broken hook, not a task failure) | CLI |
+| `interject` | `Harness.interject` | text, kind, outcome (corrected / status / queued / stopped), replaces, probs, the instant line | chat (what became of your message), CLI ([16](16-interjection.md)) |
+| `aside` | `Harness._aside_async` | question, answer, source (model / state), seconds, context, tokens | chat (the quick reply), CLI |
+| `steer` / `redirect` | Worker via `_on_worker` | step, text, replaces / chars kept of the cut reply | chat activity, CLI |
+| `queued` | `Harness` | texts, queue, late | the queue above the message box, CLI |
 | `review_flag` / `review_start` / `review_done` / `review_error` | Hub (session review) | flag id, session, review | Review view |
 | `review_flag` / `review_start` / `review_done` / `review_error` | dashboard review API (`web/server.py`) | flag id and session; verdict / error | Review tab |
 
@@ -68,13 +72,13 @@ flowchart LR
 sequenceDiagram
   participant UI as Stop button / Ctrl-C
   participant H as Harness.cancel
-  participant LC as LLM _close_on_cancel threads
+  participant LC as LLM callers (OpenAICompat._chat)
   participant R as every running REPL
   participant Q as pending ask_user waits
   participant W as workers
   UI->>H: POST /api/cancel or KeyboardInterrupt
   H->>H: _cancel.set(), event cancel
-  LC->>LC: sees the flag within 0.2s → closes the stream<br/>(LM Studio stops generating)
+  LC->>LC: sees the flag within 0.1s → stops waiting for the reader thread and hangs up<br/>(LM Studio stops generating, even while it is still reading the prompt)
   H->>R: close(kill=True): kill process tree (Chromium, jobs)
   H->>Q: event.set() on each waiting question
   W->>W: next _check() raises Cancelled

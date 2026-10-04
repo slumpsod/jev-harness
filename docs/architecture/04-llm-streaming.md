@@ -2,7 +2,8 @@
 
 A worker step calls `Worker._llm` (`worker.py:1021`). That goes through `Metered`
 (`usage.py:132`), then the provider client, which for LM Studio also passes the one-model gate
-(`lmstudio.py:69`). The reply streams in, and two side threads can cut it short.
+(`lmstudio.py:69`). The reply streams in on a reader thread while the calling thread waits for it and can stop waiting at
+any moment (a Stop, a message from the user, the watcher), then hangs up: see [16 Interjection](16-interjection.md).
 
 ## The call chain
 
@@ -15,10 +16,10 @@ sequenceDiagram
   participant G as ExclusiveModels gate
   participant S as LM Studio
   participant WT as watch thread
-  participant CT as cancel thread
+  participant RT as reader thread
   participant F as thinking/step-NN.txt
 
-  W->>M: chat(messages, tools=[python, final], cancel, live, watch, watch_every, watch_after)
+  W->>M: chat(messages, tools=[python, final], cancel, live, watch, watch_every, watch_after, interrupt)
   M->>C: forwards only the kwargs the client accepts
   C->>G: use(model)
   alt another model is loaded
@@ -26,25 +27,38 @@ sequenceDiagram
     G->>S: GET /api/v1/models, POST unload (each other LLM), POST load {model}
     G-->>W: on_swap → event swap + usage row kind swap
   end
-  C->>S: POST /v1/chat/completions stream=true
+  C->>RT: start read(): POST /v1/chat/completions stream=true, then the SSE loop
   Note over C: first-chunk timeout = min(idle 180s, 30s + prompt tokens / 400)
-  C->>CT: start _close_on_cancel
   C->>WT: start _watch_thinking
-  loop each SSE chunk
-    S-->>C: delta: reasoning_content | content | tool_calls
-    C->>F: append section thinking / reply / tool call
-    C-->>W: on_progress every 50 chunks → event progress
+  loop each SSE chunk (on the reader thread)
+    S-->>RT: delta: reasoning_content | content | tool_calls
+    RT->>F: append section thinking / reply / tool call
+    RT-->>W: on_progress every 50 chunks → event progress
     WT->>WT: every 1s: check reply/reasoning size
   end
+  Note over C: meanwhile the caller waits in 0.1s steps for the reader, a Stop, an interrupt or the watcher
   alt watcher says stop
-    WT->>C: close response (interrupted = True)
+    WT->>C: stop flag → C hangs up (interrupted = True)
   else user pressed Stop
-    CT->>C: close response → Cancelled
+    C->>S: hang up (socket shutdown) → Cancelled
+  else the user sent a message (interrupt event)
+    C->>S: hang up → the partial reply, redirected = True
   end
-  C-->>M: LLMResult text, reasoning, tool_calls, tokens, interrupted
+  C-->>M: LLMResult text, reasoning, tool_calls, tokens, interrupted, redirected
   M->>M: record kind llm/learn, tokens, thinking, seconds → usage.db
   M-->>W: LLMResult
 ```
+
+## Why the reply is read on its own thread
+
+A model still reading its prompt sends nothing for a long time (LM Studio sends the response headers at once and the
+first chunk when the prompt is read: ~22 s for 6k tokens, measured). A read that waits for the server cannot be woken
+from another thread on Windows: neither `response.close()` nor `socket.shutdown()` ends it (and `close()` blocks on
+the lock the reading thread holds). Cutting the stream from a helper thread therefore worked only once the server next
+spoke: Stop during prompt reading waited for the first token, and a correction sent 9.7 s into a step landed at 28.5 s.
+So `OpenAICompat._chat` reads on a thread of its own and the caller polls; to cut, it stops waiting, drops the
+connection with `shutdown()` (the server sees it and cancels the task) and leaves the reader to end when the server
+closes its side. A reader abandoned this way never touches the results again (`stopped`).
 
 ## The watcher thread (`_watch_thinking`, `llm.py:100`)
 

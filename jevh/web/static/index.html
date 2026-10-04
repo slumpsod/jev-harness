@@ -407,6 +407,15 @@ button.flag.on { color: var(--warn-ink); border-color: color-mix(in srgb, var(--
 .ask .opts { display: flex; flex-wrap: wrap; gap: 6px; }
 .ask .opts button { border-radius: var(--pill); }
 .qa { font-size: 12.5px; color: var(--muted); margin: 4px 0; }
+.say { font-size: 13.5px; margin: 6px 0; padding: 7px 10px; border-left: 3px solid var(--line2); background: color-mix(in srgb, var(--accent) 5%, var(--surface)); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.saywho { font-weight: 600; margin-right: 4px; }
+.saytag { font-size: 11px; padding: 1px 7px; border-radius: var(--pill); border: 1px solid var(--line); color: var(--muted); margin-left: 6px; white-space: nowrap; }
+.saytag.corrected { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.saytag.stopped { color: var(--bad-ink); border-color: color-mix(in srgb, var(--bad) 50%, transparent); }
+.sayrep { margin-top: 5px; color: var(--text); }
+.saywait { color: var(--faint); font-size: 12px; }
+.queuebar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 8px 6px; font-size: 12px; color: var(--muted); }
+.qchip { padding: 1px 8px; border-radius: var(--pill); border: 1px solid var(--line); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .tfoot { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; margin-top: calc(10px * var(--space)); font-size: 12px; color: var(--faint); }
 .tfoot .artlink { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--line2); border-radius: var(--pill); color: var(--text); text-decoration: none; font-size: 12px; background: var(--surface); }
 .tfoot .artlink:hover { border-color: var(--accent); color: var(--accent); }
@@ -889,6 +898,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
     </div>
     <div class="log" id="log"><div class="log-inner" id="logi"></div></div>
     <form class="composer" id="form">
+      <div class="queuebar" id="queuebar" hidden></div>
       <div class="cbox">
         <textarea id="input" rows="1" aria-label="Message" placeholder="Message (Enter to send, Shift+Enter for a new line)"></textarea>
         <div class="cbar">
@@ -1029,7 +1039,7 @@ function md(src) {
 }
 
 // ---- state ----
-const S = { turns: new Map(), order: [], selected: null, lastSeq: 0, personas: {}, thresholds: {}, live: {}, tab: null, arts: [], artSel: null, open: new Map(), stick: true };
+const S = { turns: new Map(), order: [], selected: null, lastSeq: 0, personas: {}, thresholds: {}, live: {}, tab: null, arts: [], artSel: null, open: new Map(), stick: true, queued: [] };
 function turn(id) {
   if (!S.turns.has(id)) { S.turns.set(id, {id, tasks: new Map(), decisions: new Map(), activity: [], swaps: [], questions: new Map(), status: "running"}); S.order.push(id); }
   return S.turns.get(id);
@@ -1058,7 +1068,7 @@ function handle(e) {
       const {tasks, trace, ...rest} = d.turn;  // keep our own Map of tasks; merge the final snapshot into it
       Object.assign(t, rest);
       (tasks || []).forEach((x) => upsertTask(t, x));
-      if (e.kind === "turn_start") { S.selected = t.id; S.stick = true; } else { S.live = {}; afterTurn(t, e); }
+      if (e.kind === "turn_start") { S.selected = t.id; S.stick = true; const i = S.queued.indexOf(d.turn.message); if (i >= 0) S.queued.splice(i, 1); } else { S.live = {}; afterTurn(t, e); }
       break;
     }
     case "route": t.route = d.decision; break;
@@ -1083,7 +1093,24 @@ function handle(e) {
     case "question": t.questions.set(d.question.id, {...d.question, state: "waiting"}); focusAnswer(); break;
     case "answered": { const q = t.questions.get(d.question.id); if (q) { q.state = "answered"; q.answer = d.answer; } break; }
     case "question_timeout": { const q = t.questions.get(d.question.id); if (q) q.state = "timed out"; break; }
-    case "cancel": t.activity.push({ts: e.ts, kind: "warn", text: "stop requested"}); t.questions.forEach((q) => { if (q.state === "waiting") q.state = "stopped"; }); break;
+    case "cancel": {
+      t.activity.push({ts: e.ts, kind: "warn", text: "stop requested"}); t.questions.forEach((q) => { if (q.state === "waiting") q.state = "stopped"; });
+      if ((d.dropped || []).length) {   // what waited behind the turn goes with it: back into the box to send again
+        S.queued = [];
+        t.activity.push({ts: e.ts, kind: "warn", text: `dropped ${d.dropped.length} waiting message(s): ${d.dropped.join(" | ")}`});
+        if (Date.now() / 1000 - e.ts < 10 && !$("input").value) { $("input").value = d.dropped.join("\n"); fit(); }
+      }
+      break;
+    }
+    case "interject": {   // a message sent while the task ran (jevh/interject.py)
+      (t.said = t.said || []).push({ts: e.ts, text: d.text, kind: d.kind, outcome: d.outcome, replaces: !!d.replaces, answer: d.answer || "", asking: !!d.aside, aside: ""});
+      if (d.outcome === "queued") S.queued = d.queue || S.queued;
+      break;
+    }
+    case "aside": { const it = [...(t.said || [])].reverse().find((x) => x.outcome === "status" && !x.aside); if (it) { it.aside = d.answer; it.source = d.source; it.seconds = d.seconds; } break; }
+    case "steer": t.activity.push({ts: e.ts, kind: "learn", text: `${d.persona}: heard you at step ${d.step} - "${d.text}"`}); break;
+    case "redirect": t.activity.push({ts: e.ts, kind: "warn", text: `${d.persona}: cut the model's reply at step ${d.step} to hear you (nothing in it ran)`}); break;
+    case "queued": S.queued = d.queue || []; t.activity.push({ts: e.ts, kind: "learn", text: `${d.late ? "kept for after" : "queued"}: ${(d.texts || []).join(" | ")}`}); break;
     case "verify": {
       const x = dec(t, d.task_id); (x.verify = x.verify || []).push(d);
       t.activity.push({ts: e.ts, kind: d.ok ? "learn" : "warn", text: d.ok ? `${d.persona}: final() verified`
@@ -1131,20 +1158,35 @@ function waitingQuestion() {
   return null;
 }
 function focusAnswer() { setTimeout(() => $("input").focus(), 0); }
+function renderQueue() {   // requests sent while a turn runs: they start by themselves, in this order
+  const el = $("queuebar"), q = S.queued || [];
+  el.hidden = !q.length;
+  el.innerHTML = q.length ? `<span>Waiting to run after this (${q.length}):</span>${q.map((x) => `<span class="qchip" title="${esc(x)}">${esc(x.length > 40 ? x.slice(0, 40) + "..." : x)}</span>`).join("")}` : "";
+}
+function saidHtml(t) {   // what you said while it worked, and what became of it
+  return (t.said || []).map((s) => {
+    const tag = s.outcome === "corrected" && s.replaces ? "swapping the task" : {corrected: "added to the task", queued: "queued for after", status: "quick reply", stopped: "stopped"}[s.outcome] || s.outcome;
+    const reply = s.outcome === "status" ? `<div class="sayrep">${esc(s.aside || s.answer)}${!s.aside && s.asking ? ' <span class="saywait">(the task\'s own answer is coming...)</span>' : ""}</div>` : "";
+    return `<div class="say"><span class="saywho">You</span> ${esc(s.text)} <span class="saytag ${esc(s.outcome)}">${esc(tag)}</span>${reply}</div>`;
+  }).join("");
+}
 function render() {
   renderChat();
   if (S.tab === "timeline") renderTimeline();
   if (S.tab === "inspector") renderInspector();
   const busy = S.order.some((id) => S.turns.get(id).status === "running");
   const q = waitingQuestion();
-  $("send").disabled = busy && !q;
-  $("send").title = $("send").ariaLabel = q ? "Answer" : "Send";
+  $("send").disabled = false;   // a running turn hears you too (jevh/interject.py)
+  $("send").title = $("send").ariaLabel = q ? "Answer" : busy ? "Send to the running task" : "Send";
   $("form").classList.toggle("busy", busy && !q);
   $("stop").hidden = !busy;
   $("input").classList.toggle("secret", !!(q && q.secret));
   $("input").placeholder = q && q.secret ? `${q.persona} asks for a secret (typed hidden, never shown): ${q.question}`
-    : q ? `Answer ${q.persona}: ${q.question}` : matchMedia("(max-width: 700px)").matches ? "Message" : "Message (Enter to send, Shift+Enter for a new line)";
+    : q ? `Answer ${q.persona}: ${q.question}`
+    : busy ? (matchMedia("(max-width: 700px)").matches ? "Add to the task (/queue, /stop)" : "Add to the running task's prompt (/queue to run it after, /stop)")
+    : matchMedia("(max-width: 700px)").matches ? "Message" : "Message (Enter to send, Shift+Enter for a new line)";
   document.title = busy ? "\u25cf Working - Jev Harness" : "Jev Harness";
+  renderQueue();
   renderCtx();
 }
 
@@ -1440,7 +1482,7 @@ function turnHtml(id) {
         <span class="when">${t.started ? clock(t.started) : ""}${!running && t.seconds != null ? `${t.started ? " · " : ""}${secs(t.seconds)}` : ""}</span>
         ${t.status === "error" ? '<span class="badge failed">error</span>' : ""}${t.status === "cancelled" ? '<span class="badge cancelled">stopped</span>' : ""}
         <span class="spacer"></span>${!running ? `<button type="button" class="flagturn ${flagged ? "on" : ""}" data-flagturn="${id}" title="Flag this session for review, with a note about this turn">${FLAG_IC}${flagged ? "flagged" : "flag"}</button>` : ""}</div>
-        ${qa}${workHtml(t, id, running, persona, waiting.length > 0)}${waiting.map(askHtml).join("")}
+        ${qa}${saidHtml(t)}${workHtml(t, id, running, persona, waiting.length > 0)}${waiting.map(askHtml).join("")}
         ${running ? "" : `<div class="answer">${md(t.answer || "(empty)")}</div>`}
         ${!running && (arts || usage || resume) ? `<div class="tfoot">${arts}${usage}${resume}</div>` : ""}</div></div></article>`;
 }
@@ -2163,7 +2205,11 @@ $("form").addEventListener("submit", async (ev) => {
   S.stick = true;
   try {
     if (q) await api("/api/answer", {method: "POST", body: JSON.stringify({id: q.id, answer: message})});
-    else await api("/api/chat", {method: "POST", body: JSON.stringify({message})});
+    else {
+      const r = await api("/api/chat", {method: "POST", body: JSON.stringify({message})});
+      const j = r && r.interjected;   // sent to the running task: its events draw the result
+      if (j && (j.outcome === "refused" || j.outcome === "empty")) { alert(j.reason || "nothing to send"); $("input").value = message; fit(); }
+    }
   } catch (e) { alert(e.message); $("input").value = message; fit(); }
 });
 $("input").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $("form").requestSubmit(); } });
@@ -2194,7 +2240,7 @@ async function refreshPersonas() {
 (async function boot() {
   JUI.apply();
   const st = await api("/api/state");
-  S.personas = st.personas; S.thresholds = st.thresholds || {};
+  S.personas = st.personas; S.thresholds = st.thresholds || {}; S.queued = st.queued || [];
   $("sess").textContent = `session ${st.session}`;
   $("tier").value = st.tier_mode;
   await refreshPersonas();

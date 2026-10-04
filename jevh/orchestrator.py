@@ -20,13 +20,15 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
+from . import interject
 from .bus import Board, LimitError, Task
 from .config import Config, load_config
 from .decide import SystemOneError, noul
 from .errors import Cancelled
 from .failures import FailureLog, FailureWatch
 from .forge import Forge
-from .jev import CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision
+from .jev import (CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision,
+                  decide_interject)
 from .learn import Learner, seen_text, work_log
 from .llm import LLM, make_llm, see_image
 from .lmstudio import gate_for
@@ -39,7 +41,7 @@ from .skills import load_roster, parse_skill
 from .tools import TOOLS
 from .tools import nango
 from .usage import Metered, Usage
-from .verify import Verifier, asks_for_secret
+from .verify import DELIVERABLE, Verifier, asks_for_secret
 from .worker import Worker, WorkerResult, build_system
 
 Event = Callable[[str, dict], None]
@@ -261,6 +263,15 @@ class Harness:
         self._questions: dict[str, PendingQuestion] = {}
         self._qlock = threading.Lock()
         self._qids = itertools.count(1)
+        # messages the user sends while a turn runs (jevh/interject.py)
+        self._ilock = threading.Lock()
+        self._phase = "idle"                         # idle | preparing (routing, picking) | working | finishing
+        self._lead: Worker | None = None             # the running turn's lead worker: it hears the user's messages
+        self._lead_task: Task | None = None
+        self._early: list[tuple[str, bool]] = []     # corrections (text, replaces) sent before the lead worker exists
+        self._queue: list[str] = []                  # requests sent while a turn ran: they run after it
+        self._said: list[str] = []                   # this turn's corrections (kept with the turn in memory)
+        self._goal = ""                               # the running turn's message (what a correction is judged against)
 
     # -- public ----------------------------------------------------------------------
     def problems(self) -> list[dict]:
@@ -273,11 +284,20 @@ class Harness:
         self.turn_no += 1
         self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = self.turn_no, "", None, "llm"
         self._cancel = threading.Event()
+        with self._ilock:
+            self._phase, self._lead, self._lead_task, self._early, self._said = "preparing", None, None, [], []
+            self._goal = message
         self._running = True
         try:
             return self._turn(message, force, resume)
         finally:
             self._running = False
+            with self._ilock:   # a message that never reached the task is the next request, in the order it came
+                left, self._early = [t for t, _ in self._early], []
+                self._phase, self._lead, self._lead_task = "idle", None, None
+                self._queue[0:0] = left
+            if left:
+                self.on_event("queued", {"texts": left, "late": True, "queue": list(self._queue)})
 
     def _turn(self, message: str, force: str | None, resume: dict | None = None) -> TurnResult:
         started = time.time()
@@ -306,7 +326,8 @@ class Harness:
         result = self.run_task(root, goal=message, allow_collab=True, resume=resume)
         cancelled = root.status == "cancelled"
         if root.status == "done":  # a crashed turn's error text must not become "memory"
-            self.memory.append(route.persona, message, result.answer, self.session, turn_notes(result))
+            self.memory.append(route.persona, message, result.answer, self.session,
+                               turn_notes(result) + self._said_notes())
             learn = self.learning and result.stopped in ("final", "plain")
             # the catch-all persona ended up with it (the router's confidence in the catch-all says nothing: it
             # is the persona everything lands on): Jev decides, after the turn, whether any assistant is for it
@@ -314,7 +335,7 @@ class Harness:
             if learn or check_fit:
                 self._learn(route.persona, message, result, learn, check_fit)
         elif cancelled:  # kept, so a redirect ("no, just the USPS part") has the request as context
-            self.memory.append(route.persona, message, STOPPED_NOTE, self.session)
+            self.memory.append(route.persona, message, STOPPED_NOTE, self.session, self._said_notes().strip())
         self.current = route.persona
         self.turns_seen[self.turn_no] = {   # what flag() needs to log this turn as wrong later
             "request": message, "answer": result.answer, "persona": route.persona, "task": root.id,
@@ -377,7 +398,9 @@ class Harness:
         if self._cancel.is_set() or not self._running:
             return False
         self._cancel.set()
-        self.on_event("cancel", {"workers": len(self._workers)})  # first: the stop is often done before the kills return
+        with self._ilock:   # Stop means stop: what was queued behind this turn goes too (the event hands it back)
+            dropped, self._queue, self._early = [t for t, _ in self._early] + self._queue, [], []
+        self.on_event("cancel", {"workers": len(self._workers), "dropped": dropped})  # first: the stop is often done before the kills return
         for w in list(self._workers):
             if w.repl is not None:
                 w.repl.close(kill=True)
@@ -386,6 +409,156 @@ class Harness:
         for q in waiting:
             q.event.set()
         return True
+
+    # -- messages sent while a turn runs (jevh/interject.py, docs/architecture/16-interjection.md) -------
+    def queued(self) -> list[str]:
+        """Requests sent while a turn ran, in order: each runs as its own turn once this one is over."""
+        with self._ilock:
+            return list(self._queue)
+
+    def take_queued(self) -> str | None:
+        """The next queued request (removed), or None. Whoever runs turns calls this when one ends."""
+        with self._ilock:
+            return self._queue.pop(0) if self._queue else None
+
+    def enqueue(self, text: str) -> None:
+        """Queue a request for after the current turn, for a surface that finds itself between two turns."""
+        with self._ilock:
+            self._queue.append(text)
+        self.on_event("queued", {"texts": [text], "queue": self.queued()})
+
+    def status(self) -> dict[str, Any] | None:
+        """What the running turn is doing right now, or None when idle (interject.status_line words it)."""
+        with self._ilock:
+            phase, w = self._phase, self._lead
+        if phase == "idle":
+            return None
+        if phase != "working" or w is None:
+            doing = ("getting ready: choosing the assistant, skills and tools" if phase == "preparing"
+                     else "finishing up: collecting its answer")
+            return {"persona": None, "step": 0, "max_steps": 0, "doing": doing, "seconds": 0.0, "corrections": [],
+                    "pending": False}
+        return w.status()
+
+    def _said_notes(self) -> str:
+        """What the user added while the turn ran, for its memory record ("what did I tell you earlier?")."""
+        if not self._said:
+            return ""
+        return "\n[While this ran, the user also said: " + " | ".join(f'"{s[:300]}"' for s in self._said) + "]"
+
+    def interject(self, text: str, kind: str | None = None) -> dict[str, Any]:
+        """A message the user sent while a turn runs. By default it is added to the running task's prompt, except a
+        question about progress (Jev tells), which is answered on the side. `kind`: "correction" | "status" |
+        "separate" | "stop", or None to let a /command in the text, else Jev, decide - Jev never picks separate or
+        stop: queueing and stopping are the /queue and /stop commands. Returns {"outcome": ..., "kind": ...}:
+          idle       nothing is running: send it as an ordinary message
+          corrected  the lead worker hears it: a model reply in progress is cut and asked for again with it
+          status     a question about progress: "answer" is the instant line; the task's model answers too, a
+                     little later, as an "aside" event
+          queued     (/queue, or a message that arrived after the task was done) another request: it runs as the
+                     next turn
+          stopped    (/stop) the turn was stopped
+        The "interject" event carries the same, for the dashboard."""
+        cfg = interject.settings(self.cfg.raw)
+        command, body = interject.parse(text)
+        text = body if command else str(text or "").strip()
+        kind = kind or command
+        if not self._running:
+            return {"outcome": "idle", "text": text}
+        if not cfg["enabled"]:
+            return {"outcome": "refused", "text": text, "reason": "interject.enabled is false"}
+        if not text and kind not in ("stop", "status"):
+            return {"outcome": "empty", "text": text}
+        st = self.status() or {}
+        probs: dict[str, float] = {}
+        if kind is None:
+            if cfg["classify"]:
+                task = self._lead_task.current if self._lead_task else self._goal
+                probs = self._safe("interject", lambda: self.jev.interject_kind(text, task, st.get("doing", "")), {})
+                kind = decide_interject(probs, self.cfg.t("interject_status"))
+            else:
+                kind = "correction"
+        out: dict[str, Any] = {"outcome": "", "kind": kind, "text": text, "probs": probs}
+        if kind == "stop":
+            self.cancel()
+            out["outcome"] = "stopped"
+        elif kind == "separate":
+            with self._ilock:
+                self._queue.append(text)
+                out.update(outcome="queued", queue=list(self._queue))
+        elif kind == "status":
+            out.update(outcome="status", answer=interject.status_line(st, len(self.queued())),
+                       aside=bool(cfg["aside_model"]))   # (the task's own answer follows as an "aside" event)
+        else:
+            # a clear swap ("check my calendar instead") replaces the request; anything else adds to it
+            replaces = bool(probs) and probs.get("replace", 0.0) >= self.cfg.t("interject_replace")
+            out["replaces"] = replaces
+            out["outcome"] = self._correct(text, bool(cfg["redirect"]), replaces)
+            out["queue"] = self.queued()
+        out["turn"] = self.turn_no
+        self.on_event("interject", dict(out))
+        if kind == "status" and cfg["aside_model"]:
+            self._aside_async(text or "What is going on right now?")
+        return out
+
+    def _correct(self, text: str, redirect: bool, replaces: bool = False) -> str:
+        """Give the lead worker a correction. Before it exists the message waits for it; once it is done there is
+        no task left to correct, so the message becomes the next request."""
+        with self._ilock:
+            phase, w = self._phase, self._lead
+            if phase == "preparing":
+                self._early.append((text, replaces))
+                return "corrected"
+            if phase != "working" or w is None:
+                self._queue.append(text)
+                return "queued"
+        w.steer(text, abort=redirect, replaces=replaces)
+        return "corrected"
+
+    def aside(self, question: str) -> dict[str, Any]:
+        """The quick reply: the task's own model answers a question about the running task from what the worker
+        has done so far, on a copy of it, while the worker carries on. Blocks for the reply (it is a model
+        call): use _aside_async from a surface. Always returns an answer: if the model cannot give one (no
+        worker yet, an error, it spent its budget thinking) the instant status line is what comes back."""
+        st = self.status()
+        if st is None:
+            return {"answer": "Nothing is running.", "source": "none"}
+        quick = interject.status_line(st, len(self.queued()))
+        cfg = interject.settings(self.cfg.raw)
+        with self._ilock:
+            w, task = self._lead, self._lead_task
+        if not cfg["aside_model"] or w is None or task is None:
+            return {"answer": quick, "source": "state"}
+        mode = cfg["aside_context"] if cfg["aside_context"] in ("digest", "full") else "digest"
+        started = time.time()
+        try:
+            messages = interject.aside_messages(mode, w.persona.name, task.current, st["doing"], question,
+                                                w.digest(), w.snapshot())
+            tools = w.tool_schemas() if mode == "full" else None
+            out = w.llm.chat(messages, cancel=self._cancel, **({"tools": tools} if tools else {}),
+                             body_extra={"max_tokens": int(cfg["aside_max_tokens"]), **(cfg.get("aside_extra") or {})})
+        except Cancelled:
+            return {"answer": quick, "source": "state", "error": "stopped"}
+        except Exception as e:  # noqa: BLE001 - a quick reply must never become a second problem
+            return {"answer": quick, "source": "state", "error": f"{type(e).__name__}: {e}"[:200]}
+        answer = (out.text or "").strip()
+        if not answer:
+            return {"answer": quick, "source": "state", "error": "the model gave no answer (spent its budget thinking?)",
+                    "seconds": round(time.time() - started, 1), "context": mode}
+        return {"answer": answer, "source": "model", "seconds": round(time.time() - started, 1), "context": mode,
+                "input_tokens": out.input_tokens, "output_tokens": out.output_tokens}
+
+    def _aside_async(self, question: str) -> None:
+        turn_no = self.turn_no
+        with self._ilock:
+            lead, task = self._lead, self._lead_task
+
+        def run() -> None:
+            self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = (
+                turn_no, lead.persona.name if lead else "", task.id if task else None, "aside")
+            res = self.aside(question)
+            self.on_event("aside", {"question": question, "turn": turn_no, **res})
+        threading.Thread(target=run, name="aside", daemon=True).start()
 
     def pending_questions(self) -> list[dict[str, Any]]:
         with self._qlock:
@@ -638,6 +811,7 @@ class Harness:
                         self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
         worker.keep_reasoning = self.cfg.lim("keep_reasoning")
+        worker.retry_delay = float(interject.settings(self.cfg.raw)["retry_delay"])
         worker.step_value, worker.keep_at = self._compact_fn(task), self.cfg.t("compact_keep")
         if self.cfg.lim("thinking_watch"):
             worker.thinking_watch = self._watch_fn(task)
@@ -647,6 +821,12 @@ class Harness:
         task.started = time.time()
         self.on_event("start", {"task": task, "model": getattr(llm, "name", "?")})
         self._workers.add(worker)
+        if task.parent is None:   # the user's messages while the turn runs go to the lead worker (interject.py)
+            with self._ilock:
+                self._lead, self._lead_task, self._phase = worker, task, "working"
+                early, self._early = self._early, []
+            for text, replaces in early:   # sent while the harness was still choosing the skills and tools
+                worker.steer(text, abort=False, replaces=replaces)
         try:
             if self._cancel.is_set():
                 raise Cancelled("stopped by the user")
@@ -668,6 +848,15 @@ class Harness:
                 task.status = "failed"
         finally:
             self._workers.discard(worker)
+            left = worker.take_unapplied()   # messages that came too late for it to use: the next request
+            if left and not self._cancel.is_set():
+                with self._ilock:
+                    self._queue[0:0] = left
+                self.on_event("queued", {"texts": left, "late": True, "queue": self.queued()})
+            if task.parent is None:
+                with self._ilock:
+                    if self._lead is worker:
+                        self._phase = "finishing"
         # hand-offs the worker started but never waited for: finish them and keep their files
         for res in handles.collect_unwaited():
             result.artifacts = list(result.artifacts) + [a for a in res["artifacts"] if a not in result.artifacts]
@@ -738,6 +927,9 @@ class Harness:
             pass
 
     def _on_worker(self, kind: str, data: dict, task: Task) -> None:
+        if kind == "steer":   # the task is now what the user last asked for: the gate, the progress check and
+            task.said.append((data["text"], bool(data.get("replaces"))))   # compaction all judge Task.current
+            self._said.append(data["text"])
         if kind == "tool_usage":
             self._record(kind="jev_tools", model=str(self.cfg.jev.get("backend", "")), calls=data.get("calls", 0),
                          input_tokens=data.get("tokens", 0), seconds=data.get("seconds", 0.0))
@@ -762,7 +954,7 @@ class Harness:
 
     def _progress_fn(self, task: Task):
         def circles(log: str) -> float:
-            r = self.jev._ask("progress", {"request": task.text[:1500], "work_log": log[-4000:]},
+            r = self.jev._ask("progress", {"request": task.current[:1500], "work_log": log[-4000:]},
                               {"circles": noul(CIRCLES_Q)})
             return r["circles"].noul
         return circles
@@ -772,7 +964,7 @@ class Harness:
         One call per step: batching the steps into one call scored them lower (10/18 needed kept at
         0.8 vs 16/18) and was no faster (~0.2 s a step either way)."""
         def value(steps: list[str], now: str) -> list[float]:
-            state = {"task": task.text[:1500], "now": now[-2000:]}
+            state = {"task": task.current[:1500], "now": now[-2000:]}
             return [self.jev._ask("compact", {**state, "step": s[:4500]}, {"info": noul(COMPACT_Q)})["info"].noul
                     for s in steps]
         return value
@@ -782,7 +974,7 @@ class Harness:
         of a long think: hand-work code does exactly (TESTABLE_Q), or theory after theory (STUCK_Q
         well above CHECKING_Q)."""
         def watch(thinking: str) -> str | None:
-            r = self.jev._ask("thinking_watch", {"task": task.text[:1500], "thinking": thinking[-2500:]},
+            r = self.jev._ask("thinking_watch", {"task": task.current[:1500], "thinking": thinking[-2500:]},
                               {"testable": noul(TESTABLE_Q), "stuck": noul(STUCK_Q), "checking": noul(CHECKING_Q)})
             p, search = r["testable"].noul, r["stuck"].noul - r["checking"].noul
             self.on_event("thinking_watch", {"task": task, "p": round(p, 3), "search": round(search, 3),
@@ -803,9 +995,12 @@ class Harness:
 
         def check(answer: str, artifacts: list[str], transcript: list[dict], changed: list[str],
                   task_idx: int | None = None):
-            return self.verifier.check(task.text, answer, artifacts, work_log(transcript, answer=answer),
+            # the user changed the request while it ran and named a file: that file, not an earlier one, is due
+            last = task.said[-1][0] if task.said else ""
+            return self.verifier.check(task.current, answer, artifacts, work_log(transcript, answer=answer),
                                        project, changed, evidence=seen_text(transcript, task_idx),
-                                       backups=backups, review=review)
+                                       backups=backups, review=review,
+                                       files_from=last if DELIVERABLE.search(last) else None)
         return check
 
     def _mcp_call(self, persona: Persona, key: str, arguments: dict) -> str:

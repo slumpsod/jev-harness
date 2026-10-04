@@ -78,6 +78,14 @@ These are appended to the text the model gets back after running code (`worker.p
 | `stalled` | two progress strikes and the wrap-up step used | yes |
 | `cancelled` / `error` | Stop pressed, or an exception (e.g. the model server died) | yes |
 
+### Messages from the user while it runs
+
+The loop is a `while step < self.limit` (a step spent hearing the user out raises the limit by one). At the top of
+each step `_deliver_steers` appends the user's pending messages to the conversation (the end only, so the model
+server's cache of everything before stays valid); a model reply cut by `steer()` comes back `redirected` and is kept
+as context without anything in it running (`_redirect`); a `final()` while a message waits is held (`STEER_HELD`).
+Code that is running is never cut. See [16 Interjection](16-interjection.md).
+
 ## The REPL process and its protocol
 
 Each worker gets its own Python process: `python -u -m jevh.repl.server` with its working folder

@@ -1,0 +1,107 @@
+NOTE 2026-10-04: this full run is from BEFORE the default changed (a plain message is now added to the prompt;
+Jev no longer queues or stops on its own reading of the words). Its classify block scores the old four-way design.
+Current classifier numbers: python evals/interject_cases.py --offline (155 of 156). The changed part was re-run live:
+interject_add_summary.txt. The next full run (python evals/bench/interject.py) overwrites this file.
+
+INTERJECTION BENCH  20261004-004048  model=lmstudio:qwen3.8-27b@q6_k  reps=2
+
+classify (Jev, evals/interject_cases.py)   target: 0 stopped by mistake, 0 corrections lost
+  dev    66/68 right   stopped by mistake 0   corrections lost 0   stops missed 1
+  held   35/40 right   stopped by mistake 0   corrections lost 0   stops missed 1
+  fresh  46/48 right   stopped by mistake 0   corrections lost 0   stops missed 2
+
+boundary  (2 reps)
+  ok   classified_as_a_correction: 2/2
+  ok   delivered_to_the_task: 2/2
+  ok   finished: 2/2
+  ok   gate_does_not_ask_for_the_old_file: 2/2
+  ok   task_follows_it: 2/2
+  medians: delivered_s 0.9, gate_bounces 0.0, total_s 37.8
+  server (llama.cpp, rep 1): slot1 LCP sim 0.383 read 1945/1944; slot1 LCP sim 0.895 read None/2171 CUT; slot1 LCP sim 0.965 read 79/2245; slot1 LCP sim 0.878 read 314/2555; slot1 LCP sim 0.946 read 149/2700
+
+inflight-reading  (2 reps)
+  ok   classified_as_a_correction: 2/2
+  ok   cut_within_3s: 2/2
+  ok   finished: 2/2
+  ok   gate_does_not_ask_for_the_old_file: 2/2
+  ok   reply_cut: 2/2
+  ok   task_follows_it: 2/2
+  medians: cut_s 0.2, gate_bounces 0.0, kept_chars 0.0, retry_reread 0.3, total_s 28.4
+  retry_reread per rep (share of the prompt the server read again; ~0.1 = from its cache, 1.0 = from scratch): [0.29, 0.29]
+  server (llama.cpp, rep 1): slot1 LCP sim 0.385 read None/1432 CUT; slot1 LCP sim 0.708 read 590/2021; slot1 LCP sim 0.889 read 255/2272; slot1 LCP sim 0.933 read 165/2433
+
+inflight-writing  (2 reps)
+  ok   classified_as_a_correction: 2/2
+  ok   cut_within_3s: 2/2
+  ok   finished: 2/2
+  ok   gate_does_not_ask_for_the_old_file: 2/2
+  ok   reply_cut: 2/2
+  ok   task_follows_it: 2/2
+  medians: cut_s 0.4, gate_bounces 0.0, kept_chars 371.5, retry_reread 0.1, total_s 33.1
+  retry_reread per rep (share of the prompt the server read again; ~0.1 = from its cache, 1.0 = from scratch): [0.1, 0.08]
+  server (llama.cpp, rep 1): slot1 LCP sim 0.386 read None/2065 CUT; slot1 LCP sim 0.901 read 218/2160; slot1 LCP sim 0.874 read 313/2469; slot1 LCP sim 0.944 read 149/2614; slot1 LCP sim 0.925 read 215/2825
+
+replace  (2 reps)
+  ok   classified_as_a_correction: 2/2
+  ok   delivered_to_the_task: 2/2
+  ok   finished: 2/2
+  ok   gate_does_not_ask_for_the_old_file: 2/2
+  ok   new_file_delivered: 2/2
+  ok   right_count: 2/2
+  ok   seen_as_a_swap: 2/2
+  medians: gate_bounces 0.0, replace_p 0.9, total_s 34.4
+  server (llama.cpp, rep 1): slot1 LCP sim 0.404 read 1857/1856; slot1 LCP sim 0.877 read None/2117 CUT; slot1 LCP sim 0.955 read 99/2211; slot1 LCP sim 0.877 read 312/2519
+
+status-digest  (2 reps)
+  ok   answer_is_about_the_task: 2/2
+  ok   classified_as_a_question: 2/2
+  ok   instant_line: 2/2
+  ok   instant_within_3s: 2/2
+  ok   model_answered: 2/2
+  ok   task_finished_right: 2/2
+  ok   task_never_saw_the_question: 2/2
+  medians: aside_in 272.5, aside_out 138.0, aside_s 6.4, instant_s 0.3, total_s 67.0
+  server (llama.cpp, rep 1): slot0 LCP sim 0.405 read 1851/1850; slot0 LCP sim 0.136 read 301/300; slot1 LRU sim None read 449/2295
+  instant: high_end_dev is working on it (step 1 of up to 60): running code: import time; time.sleep(45); print('finished waiting'). That has taken 8s so far.
+  quick reply (digest): I’m running the exact one-liner now. It’s currently in the 45-second sleep. Next, I’ll report the printed output once it finishes.
+
+status-full  (2 reps)
+  ok   answer_is_about_the_task: 2/2
+  ok   classified_as_a_question: 2/2
+  ok   instant_line: 2/2
+  ok   instant_within_3s: 2/2
+  ok   model_answered: 2/2
+  ok   task_finished_right: 2/2
+  ok   task_never_saw_the_question: 2/2
+  medians: aside_in 1924.0, aside_out 88.5, aside_s 4.5, instant_s 0.4, total_s 61.0
+  server (llama.cpp, rep 1): slot0 LCP sim 0.406 read 1850/1849; slot0 LCP sim 0.959 read 78/1923; slot0 LCP sim 0.919 read 162/2007
+  instant: high_end_dev is working on it (step 1 of up to 60): running code: import time; time.sleep(45); print('finished waiting'). That has taken 8s so far.
+  quick reply (full): It's going fine — I'm just waiting out the 45-second sleep in the one-liner you asked for. As soon as it finishes I'll report exactly what it prints.
+
+status-control  (2 reps)
+  ok   task_finished_right: 2/2
+  medians: total_s 63.7
+  server (llama.cpp, rep 1): slot0 LCP sim 0.406 read 1849/1848; slot0 LCP sim 0.895 read 219/2063
+
+queue  (2 reps)
+  ok   first_task_untouched: 2/2
+  ok   next_turn_answered: 2/2
+  ok   next_turn_was_the_queued_request: 2/2
+  ok   queued: 2/2
+  medians: total_s 54.0
+
+stop-reading  (2 reps)
+  ok   reported_as_stopped: 2/2
+  ok   stop_accepted: 2/2
+  ok   turn_ended: 2/2
+  ok   within_10s: 2/2
+  medians: stopped_s 0.2
+
+stop-code  (2 reps)
+  ok   reported_as_stopped: 2/2
+  ok   stop_accepted: 2/2
+  ok   turn_ended: 2/2
+  ok   within_10s: 2/2
+  medians: stopped_s 0.1
+
+total 813s; raw results in C:\Users\Jedidiah\Projects\jev-harness\evals\bench\runs\interject\20261004-004048
