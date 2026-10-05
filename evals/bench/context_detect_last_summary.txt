@@ -1,0 +1,19 @@
+CONTEXT DETECTION  20261004-222508  config=config.yaml  `lms ps`: used
+
+  ok   lmstudio: LM Studio lists LLMs   [3 listed]
+  ok   google/gemma-4-12b-qat: resolved as the raw answer says   [harness None | raw None | loaded False]
+  ok   google/gemma-4-12b-qat: not loaded, so no context yet   [max 262144]
+  ok   qwen3.8-27b: resolved as the raw answer says   [harness 100096 | raw 100096 | loaded True]
+  ok   qwen3.8-27b: same context as `lms ps`   [harness 100096 | lms ps 100096]
+  ok   qwen3.8-27b: same maximum as `lms ps`   [harness 262144 | lms ps 262144]
+  ok   qwen3.8-27b: the same answer 10 times   [['100096']]
+  ok   qwen3.8-27b: asking is cheap (median under 250 ms)   [median 7 ms, worst 19 ms]
+  ok   ornith-1.5-35b-a3b: resolved as the raw answer says   [harness None | raw None | loaded False]
+  ok   ornith-1.5-35b-a3b: not loaded, so no context yet   [max 262144]
+  ok   lmstudio: asking loaded and unloaded nothing
+  ok   lmstudio:qwen3.8-27b@q6_k: a worker gets the window and the limit made of it   [window 100096 (LM Studio: 100096) | limit 60057 (expected 60057) | used by comfyui_manager, daily_assistant, fitness_coach, front_end_designer, high_end_dev]
+  ok   lmstudio:ornith-1.5-35b-a3b: a worker gets the window and the limit made of it   [window None | limit 60000 (limits.compact_tokens 60000) | used by fast tier]
+
+13/13 checks passed
+
+raw results in evals/bench/runs/context_detect/20261004-222508

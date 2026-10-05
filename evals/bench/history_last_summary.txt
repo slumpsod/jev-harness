@@ -1,0 +1,12 @@
+HISTORY CATEGORIES  20261004-222518  config=config.yaml
+
+  ok   there are sessions to sort   [39 sessions in the workspace]
+  ok   Jev sorted every session without an error   [4.2s for 39 sessions; pending 0; error '']
+  ok   every category is one of your assistants, 'No single field' or 'Empty sessions'   [daily_assistant, empty, fitness_coach, front_end_designer, high_end_dev, mixed]
+  ok   a question takes well under a second (median)   [median 96 ms, worst 387 ms over 38 questions]
+  ok   looking again asks Jev nothing   [0 new questions]
+  ok   'sort again' asks about every session again   [38 questions for 39 sessions (pending right after: 39)]
+  ok   every session can be read, with the turns the list says   [39 read]
+
+sessions per category: daily_assistant 24, mixed 7, high_end_dev 5, empty 1, fitness_coach 1, front_end_designer 1
+7/7 checks passed

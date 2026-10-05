@@ -1,0 +1,71 @@
+{
+  "models": [
+    {
+      "type": "llm",
+      "publisher": "google",
+      "key": "google/gemma-4-12b-qat",
+      "architecture": "gemma4",
+      "quantization": {
+        "name": "Q4_0",
+        "bits_per_weight": 4
+      },
+      "loaded_instances": [],
+      "max_context_length": 262144
+    },
+    {
+      "type": "llm",
+      "publisher": "unsloth",
+      "key": "qwen3.8-27b",
+      "architecture": "qwen35",
+      "quantization": {
+        "name": "Q6_K",
+        "bits_per_weight": 6
+      },
+      "loaded_instances": [
+        {
+          "id": "qwen3.8-27b",
+          "config": {
+            "context_length": 100096,
+            "eval_batch_size": 2048,
+            "physical_batch_size": 512,
+            "parallel": 2,
+            "flash_attention": true,
+            "context_checkpoints": 32,
+            "reasoning_budget_message": "",
+            "speculative_draft_mtp": false,
+            "speculative_draft_simple": false,
+            "speculative_draft_model": "",
+            "speculative_draft_max_tokens": 3,
+            "speculative_draft_min_tokens": 0,
+            "speculative_draft_min_continue_probability": 0,
+            "offload_kv_cache_to_gpu": true
+          }
+        }
+      ],
+      "max_context_length": 262144
+    },
+    {
+      "type": "llm",
+      "publisher": "ornith-ai",
+      "key": "ornith-1.5-35b-a3b",
+      "architecture": "qwen35moe",
+      "quantization": {
+        "name": "Q4_K_M",
+        "bits_per_weight": 4
+      },
+      "loaded_instances": [],
+      "max_context_length": 262144
+    },
+    {
+      "type": "embedding",
+      "publisher": "nomic-ai",
+      "key": "text-embedding-nomic-embed-text-v1.5",
+      "quantization": {
+        "name": "Q4_K_M",
+        "bits_per_weight": 4
+      },
+      "loaded_instances": [],
+      "max_context_length": 2048
+    }
+  ]
+}

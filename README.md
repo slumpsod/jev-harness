@@ -58,6 +58,9 @@ python evals/recall_cases.py 4         # memory reach when the history is buried
 python evals/failure_cases.py          # the failure log's Jev check (gave up / missed the request) + sweep
 python evals/verify_evidence_cases.py  # does the final() check see evidence deep inside long tool outputs
 python evals/compact_cases.py          # which earlier steps compaction must keep in full
+python evals/bench/context_detect.py   # context-length detection against the LM Studio here: read-only, vs `lms ps`
+python evals/session_category_cases.py # does Jev put a whole session in the assistant whose field it is about (History tab; --holdout, --offline)
+python evals/bench/history.py          # the History tab's categories on your own sessions, on a read-only copy of them
 python evals/button_intent_cases.py    # browser: a click the goal asked for vs one with a side effect
 python evals/expect_cases.py           # browser.test: does the page show the expected result
 python evals/find_cases.py             # project.find: does it point at where a question is answered
@@ -92,6 +95,7 @@ stops, `/steer <text>` always adds.
 | `jevh home` | where your own things are; `jevh home move` moves them out of the checkout |
 | `jevh failures`, `jevh review` | the failure log, flagged sessions |
 | `jevh notebook` | your notebook of ideas and problems |
+| `jevh context` | the context window each model is loaded with, and where the harness will condense its steps |
 
 `pip install -e .` inside the venv puts `jevh` on the PATH while that venv is active. To have it in every
 terminal with no venv to activate, install it once with [pipx](https://pipx.pypa.io)
@@ -251,11 +255,11 @@ full-screen panel over the chat (the X at its top closes it). Controls are sized
 iOS doesn't zoom in when you tap them, and the notch and home bar are respected. It is tested down to a 320px-wide
 phone, in landscape, and on a tablet.
 
-- **Timeline**: one lane per task, positioned in time and coloured by tier (fast/strong). It shows nested hand-offs, refused requests, LM Studio swap markers, and "parallel saved Xs".
-- **Inspector**: every Jev decision for the selected turn, with probabilities and threshold markers: routing, tier, skill Choice + fits, memory kept/checked, collaborators and hand-off approvals.
+- **Inspector**: the selected turn, in two parts. The *timeline* is one lane per task, positioned in time and coloured by tier (fast/strong), with nested hand-offs, refused requests, LM Studio swap markers and "parallel saved Xs"; click a lane's name to jump to that task's decisions. Below it, *every Jev decision* for the turn, with probabilities and threshold markers: routing, tier, skill Choice + fits, memory kept/checked, collaborators and hand-off approvals. (These were two tabs, Timeline and Inspector.)
 - **Artifacts**: files produced in this session. HTML is previewed live in a sandboxed iframe, images and video inline, and code or text as source.
 - **Memory**: facts (with "forget"), learned skills and lesson notes.
 - **Browser**: the worker's docked browser, live.
+- **History**: every past session, newest first, grouped by the category Jev put it in: the assistant whose field the whole conversation is about (the same kind of choice that routes a request, asked once per session in the background, about 0.1 s each), so a flask session sits under *High end dev* and a workout plan under *Fitness coach*. A session Jev is not sure of is listed under *No single field* with its likeliest categories as tags. Search as you type; click one to read it (conversation, files, cost, who worked on it) with Jev's odds for each category and an "Ask again". `history:` in `config.yaml`; [docs/architecture/18-session-history.md](docs/architecture/18-session-history.md).
 - **Review**: sessions flagged for review (see below), with their notes, a model's review and your verdict.
 - **Status**: the harness version, with new commits on GitHub and an Update button (a count on the tab when there are any); which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
 
@@ -266,7 +270,8 @@ phone, in landscape, and on a tablet.
 under it. **Appearance** (the palette at the bottom of the rail) sets how much you see: Compact, Steps,
 Verbatim or Hidden, plus the theme, accent, type, width, density and corners. See [docs/dashboard.md](docs/dashboard.md).
 
-The persona, model tier, Watch browser, project folder and context ring sit under the message box. Pin a persona or
+The persona, model tier, Watch browser, project folder and context ring sit under the message box (hover the ring: what
+the prompt is made of, and the model's context window). Pin a persona or
 set the tier (Jev decides / fast / strong) there. Click an answer's avatar to inspect that turn,
 and reload any time: the event history replays.
 
@@ -400,7 +405,9 @@ grew. Now:
 - **Bigger budgets:** 20-60 steps per persona (dev 60, designer 40), and 30 minutes per code
   block (Stop ends one sooner). Long commands run as background jobs:
   `j = start_job("npm run build")`, `job_status(j)`, `job_wait(j)`. They end with the REPL.
-- **Compaction:** past `limits.compact_tokens` (60k; Qwen has 100k of context loaded), older
+- **Compaction:** past 60% of the model's context window (`context.compact_at`; asked of LM Studio,
+  so 60,057 for the 100,096 Qwen is loaded with; `limits.compact_tokens`, 60k, where the window is
+  not known: [Context length](#context-length) below), older
   steps condense into a progress log inside the task message: code heads plus output snippets.
   The last `keep_steps` (3) steps stay verbatim, and variables and files are untouched. If the
   log itself grows past ~12k chars, the model summarizes it (what's done, what failed and why,
@@ -427,6 +434,32 @@ thinking. It restructured the code into a package with integer-cent math (100 sp
 38.34 / 38.33 / 38.33), 25 tests and a README, and the final() gate ran the tests itself before
 accepting. Compaction didn't fire in that run (about 5k tokens per step even with the threshold at
 12k), so it is covered by tests so far, not by a live run.
+
+### Context length
+
+The harness asks LM Studio what context length each model is loaded with (the value set in LM Studio's load settings,
+not the model's maximum) before every step, and condenses older steps once the prompt passes `context.compact_at` (60%)
+of it, keeping room for the reply. It used to be one number for every model, `limits.compact_tokens`. Change the context in
+LM Studio and the harness follows from the next step. `jevh context` shows what it sees:
+
+```
+  qwen3.8-27b                        loaded with   100,096   supports   262,144   parallel 2
+  lmstudio:qwen3.8-27b@q6_k              window 100,096 (asked LM Studio)  -> condenses at 60,057   [daily_assistant, ...]
+  lmstudio:ornith-1.5-35b-a3b            window not known: LM Studio has not loaded it yet  -> condenses at 60,000   [fast tier]
+```
+
+```yaml
+context:
+  detect: true       # false: never ask LM Studio (limits.compact_tokens for everything)
+  compact_at: 0.6    # older steps condense at this share of the window
+  min: 16384         # a window below this is flagged: the harness's own instructions take several thousand tokens
+# a model nothing can be asked about (vLLM, llama.cpp, hosted), or one to hold to less than it is loaded with:
+#   model: {provider: vllm, model: ..., context_length: 32768}     (a persona's model block, models.fast, or the provider)
+```
+
+A model LM Studio has not loaded yet has no window until it does (`limits.compact_tokens` meanwhile). A window under
+16k is flagged in the dashboard and the terminal. Only LM Studio is asked; vLLM, llama.cpp and hosted models take
+`context_length`. Details, what was checked and what was not: [docs/architecture/17-context-length.md](docs/architecture/17-context-length.md).
 
 ## Usage tracking
 

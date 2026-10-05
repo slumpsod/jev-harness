@@ -31,6 +31,7 @@ from .jev import (CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecis
                   decide_interject)
 from .learn import Learner, seen_text, work_log
 from .llm import LLM, make_llm, see_image
+from . import context as ctxwin
 from .lmstudio import gate_for
 from .mcp import McpHub
 from .memory import Memory
@@ -231,6 +232,7 @@ class Harness:
                 gate.on_swap = lambda dropped, model, secs: (
                     self.on_event("swap", {"unloaded": dropped, "loaded": model, "seconds": secs}),
                     self._record(kind="swap", model=model, seconds=secs, calls=1))
+        self.context_settings = ctxwin.configure(self.cfg)   # context.detect: do the LM Studio gates ask the windows
         for key, env in (("comfy_url", "JEVH_COMFY_URL"), ("comfy_workflows", "JEVH_COMFY_WORKFLOWS"),
                          ("tools_jev", "JEVH_TOOLS_JEV"), ("nango_url", "JEVH_NANGO_URL"),
                          ("nango_writes", "JEVH_NANGO_WRITES")):
@@ -811,6 +813,7 @@ class Harness:
                         self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
         worker.keep_reasoning = self.cfg.lim("keep_reasoning")
+        worker.budget = self._budget_fn(worker)
         worker.retry_delay = float(interject.settings(self.cfg.raw)["retry_delay"])
         worker.step_value, worker.keep_at = self._compact_fn(task), self.cfg.t("compact_keep")
         if self.cfg.lim("thinking_watch"):
@@ -958,6 +961,20 @@ class Harness:
                               {"circles": noul(CIRCLES_Q)})
             return r["circles"].noul
         return circles
+
+    def _budget_fn(self, worker: Worker):
+        """-> () -> where this worker's compaction starts, from the context window of the model it uses *now* (it may
+        have been swapped for the strong one) - or None when that model's window is not known: compact_tokens stands
+        (jevh/context.py). A worker on a made-up model (tests) has no window to ask for."""
+        settings, fallback = self.context_settings, self.cfg.lim("compact_tokens")
+
+        def budget():
+            ask = getattr(worker.llm, "window", None)
+            window = ask() if callable(ask) else None
+            if window is None:
+                return None
+            return ctxwin.budget(window, getattr(worker.llm, "max_tokens", None), fallback, settings)
+        return budget
 
     def _compact_fn(self, task: Task):
         """-> (old step texts, where the work is now) -> P(the rest of the task needs each step).

@@ -1,0 +1,1597 @@
+{
+ "tuning": [
+  {
+   "requests": [
+    "my flask app returns 500 when i delete a job, traceback below",
+    "ok that fixed it, now add pytest tests for it"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.001,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.9988
+   }
+  },
+  {
+   "requests": [
+    "write a python script that renames every jpg in a folder by its exif date"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0015,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.9981
+   }
+  },
+  {
+   "requests": [
+    "refactor this class to use dataclasses and add type hints",
+    "also make the fetch methods async"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0019,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.9978
+   }
+  },
+  {
+   "requests": [
+    "why is my postgres query so slow, here is the explain analyze output"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0025,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.9972
+   }
+  },
+  {
+   "requests": [
+    "build me a desktop photo editor in electron with layers and a few filters",
+    "before that, write the test suite for the layer stack"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0036,
+    "daily_assistant": 0.0004,
+    "fitness_coach": 0.0002,
+    "front_end_designer": 0.0004,
+    "high_end_dev": 0.9954
+   }
+  },
+  {
+   "requests": [
+    "set up a github actions workflow that runs the tests on every push",
+    "make it cache pip"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0076,
+    "daily_assistant": 0.0028,
+    "fitness_coach": 0.0004,
+    "front_end_designer": 0.0004,
+    "high_end_dev": 0.9889
+   }
+  },
+  {
+   "requests": [
+    "write a rust cli that tails a log file and highlights lines with ERROR"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0017,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.9979
+   }
+  },
+  {
+   "requests": [
+    "fix the failing typescript build, error TS2345 in api/client.ts"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0009,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.9989
+   }
+  },
+  {
+   "requests": [
+    "make a discord bot that posts the weather every morning",
+    "put it in a docker container"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0179,
+    "daily_assistant": 0.0035,
+    "fitness_coach": 0.0009,
+    "front_end_designer": 0.001,
+    "high_end_dev": 0.9767
+   }
+  },
+  {
+   "requests": [
+    "explain this regex and rewrite it so a human can read it"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0227,
+    "daily_assistant": 0.0045,
+    "fitness_coach": 0.0013,
+    "front_end_designer": 0.0083,
+    "high_end_dev": 0.9633
+   }
+  },
+  {
+   "requests": [
+    "are we on the newest version of this repo? https://github.com/example/tool",
+    "pull it and rebuild"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0275,
+    "daily_assistant": 0.0583,
+    "fitness_coach": 0.0011,
+    "front_end_designer": 0.0018,
+    "high_end_dev": 0.9114
+   }
+  },
+  {
+   "requests": [
+    "i need a rest api for a todo list",
+    "add auth with jwt",
+    "add pagination to the list endpoint",
+    "write the openapi spec",
+    "add rate limiting",
+    "dockerize it",
+    "add a health check endpoint",
+    "now write a readme"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0012,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.9986
+   }
+  },
+  {
+   "requests": [
+    "make the landing page for my insulation company look modern, blue and white",
+    "add a pricing section with 3 tiers"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0179,
+    "daily_assistant": 0.0045,
+    "fitness_coach": 0.0007,
+    "front_end_designer": 0.9751,
+    "high_end_dev": 0.0019
+   }
+  },
+  {
+   "requests": [
+    "redesign this dashboard so it is less cluttered, screenshot attached"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0059,
+    "daily_assistant": 0.0007,
+    "fitness_coach": 0.0003,
+    "front_end_designer": 0.9922,
+    "high_end_dev": 0.0009
+   }
+  },
+  {
+   "requests": [
+    "what colors go well with a dark navy brand?",
+    "pick me a font pairing for it"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0036,
+    "daily_assistant": 0.0008,
+    "fitness_coach": 0.0002,
+    "front_end_designer": 0.9953,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "build me a one page portfolio site for a wedding photographer"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.1016,
+    "daily_assistant": 0.0156,
+    "fitness_coach": 0.0019,
+    "front_end_designer": 0.7506,
+    "high_end_dev": 0.1304
+   }
+  },
+  {
+   "requests": [
+    "make my buttons look nicer, soft shadows and rounded corners"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0124,
+    "daily_assistant": 0.0015,
+    "fitness_coach": 0.0005,
+    "front_end_designer": 0.9847,
+    "high_end_dev": 0.0009
+   }
+  },
+  {
+   "requests": [
+    "design a settings screen for a mobile app",
+    "add a dark mode version"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0229,
+    "daily_assistant": 0.0019,
+    "fitness_coach": 0.0007,
+    "front_end_designer": 0.9729,
+    "high_end_dev": 0.0017
+   }
+  },
+  {
+   "requests": [
+    "the nav bar overlaps the hero on mobile, fix the css"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0507,
+    "daily_assistant": 0.0053,
+    "fitness_coach": 0.0012,
+    "front_end_designer": 0.8981,
+    "high_end_dev": 0.0447
+   }
+  },
+  {
+   "requests": [
+    "create a pricing table component in tailwind with a highlighted middle plan"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0671,
+    "daily_assistant": 0.015,
+    "fitness_coach": 0.0023,
+    "front_end_designer": 0.8179,
+    "high_end_dev": 0.0977
+   }
+  },
+  {
+   "requests": [
+    "generate a poster image of a fox in a forest with comfyui",
+    "now upscale it 2x"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.9998,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "make a short video from this photo with a slow zoom in"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.9965,
+    "daily_assistant": 0.0025,
+    "fitness_coach": 0.0006,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.0002
+   }
+  },
+  {
+   "requests": [
+    "load the flux workflow and render 4 variations of a cyberpunk street at night"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.9958,
+    "daily_assistant": 0.0019,
+    "fitness_coach": 0.0009,
+    "front_end_designer": 0.0004,
+    "high_end_dev": 0.0009
+   }
+  },
+  {
+   "requests": [
+    "restore this old family photo and colorize it"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.9889,
+    "daily_assistant": 0.0086,
+    "fitness_coach": 0.0015,
+    "front_end_designer": 0.0007,
+    "high_end_dev": 0.0003
+   }
+  },
+  {
+   "requests": [
+    "turn this image of a chair into a 3d model"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.997,
+    "daily_assistant": 0.0012,
+    "fitness_coach": 0.0008,
+    "front_end_designer": 0.0004,
+    "high_end_dev": 0.0006
+   }
+  },
+  {
+   "requests": [
+    "which gpu is free for rendering right now",
+    "then queue a batch of 20 portraits"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.989,
+    "daily_assistant": 0.0036,
+    "fitness_coach": 0.0017,
+    "front_end_designer": 0.0005,
+    "high_end_dev": 0.0052
+   }
+  },
+  {
+   "requests": [
+    "remove the background from these 30 product photos"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.9973,
+    "daily_assistant": 0.0017,
+    "fitness_coach": 0.0006,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.0002
+   }
+  },
+  {
+   "requests": [
+    "plan my workouts for next week, 4 days, full gym",
+    "swap the squats for leg press, my knees hurt"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0012,
+    "daily_assistant": 0.0013,
+    "fitness_coach": 0.9973,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "how much protein should i eat to cut at 190 lbs"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0003,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.9996,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "my bench has been stuck at 225 for a month what do i change"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0154,
+    "daily_assistant": 0.0039,
+    "fitness_coach": 0.95,
+    "front_end_designer": 0.0021,
+    "high_end_dev": 0.0287
+   }
+  },
+  {
+   "requests": [
+    "log today: squat 275x5, bench 205x5, row 155x8"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0006,
+    "daily_assistant": 0.0002,
+    "fitness_coach": 0.9991,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "build me a 12 week 5k plan, i can run about 1 mile now"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0003,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.9996,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "is it ok to train legs two days in a row",
+    "what about stretching after"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0006,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.9993,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "whats a good meal plan for bulking, no dairy"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0003,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.9995,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "whats on my calendar tomorrow",
+    "email dave that ill be late to the 3pm"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0003,
+    "daily_assistant": 0.9997,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "remind me to call the dentist friday morning"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0006,
+    "daily_assistant": 0.9993,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "get me three quotes for insulating a 1800 sq ft attic"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0008,
+    "daily_assistant": 0.9991,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "write a polite email to my landlord about the leaking faucet"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0006,
+    "daily_assistant": 0.9994,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "hello",
+    "thanks",
+    "what can you do?"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.029,
+    "daily_assistant": 0.9614,
+    "fitness_coach": 0.0014,
+    "front_end_designer": 0.0016,
+    "high_end_dev": 0.0065
+   }
+  },
+  {
+   "requests": [
+    "plan a weekend trip to denver, flights under 300"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.001,
+    "daily_assistant": 0.9989,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "draft an invoice for the smith job, 12 hours at 85 an hour"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0013,
+    "daily_assistant": 0.9985,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "help me connect my google calendar"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0002,
+    "daily_assistant": 0.9998,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "add milk, eggs and bread to my walmart cart"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0032,
+    "daily_assistant": 0.9965,
+    "fitness_coach": 0.0002,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "whats the capital of australia?",
+    "and its population?"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0032,
+    "daily_assistant": 0.9963,
+    "fitness_coach": 0.0002,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.0002
+   }
+  },
+  {
+   "requests": [
+    "build me a website with 3 games on it of your choice"
+   ],
+   "want": [
+    "front_end_designer",
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0893,
+    "daily_assistant": 0.0107,
+    "fitness_coach": 0.0044,
+    "front_end_designer": 0.0478,
+    "high_end_dev": 0.8477
+   }
+  },
+  {
+   "requests": [
+    "make a landing page and wire it to a flask backend with a contact form"
+   ],
+   "want": [
+    "front_end_designer",
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0467,
+    "daily_assistant": 0.0049,
+    "fitness_coach": 0.0014,
+    "front_end_designer": 0.0081,
+    "high_end_dev": 0.9388
+   }
+  },
+  {
+   "requests": [
+    "i want an app that tracks my workouts and shows my progress over time"
+   ],
+   "want": [
+    "fitness_coach",
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0007,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.9989,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0002
+   }
+  },
+  {
+   "requests": [
+    "make a poster for my gym in the style of 80s synthwave"
+   ],
+   "want": [
+    "comfyui_manager",
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.5889,
+    "daily_assistant": 0.0293,
+    "fitness_coach": 0.0201,
+    "front_end_designer": 0.3572,
+    "high_end_dev": 0.0045
+   }
+  },
+  {
+   "requests": [
+    "write a python script that generates images through the comfyui api in a loop"
+   ],
+   "want": [
+    "comfyui_manager",
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.014,
+    "daily_assistant": 0.0006,
+    "fitness_coach": 0.0003,
+    "front_end_designer": 0.0004,
+    "high_end_dev": 0.9846
+   }
+  },
+  {
+   "requests": [
+    "draw a mountain scene in svg",
+    "actually what is on my calendar"
+   ],
+   "want": [
+    "daily_assistant",
+    "comfyui_manager",
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0086,
+    "daily_assistant": 0.9883,
+    "fitness_coach": 0.0006,
+    "front_end_designer": 0.0015,
+    "high_end_dev": 0.001
+   }
+  },
+  {
+   "requests": [
+    "help me plan meals for the week",
+    "also write a script that scrapes grocery prices"
+   ],
+   "want": [
+    "daily_assistant",
+    "fitness_coach",
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0533,
+    "daily_assistant": 0.2706,
+    "fitness_coach": 0.0119,
+    "front_end_designer": 0.0153,
+    "high_end_dev": 0.649
+   }
+  }
+ ],
+ "held": [
+  {
+   "requests": [
+    "our checkout page throws a null pointer when the cart is empty, stack trace attached",
+    "write a regression test"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0013,
+    "daily_assistant": 0.0002,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.9983
+   }
+  },
+  {
+   "requests": [
+    "convert this bash script to python",
+    "and add argparse"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0015,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0003,
+    "high_end_dev": 0.9981
+   }
+  },
+  {
+   "requests": [
+    "how do i set up a virtualenv and pin my dependencies"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0028,
+    "daily_assistant": 0.0002,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.9967
+   }
+  },
+  {
+   "requests": [
+    "review my pull request, the diff is long but focus on the sql migration"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0041,
+    "daily_assistant": 0.0007,
+    "fitness_coach": 0.0002,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.9949
+   }
+  },
+  {
+   "requests": [
+    "write a c# class that parses a csv with quoted commas"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0013,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0002,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.9983
+   }
+  },
+  {
+   "requests": [
+    "build a command line tool that syncs a folder to s3",
+    "it should skip files that did not change",
+    "add a dry run flag",
+    "write tests for the skip logic",
+    "package it for pip"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0015,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.9982
+   }
+  },
+  {
+   "requests": [
+    "make my portfolio look more premium, the hero section feels flat"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0059,
+    "daily_assistant": 0.0012,
+    "fitness_coach": 0.0003,
+    "front_end_designer": 0.9921,
+    "high_end_dev": 0.0005
+   }
+  },
+  {
+   "requests": [
+    "pick an icon set and a spacing scale for my app",
+    "show me the tokens as css variables"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0097,
+    "daily_assistant": 0.0019,
+    "fitness_coach": 0.0005,
+    "front_end_designer": 0.9864,
+    "high_end_dev": 0.0015
+   }
+  },
+  {
+   "requests": [
+    "design a logo mark for a plumbing company, simple and bold"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.2642,
+    "daily_assistant": 0.0132,
+    "fitness_coach": 0.0033,
+    "front_end_designer": 0.7181,
+    "high_end_dev": 0.0012
+   }
+  },
+  {
+   "requests": [
+    "make this email template responsive and a bit prettier"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0503,
+    "daily_assistant": 0.0305,
+    "fitness_coach": 0.0009,
+    "front_end_designer": 0.8914,
+    "high_end_dev": 0.0269
+   }
+  },
+  {
+   "requests": [
+    "animate the cards so they fade up on scroll, keep it subtle"
+   ],
+   "want": [
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0565,
+    "daily_assistant": 0.0067,
+    "fitness_coach": 0.0028,
+    "front_end_designer": 0.884,
+    "high_end_dev": 0.0499
+   }
+  },
+  {
+   "requests": [
+    "render a character turnaround of a knight with the sdxl workflow"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.9919,
+    "daily_assistant": 0.0025,
+    "fitness_coach": 0.0013,
+    "front_end_designer": 0.0007,
+    "high_end_dev": 0.0036
+   }
+  },
+  {
+   "requests": [
+    "upscale all the images in my outputs folder to 4k"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.9991,
+    "daily_assistant": 0.0005,
+    "fitness_coach": 0.0002,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0002
+   }
+  },
+  {
+   "requests": [
+    "generate a 5 second clip of waves on a beach, cinematic"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.9994,
+    "daily_assistant": 0.0003,
+    "fitness_coach": 0.0002,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "run the comfyui workflow for inpainting and fix the hands in this picture"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.9994,
+    "daily_assistant": 0.0003,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0002
+   }
+  },
+  {
+   "requests": [
+    "i have shoulder pain on overhead press, what should i swap in"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0004,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.9994,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "make me a push pull legs split and tell me how to progress each lift"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0003,
+    "daily_assistant": 0.0,
+    "fitness_coach": 0.9996,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "how many calories do i burn on a 45 minute run",
+    "and how should i eat after"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0002,
+    "daily_assistant": 0.0001,
+    "fitness_coach": 0.9996,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "track my weight every morning and tell me the weekly trend"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0013,
+    "daily_assistant": 0.0017,
+    "fitness_coach": 0.9966,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.0002
+   }
+  },
+  {
+   "requests": [
+    "whats on my schedule this week",
+    "move the thursday meeting to friday"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0003,
+    "daily_assistant": 0.9996,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "order a birthday cake for saturday and find a bakery nearby"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0009,
+    "daily_assistant": 0.999,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "summarize this pdf about my health insurance",
+    "what is my deductible"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0388,
+    "daily_assistant": 0.8837,
+    "fitness_coach": 0.064,
+    "front_end_designer": 0.0067,
+    "high_end_dev": 0.0067
+   }
+  },
+  {
+   "requests": [
+    "thanks!",
+    "ok",
+    "never mind"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0258,
+    "daily_assistant": 0.9696,
+    "fitness_coach": 0.0017,
+    "front_end_designer": 0.0008,
+    "high_end_dev": 0.0021
+   }
+  },
+  {
+   "requests": [
+    "write a thank you note to the team for the great quarter"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0017,
+    "daily_assistant": 0.9981,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "i want to build a little game and also need art for it"
+   ],
+   "want": [
+    "high_end_dev",
+    "comfyui_manager",
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.2652,
+    "daily_assistant": 0.0247,
+    "fitness_coach": 0.0071,
+    "front_end_designer": 0.067,
+    "high_end_dev": 0.6361
+   }
+  },
+  {
+   "requests": [
+    "design a poster for a 5k fun run and also a landing page for signups"
+   ],
+   "want": [
+    "front_end_designer",
+    "fitness_coach",
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0819,
+    "daily_assistant": 0.0266,
+    "fitness_coach": 0.0067,
+    "front_end_designer": 0.8802,
+    "high_end_dev": 0.0046
+   }
+  },
+  {
+   "requests": [
+    "write a tracker for my lifts in python",
+    "make the output look nice in the terminal"
+   ],
+   "want": [
+    "high_end_dev",
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0364,
+    "daily_assistant": 0.0049,
+    "fitness_coach": 0.0172,
+    "front_end_designer": 0.003,
+    "high_end_dev": 0.9385
+   }
+  }
+ ],
+ "hard": [
+  {
+   "requests": [
+    "go to amazon and add a 4080 super and 64gb of ddr5 to my cart"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0509,
+    "daily_assistant": 0.9025,
+    "fitness_coach": 0.0022,
+    "front_end_designer": 0.0047,
+    "high_end_dev": 0.0397
+   }
+  },
+  {
+   "requests": [
+    "write unit tests for my calendar parsing function",
+    "it should handle all-day events"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0998,
+    "daily_assistant": 0.0605,
+    "fitness_coach": 0.0023,
+    "front_end_designer": 0.0016,
+    "high_end_dev": 0.8357
+   }
+  },
+  {
+   "requests": [
+    "run my tests and tell me which ones failed"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0921,
+    "daily_assistant": 0.0264,
+    "fitness_coach": 0.0022,
+    "front_end_designer": 0.0052,
+    "high_end_dev": 0.8741
+   }
+  },
+  {
+   "requests": [
+    "can you put together a 5k running plan, i run twice a week already"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0004,
+    "daily_assistant": 0.0003,
+    "fitness_coach": 0.9992,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "email my trainer and ask if we can move thursdays session to friday"
+   ],
+   "want": [
+    "daily_assistant",
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0059,
+    "daily_assistant": 0.9914,
+    "fitness_coach": 0.0022,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.0003
+   }
+  },
+  {
+   "requests": [
+    "design the ui for a workout tracker app",
+    "what colors for a fitness brand"
+   ],
+   "want": [
+    "front_end_designer",
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0655,
+    "daily_assistant": 0.0054,
+    "fitness_coach": 0.0241,
+    "front_end_designer": 0.904,
+    "high_end_dev": 0.0011
+   }
+  },
+  {
+   "requests": [
+    "whats the best programming language for a total beginner"
+   ],
+   "want": [
+    "high_end_dev",
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0523,
+    "daily_assistant": 0.0103,
+    "fitness_coach": 0.0026,
+    "front_end_designer": 0.0071,
+    "high_end_dev": 0.9277
+   }
+  },
+  {
+   "requests": [
+    "how long do i cook a 1 inch ribeye",
+    "and what internal temp is medium rare"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.048,
+    "daily_assistant": 0.3545,
+    "fitness_coach": 0.5845,
+    "front_end_designer": 0.0065,
+    "high_end_dev": 0.0065
+   }
+  },
+  {
+   "requests": [
+    "plan 3 dinners for the week, vegetarian, under $60"
+   ],
+   "want": [
+    "daily_assistant",
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0028,
+    "daily_assistant": 0.9961,
+    "fitness_coach": 0.0009,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "could you help me connect my facebook account to the harness"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0028,
+    "daily_assistant": 0.9963,
+    "fitness_coach": 0.0002,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.0006
+   }
+  },
+  {
+   "requests": [
+    "what does this error mean: ModuleNotFoundError: No module named 'requests'"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0019,
+    "daily_assistant": 0.0002,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0002,
+    "high_end_dev": 0.9976
+   }
+  },
+  {
+   "requests": [
+    "write a cover letter for a warehouse supervisor job"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0046,
+    "daily_assistant": 0.9939,
+    "fitness_coach": 0.0004,
+    "front_end_designer": 0.0003,
+    "high_end_dev": 0.0009
+   }
+  },
+  {
+   "requests": [
+    "i need help with my taxes, where do i put my 1099 income"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0032,
+    "daily_assistant": 0.9959,
+    "fitness_coach": 0.0003,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.0006
+   }
+  },
+  {
+   "requests": [
+    "make a 30 second video of a dog on a skateboard"
+   ],
+   "want": [
+    "comfyui_manager"
+   ],
+   "probs": {
+    "comfyui_manager": 0.998,
+    "daily_assistant": 0.0012,
+    "fitness_coach": 0.0005,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.0002
+   }
+  },
+  {
+   "requests": [
+    "explain how the squat works biomechanically",
+    "and why my lower back rounds at the bottom"
+   ],
+   "want": [
+    "fitness_coach"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0003,
+    "daily_assistant": 0.0,
+    "fitness_coach": 0.9997,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "find me a good dentist near me and book an appointment"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0005,
+    "daily_assistant": 0.9994,
+    "fitness_coach": 0.0,
+    "front_end_designer": 0.0,
+    "high_end_dev": 0.0
+   }
+  },
+  {
+   "requests": [
+    "why does my css grid leave a gap under the last row"
+   ],
+   "want": [
+    "front_end_designer",
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0282,
+    "daily_assistant": 0.0026,
+    "fitness_coach": 0.0009,
+    "front_end_designer": 0.9322,
+    "high_end_dev": 0.0361
+   }
+  },
+  {
+   "requests": [
+    "draft the readme for my python package",
+    "add install instructions and an example"
+   ],
+   "want": [
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0022,
+    "daily_assistant": 0.0002,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.9973
+   }
+  },
+  {
+   "requests": [
+    "make me a thumbnail for my youtube video about home repair"
+   ],
+   "want": [
+    "comfyui_manager",
+    "front_end_designer"
+   ],
+   "probs": {
+    "comfyui_manager": 0.6176,
+    "daily_assistant": 0.2272,
+    "fitness_coach": 0.0113,
+    "front_end_designer": 0.1378,
+    "high_end_dev": 0.0061
+   }
+  },
+  {
+   "requests": [
+    "compare two quotes for a roof replacement and tell me which is better"
+   ],
+   "want": [
+    "daily_assistant"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0022,
+    "daily_assistant": 0.9975,
+    "fitness_coach": 0.0001,
+    "front_end_designer": 0.0001,
+    "high_end_dev": 0.0001
+   }
+  },
+  {
+   "requests": [
+    "i want a budget spreadsheet for my small business",
+    "add formulas for monthly totals"
+   ],
+   "want": [
+    "daily_assistant",
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0051,
+    "daily_assistant": 0.9783,
+    "fitness_coach": 0.0005,
+    "front_end_designer": 0.0021,
+    "high_end_dev": 0.014
+   }
+  },
+  {
+   "requests": [
+    "cook a steak",
+    "find a recipe for chimichurri",
+    "actually help me write a python script to convert units"
+   ],
+   "want": [
+    "daily_assistant",
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.0225,
+    "daily_assistant": 0.0073,
+    "fitness_coach": 0.0083,
+    "front_end_designer": 0.005,
+    "high_end_dev": 0.9569
+   }
+  },
+  {
+   "requests": [
+    "generate a logo with comfyui",
+    "now make a website using it",
+    "make the site responsive",
+    "add a contact form with validation"
+   ],
+   "want": [
+    "comfyui_manager",
+    "front_end_designer",
+    "high_end_dev"
+   ],
+   "probs": {
+    "comfyui_manager": 0.176,
+    "daily_assistant": 0.027,
+    "fitness_coach": 0.0068,
+    "front_end_designer": 0.176,
+    "high_end_dev": 0.6142
+   }
+  }
+ ]
+}

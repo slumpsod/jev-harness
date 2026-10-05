@@ -119,6 +119,7 @@ class Printer:
         self.verbose = verbose
         self._lock = threading.Lock()
         self._live: dict[str, tuple[int, int]] = {}
+        self._ctx_seen: set[tuple] = set()   # context events come every step: each window is said once
 
     def __call__(self, kind: str, data: dict) -> None:
         with self._lock:
@@ -152,6 +153,16 @@ class Printer:
                           f"(~{data['tokens_before']:,} -> ~{data['tokens_after']:,} tokens"
                           f"; {data.get('full', 0)} steps kept in full, {data.get('notes', 0)} as notes"
                           f"{', %d left out' % data['dropped'] if data.get('dropped') else ''})[/]")
+        elif kind == "context":   # (every step) the model's window, once; always when it is too small for the harness
+            key = (data["persona"], data.get("window"), data["limit"])
+            if key not in self._ctx_seen:
+                self._ctx_seen.add(key)
+                if data.get("warn"):
+                    console.print(f"[yellow]    {esc(data['persona'])}: {esc(data['warn'])}[/]")
+                elif self.verbose and data.get("window"):
+                    how = "asked LM Studio" if data.get("source") == "lmstudio" else "from config"
+                    console.print(f"[dim]    {esc(data['persona'])}: context window {data['window']:,} tokens ({how}); "
+                                  f"older steps condense past ~{data['limit']:,}[/]")
         elif kind == "review":
             console.print(f"[dim]    {esc(data['persona'])}: risky project changes - full review ({data.get('tier', 'strong')} model)[/]")
         elif kind == "escalate":
@@ -335,6 +346,8 @@ def subcommand(name: str):
         from .notebook import main
     elif name == "home":
         from .home import main
+    elif name == "context":
+        from .context import main
     else:
         return None
     return main
@@ -344,7 +357,7 @@ def main(argv: list[str] | None = None) -> int | None:
     argv = sys.argv[1:] if argv is None else argv
     if argv and (sub := subcommand(argv[0])):
         return sub(argv[1:])
-    ap = argparse.ArgumentParser(prog="jevh", epilog="other commands: jevh dashboard | update | home | failures | review "
+    ap = argparse.ArgumentParser(prog="jevh", epilog="other commands: jevh dashboard | update | home | failures | review | context "
                                                       "(each takes --help)")
     ap.add_argument("--config")
     ap.add_argument("--as", dest="pin", help="pin a persona (skip routing)")

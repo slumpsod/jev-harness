@@ -132,6 +132,11 @@ asks LM Studio again (`lmstudio.py:72`).
 Swaps show up as the `swap` event (dashboard timeline markers) and as usage rows of kind `swap`
 (`orchestrator.py:209`). Embedding models are never unloaded.
 
+The same `GET /api/v1/models` says what context each loaded model has (`loaded_instances[].config.context_length`).
+`ExclusiveModels.model_info(model)` reads it for the worker, which asks before every step to know where compaction
+starts: a 3 s timeout, never under the swap lock, an answer reused for 10 s, and the last answer kept for 10 minutes if
+LM Studio cannot be reached. [17 Context length](17-context-length.md).
+
 ## Metering (`Metered`, `usage.py:132`)
 
 Every client from `Harness._llm` is wrapped. After each call it records one row:

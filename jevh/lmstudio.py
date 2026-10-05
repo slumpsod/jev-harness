@@ -12,6 +12,9 @@ JIT loading happily loads a second model next to the first, so the harness enfor
 One gate per server URL, shared by every persona. Embedding models are left alone.
 REST: GET /api/v1/models (loaded_instances), POST /api/v1/models/unload {instance_id},
 POST /api/v1/models/load {model}.
+
+The same list says what each loaded model's context length is (loaded_instances[].config.context_length: the value
+set in LM Studio's load settings, not the model's own maximum, which is max_context_length): `model_info`.
 """
 from __future__ import annotations
 
@@ -41,10 +44,47 @@ def _base(model: str) -> str:
     return model.split("@", 1)[0]  # "qwen3.8-27b@q6_k" -> "qwen3.8-27b"
 
 
+def _positive(value) -> int | None:
+    return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0 else None
+
+
+def info_from(models: list[dict], model: str) -> dict | None:
+    """What a GET /api/v1/models answer says about `model`, or None when it lists no such LLM:
+      {"key", "loaded": bool,
+       "context":  the context length it is loaded with (the smallest, if two instances are loaded), None: not loaded,
+       "max":      the most the model itself supports,
+       "parallel": the loaded instance's parallel slots}"""
+    for m in models:
+        if m.get("type", "llm") != "llm":
+            continue
+        instances = [i for i in m.get("loaded_instances") or [] if isinstance(i, dict)]
+        if not (ExclusiveModels._same(model, str(m.get("key", ""))) or
+                any(ExclusiveModels._same(model, str(i.get("id", ""))) for i in instances)):
+            continue
+        sized = []   # (context length, that instance's config)
+        for inst in instances:
+            cfg = inst.get("config") if isinstance(inst.get("config"), dict) else {}
+            if (c := _positive(cfg.get("context_length"))) is not None:
+                sized.append((c, cfg))
+        sized.sort(key=lambda t: t[0])   # (never compare the configs)
+        return {"key": m.get("key", ""), "loaded": bool(instances),
+                "context": sized[0][0] if sized else None,
+                "max": _positive(m.get("max_context_length")),
+                "parallel": _positive(sized[0][1].get("parallel")) if sized else None}
+    return None
+
+
 class ExclusiveModels:
     def __init__(self, root: str, load_timeout: float = 600.0, linger: float = 8.0, max_wait: float = 180.0,
                  recheck: float = 30.0):
         self.root = root
+        # What a model is loaded with (`model_info`) is asked of LM Studio at most every `info_ttl` seconds per model,
+        # on a short timeout, and never under the swap lock: a worker asks before every step, and a swap can hold
+        # the lock for minutes. If LM Studio cannot be asked, the last answer stands for `info_stale` seconds.
+        self.detect = True
+        self.info_ttl, self.info_stale, self.info_timeout = 10.0, 600.0, 3.0
+        self._info: dict[str, tuple[float, dict | None]] = {}
+        self._info_lock = threading.Lock()
         # `current` is this process's belief. Another process on the same server (refine's test runs, the
         # dashboard next to a CLI) may have swapped models since: after `recheck` idle seconds the gate asks
         # LM Studio again. Live: refine's writer believed Qwen was loaded while its test runs had swapped to
@@ -90,6 +130,30 @@ class ExclusiveModels:
                 self.inflight -= 1
                 self.last_used = time.monotonic()
                 self._cond.notify_all()
+
+    def model_info(self, model: str) -> dict | None:
+        """The context LM Studio loaded `model` with (see `info_from`), or None: detection is off, LM Studio does not
+        list the model, or it cannot be asked and there is no recent answer."""
+        if not self.detect:
+            return None
+        key, now = _base(model), time.monotonic()
+        with self._info_lock:
+            hit = self._info.get(key)
+        if hit and now - hit[0] < self.info_ttl:
+            return hit[1]
+        try:
+            models = self._request("GET", "/api/v1/models", timeout=self.info_timeout).get("models", [])
+        except Exception:  # noqa: BLE001 - LM Studio down or busy: the last answer, if it is recent
+            return hit[1] if hit and now - hit[0] < self.info_stale else None
+        info = info_from(models, model)
+        with self._info_lock:
+            self._info[key] = (now, info)
+        return info
+
+    def llms_info(self) -> list[dict]:
+        """Every LLM LM Studio lists, loaded or not, as `info_from` describes it (the dashboard's status card and
+        `jevh context`)."""
+        return [i for m in self._models() if (i := info_from([m], str(m.get("key", ""))))]
 
     # -- LM Studio REST ----------------------------------------------------------------
     def _request(self, method: str, path: str, body: dict | None = None, timeout: float = 30.0) -> dict:

@@ -62,6 +62,8 @@ SAME_SPECIALIST_Q = "Would one person who is an expert in `request_a`'s subject 
 SAME_SPECIALIST_TOP_N = 8    # personas compared per call in the near-duplicate check (forge._twin)
 
 ROUTE_Q = "Which assistant is best suited to handle the user's latest request?"
+# The History tab's category for a whole session: the same kind of Choice as routing, asked once for the conversation.
+SESSION_Q = "Which assistant is best suited to handle this whole conversation?"
 
 TIER_Q = "Which model should handle this task?"
 TIER_OPTIONS = {"fast": "a small fast model - good for quick answers, lookups, short scripts and simple edits",
@@ -407,6 +409,13 @@ class Jev:
         r = self._ask("interject", {"task": task[:1500], "doing": doing[:300], "message": message[:1500]},
                       {"kind": choice(INTERJECT_Q, INTERJECT_OPTIONS)})
         return r["kind"].probabilities
+
+    def session_category(self, conversation: str, categories: dict[str, str]) -> tuple[dict[str, float], Any]:
+        """What a whole conversation is about, for the History tab: probabilities over `categories` (assistant name ->
+        description), and the raw response for the caller to meter. Asked outside any turn, so it is not in a turn's
+        Jev trace and not counted among its Jev calls."""
+        r = self.client.ask({"conversation": conversation[:2500]}, {"category": choice(SESSION_Q, categories)})
+        return r["category"].probabilities, r
 
     # -- 4. who else ---------------------------------------------------------------
     def collab(self, request: str, lead: Persona, personas: dict[str, Persona]) -> CollabDecision:

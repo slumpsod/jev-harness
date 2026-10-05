@@ -486,7 +486,7 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 .panel#p-artifacts.on, .panel#p-review.on { display: flex; flex-direction: column; }
 .empty { color: var(--muted); padding: 40px 24px; text-align: center; }
 
-/* ---- shared panel pieces (timeline, inspector, memory, review, status) ---- */
+/* ---- shared panel pieces (inspector with its timeline, memory, review, status) ---- */
 .badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: var(--pill); background: var(--surface3); border: 1px solid var(--line); color: var(--text); }
 .badge.fast { background: color-mix(in srgb, var(--fast) 18%, transparent); border-color: color-mix(in srgb, var(--fast) 40%, transparent); color: var(--good-ink); }
 .badge.strong { background: color-mix(in srgb, var(--strong) 16%, transparent); border-color: color-mix(in srgb, var(--strong) 40%, transparent); color: var(--strong-ink); }
@@ -503,6 +503,26 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 .tl .bar .t { position: absolute; left: 7px; top: 0; font-size: 11px; font-weight: 600; color: var(--bar-ink); line-height: 18px; white-space: nowrap; }
 .tl .swapmark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--swap); border-radius: 2px; }
 .tl .reject { color: var(--bad-ink); font-size: 12px; }
+.tl .label[data-jump] { cursor: pointer; } .tl .label[data-jump]:hover b { text-decoration: underline; }
+.sechead { margin: 4px 2px 8px; font: 650 11.5px var(--font-display); text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.card.flash { animation: cardflash 1.3s ease-out; }
+@keyframes cardflash { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
+/* history: past sessions, grouped by the category Jev put them in */
+.hhead { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; } .hhead input { flex: 1; min-width: 0; }
+.hnote { margin: 0 0 8px; }
+.hgroup { margin-bottom: 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+.hgroup > summary { cursor: pointer; padding: 10px 14px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; list-style: none; }
+.hgroup > summary::-webkit-details-marker { display: none; }
+.hgroup > summary b { font: 650 14px var(--font-display); }
+.hgroup > summary .desc { flex-basis: 100%; font-size: 12px; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hrow { padding: 9px 14px; border-top: 1px solid var(--line); cursor: pointer; }
+.hrow:hover, .hrow:focus-visible { background: var(--hover); outline: none; }
+.hrow .ht { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.hrow .hm { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 3px; font-size: 11.5px; color: var(--muted); }
+.tag { font-size: 11px; padding: 1px 8px; border-radius: var(--pill); border: 1px solid var(--line2); color: var(--muted); }
+.htitle { margin: 12px 0 2px; font: 650 16px/1.35 var(--font-display); overflow-wrap: anywhere; }
+.hturn { margin: 14px 0; } .hturn .hu { font-weight: 600; font-size: 13.5px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.hturn .hmeta { margin: 4px 0; font-size: 12px; }
 .axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin: 6px 0 0 212px; }
 .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-bottom: 14px; flex-wrap: wrap; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
@@ -606,6 +626,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 .pop .row.hi { background: var(--surface3); }
 .pop .row i { width: 10px; height: 10px; border-radius: 3px; }
 .pop .row .n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; } .pop .row .s { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pop .kv.warn { color: var(--warn-ink); }
 .pop .rows { margin: 10px 0 8px; } .pop .pfoot { border-top: 1px solid var(--line); padding-top: 8px; color: var(--muted); }
 .appear { width: 352px; padding: 0; max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow: auto; }
 .appear .ah { display: flex; align-items: center; padding: 14px 16px 6px; } .appear .ah h3 { flex: 1; font-size: 15px; }
@@ -810,11 +831,11 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="jg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--g1)"/><stop offset=".52" style="stop-color:var(--g2)"/><stop offset="1" style="stop-color:var(--g3)"/></linearGradient>
-  <symbol id="i-timeline" viewBox="0 0 24 24"><path d="M4 6h9M4 12h14M4 18h6"/><circle cx="16" cy="6" r="1.4"/><circle cx="13" cy="18" r="1.4"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
   <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></symbol>
   <symbol id="i-browser" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18"/><circle cx="6.5" cy="6.5" r=".6"/><circle cx="9" cy="6.5" r=".6"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4.5V8h3.5"/><path d="M12 8v4.2l2.8 1.8"/></symbol>
   <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7.5h6"/></symbol>
   <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></symbol>
@@ -858,11 +879,11 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
       <svg class="mark-alt" viewBox="0 0 40 40"><path d="M29.5 9.2A14 14 0 1 0 34 21.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><rect x="29" y="27" width="7" height="7" rx="1" fill="currentColor" opacity=".9"/></svg>
     </div>
     <div id="tabs" role="toolbar" aria-label="Open a panel">
-      <button class="rbtn" data-tab="timeline" data-tip="Timeline" aria-label="Timeline"><svg class="ic"><use href="#i-timeline"/></svg></button>
-      <button class="rbtn" data-tab="inspector" data-tip="Inspector" aria-label="Inspector"><svg class="ic"><use href="#i-search"/></svg></button>
+      <button class="rbtn" data-tab="inspector" data-tip="Inspector: when each task ran, and every decision Jev made, for the selected turn" aria-label="Inspector"><svg class="ic"><use href="#i-search"/></svg></button>
       <button class="rbtn" data-tab="artifacts" data-tip="Artifacts" aria-label="Artifacts"><svg class="ic"><use href="#i-folder"/></svg></button>
       <button class="rbtn" data-tab="memory" data-tip="Memory" aria-label="Memory"><svg class="ic"><use href="#i-db"/></svg></button>
       <button class="rbtn" data-tab="browser" data-tip="Browser" aria-label="Browser"><svg class="ic"><use href="#i-browser"/></svg><i class="livedot" id="navlive"></i></button>
+      <button class="rbtn" data-tab="history" data-tip="History: past sessions, sorted by Jev into the field each was about" aria-label="History"><svg class="ic"><use href="#i-history"/></svg></button>
       <button class="rbtn" data-tab="review" data-tip="Review: flagged sessions, a model's verdict" aria-label="Review"><svg class="ic"><use href="#i-flag"/></svg><i class="count" id="revcount" hidden></i></button>
       <button class="rbtn" data-tab="notebook" data-tip="Notebook: ideas and problems to come back to" aria-label="Notebook"><svg class="ic"><use href="#i-book"/></svg><i class="count" id="nbcount" hidden></i></button>
       <button class="rbtn" data-tab="status" data-tip="Status and updates" aria-label="Status"><svg class="ic"><use href="#i-pulse"/></svg><i class="count" id="updcount" hidden></i></button>
@@ -907,11 +928,10 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
     <div class="resizer" id="resizer" title="Drag to resize"></div>
     <div class="side-inner">
       <div class="sidehead">
-        <h2 id="ptitle">Timeline</h2>
+        <h2 id="ptitle">Inspector</h2>
         <button class="iconbtn" id="wide" type="button" title="Wider / narrower" aria-label="Toggle wide panel"><svg class="ic"><use href="#i-expand"/></svg></button>
         <button class="iconbtn" id="closepanel" type="button" title="Close panel (Esc)" aria-label="Close panel"><svg class="ic"><use href="#i-close"/></svg></button>
       </div>
-      <div class="panel" id="p-timeline"></div>
       <div class="panel" id="p-inspector"></div>
       <div class="panel" id="p-artifacts"></div>
       <div class="panel" id="p-memory"></div>
@@ -922,6 +942,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
         <p class="kv">Live view of the browser Jev is driving. Click into it and type to take over (e.g. to enter a password or card
           yourself); Ctrl/Cmd shortcuts stay with the dashboard, paste goes to the page.</p>
       </div>
+      <div class="panel" id="p-history"></div>
       <div class="panel" id="p-review"></div>
       <div class="panel" id="p-notebook">
         <form class="card nbadd" id="nbform">
@@ -1043,8 +1064,9 @@ function dec(t, taskId) { if (!t.decisions.has(taskId)) t.decisions.set(taskId, 
 function handle(e) {
   S.lastSeq = Math.max(S.lastSeq, e.seq);
   const d = e.data || {};
-  if (e.kind === "reset") { S.turns.clear(); S.order = []; S.selected = null; S.live = {}; S.ctx = null; $("sess").textContent = `session ${d.session}`; S.open.clear(); S.stick = true; resetChat(); refreshReviews(); return; }
+  if (e.kind === "reset") { S.turns.clear(); S.order = []; S.selected = null; S.live = {}; S.ctx = null; $("sess").textContent = `session ${d.session}`; S.open.clear(); S.stick = true; resetChat(); refreshReviews(); if (S.tab === "history") { H.open = null; H.detail = null; refreshHistory(); } return; }
   if (e.kind.startsWith("review_")) { reviewEvent(e.kind, d); return; }
+  if (e.kind === "history") { if (S.tab === "history") refreshHistory(); return; }
   if (e.turn == null) return;
   const t = turn(e.turn);
   if (d.task) upsertTask(t, d.task);
@@ -1053,7 +1075,7 @@ function handle(e) {
       const {tasks, trace, ...rest} = d.turn;  // keep our own Map of tasks; merge the final snapshot into it
       Object.assign(t, rest);
       (tasks || []).forEach((x) => upsertTask(t, x));
-      if (e.kind === "turn_start") { S.selected = t.id; S.stick = true; const i = S.queued.indexOf(d.turn.message); if (i >= 0) S.queued.splice(i, 1); } else { S.live = {}; afterTurn(t, e); }
+      if (e.kind === "turn_start") { S.selected = t.id; S.stick = true; const i = S.queued.indexOf(d.turn.message); if (i >= 0) S.queued.splice(i, 1); } else { S.live = {}; afterTurn(t, e); if (S.tab === "history") refreshHistory(); }
       break;
     }
     case "route": t.route = d.decision; break;
@@ -1157,7 +1179,6 @@ function saidHtml(t) {   // what you said while it worked, and what became of it
 }
 function render() {
   renderChat();
-  if (S.tab === "timeline") renderTimeline();
   if (S.tab === "inspector") renderInspector();
   const busy = S.order.some((id) => S.turns.get(id).status === "running");
   const q = waitingQuestion();
@@ -1202,6 +1223,14 @@ function renderCtx() {
     : "Context: no task yet");
   if (!$("ctxpop").hidden) renderPop();
 }
+// the model's context window as the harness knows it (jevh/context.py): asked of LM Studio, or set in config
+function windowNote(c) {
+  const n = (v) => Number(v).toLocaleString();
+  if (c.window) return `<div class="kv">Model window: <b>${n(c.window)}</b> tokens (${c.source === "lmstudio" ? "what LM Studio loaded it with" : "set in config"})${c.max && c.max > c.window ? `; the model supports up to ${n(c.max)}` : ""}.</div>`
+    + (c.warn ? `<div class="kv warn">${esc(c.warn)}.</div>` : "");
+  if (c.loaded === false) return `<div class="kv">Model window: not known yet, LM Studio has not loaded this model. The default limit applies until it does.</div>`;
+  return "";
+}
 function renderPop() {
   const c = S.ctx, pop = $("ctxpop");
   if (!c) pop.innerHTML = `<h3>Context</h3><div class="kv">Shows what the model's prompt is made of once a task runs.</div>`;
@@ -1209,6 +1238,7 @@ function renderPop() {
     const used = ctxUsed(c);
     pop.innerHTML = `<h3>Context <span class="kv">${esc(c.persona)} · step ${c.step} · turn ${c.turn}</span></h3>
       <div class="kv">${kfmt(used)} of ${kfmt(c.limit)} tokens (estimated). Past ${kfmt(c.limit)}, older steps get condensed.</div>
+      ${windowNote(c)}
       <div class="rows">${CTX.map(([k, label, what], i) => `<div class="row" data-k="${k}" title="${esc(what)}"><i style="background:var(--c${i + 1})"></i>
         <span>${label}</span><span class="n">${kfmt(c.parts[k] || 0)}</span><span class="s">${used ? Math.round(((c.parts[k] || 0) / used) * 100) : 0}%</span></div>`).join("")}</div>`;
   }
@@ -1466,7 +1496,7 @@ function turnHtml(id) {
   const usage = t.usage && t.usage.total ? `<span title="tokens and time for this turn">${esc(usageBrief(t.usage))}</span>` : "";
   const resume = t.checkpoint && !running ? `<button type="button" data-resume="${esc(t.checkpoint)}" title="Continue this task where it stopped: same working folder and files, fresh REPL">Resume this task</button>` : "";
   return `<article class="turn" data-id="${id}"><div class="msg user">${esc(t.message || "")}</div>
-    <div class="msg assistant ${S.selected === id ? "selected" : ""}" data-turn="${id}"><div class="avatar" title="Select this turn for the Timeline and Inspector">${esc((persona || "j").slice(0, 1))}</div>
+    <div class="msg assistant ${S.selected === id ? "selected" : ""}" data-turn="${id}"><div class="avatar" title="Select this turn to inspect it: when each task ran and every decision Jev made">${esc((persona || "j").slice(0, 1))}</div>
       <div class="amain"><div class="who"><b>${esc(persona || "assistant")}</b>${tier ? `<span class="badge ${tier}">${tier}</span>` : ""}
         <span class="when">${t.started ? clock(t.started) : ""}${!running && t.seconds != null ? `${t.started ? " · " : ""}${secs(t.seconds)}` : ""}</span>
         ${t.status === "error" ? '<span class="badge failed">error</span>' : ""}${t.status === "cancelled" ? '<span class="badge cancelled">stopped</span>' : ""}
@@ -1513,9 +1543,9 @@ async function pollThinking() {   // while a turn runs: the newest step's reason
 
 function selTurn() { return S.selected != null ? S.turns.get(S.selected) : S.turns.get(S.order[S.order.length - 1]); }
 
-function renderTimeline() {
-  const el = $("p-timeline"), t = selTurn();
-  if (!t || !t.tasks.size) { el.innerHTML = `<div class="empty">Hand-offs appear here as parallel lanes: who asked whom, on which model tier, and for how long.</div>`; return; }
+// when each task of the turn ran: one lane per task (a section of the Inspector; it was a tab of its own)
+function timelineHtml(t) {
+  if (!t.tasks.size) return `<div class="kv">Tasks appear here as lanes: who ran what, who asked whom, on which model tier, and for how long.</div>`;
   const tasks = [...t.tasks.values()].sort((a, b) => a.id - b.id);
   const now = Date.now() / 1000;
   const t0 = Math.min(...tasks.filter((x) => x.started).map((x) => x.started), t.started || now);
@@ -1524,7 +1554,7 @@ function renderTimeline() {
   const swaps = t.swaps.map((s) => `<div class="swapmark" style="left:${X(s.ts)}" title="LM Studio swap -> ${esc(s.loaded)} (${secs(s.seconds)})"></div>`).join("");
   const rows = tasks.map((x) => {
     const tier = tierOf(t, x.id) || "none";
-    const label = `<div class="label" style="padding-left:${x.depth * 14}px" title="${esc(x.text)}">${x.depth ? "&#8627; " : ""}<b>${esc(x.to)}</b>
+    const label = `<div class="label" data-jump="${x.id}" style="padding-left:${x.depth * 14}px" title="${esc(x.text)} (click: its decisions)">${x.depth ? "&#8627; " : ""}<b>${esc(x.to)}</b>
       <span class="badge ${x.status}">${x.status}</span>${x.result ? ` <span class="kv">${x.result.steps} steps</span>` : ""}</div>`;
     if (x.status === "rejected") return `${label}<div class="reject">refused: ${esc(x.answer || x.reason || "")}</div>`;
     if (!x.started) return `${label}<div class="track">${swaps}</div>`;
@@ -1535,7 +1565,7 @@ function renderTimeline() {
   const done = tasks.filter((x) => x.depth === 1 && x.finished && x.started).map((x) => [x.started, x.finished]).sort((a, b) => a[0] - b[0]);
   let work = 0, wall = 0, endT = -Infinity;
   for (const [a, b] of done) { work += b - a; if (b > endT) { wall += b - Math.max(a, endT); endT = b; } }
-  el.innerHTML = `<div class="legend"><span><i style="background:var(--fast)"></i>fast tier</span><span><i style="background:var(--strong)"></i>strong tier</span>
+  return `<div class="legend"><span><i style="background:var(--fast)"></i>fast tier</span><span><i style="background:var(--strong)"></i>strong tier</span>
       <span><i style="background:var(--swap)"></i>LM Studio swap</span><span>turn ${t.id}: ${esc((t.message || "").slice(0, 80))}</span></div>
     <div class="tl">${rows}</div><div class="axis"><span>0s</span><span>${secs(span / 2)}</span><span>${secs(span)}</span></div>
     ${work ? `<p class="kv">hand-offs: ${secs(work)} of work in ${secs(wall)} wall (parallel saved ${secs(work - wall)})</p>` : ""}`;
@@ -1549,9 +1579,9 @@ function probRows(probs, pick, opts = {}) {
 
 function renderInspector() {
   const el = $("p-inspector"), t = selTurn();
-  if (!t) { el.innerHTML = `<div class="empty">Every decision Jev makes for a turn shows up here with its probabilities.</div>`; return; }
+  if (!t) { el.innerHTML = `<div class="empty">When each task of a turn ran, and every decision Jev makes for it with its probabilities, show up here.</div>`; return; }
   const th = S.thresholds;
-  let html = "";
+  let html = `<h3 class="sechead">Timeline</h3><div class="card">${timelineHtml(t)}</div><h3 class="sechead">Decisions</h3>`;
   if (t.route) html += `<div class="card"><h3>Routing <span class="badge">${esc(t.route.persona)}</span><span class="kv">${esc(t.route.reason)}</span></h3>
     ${probRows(t.route.probabilities, t.route.persona)}
     ${t.route.continues != null ? `<h4>Follow-up: ${t.route.follows ? "yes - the last turns of this chat go along as context" : "no - starts clean"}</h4>
@@ -1587,7 +1617,7 @@ function renderInspector() {
     }
     if (x.approval && Object.keys(x.approval).length) inner += `<h4>Hand-off approval</h4>${probRows(x.approval, null, {thr: th.approve})}`;
     if (x.status === "rejected") inner += `<div class="kv" style="color:var(--bad)">refused: ${esc(x.answer || x.reason)}</div>`;
-    html += `<div class="card"><h3>#${x.id} ${esc(x.to)} <span class="badge ${x.status}">${x.status}</span>
+    html += `<div class="card" data-card="${x.id}"><h3>#${x.id} ${esc(x.to)} <span class="badge ${x.status}">${x.status}</span>
       ${x.requester !== "user" ? `<span class="kv">asked by ${esc(x.requester)}</span>` : ""}${x.model ? `<span class="kv">on ${esc(String(x.model).split("@http")[0].replace(/^\(primary\)->/, ""))}</span>` : ""}</h3>
       <div class="kv" title="${esc(x.text)}">${esc((x.text || "").slice(0, 220))}</div>${inner || '<div class="kv">no decisions recorded</div>'}</div>`;
   }
@@ -1600,8 +1630,107 @@ function renderInspector() {
       ${(L.retired || []).map((f) => `<div class="kv">replaced: ${esc(f)}</div>`).join("")}
       ${L.skill ? `<div class="kv">&#10003; ${L.skill_action === "created" ? "new skill" : "lessons added"}: ${esc(L.skill)}</div>` : ""}</div>`;
   }
-  el.innerHTML = html || `<div class="empty">Waiting for Jev...</div>`;
+  el.innerHTML = html;
 }
+// a lane's name jumps to that task's decisions
+$("p-inspector").addEventListener("click", (ev) => {
+  const lane = ev.target.closest("[data-jump]");
+  const card = lane && document.querySelector(`#p-inspector [data-card="${lane.dataset.jump}"]`);
+  if (!card) return;
+  card.scrollIntoView({block: "nearest", behavior: "smooth"});
+  card.classList.add("flash");
+  setTimeout(() => card.classList.remove("flash"), 1300);
+});
+
+
+// ---- history: past sessions, grouped by the category Jev put them in (jevh/history.py) ----
+const H = {data: null, open: null, detail: null, q: "", closed: new Set(), timer: null, key: ""};
+const catName = (c) => { const k = ((H.data || {}).categories || []).find((x) => x.name === c); return k ? k.title : String(c).replace(/_/g, " ").replace(/^./, (m) => m.toUpperCase()); };
+const hwhen = (ts) => {
+  const d = new Date((ts || 0) * 1000), time = d.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
+  return d.toDateString() === new Date().toDateString() ? `today ${time}` : `${d.toLocaleDateString([], {month: "short", day: "numeric"})}, ${time}`;
+};
+async function refreshHistory() {
+  if (S.tab !== "history") return;
+  clearTimeout(H.timer);
+  try { H.data = await api("/api/history"); } catch (e) { H.data = {enabled: true, categories: [], sessions: [], pending: 0, stale: 0, error: e.message}; }
+  if (H.open) { try { H.detail = await api(`/api/history/${encodeURIComponent(H.open)}`); } catch (e) { H.open = null; H.detail = null; } }
+  const key = JSON.stringify([H.data, H.detail, H.open, [...H.closed], H.q]);
+  if (key !== H.key || !$("p-history").innerHTML) { H.key = key; renderHistory(); }   // (polling: only a change is drawn)
+  if (H.data.pending > 0) H.timer = setTimeout(refreshHistory, 1500);
+}
+function historyRow(s) {
+  const tags = (s.also || []).map((c) => `<span class="tag" title="Jev also thought of this field">${esc(catName(c))}</span>`).join("");
+  return `<div class="hrow" role="button" tabindex="0" data-session="${esc(s.session)}"><span class="ht">${esc(s.title || "(no request recorded)")}</span>
+    <span class="hm"><span>${esc(hwhen(s.last || s.started))}</span><span>&middot; ${s.turns} turn${s.turns === 1 ? "" : "s"}</span>${s.current ? '<span class="badge running">this session</span>' : ""}${s.flag ? '<span class="badge cancelled">flagged</span>' : ""}${tags}</span></div>`;
+}
+function historyList() {
+  const D = H.data, q = H.q.trim().toLowerCase();
+  if (!D.sessions.length) return `<div class="empty">No sessions yet. Each one you have shows up here, sorted by Jev into the field it was about.</div>`;
+  const shown = D.sessions.filter((s) => !q || (s.title || "").toLowerCase().includes(q) || s.session.includes(q));
+  if (!shown.length) return `<div class="empty">No session matches &ldquo;${esc(H.q)}&rdquo;.</div>`;
+  const groups = D.categories.map((c) => ({key: c.name, title: c.title, desc: c.description, items: shown.filter((s) => s.category === c.name)}));
+  const waiting = shown.filter((s) => s.category == null);
+  if (waiting.length) groups.push({key: "__waiting", title: "Jev is sorting these", desc: "", items: waiting});
+  return groups.filter((g) => g.items.length).map((g) => `<details class="hgroup" data-cat="${esc(g.key)}" ${H.closed.has(g.key) ? "" : "open"}>
+      <summary><b>${esc(g.title)}</b><span class="badge">${g.items.length}</span>${g.desc ? `<span class="desc">${esc(g.desc)}</span>` : ""}</summary>${g.items.map(historyRow).join("")}</details>`).join("");
+}
+function renderHistory() {
+  const el = $("p-history"), D = H.data;
+  if (!D) { el.innerHTML = `<div class="empty">Loading...</div>`; return; }
+  if (!D.enabled) { el.innerHTML = `<div class="empty">History is switched off (config: history.enabled).</div>`; return; }
+  if (H.open) { renderHistoryDetail(el); return; }
+  if (!el.querySelector("#hlist")) {
+    el.innerHTML = `<div class="hhead"><input id="hq" type="search" placeholder="Search your sessions" autocomplete="off" aria-label="Search sessions" value="${esc(H.q)}">
+      <button type="button" data-h="recat" title="Ask Jev again about every session">Sort again</button></div><div id="hnote"></div><div id="hlist"></div>`;
+  }
+  const notes = [];
+  if (D.pending > 0) notes.push(`Jev is sorting ${D.pending} session${D.pending === 1 ? "" : "s"}...`);
+  if (D.error) notes.push(`${esc(D.error)}. It will try again.`);
+  if (D.stale > 0) notes.push(`${D.stale} session${D.stale === 1 ? " was" : "s were"} sorted before your assistants changed. Sort again to include the new ones.`);
+  $("hnote").innerHTML = notes.map((n) => `<div class="kv hnote">${n}</div>`).join("");
+  $("hlist").innerHTML = historyList();
+}
+function renderHistoryDetail(el) {
+  const d = H.detail;
+  if (!d) { el.innerHTML = `<div class="empty">Loading...</div>`; return; }
+  const s = (H.data.sessions || []).find((x) => x.session === d.session) || {};
+  const probs = Object.fromEntries(Object.entries(d.probs || {}).sort((a, b) => b[1] - a[1]).slice(0, 4));
+  const who = {};
+  d.tasks.forEach((t) => { who[t.persona] = (who[t.persona] || 0) + 1; });
+  const facts = [
+    Object.keys(who).length ? `Worked by ${Object.entries(who).map(([p, n]) => esc(p) + (n > 1 ? ` &times;${n}` : "")).join(", ")}` : "",
+    d.failures.length ? `${d.failures.length} failure${d.failures.length === 1 ? "" : "s"} logged` : "",
+    d.usage && d.usage.total && d.usage.total.calls ? esc(usageBrief(d.usage)) : ""].filter(Boolean);
+  el.innerHTML = `<div class="hhead"><button type="button" data-h="back">&larr; All sessions</button></div>
+    <h3 class="htitle">${esc(s.title || d.turns.length && d.turns[0].user || d.session)}</h3>
+    <div class="kv">${s.started ? esc(hwhen(s.started)) + " &middot; " : ""}${d.turns.length} turn${d.turns.length === 1 ? "" : "s"} &middot; ${esc(d.session)}${d.current ? " (this session)" : ""}</div>
+    <div class="card" style="margin-top:12px"><h3>Category <span class="badge">${d.category ? esc(catName(d.category)) : "not sorted yet"}</span>${d.category && d.confidence ? `<span class="kv">Jev, ${pct(d.confidence)} sure</span>` : ""}
+      <button type="button" data-h="recat1" title="Ask Jev again about this session">Ask again</button></h3>
+      ${Object.keys(probs).length ? probRows(probs, d.category) : ""}${facts.length ? `<div class="kv" style="margin-top:8px">${facts.join(" &middot; ")}</div>` : ""}</div>
+    ${d.artifacts.length ? `<div class="card"><h3>Files <span class="kv">${d.artifacts.length}</span></h3>${d.artifacts.map((a) => `<div><a href="${esc(fileUrl(a.path))}" target="_blank" rel="noopener">${esc(a.name)}</a> <span class="kv">${kfmt(a.size)}B</span></div>`).join("")}</div>` : ""}
+    ${d.turns.map((t) => `<div class="hturn"><div class="hu">${esc(t.user)}</div><div class="hmeta"><b>${esc(t.persona)}</b> <span class="kv">${esc(clock(t.ts))}</span></div><div class="answer">${md(t.assistant || "(no answer)")}</div></div>`).join("") || `<div class="empty">No conversation was kept for this session.</div>`}`;
+}
+$("p-history").addEventListener("click", async (ev) => {
+  const row = ev.target.closest("[data-session]"), btn = ev.target.closest("[data-h]");
+  if (row) { H.open = row.dataset.session; H.detail = null; H.key = ""; $("p-history").innerHTML = ""; return refreshHistory(); }
+  if (!btn) return;
+  const act = btn.dataset.h;
+  if (act === "back") { H.open = null; H.detail = null; H.key = ""; $("p-history").innerHTML = ""; return refreshHistory(); }
+  if (act === "recat" || act === "recat1") {
+    btn.disabled = true;
+    try { await api("/api/history/recategorize", {method: "POST", body: JSON.stringify(act === "recat1" ? {session: H.open} : {})}); } catch (e) { /* the next refresh shows what happened */ }
+    btn.disabled = false;   // (the list's header is not redrawn, so this very button is used again)
+    H.key = "";
+    refreshHistory();
+  }
+});
+$("p-history").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches(".hrow")) { ev.preventDefault(); ev.target.click(); } });
+$("p-history").addEventListener("input", (ev) => { if (ev.target.id === "hq") { H.q = ev.target.value; H.key = ""; $("hlist").innerHTML = historyList(); } });
+$("p-history").addEventListener("toggle", (ev) => {   // (does not bubble: caught on the way down)
+  const g = ev.target.closest && ev.target.closest(".hgroup");
+  if (g) { if (g.open) H.closed.delete(g.dataset.cat); else H.closed.add(g.dataset.cat); }
+}, true);
 
 
 // ---- usage ----
@@ -1933,14 +2062,16 @@ function ring(frac, label, value, size = 104) {
     <circle class="track" cx="50" cy="50" r="${r}"/>${f > 0.004 ? `<circle class="val" cx="50" cy="50" r="${r}" stroke-dasharray="${(f * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 50 50)"/>` : ""}</svg>
     <div class="rt"><span>${esc(label)}</span><b>${esc(value)}</b></div></div>`;
 }
+// loaded models, each with the context length LM Studio loaded it with
+const lmLoaded = (lm, short = false) => lm.loaded.map((k) => lm.contexts?.[k] ? (short ? `${k} · ${kfmt(lm.contexts[k])}` : `${k} (${Number(lm.contexts[k]).toLocaleString()} context)`) : k);
 async function refreshStatus() {
   let st;
   try { st = await api("/api/status"); } catch (e) { return; }
   const dot = (id, up, tip) => { const p = $(id); p.className = `sdot ${up ? "up" : "down"}`; p.title = tip; };
-  dot("pill-lm", st.lmstudio?.up, `LM Studio: ${st.lmstudio?.up ? (st.lmstudio.loaded.join(", ") || "nothing loaded") : "down"}`);
+  dot("pill-lm", st.lmstudio?.up, `LM Studio: ${st.lmstudio?.up ? (lmLoaded(st.lmstudio).join(", ") || "nothing loaded") : "down"}`);
   dot("pill-jev", st.jev_adapter?.up && st.jev_backend?.up !== false, `Jev: ${st.jev_adapter?.up ? (st.jev_backend ? `${st.jev_backend.name} ${st.jev_backend.up ? "up" : "down"}` : "up") : "down"}`);
   dot("pill-comfy", st.comfyui?.up, `ComfyUI: ${st.comfyui?.up ? "up" : "down"}`);
-  $("statmodel").textContent = st.lmstudio?.up ? (st.lmstudio.loaded.join(", ") || "no model loaded") : "LM Studio down";
+  $("statmodel").textContent = st.lmstudio?.up ? (lmLoaded(st.lmstudio, true).join(", ") || "no model loaded") : "LM Studio down";
   if (S.tab !== "status") return;
   const svc = (name, s, extra = "") => `<div class="card"><h3>${name} <span class="badge ${s?.up ? "done" : "failed"}">${s?.up ? "up" : "down"}</span>${s?.ms != null ? `<span class="kv">${s.ms} ms</span>` : ""}</h3>${extra}${!s?.up && s?.error ? `<div class="kv">${esc(s.error)}</div>` : ""}</div>`;
   const gpus = (st.gpus || []).map((g) => `<div class="card gpu"><h3>GPU ${g.index} <span class="kv">${esc(g.name)}</span></h3>
@@ -1952,7 +2083,7 @@ async function refreshStatus() {
     <div class="kv">These couldn't be used, so the harness runs without them. Fix the file and start a new session.</div>
     <table><tr><th>what</th><th>problem</th></tr>${probs.map((p) => `<tr><td><b>${esc(p.kind)}</b> ${esc(p.name)}${p.path ? `<div class="kv">${esc(p.path)}</div>` : ""}</td><td>${p.skipped ? "" : '<span class="badge">loaded</span> '}${esc(p.error)}</td></tr>`).join("")}</table></div>` : "";
   $("p-status").innerHTML = `${versionCard()}${probCard}<div class="grid2">
-    ${svc("LM Studio", st.lmstudio, st.lmstudio?.up ? `<div class="kv">loaded: <b>${esc(st.lmstudio.loaded.join(", ") || "nothing")}</b></div><div class="kv">gate: ${esc(st.lmstudio.gate.current || "-")}, ${st.lmstudio.gate.inflight} in flight</div>` : "")}
+    ${svc("LM Studio", st.lmstudio, st.lmstudio?.up ? `<div class="kv">loaded: <b>${esc(lmLoaded(st.lmstudio).join(", ") || "nothing")}</b></div><div class="kv">gate: ${esc(st.lmstudio.gate.current || "-")}, ${st.lmstudio.gate.inflight} in flight</div>` : "")}
     ${svc("Jev adapter", st.jev_adapter)}
     ${st.jev_backend ? svc(`Jev backend (${esc(st.jev_backend.name)})`, st.jev_backend, st.jev_backend.info?.model ? `<div class="kv">${esc(st.jev_backend.info.model)}</div>` : "") : ""}
     ${st.comfyui ? svc("ComfyUI", st.comfyui) : ""}
@@ -2029,7 +2160,7 @@ $("p-status").addEventListener("click", async (ev) => {
 });
 
 // ---- the side panel: closed until you open a tab, the browser goes live, or an artifact is made ----
-const TITLES = {timeline: "Timeline", inspector: "Inspector", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", status: "Status"};
+const TITLES = {inspector: "Inspector", history: "History", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", status: "Status"};
 $("side").inert = true;
 function openPanel(tab) {
   S.tab = tab;
@@ -2040,6 +2171,7 @@ function openPanel(tab) {
   if (tab === "artifacts") refreshArtifacts();
   if (tab === "status") refreshStatus();
   if (tab === "memory") refreshMemory();
+  if (tab === "history") refreshHistory();
   if (tab === "browser") paintBrowser();
   if (tab === "review") { refreshReviews(); refreshSessions(); }
   if (tab === "notebook") { renderNotebook(); refreshNotebook(); }

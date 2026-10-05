@@ -23,6 +23,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
 
+from .context import Window
 from .errors import Cancelled
 from .lmstudio import gate_for
 
@@ -170,7 +171,7 @@ class OpenAICompat:
     def __init__(self, base_url: str, model: str, api_key: str | None = None,
                  temperature: float | None = None, max_tokens: int | None = 8192,
                  idle_timeout: float = 180.0, extra: dict[str, Any] | None = None,
-                 gate: Any = None):
+                 gate: Any = None, context_length: int | None = None):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.api_key = api_key
@@ -181,8 +182,19 @@ class OpenAICompat:
         self.name = f"{model}@{self.base_url}"
         self.on_progress = None  # callable(tokens_so_far) set by the UI, optional
         self.gate = gate         # lmstudio.ExclusiveModels: one model resident at a time
+        self.context_length = context_length   # config: what to assume the window is (wins over asking the server)
         self.unlimited_thinking = False  # think: unlimited -> no cap, and workers skip the first-step nudge
         self.native_tools = False        # provider/persona native_tools: true -> tools= in chat()
+
+    def window(self) -> Window | None:
+        """The model's context window: what config says, else what LM Studio loaded it with (jevh/context.py).
+        None when nothing can tell (not LM Studio, detection off, LM Studio unreachable)."""
+        if self.context_length:
+            return Window(int(self.context_length), "config")
+        info = self.gate.model_info(self.model) if self.gate is not None else None
+        if info is None:
+            return None
+        return Window(info["context"], "lmstudio", info["loaded"], info["max"], info["parallel"])
 
     def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
              tools: list[dict] | None = None, live: str | os.PathLike | None = None,
@@ -417,8 +429,7 @@ class WithFallback:
             takes = False
         return llm.chat(messages, cancel, interrupt=interrupt) if takes else llm.chat(messages, cancel)
 
-    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
-             interrupt: threading.Event | None = None) -> LLMResult:
+    def _ensure_primary(self) -> None:
         if self._primary is None and self._primary_factory is not None:
             try:
                 self._primary = self._primary_factory()
@@ -426,6 +437,20 @@ class WithFallback:
             except Exception as e:  # noqa: BLE001 - missing SDK/credentials: don't retry every call
                 self._primary_factory = None
                 self.name = f"{self.fallback.name} (fallback: {type(e).__name__}: {e})"[:160]
+
+    def window(self) -> Window | None:
+        """The smaller of the two models' windows: a prompt that fits one must fit the other, since a failed call is
+        repeated on the fallback with the same messages. If either is not known yet (LM Studio has not loaded it),
+        so is this one: the other's window says nothing about it."""
+        self._ensure_primary()
+        found = [w for w in (getattr(m, "window", lambda: None)() for m in (self._primary, self.fallback) if m is not None)
+                 if w is not None]
+        pending = [w for w in found if not w.tokens]
+        return pending[0] if pending else min(found, key=lambda w: w.tokens, default=None)
+
+    def chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
+             interrupt: threading.Event | None = None) -> LLMResult:
+        self._ensure_primary()
         if self._primary is None:
             return self._call(self.fallback, messages, cancel, interrupt)
         try:
@@ -470,7 +495,8 @@ def make_llm(model_cfg: dict[str, Any], providers: dict[str, dict[str, Any]]) ->
                                temperature=cfg.get("temperature"),
                                max_tokens=None if unlimited else cfg.get("max_tokens", 8192),
                                extra=cfg.get("extra"),
-                               gate=gate_for(prov["base_url"]) if prov.get("exclusive") else None)
+                               gate=gate_for(prov["base_url"]) if prov.get("exclusive") else None,
+                               context_length=cfg.get("context_length", prov.get("context_length")))
             llm.unlimited_thinking = unlimited
             # workers get a real `python` tool (the model's own tool-call format) instead of fenced blocks
             llm.native_tools = bool(cfg.get("native_tools", prov.get("native_tools", False)))

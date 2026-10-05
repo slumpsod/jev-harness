@@ -6,15 +6,17 @@ in circles, or losing work when something stops it.
 ## Compaction (`Worker._compact`, `worker.py:754`)
 
 Compaction runs at the start of every step, before the model call. It only fires when the
-conversation is past `limits.compact_tokens` (60k estimated tokens at 3.2 chars per token). It
+conversation is past the compaction limit (estimated tokens at 3.2 chars per token): `context.compact_at` (60%) of the
+model's context window, as LM Studio loaded it ([17](17-context-length.md): 60,057 for Qwen's 100,096), or
+`limits.compact_tokens` (60k) where the window is not known. The limit is read every step. It
 makes **no model call**: Jev scores each old step, and plain code writes the log.
 
 ```mermaid
 flowchart TD
-  A["size = chars / 3.2"] --> B{"size > compact_tokens<br/>(60,000)?"}
+  A["size = chars / 3.2"] --> B{"size > the limit<br/>(60% of the model's window,<br/>else compact_tokens)?"}
   B -- no --> X["no-op"]
   B -- yes --> C["body = messages after the task message<br/>recent = last 2 × keep_steps (6) messages,<br/>cut moved forward to an assistant turn<br/>(never splits a tool call from its result)"]
-  C --> D{"old part ≥ 10% of<br/>compact_tokens?"}
+  C --> D{"old part ≥ 10% of<br/>the limit?"}
   D -- no --> X
   D -- yes --> E["group old messages into steps<br/>_steps() worker.py:115"]
   E --> F["each step → entry<br/>brief: _condense() one-line notes<br/>full: _full() THOUGHT 400 / CODE 1500 / OUTPUT 2000<br/>worker.py:843, 854"]
@@ -22,7 +24,7 @@ flowchart TD
   G --> H["_score: Jev compact per step<br/>'holds info finishing the task will use again?'<br/>cached by step text<br/>worker.py:801 → orchestrator.py:636"]
   H --> I["keep in full if P ≥ compact_keep 0.8"]
   I --> J["entries = earlier entries + new ones"]
-  J --> K["soft = max(8,000 chars,<br/>0.6 × compact_tokens × 3.2 − system/task/recent)"]
+  J --> K["soft = max(8,000 chars,<br/>0.6 × the limit × 3.2 − system/task/recent)"]
   K --> L["_fit worker.py:817<br/>1. over min(soft, 16k): re-score full steps fresh,<br/>demote the least needed to notes<br/>2. over 16k (PROGRESS_CHARS): drop the<br/>lowest-scored entries"]
   L --> M{"new log ≥ 90% of<br/>what it replaces?"}
   M -- yes --> X2["skip: would barely save<br/>(scores stay cached)"]
@@ -44,7 +46,8 @@ What survives compaction, and where:
 The compaction state (`_entries`, `_dropped`) is saved in `checkpoint.json` so a resumed task
 keeps its log. The dashboard's **context ring** comes from the `context` event
 (`_report_context`, `worker.py:726`). It is sent every step and splits the estimated prompt into
-instructions, tools, skills, task, work and output, out of `compact_tokens`.
+instructions, tools, skills, task, work and output, out of the compaction limit; it also says what the model's
+window is when the harness knows it (`window`, `source`, `loaded`, `max`, `parallel`, `warn`).
 
 ## Progress check (`Worker._stalled`, `worker.py:875`)
 

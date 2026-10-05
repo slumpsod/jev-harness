@@ -507,6 +507,9 @@ class Worker:
         self._stalls = 0
         self._wrap_step: int | None = None   # the step told to report and stop (after two stall strikes)
         self.compact_tokens, self.keep_steps = compact_tokens, keep_steps
+        # () -> context.Budget | None, set by the harness: where compaction starts for the model in use, from its context
+        # window (jevh/context.py). None, or a model nothing can be asked about: compact_tokens stands.
+        self.budget: Callable[[], Any] | None = None
         self.checkpoint = checkpoint    # json of the conversation after every step (for resume)
         self._task_idx = 0              # index of the task message (compaction rewrites everything after it)
         self._task_text = ""
@@ -865,9 +868,21 @@ class Worker:
         return res
 
     # -- stamina ---------------------------------------------------------------------
+    def _limit(self) -> tuple[int, dict[str, Any]]:
+        """(the estimated prompt size past which older steps condense, what is known of the model's window). Asked
+        each step: the model may have been loaded with another context, or swapped for the strong one."""
+        if self.budget is not None:
+            try:
+                b = self.budget()
+            except Exception:  # noqa: BLE001 - never let a question about the window fail a step
+                b = None
+            if b is not None:
+                return b.compact, {k: v for k, v in b.public().items() if k != "compact"}
+        return self.compact_tokens, {}
+
     def _report_context(self, messages: list[dict], step: int) -> None:
         """What the prompt about to be sent is made of (estimated tokens), for the dashboard's
-        context ring: out of `compact_tokens`, where older steps get condensed."""
+        context ring: out of the compaction limit, where older steps get condensed."""
         system = str(messages[0].get("content", "")) if messages and messages[0]["role"] == "system" else ""
         skills_at = system.find("\n\n## Skill: ")
         skills_at = len(system) if skills_at < 0 else skills_at
@@ -890,17 +905,20 @@ class Worker:
                  "task": len(task) + sum(_msg_chars(m) for m in messages[1:self._task_idx]),
                  "work": work + max(0, task_msg - len(task)),   # the progress log is condensed past work
                  "output": output}
-        self.on_step("context", {"persona": self.persona.name, "step": step, "limit": self.compact_tokens,
-                                 "parts": {k: round(v / CHARS_PER_TOKEN) for k, v in chars.items()}})
+        limit, window = self._limit()
+        self.on_step("context", {"persona": self.persona.name, "step": step, "limit": limit,
+                                 "parts": {k: round(v / CHARS_PER_TOKEN) for k, v in chars.items()}, **window})
 
     def _compact(self, messages: list[dict], step: int) -> None:
-        """Keep the conversation inside the model's context: past `compact_tokens`, older steps
+        """Keep the conversation inside the model's context: past the compaction limit (a share of the
+        model's context window, or compact_tokens), older steps
         become a progress log in the task message; the last `keep_steps` steps stay verbatim.
         Jev reads each old step: the ones the rest of the task still needs (values, names, sources,
         what failed and why) stay in full, the rest become one-line notes. No model call: a summary
         by the worker's model cost minutes on a thinking model and lost exact values."""
         size = sum(_msg_chars(m) for m in messages) / CHARS_PER_TOKEN
-        if size <= self.compact_tokens:
+        limit, _ = self._limit()
+        if size <= limit:
             return
         body = messages[self._task_idx + 1:]
         keep = 2 * self.keep_steps
@@ -913,7 +931,7 @@ class Worker:
         if not old:
             return
         old_chars = sum(_msg_chars(m) for m in old)
-        if old_chars / CHARS_PER_TOKEN < self.compact_tokens * 0.1:
+        if old_chars / CHARS_PER_TOKEN < limit * 0.1:
             return  # not enough old material to be worth condensing (e.g. a big system prompt)
         now = self._condense(recent)[-2000:]
         new = [{"brief": self._condense(g), "full": self._full(g), "score": None, "keep": False}
@@ -923,7 +941,7 @@ class Worker:
         # compaction rewrites the prompt's start, so the model server re-reads all of it). What the log
         # may use is what the target leaves after the system prompt, task and recent steps.
         rest = sum(_msg_chars(m) for m in messages[:self._task_idx] + recent) + len(self._task_text)
-        soft = max(MIN_FULL_LOG, int(self.compact_tokens * COMPACT_TARGET * CHARS_PER_TOKEN) - rest)
+        soft = max(MIN_FULL_LOG, int(limit * COMPACT_TARGET * CHARS_PER_TOKEN) - rest)
         entries = [dict(e) for e in self._entries] + new
         dropped = self._fit(entries, now, soft)
         log_chars = len(_render(entries, self._dropped + dropped, self._progress_log))

@@ -24,6 +24,8 @@ name.
 | [14 Skill / hook router](14-skill-hook-router.md) | Proposed: checks that run in the final() gate, and a router that turns checkable skills into hooks |
 | [15 Persona creation](15-persona-creation.md) | A persona drafted when a request or a learned skill fits none: live but fenced, gated, reviewed in the dashboard (live bench: `evals/bench/persona_creation.py`) |
 | [16 Interjection](16-interjection.md) | A message sent while a task runs: added to the task's prompt (cuts the model's reply in progress and steers the task), unless it is a question about progress (an instant line, then a quick reply by the task's own model); `/queue` and `/stop` are commands; how a reply is cut, what LM Studio and vLLM do with it (live bench: `evals/bench/interject.py`) |
+| [17 Context length](17-context-length.md) | The context window a model is loaded with, asked of LM Studio (or set in config), and the compaction limit made of it; `jevh context` (live check: `evals/bench/context_detect.py`) |
+| [18 Session history](18-session-history.md) | The dashboard's History tab: past sessions, each put by Jev in the category of the assistant whose field it is about (asked once per session in the background; live check: `evals/bench/history.py`, eval: `evals/session_category_cases.py`) |
 
 Keeping them current: [tools/](tools/README.md) re-anchors every `file:line` after the code moves, checks
 every diagram, and builds the interactive Atlas page. A narrated walkthrough video of the same material is

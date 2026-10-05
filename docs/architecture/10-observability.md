@@ -26,33 +26,33 @@ flowchart LR
   SH -- "CLI" --> PR["Printer<br/>cli.py:60"]
   SH -- "dashboard" --> HUB["Hub.publish<br/>seq, ts, kind, turn, data<br/>last MAX_EVENTS kept"]
   HUB --> SSE["GET /api/events (SSE)<br/>backlog since seq, then live"]
-  SSE --> UI["Timeline · Inspector ·<br/>Artifacts · Status · Usage"]
+  SSE --> UI["Inspector (timeline + decisions) ·<br/>Artifacts · Status · Usage"]
 ```
 
 ### Event catalog
 
 | Event | Emitted by | Data | Shown in |
 |---|---|---|---|
-| `turn_start` / `turn_done` / `turn_error` | `Hub.start_turn` (`web/server.py:99`) | turn record (answer, tasks, trace, usage) | chat, timeline |
+| `turn_start` / `turn_done` / `turn_error` | `Hub.start_turn` (`web/server.py:99`) | turn record (answer, tasks, trace, usage) | chat, Inspector (timeline) |
 | `route` | `_turn` | `RouteDecision` (probabilities, continues, replies, follows, reason) | Inspector, CLI |
 | `skills` | `run_task` | `SkillDecision` (probs, none, fits, picked) | Inspector |
 | `memory` | `run_task` | `MemoryDecision` (kept, scores) + candidate count | Inspector |
 | `collab` | `run_task` | `CollabDecision` (suggested, scores, complexity) | Inspector |
 | `tools` | `run_task` | `ToolDecision` (tools, scores, mcp, mcp_probs, mcp_fits) | Inspector |
-| `tier` | `run_task` | `TierDecision` (tier, p_strong, reason) | timeline colour |
-| `start` / `done` | `run_task` | task (+ model) / task + `WorkerResult` | timeline lanes |
-| `request` | `_start_request` | sub-task, approved, scores or reason | timeline hand-offs |
-| `unwaited` | `run_task` | a hand-off's result the parent never waited for | timeline |
+| `tier` | `run_task` | `TierDecision` (tier, p_strong, reason) | Inspector: timeline colour |
+| `start` / `done` | `run_task` | task (+ model) / task + `WorkerResult` | Inspector: timeline lanes |
+| `request` | `_start_request` | sub-task, approved, scores or reason | Inspector: timeline hand-offs |
+| `unwaited` | `run_task` | a hand-off's result the parent never waited for | Inspector: timeline |
 | `code` / `output` | Worker | step, code / output, error | chat (verbose), CLI `/verbose` |
-| `context` | `_report_context` | estimated tokens by part, limit | context ring |
-| `compact` | `_compact` | tokens before/after, full, notes, dropped | timeline, CLI |
+| `context` | `_report_context` | estimated tokens by part, limit, and the model's window when known (`window`, `source`, `loaded`, `max`, `parallel`, `warn`) | context ring and its popover, CLI (a warning when the window is too small) |
+| `compact` | `_compact` | tokens before/after, full, notes, dropped | Inspector: timeline, CLI |
 | `progress_check` | `_stalled` | circles, stuck, strike, new_pages | Inspector, CLI |
 | `thinking_watch` | `_watch_fn` | p (testable), search, chars | Inspector |
 | `progress` | LLM `on_progress` | persona, chunks, thinking | live token counts |
 | `verify` | `_bounce` | ok, problems, checks, scores, bounced | Inspector, CLI |
 | `review` | `_verify_fn` | persona, tier of the reviewer | Inspector |
-| `escalate` | `_bounce` | the strong model swapped in | timeline, CLI |
-| `swap` | LM Studio gate | unloaded, loaded, seconds | timeline markers, Status |
+| `escalate` | `_bounce` | the strong model swapped in | Inspector: timeline, CLI |
+| `swap` | LM Studio gate | unloaded, loaded, seconds | Inspector: timeline markers, Status |
 | `question` / `answered` / `question_timeout` | `_ask_user` | question id, options, `secret` / answer (`(hidden)` for a secret) | chat buttons; a secret question has a hidden input |
 | `cancel` | `Harness.cancel` | number of workers | chat |
 | `jev_error` | `_safe` | step, error | CLI, Inspector |
@@ -61,6 +61,7 @@ flowchart LR
 | `hook_error` | FailureWatch | hook, event, error (a broken hook, not a task failure) | CLI |
 | `interject` | `Harness.interject` | text, kind, outcome (corrected / status / queued / stopped), replaces, probs, the instant line | chat (what became of your message), CLI ([16](16-interjection.md)) |
 | `aside` | `Harness._aside_async` | question, answer, source (model / state), seconds, context, tokens | chat (the quick reply), CLI |
+| `history` | `Categorizer` (`history.py`) | session Jev has just sorted, or the error | the History tab refreshes ([18](18-session-history.md)) |
 | `steer` / `redirect` | Worker via `_on_worker` | step, text, replaces / chars kept of the cut reply | chat activity, CLI |
 | `queued` | `Harness` | texts, queue, late | the queue above the message box, CLI |
 | `review_flag` / `review_start` / `review_done` / `review_error` | Hub (session review) | flag id, session, review | Review view |
@@ -113,11 +114,11 @@ Cost is computed only for models priced under `prices:` in config.
 
 | Part | Watch it in |
 |---|---|
-| Routing, skills, memory, tools, tier, collaborators, approvals | dashboard **Inspector** (select a turn); CLI `/trace` shows raw Jev answers |
-| Every task and hand-off over time | dashboard **Timeline** (one lane per task, tier colours, swap markers) |
+| Routing, skills, memory, tools, tier, collaborators, approvals | dashboard **Inspector** (select a turn), under its timeline; CLI `/trace` shows raw Jev answers |
+| Every task and hand-off over time | dashboard **Inspector**'s timeline (one lane per task, tier colours, swap markers; a lane's name jumps to that task's decisions) |
 | A step's thinking as it streams | `…/task folder/thinking/step-NN.txt`, dashboard `/api/thinking` |
 | Code and output per step | CLI `/verbose`; `code` / `output` events; dashboard: the chips under an answer open to one line per step, and a step opens to its code and output |
-| Context size and compaction | context ring under the message box (`context` event); `compact` events |
+| Context size and compaction | context ring under the message box (`context` event); `compact` events; `jevh context` for what each model's window is |
 | Stalls, pauses, gate bounces | `progress_check`, `thinking_watch`, `verify`, `escalate` events |
 | The browser tool | "Watch browser": a window, or docked in the dashboard's Browser panel (CDP mirror, `/api/browser/frame`, `/api/browser/input`) |
 | LM Studio, Jev adapter, semif, ComfyUI, GPU | dashboard **Status** (`/api/status`); CLI `/jev` |

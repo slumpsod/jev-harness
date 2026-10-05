@@ -61,8 +61,9 @@ limits:
   follow_turns: 2               # a follow-up carries this session's last N turns as real conversation
   ask_timeout: 1800             # seconds a worker's ask_user() waits for the user before carrying on
   progress_every: 8             # every N steps Jev checks a long task isn't going in circles
-  compact_tokens: 60000         # past this estimated size, older steps condense to a progress log
-                                # (Qwen has 100k of context loaded in LM Studio)
+  compact_tokens: 60000         # past this estimated size, older steps condense to a progress log. Only where the
+                                # model's context window is not known: otherwise it is `context.compact_at` of that
+                                # window (60000 was 60% of the 100k Qwen has loaded in LM Studio)
   keep_steps: 3                 # recent steps kept verbatim when compacting
   keep_reasoning: 40000         # chars of each step's hidden reasoning sent back to the model (reasoning_content); 0 = none
   thinking_watch: 0             # 1: Jev reads long thinks as they stream; a checkable idea pauses the step to test it in code
@@ -74,6 +75,23 @@ limits:
                                 # (long commands: start_job() in the background)
   output_cap: 4000              # chars of REPL output shown to the model per step
   max_mcp_tools: 3              # MCP tool descriptions per task, after Jev's pick
+
+# The model's context window, as LM Studio loaded it (jevh/context.py; `jevh context` shows what the harness sees).
+context:
+  detect: true       # ask LM Studio what each model is loaded with, before each step; false: never ask
+  compact_at: 0.6    # older steps condense once the prompt is this share of the window (the reply's room is kept)
+  min: 16384         # a window below this is flagged: the instructions and tools alone take several thousand tokens
+  # A model nothing can be asked about (vLLM, llama.cpp, a hosted one), or one to hold to less than it is loaded with:
+  # `context_length: 32768` in its model block (a persona's `model:`, models.fast) or in its provider. It tells the
+  # harness; it does not change what LM Studio loads.
+
+# The History tab: past sessions, each put by Jev in the category of the assistant whose field it is about (jevh/history.py).
+history:
+  enabled: true        # false: the tab lists nothing and Jev is never asked
+  min_confidence: 0.6  # a session whose best category is less likely than this is listed under "No single field"
+                       # (evals/session_category_cases.py: 0.6 is the first value with no confidently wrong category in 101 sessions)
+  also_at: 0.25        # another category at least this likely shows as a second tag
+  max_requests: 6      # how many of a session's requests Jev reads: the first ones and the last two
 
 learning: true                  # remember facts and learn skills after successful turns (jevh/learn.py)
 

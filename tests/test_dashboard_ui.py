@@ -14,6 +14,7 @@ pytest.importorskip("uvicorn")
 import uvicorn  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
+from jevh.context import Window  # noqa: E402
 from jevh.jev import Jev  # noqa: E402
 from jevh.orchestrator import Harness  # noqa: E402
 from jevh.web.server import create_app  # noqa: E402
@@ -33,10 +34,22 @@ def rules(k, q, s):
         return noul_ans(0.9)
 
 
-def serve(cfg, replies):
-    """The dashboard on a free port with a scripted model; yields its address."""
+class Windowed(ScriptedLLM):
+    """A scripted model that knows its context window, as a model client asked of LM Studio does."""
+    max_tokens = 8192
+
+    def window(self):
+        return Window(100096, "lmstudio", True, 262144, 2)
+
+
+def serve(cfg, replies, model=ScriptedLLM, jev_rules=rules, setup=None):
+    """The dashboard on a free port with a scripted model; yields its address. `setup(harness)` runs on the new harness
+    (past sessions to remember)."""
     def factory(on_event):
-        return Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM(list(replies)), on_event=on_event)
+        h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(jev_rules)), llm_factory=lambda p: model(list(replies)), on_event=on_event)
+        if setup:
+            setup(h)
+        return h
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
@@ -53,6 +66,18 @@ def serve(cfg, replies):
 @pytest.fixture
 def dashboard(cfg):
     yield from serve(cfg, REPLIES)
+
+
+@pytest.fixture
+def windowed_dashboard(cfg):
+    yield from serve(cfg, REPLIES, Windowed)
+
+
+@pytest.fixture
+def history_dashboard(cfg):
+    """Four past sessions in memory, and a Jev that knows which field each is about (tests/test_history.py)."""
+    from test_history import SESSIONS, populate, rules as history_rules
+    yield from serve(cfg, REPLIES, jev_rules=history_rules, setup=lambda h: populate(h, SESSIONS))
 
 
 @pytest.fixture
@@ -243,7 +268,7 @@ def _phone(page, dashboard):
     assert not page.evaluate(too_wide)
     assert page.evaluate("document.getElementById('send').getBoundingClientRect().right <= innerWidth")     # the composer fits
     assert page.evaluate("getComputedStyle(document.getElementById('input')).fontSize") == "16px"          # no zoom-on-tap on iOS
-    for tab in ("timeline", "inspector", "artifacts", "memory", "browser", "review", "notebook", "status"):
+    for tab in ("inspector", "artifacts", "memory", "history", "browser", "review", "notebook", "status"):
         page.click(f'#tabs [data-tab="{tab}"]')                              # a panel never covers the tab bar, so the next click works
         page.wait_for_function("document.getElementById('app').dataset.panel === 'open'")
         assert not page.evaluate(too_wide), tab
@@ -282,3 +307,72 @@ def _interject(page, url):
     assert page.inner_text(".turn:nth-child(1) .answer") == "calendar done"     # the correction reached the task
     assert page.is_hidden("#queuebar")                                       # the queued request started by itself
     assert not page.errors
+
+
+def test_the_context_ring_says_what_window_the_model_was_loaded_with(windowed_dashboard, browse):
+    browse(lambda page: _window(page, windowed_dashboard))
+
+
+def _window(page, dashboard):
+    page.goto(dashboard)
+    page.fill("#input", "make me a hello page")
+    page.keyboard.press("Enter")
+    page.wait_for_selector(".turn .answer", timeout=30000)
+    page.hover("#ctxring")                                                   # the breakdown opens over the ring
+    page.wait_for_selector("#ctxpop:not([hidden])")
+    said = page.inner_text("#ctxpop")
+    assert "Model window: 100,096 tokens (what LM Studio loaded it with)" in said
+    assert "the model supports up to 262,144" in said
+    assert "Past 60.1k, older steps get condensed" in said                   # 60% of that window, not limits.compact_tokens
+    assert not page.errors
+
+
+def test_the_inspector_has_the_timeline_and_the_decisions_in_one_panel(dashboard, browse):
+    browse(lambda page: _inspector(page, dashboard))
+
+
+def _inspector(page, dashboard):
+    page.goto(dashboard)
+    assert page.locator('#tabs [data-tab="timeline"]').count() == 0          # one tab where there were two
+    page.fill("#input", "make me a hello page")
+    page.keyboard.press("Enter")
+    page.wait_for_selector(".turn .answer", timeout=30000)
+    page.click('#tabs [data-tab="inspector"]')
+    page.wait_for_selector("#p-inspector .sechead")
+    assert [h.lower() for h in page.locator("#p-inspector .sechead").all_inner_texts()] == ["timeline", "decisions"]
+    assert page.locator("#p-inspector .tl .bar").count() >= 1                # the task's lane, positioned in time
+    assert page.locator("#p-inspector .card h3", has_text="Routing").count() == 1
+    page.click("#p-inspector .tl .label[data-jump]")                         # a lane's name jumps to that task's decisions
+    page.wait_for_selector("#p-inspector [data-card].flash")
+    assert page.inner_text("#ptitle") == "Inspector" and not page.errors
+
+
+def test_the_history_tab_lists_past_sessions_by_the_field_jev_put_them_in(history_dashboard, browse):
+    browse(lambda page: _history(page, history_dashboard))
+
+
+def _history(page, dashboard):
+    page.goto(dashboard)
+    page.click('#tabs [data-tab="history"]')
+    page.wait_for_function("document.querySelectorAll('#p-history .hrow').length === 4 && !document.querySelector('[data-cat=__waiting]')",
+                           timeout=20000)                                    # Jev sorts them in the background
+    assert page.locator("#p-history .hgroup summary b").all_inner_texts() == ["Daily assistant", "Fitness coach", "High end dev", "No single field"]
+    assert "flask app" in page.locator("#p-history .hgroup", has=page.locator("summary b", has_text="High end dev")).inner_text()
+    page.click('[data-h="recat"]')                                           # "Sort again": Jev is asked about every session again
+    page.wait_for_function("document.querySelectorAll('#p-history .hgroup').length === 4 && !document.querySelector('[data-cat=__waiting]')"
+                           " && !document.querySelector('[data-h=recat]').disabled", timeout=20000)   # ...and the button is usable again
+    page.click('[data-h="recat"]')
+    page.wait_for_function("!document.querySelector('[data-h=recat]').disabled", timeout=20000)
+    page.wait_for_function("document.querySelectorAll('#p-history .hrow').length === 4 && !document.querySelector('[data-cat=__waiting]')", timeout=20000)
+    page.fill("#hq", "workout")                                              # the search narrows the list as you type
+    assert page.locator("#p-history .hrow").count() == 1
+    page.fill("#hq", "")
+    page.locator("#p-history .hrow", has_text="workouts").click()           # a session opens read-only, with Jev's odds
+    page.wait_for_selector("#p-history .hturn")
+    assert page.locator("#p-history .hturn").count() == 2
+    card = page.inner_text("#p-history .card h3")
+    assert "Fitness coach" in card and "97% sure" in card
+    assert "swap the squats" in page.inner_text("#p-history")
+    page.click('[data-h="back"]')
+    page.wait_for_selector("#p-history .hgroup")
+    assert page.inner_text("#ptitle") == "History" and not page.errors

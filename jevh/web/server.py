@@ -41,6 +41,7 @@ from ..config import Config, load_config
 from ..interject import KINDS
 from ..lmstudio import gate_for
 from ..orchestrator import Harness
+from ..history import History
 from ..review import list_sessions
 from ..skills import load_roster
 
@@ -72,6 +73,8 @@ class Hub:
         self.loop: asyncio.AbstractEventLoop | None = None
         self.pin: str | None = None
         self.updated: dict | None = None   # set once the code on disk was updated: a restart loads it
+        # past sessions, categorized by Jev (jevh/history.py); asks the Hub's harness of the moment: a new session replaces it
+        self.history = History(lambda: self.harness, self.publish)
 
     # events from worker threads -> history + every open SSE stream
     def publish(self, kind: str, data: dict | None = None) -> None:
@@ -444,6 +447,28 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         return [{**s, "flag": flagged.get(s["session"]), "current": s["session"] == h.session}
                 for s in list_sessions(h.cfg.workspace, h.memory, min(limit, 200))]
 
+    # -- past sessions, categorized by Jev (jevh/history.py) ---------------------------------------------
+    @app.get("/api/history")
+    def history(limit: int = 500) -> dict:
+        """Every session with Jev's category for it (null while Jev has not been asked: `pending` says how many wait)."""
+        return hub.history.overview(min(limit, 2000))
+
+    @app.get("/api/history/{session}")
+    def history_session(session: str) -> dict:
+        out = hub.history.transcript(session)
+        if out is None:
+            raise HTTPException(404, "no such session")
+        return out
+
+    @app.post("/api/history/recategorize")
+    async def history_recategorize(request: Request) -> dict:
+        """Ask Jev again about one session (`session`) or, without it, all of them."""
+        body = await request.json()
+        session = str(body.get("session") or "") or None
+        if session and not hub.history.exists(session):
+            raise HTTPException(404, "no such session")
+        return {"pending": await asyncio.to_thread(hub.history.recategorize, session)}
+
     @app.post("/api/reviews/flag")
     async def review_flag(request: Request) -> dict:
         """Flag a session (default: this one) with an optional note, or add a note to its flag."""
@@ -773,9 +798,11 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         lm = next((p for p in h.cfg.providers.values() if p.get("exclusive")), None)
         if lm:
             try:
-                out["lmstudio"] = {"up": True, "loaded": [k for k, _ in gate_for(lm["base_url"])._loaded()],
-                                   "gate": {"current": gate_for(lm["base_url"]).current,
-                                            "inflight": gate_for(lm["base_url"]).inflight}}
+                gate = gate_for(lm["base_url"])
+                loaded = [m for m in gate.llms_info() if m["loaded"]]
+                out["lmstudio"] = {"up": True, "loaded": [m["key"] for m in loaded],
+                                   "contexts": {m["key"]: m["context"] for m in loaded},   # what each is loaded with
+                                   "gate": {"current": gate.current, "inflight": gate.inflight}}
             except Exception as e:  # noqa: BLE001
                 out["lmstudio"] = {"up": False, "error": str(e)[:200]}
         out["jev_adapter"] = probe(h.cfg.jev.get("url", "http://127.0.0.1:33001").rstrip("/") + "/docs", 2.0)
