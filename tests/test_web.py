@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
@@ -409,3 +410,17 @@ def test_notebook_api_adds_edits_filters_and_deletes(cfg):
     assert [e["id"] for e in h.notebook.list()] == [a["id"]]
     assert client.post("/api/notebook", json={"text": "x"}, headers=auth(Origin="https://evil.example")).status_code == 403
     assert client.get("/api/notebook").status_code == 403                              # needs the token like the rest
+
+
+def test_a_new_session_closes_the_browser_the_last_one_kept_open(cfg, monkeypatch):
+    import jevh.tools.browser as browser
+    closed = []
+    monkeypatch.setattr(browser, "close_kept", lambda folder: closed.append(Path(folder).name))
+    client, app = make_client(cfg)
+    old = app.state.hub.harness.session
+    r = client.post("/api/reset", headers=auth())
+    assert r.status_code == 200
+    deadline = time.time() + 5
+    while not closed and time.time() < deadline:
+        time.sleep(0.05)
+    assert closed == [old]

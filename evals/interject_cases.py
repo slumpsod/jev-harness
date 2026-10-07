@@ -23,6 +23,8 @@ activity ("why that site?") is `status`. "Stop using that site" is a correction,
 
     python evals/interject_cases.py                  # the tuning cases, then the held-out ones (live: needs the Jev adapter)
     python evals/interject_cases.py --holdout        # only the held-out cases
+    python evals/interject_cases.py --real           # only the explanation-question / question-form-request cases
+    python evals/interject_cases.py --real-fresh     # the same kinds of message, held out (written after the wording was chosen)
     python evals/interject_cases.py --fresh          # only the fresh cases (written after the last wording change)
     python evals/interject_cases.py --offline        # re-sweep the status bar on the saved raw scores
     python evals/interject_cases.py --runs 3         # each case three times (a hosted Jev can vary)
@@ -273,6 +275,93 @@ FRESH = [
 ]
 
 
+# From Jed's notebook ("quirkiness with deciding whether to add new prompts or questions during a task or quick replying",
+# and flag notes: a question about why the harness flagged the model "was added to the prompt instead of getting a reply").
+# Two kinds of message are easy to take the wrong way: a question that asks for an explanation of the work or the harness
+# ("why did you pick that approach?", "were you going in circles?") must get the quick reply, and a request or suggestion
+# written as a question ("can you make the buttons bigger?", "why not use a dark theme?") must reach the task. Written
+# before the wording was changed for them: the tuning set for that change.
+GUI = ("Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+       "running code: project.write('jedstudio/web/index.html', html)")
+SUITE = ("Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+         "running code: subprocess.run(['pytest', '-q'])")
+LOGS = ("Find out why the nightly export job fails and fix it.", "running code: project.grep('Traceback', 'logs/')")
+
+REAL = [
+    # -- questions that ask for an explanation: answered on the side
+    (*SUITE, "why did the harness flag you for repeating the same attempt?", "status"),
+    (*SUITE, "were you going in circles?", "status"),
+    (*SUITE, "why did the harness flag you?", "status"),
+    (*GUI, "why did you pick that approach?", "status"),
+    (*GUI, "why are you writing it as one file?", "status"),
+    (*LOGS, "what did that error mean?", "status"),
+    (*SUITE, "did the tests pass?", "status"),
+    (*SUITE, "why are you reading the log again?", "status"),
+    (*GUI, "which model are you using for this?", "status"),
+    (*LOGS, "how many steps have you used so far?", "status"),
+    (*GUI, "do you think this will work?", "status"),
+    (*LOGS, "is that the right file you are looking at?", "status"),
+    (*GUI, "is the front end designer working on this or just you?", "status"),
+    (*SUITE, "what is the harness doing right now?", "status"),
+    (*LOGS, "why did that last command fail?", "status"),
+    (*GUI, "so what have you built so far?", "status"),
+    # -- requests and suggestions written as questions: reach the task
+    (*GUI, "can you make the buttons bigger?", "correction"),
+    (*GUI, "could you use the front end designer for the page itself?", "correction"),
+    (*GUI, "why not use a dark theme?", "correction"),
+    (*GUI, "would it be better to split the tabs into separate pages?", "correction"),
+    (*SUITE, "can you also test the audio fades?", "correction"),
+    (*SUITE, "could you run the tests on both fast and slow settings?", "correction"),
+    (*LOGS, "can you check the cron schedule as well?", "correction"),
+    (*LOGS, "what if it is the timezone and not the data?", "correction"),
+    (*GUI, "might be a good idea to involve the front end designer", "correction"),
+    (*GUI, "shouldn't the sliders have labels?", "correction"),
+    (*SUITE, "how about printing the failures in full?", "correction"),
+    (*LOGS, "can you try it with python 3.11 instead?", "correction"),
+    # -- another request: not a question about the task either
+    (*GUI, "can you also check my calendar for tomorrow?", "separate"),
+    (*SUITE, "what's the weather like in Denver?", "separate"),
+]
+
+
+# Written after the wording and the status bar (0.4) were chosen for REAL, and scored once: not tuned on.
+SYNC = ("Sync my photo library to the NAS and tell me what was copied.", "running code: rsync_copy(src, dst)")
+SLIDES = ("Make a 6-slide deck about our Q3 results from results.xlsx.", "running code: pptx.add_slide(layout, title)")
+BUG = ("Fix the crash when the settings file is empty.", "running code: project.sh('pytest tests/test_settings.py')")
+PLAN = ("Plan a three-day trip to Lisbon with a budget of 600 euros.", "the model is writing its next step")
+
+REAL_FRESH = [
+    (*SYNC, "why did it stop and start again?", "status"),
+    (*SYNC, "did you skip any files?", "status"),
+    (*SLIDES, "why is slide 3 so empty?", "status"),
+    (*SLIDES, "which template are you using?", "status"),
+    (*BUG, "what does that traceback mean?", "status"),
+    (*BUG, "why did you run the test twice?", "status"),
+    (*BUG, "did the system just flag you for something?", "status"),
+    (*PLAN, "why did you choose that hotel?", "status"),
+    (*PLAN, "where are you getting these prices from?", "status"),
+    (*SYNC, "are you stuck or just slow?", "status"),
+    (*SLIDES, "how many slides are done?", "status"),
+    (*BUG, "what have you tried so far?", "status"),
+    (*SYNC, "can you skip the videos folder?", "correction"),
+    (*SLIDES, "could you add a chart on slide 2?", "correction"),
+    (*SLIDES, "why not use our brand colours?", "correction"),
+    (*BUG, "can you also add a test for the empty case?", "correction"),
+    (*BUG, "what if the file does not exist at all?", "correction"),
+    (*PLAN, "could you keep it under 500 euros?", "correction"),
+    (*PLAN, "how about adding a day trip to Sintra?", "correction"),
+    (*PLAN, "would it work to stay in Alfama instead?", "correction"),
+    (*SYNC, "the NAS is at 192.168.1.20, not the old address", "correction"),
+    (*SLIDES, "use the numbers from the Q3 tab, not Q2", "correction"),
+    (*BUG, "the crash only happens with a zero-byte file", "correction"),
+    (*PLAN, "we are vegetarian, by the way", "correction"),
+    (*SYNC, "can you look up how much space the NAS has left?", "separate"),
+    (*SLIDES, "what is the capital of Portugal?", "separate"),
+    (*BUG, "also, can you check if the printer is online?", "separate"),
+    (*PLAN, "what time is it in Tokyo right now?", "separate"),
+]
+
+
 def run_live(cases, runs: int = 1) -> list[dict]:
     jev = Jev(load_config())
     rows = []
@@ -335,6 +424,8 @@ def main() -> None:
     ap.add_argument("--offline", action="store_true", help="re-sweep the saved raw scores")
     ap.add_argument("--holdout", action="store_true", help="only the held-out cases")
     ap.add_argument("--fresh", action="store_true", help="only the fresh cases (written after the last wording change)")
+    ap.add_argument("--real-fresh", action="store_true", help="only the held-out explanation-question / question-form-request cases")
+    ap.add_argument("--real", action="store_true", help="only the explanation-question and question-form-request cases")
     ap.add_argument("--runs", type=int, default=1)
     a = ap.parse_args()
     status_at = load_config().t("interject_status")
@@ -342,7 +433,11 @@ def main() -> None:
         saved = json.loads(RAW.read_text(encoding="utf-8"))
     else:
         saved = {}
-        if a.fresh:
+        if a.real_fresh:
+            saved["real_fresh"] = run_live(REAL_FRESH, a.runs)
+        elif a.real:
+            saved["real"] = run_live(REAL, a.runs)
+        elif a.fresh:
             saved["fresh"] = run_live(FRESH, a.runs)
         else:
             if not a.holdout:
@@ -350,10 +445,10 @@ def main() -> None:
             saved["held"] = run_live(HELD, a.runs)
         old = json.loads(RAW.read_text(encoding="utf-8")) if RAW.exists() else {}
         RAW.write_text(json.dumps({**old, **saved}, indent=1), encoding="utf-8")
-    for name in ("dev", "held", "fresh"):
+    for name in ("dev", "held", "fresh", "real", "real_fresh"):
         if name in saved:
             report(name, saved[name], status_at)
-    for name in ("dev", "held", "fresh"):
+    for name in ("dev", "held", "fresh", "real", "real_fresh"):
         if name in saved:
             print(f"\n-- {name}: sweep")
             sweep(saved[name])

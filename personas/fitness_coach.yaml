@@ -12,4 +12,4 @@ model: {provider: lmstudio, model: qwen3.8-27b@q6_k, think: unlimited}
 skills_allowed: [fitness-tracker, workout-programming, harness-artifacts, learned-*]
 tools: [web]
 can_request: [high_end_dev, front_end_designer]
-max_steps: 20
+max_steps: 80

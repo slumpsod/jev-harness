@@ -61,6 +61,7 @@ python evals/compact_cases.py          # which earlier steps compaction must kee
 python evals/bench/context_detect.py   # context-length detection against the LM Studio here: read-only, vs `lms ps`
 python evals/session_category_cases.py # does Jev put a whole session in the assistant whose field it is about (History tab; --holdout, --offline)
 python evals/bench/history.py          # the History tab's categories on your own sessions, on a read-only copy of them
+python evals/bench/serve_compare.py --report   # serving Qwen 3.8 27B with llama.cpp: 3 quant/speculation setups on full harness turns (ARC + hidden-test coding)
 python evals/button_intent_cases.py    # browser: a click the goal asked for vs one with a side effect
 python evals/expect_cases.py           # browser.test: does the page show the expected result
 python evals/find_cases.py             # project.find: does it point at where a question is answered
@@ -533,9 +534,18 @@ disagree the latest wins. The gate's file check follows the latest message when 
 How it was checked (2026-10-03/04, Qwen 3.8 27B in LM Studio, semif Jev; `evals/interject_cases.py`,
 `evals/bench/interject.py`; details and the vLLM notes in [docs/architecture/16-interjection.md](docs/architecture/16-interjection.md)):
 
-- **Telling a question from everything else** (156 labelled messages in three sets): 155 right (dev 67/68, held-out
-  40/40, fresh 48/48). Every question but one ("why did you pick that search query?", which is added to the prompt)
-  was answered on the side, and **no correction, other request or stop was answered instead of added**. The first
+- **Telling a question from everything else** (214 labelled messages in five sets): 209 right at the 0.4 bar (dev 68/68,
+  held-out 39/40, fresh 48/48, explanation questions 29/30 and, held out, 25/28). 64 of 68 questions were answered on
+  the side, and **one correction (a plain statement of fact: "the crash only happens with a zero-byte file") was
+  answered instead of added; no other request or stop was**. The last two sets came from Jed's notebook ("quirkiness
+  with deciding whether to add new prompts or questions during a task", and a flag note: "asked why the harness
+  flagged the model and it was added to the prompt instead of getting a reply"): questions asking *why* ("why did you
+  pick that approach?", "why did the harness flag you?") and requests written as questions ("can you make the buttons
+  bigger?"). With the original wording and the 0.6 bar only 7 of 16 and, held out, 6 of 12 of those questions got the
+  quick reply; with the options reworded to say what counts as a question and that a request written as a question
+  is a request, and the bar at 0.4, 15/16 and 10/12. Rewordings that were tried and dropped: requiring "a question" in
+  the status option (two bare stops, "abort" and "enough", were then answered), and "a fact about the problem" in
+  the correction option (held-out questions 8/12). The first
   design had Jev also queue "another request" and stop on "stop" (66/68, 35/40, 46/48 on four-way labels, 0 mistaken
   stops), but in use a correction ("Actually could you just tell me what's on my calendar", sent while a picture was
   being made) was filed as another request (0.63) and queued behind the task: queueing and stopping are commands now.

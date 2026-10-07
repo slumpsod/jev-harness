@@ -772,8 +772,16 @@ class Harness:
             # the sites the request names: goto() points out a mistyped one (live: "blavedemo.com")
             env["JEVH_TASK_HOSTS"] = " ".join(dict.fromkeys(
                 re.findall(r"(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?=[/:\s)\"',]|$)", task.text.lower())))[:2000]
-            if self.watch_browser and self.browser_dock:
+            if self.browser_dock:   # (even with Watch browser off: browser_mode() asks for a visible browser to sign in on)
                 env["JEVH_BROWSER_DOCK"] = str(self.session_dir / "browsers")
+                env["JEVH_BROWSER_KEEP"] = "1"   # its Chrome stays open between turns; the dashboard closes it with the session
+                try:   # a turn of this session asked for a browser to sign in on (nango.browser_mode()): so do the next ones
+                    mode = json.loads((self.session_dir / "browser-mode.json").read_text(encoding="utf-8"))
+                    env["JEVH_BROWSER_HEADED"] = "1"
+                    if mode.get("profile"):
+                        env["JEVH_BROWSER_PROFILE"] = str(mode["profile"])
+                except (OSError, ValueError, AttributeError):
+                    pass
         if self.project and "project" in persona.tools:
             ctx["project"] = self.project
             env["JEVH_PROJECT"] = self.project

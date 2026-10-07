@@ -514,6 +514,7 @@ class Worker:
         self._task_idx = 0              # index of the task message (compaction rewrites everything after it)
         self._task_text = ""
         self._progress_log = ""         # a pre-Jev checkpoint's log (resume only); new logs are self._entries
+        self.harness_notes: list[str] = []   # what the harness did to this worker (progress-check flags): a quick reply to "why was I flagged?" reads these
         self._entries: list[dict] = []  # compacted steps: {brief, full, score, keep}
         self._dropped = 0               # compacted steps left out of the log to fit PROGRESS_CHARS
         self._scores: dict[str, float] = {}   # Jev's score per step text (a skipped compaction isn't re-asked)
@@ -653,6 +654,8 @@ class Worker:
         if older > 0:
             parts.append(f"({older} earlier steps not shown)")
         parts.append(self._condense(body[-2 * last:]).strip())
+        if self.harness_notes:
+            parts.append("What the harness did to this task:\n" + "\n".join(f"- {n}" for n in self.harness_notes[-4:]))
         return "\n".join(p for p in parts if p).strip()
 
     def tool_schemas(self) -> list[dict] | None:
@@ -1054,6 +1057,14 @@ class Worker:
         stuck = circles >= self.stall_at
         self.on_step("progress_check", {"persona": self.persona.name, "step": step, "circles": round(circles, 3),
                                   "stuck": stuck, "strike": self._stalls + (1 if stuck else 0)})
+        if stuck:
+            self.harness_notes.append(
+                f"step {step}: the progress check (Jev, every {self.progress_every} steps) judged the last "
+                f"{self.progress_every} steps to be the same attempt repeating with the same result "
+                f"(score {circles:.2f}, flagged from {self.stall_at:.2f}); strike {self._stalls + 1} of 2, "
+                f"{'the task is stopped on the second' if self._stalls == 0 else 'the task is being stopped'}. "
+                "A check is not a judgement that the steps were wasted: re-running a test to read its output "
+                "can look like a repeat.")
         if not stuck:
             self._stalls = 0
             return False

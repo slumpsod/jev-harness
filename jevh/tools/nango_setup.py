@@ -103,7 +103,10 @@ def _google_steps(provider: str, callback: str) -> list[dict]:
         {"title": "Set up the consent screen (once per project)",
          "url": "https://console.cloud.google.com/auth/overview",
          "do": "Get started. App name e.g. 'Jev harness', your email as the support email. Audience: External. Your "
-               "email again as the contact, agree to the policy, Create."},
+               "email again as the contact, agree to the policy, Create. (It is a four-part form: App information, "
+               "Audience, Contact information, Finish; Next moves on, and reloading the page starts it over. "
+               "'User support email' is a dropdown menu, not a text box: browser.do(values={'User support email': "
+               "'<their email>'}) or browser.select(i, '<their email>') opens it and picks the entry.)"},
         {"title": "Publish the app, or Google signs you out every 7 days",
          "url": "https://console.cloud.google.com/auth/audience",
          "do": "Under Audience, Publishing status 'Testing' -> Publish app -> Confirm. For your own account this needs "
@@ -741,19 +744,32 @@ def test(integration: str) -> dict:
 def browser_mode(visible: bool = True, persist: bool = True) -> dict:
     """Prepare the `browser` tool for a provider's website: a visible window the user can sign in on (the model
     never types a password), kept signed in between tasks. Call it BEFORE the first browser.goto() of the task.
-    Google may refuse to sign in to an automated browser ("this browser or app may not be secure"): don't work
-    around it; do the steps in the user's own browser instead (open_page(url))."""
+    The watched browser is the user's own Chrome (jevh/tools/browser.py), which Google and Facebook take for an
+    ordinary browser. If one still refuses ("this browser or app may not be secure"): don't work around it; do the
+    steps in the user's own browser instead (open_page(url))."""
     mod = sys.modules.get("jevh.tools.browser")
     if mod is not None and getattr(mod, "_session", None) is not None:
         mod.close()   # a browser already started this task: restart it with the new settings
     notes = []
+    prof = None
     if persist:
         prof = core._state_dir() / "browser-profile"
         prof.mkdir(parents=True, exist_ok=True)
         os.environ["JEVH_BROWSER_PROFILE"] = str(prof)
         notes.append("stays signed in between tasks (a profile on this machine)")
-    if visible and not os.environ.get("JEVH_BROWSER_DOCK"):
+    if visible:   # (with the dashboard's dock folder set, a watched browser is shown in its Browser panel: no window)
         os.environ["JEVH_BROWSER_HEADED"] = "1"
-    window = os.environ.get("JEVH_BROWSER_HEADED") == "1" or bool(os.environ.get("JEVH_BROWSER_DOCK"))
-    notes.append("a window the user can see and sign in on" if window else "hidden: the user can't sign in on it")
-    return {"visible": window, "persistent": persist, "notes": notes}
+    window = os.environ.get("JEVH_BROWSER_HEADED") == "1"
+    docked = window and bool(os.environ.get("JEVH_BROWSER_DOCK"))
+    if docked:   # the next turn of this session starts its browser the same way (live: it came up signed out, on a blank page)
+        try:
+            (Path(os.environ["JEVH_BROWSER_DOCK"]).parent / "browser-mode.json").write_text(
+                json.dumps({"visible": True, "profile": str(prof) if prof else ""}), encoding="utf-8")
+        except OSError:
+            pass
+    notes.append("shown in the dashboard's Browser panel (no separate window): the user signs in there, with the "
+                 "mouse and keyboard on the picture; it stays open after this task, on the same page, until the session "
+                 "ends - the user can finish a step in it, and your next turn finds it where it was" if docked
+                 else "a window the user can see and sign in on" if window
+                 else "hidden: the user can't sign in on it")
+    return {"visible": window, "docked": docked, "persistent": persist, "notes": notes}

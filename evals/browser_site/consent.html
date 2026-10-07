@@ -1,0 +1,52 @@
+<!doctype html><html><head><title>Project configuration - Console</title>
+<style>body{font:15px sans-serif;margin:0} header{display:flex;gap:12px;padding:8px;background:#eee} header input{width:300px}
+main{padding:16px} .skip{position:absolute;left:4px;top:40px} #email{border:1px solid #888;padding:6px;width:260px;cursor:pointer}
+#list{list-style:none;margin:0;padding:0;border:1px solid #888;width:272px;background:#fff} #list li{padding:6px;cursor:pointer}
+[hidden]{display:none !important}</style></head><body>
+<!-- A stand-in for Google Cloud's consent-screen form (live, 2026-10-05: do() typed values into the header search box,
+     clicked "Skip to main content" and "Learn more", and the support email is a custom dropdown, not a <select>) -->
+<header role="banner"><b>Console</b>
+  <input id="gs" type="search" placeholder="Search for resources, docs, products, and more" aria-label="Search">
+  <a href="help.html">Help</a></header>
+<a class="skip" href="#main">Skip to main content</a>
+<nav><a href="audience.html" id="navaud">Audience, 3 of 7</a></nav>
+<main id="main">
+<div id="s1"><h1>App Information</h1>
+  <p><label for="appname">App name</label><br><input id="appname" type="text"></p>
+  <p><span id="elabel">User support email</span><br>
+    <div id="email" role="combobox" tabindex="0" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="elabel">Select an email</div>
+    <ul id="list" role="listbox" hidden>
+      <li role="option" data-v="jed@example.com">jed@example.com</li>
+      <li role="option" data-v="team@example.com">team@example.com</li>
+    </ul></p>
+  <p><a id="learn" href="help.html">Learn more</a> &middot; <a id="docs" href="help.html">Documentation</a></p>
+  <button id="next" type="button">Next</button></div>
+<div id="s2" hidden><h1>Audience</h1><p>Choose who can use the app.</p>
+  <label><input type="radio" name="aud" value="internal" onclick="window.audience='internal'"> Internal</label><br>
+  <label><input type="radio" name="aud" value="external" onclick="window.audience='external'"> External</label><br>
+  <button id="next2" type="button">Next</button></div>
+<div id="s3" hidden><h1>Contact Information</h1>
+  <p><label for="contact">Email addresses</label><br><input id="contact" type="email"></p>
+  <button id="next3" type="button">Next</button></div>
+<div id="s4" hidden><h1>Finish</h1>
+  <!-- like Google's mat-checkbox: the real box is invisible, so its label is the control, and the label's middle is a link -->
+  <p><input type="checkbox" id="agree" style="opacity:0;width:0;height:0;position:absolute;margin:0">
+    <label for="agree" style="display:inline-block"><a id="policy" href="help.html">I agree to the User Data Policy</a></label></p>
+  <button id="cont" type="button">Continue</button></div>
+<p><button id="create" type="button" onclick="window.created = true">Create</button> <button type="button">Cancel</button></p>
+</main>
+<script>
+  const other = location.href.replace('127.0.0.1', 'localhost').replace('consent.html', 'help.html');   // another host
+  document.getElementById('learn').href = other; document.getElementById('docs').href = other;
+  const box = document.getElementById('email'), list = document.getElementById('list');
+  box.onclick = () => { list.hidden = !list.hidden; box.setAttribute('aria-expanded', String(!list.hidden)); };
+  list.onclick = e => { const li = e.target.closest('li'); if (!li) return; box.textContent = li.dataset.v; list.hidden = true;
+    window.picked = li.dataset.v; };
+  const show = n => ['s1', 's2', 's3', 's4'].forEach((id, k) => document.getElementById(id).hidden = k !== n);
+  document.getElementById('next2').onclick = () => { show(2); location.hash = '#contact'; };
+  document.getElementById('next3').onclick = () => { show(3); location.hash = '#finish'; };
+  document.getElementById('cont').onclick = () => { window.continued = document.getElementById('agree').checked; };
+  document.getElementById('policy').href = other;
+  document.getElementById('next').onclick = () => { document.getElementById('s1').hidden = true;
+    document.getElementById('s2').hidden = false; location.hash = '#audience'; };
+</script></body></html>

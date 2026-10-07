@@ -36,7 +36,7 @@ from .personas import LEARNED_DIR, Persona, load_learned, load_personas
 from .skills import Skill, parse_skill
 
 DEFAULTS = {"enabled": True, "min_cluster": 3, "max_live_drafts": 4, "max_pending": 40, "tools": [],
-            "max_steps": 30, "gate_probes": 8, "max_steals": 0, "compare_last": 40, "coherent": True}
+            "max_steps": 80, "gate_probes": 8, "max_steals": 0, "compare_last": 40, "coherent": True}
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,40}$")
 
 PERSONA_PROMPT = """You are adding a specialist assistant to an assistant harness. A router picks the \

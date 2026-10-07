@@ -43,11 +43,13 @@ thresholds:
   failure_missed: 0.85   # evals/failure_cases.py) ... "the answer doesn't deliver what was asked"
   route_hook: 0.85      # skill/hook router: "a program could check the main requirements" noul (NOT TUNED, NOT TESTED
                          # on a live Jev: a placeholder until evals/hook_route_cases.py is run; the router isn't built yet)
-  interject_status: 0.60 # a message sent while a task runs (jevh/interject.py, evals/interject_cases.py, semif) is added to the task's prompt,
+  interject_status: 0.40 # a message sent while a task runs (jevh/interject.py, evals/interject_cases.py, semif) is added to the task's prompt,
                          #   unless the Choice leader is "a question about progress" with at least this much: then the task's own model answers
-                         #   it and the task is untouched. 155 of 156 labelled messages right at 0.5-0.6 (dev 67/68, held-out 40/40, fresh 48/48);
-                         #   no correction, other request or stop was ever answered instead of added; the one miss is a question that was added.
-                         #   0.7 catches only 33 of the 40 questions. Queueing and stopping are never guessed: /queue and /stop.
+                         #   it and the task is untouched. 0.6 until 2026-10-05: it let "why did you pick that approach?" and "why did the
+                         #   harness flag you?" through to the prompt (44% of explanation questions answered; 83% on a held-out set at 0.4 with
+                         #   the reworded options). 209 of 214 labelled messages right at 0.4 (dev 68/68, held-out 39/40, fresh 48/48, explanation
+                         #   questions 29/30 and 25/28); one correction (a plain statement of fact) was answered instead of added, no other
+                         #   request or stop. Queueing and stopping are never guessed: /queue and /stop.
   interject_replace: 0.50  # a message whose "replace" score reaches this stands alone as the request ("check my calendar instead":
                          #   0.99, "make it primes instead" 0.92; ordinary refinements 0.16 or less), so the gate stops asking for the old deliverables
 
@@ -103,7 +105,7 @@ persona_creation:                # jevh/forge.py: a persona drafted when a reque
   compare_last: 40               # a new unhandled request is compared with this many of the latest pooled ones (all of them)
   coherent: true                 # ...and a cluster must be similar throughout, not just to the newest request
   tools: []                      # REPL tools a draft gets (project, web, browser, nango): none until you widen them
-  max_steps: 30
+  max_steps: 80
   gate_probes: 8                 # earlier requests re-routed to check the draft takes none of them
   max_steals: 0                  # ...and how many it may take before it stays inactive
 

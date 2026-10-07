@@ -7,11 +7,11 @@
    "message": "Actually check my calendar instead",
    "label": "correction",
    "probs": {
-    "correction": 0.0097,
-    "status": 0.0008,
-    "separate": 0.0005,
-    "stop": 0.0009,
-    "replace": 0.9881
+    "correction": 0.0032,
+    "status": 0.0004,
+    "separate": 0.0004,
+    "stop": 0.0006,
+    "replace": 0.9955
    }
   },
   {
@@ -21,11 +21,11 @@
    "message": "only the last two weeks please",
    "label": "correction",
    "probs": {
-    "correction": 0.9933,
-    "status": 0.0028,
-    "separate": 0.0009,
-    "stop": 0.0008,
-    "replace": 0.0022
+    "correction": 0.9804,
+    "status": 0.0075,
+    "separate": 0.0051,
+    "stop": 0.0011,
+    "replace": 0.0058
    }
   },
   {
@@ -35,11 +35,11 @@
    "message": "use the work account, not the personal one",
    "label": "correction",
    "probs": {
-    "correction": 0.9963,
-    "status": 0.0009,
-    "separate": 0.0006,
-    "stop": 0.0012,
-    "replace": 0.001
+    "correction": 0.9824,
+    "status": 0.0052,
+    "separate": 0.0045,
+    "stop": 0.0028,
+    "replace": 0.0052
    }
   },
   {
@@ -49,11 +49,11 @@
    "message": "also include the spam folder in the search",
    "label": "correction",
    "probs": {
-    "correction": 0.9929,
-    "status": 0.0017,
-    "separate": 0.0015,
-    "stop": 0.0012,
-    "replace": 0.0028
+    "correction": 0.9866,
+    "status": 0.0031,
+    "separate": 0.0052,
+    "stop": 0.001,
+    "replace": 0.004
    }
   },
   {
@@ -63,11 +63,11 @@
    "message": "make it Sunday morning only",
    "label": "correction",
    "probs": {
-    "correction": 0.9991,
-    "status": 0.0002,
-    "separate": 0.0,
+    "correction": 0.9977,
+    "status": 0.0006,
+    "separate": 0.0001,
     "stop": 0.0001,
-    "replace": 0.0006
+    "replace": 0.0015
    }
   },
   {
@@ -77,11 +77,11 @@
    "message": "nonstop flights only, and under $300",
    "label": "correction",
    "probs": {
-    "correction": 0.9988,
-    "status": 0.0003,
-    "separate": 0.0001,
-    "stop": 0.0003,
-    "replace": 0.0006
+    "correction": 0.9966,
+    "status": 0.0009,
+    "separate": 0.0003,
+    "stop": 0.0005,
+    "replace": 0.0017
    }
   },
   {
@@ -91,11 +91,11 @@
    "message": "stop using that site, try Google Flights",
    "label": "correction",
    "probs": {
-    "correction": 0.9455,
-    "status": 0.0039,
-    "separate": 0.001,
-    "stop": 0.0324,
-    "replace": 0.0173
+    "correction": 0.4412,
+    "status": 0.0194,
+    "separate": 0.0043,
+    "stop": 0.2676,
+    "replace": 0.2676
    }
   },
   {
@@ -105,11 +105,11 @@
    "message": "use a soft delete, not a hard one",
    "label": "correction",
    "probs": {
-    "correction": 0.9985,
-    "status": 0.0004,
+    "correction": 0.9977,
+    "status": 0.0009,
     "separate": 0.0001,
-    "stop": 0.0003,
-    "replace": 0.0007
+    "stop": 0.0002,
+    "replace": 0.001
    }
   },
   {
@@ -119,11 +119,11 @@
    "message": "put it in its own file instead",
    "label": "correction",
    "probs": {
-    "correction": 0.9819,
-    "status": 0.0028,
-    "separate": 0.0017,
-    "stop": 0.004,
-    "replace": 0.0096
+    "correction": 0.8354,
+    "status": 0.0119,
+    "separate": 0.0173,
+    "stop": 0.0072,
+    "replace": 0.1281
    }
   },
   {
@@ -133,11 +133,11 @@
    "message": "and add tests for it too",
    "label": "correction",
    "probs": {
-    "correction": 0.9805,
-    "status": 0.0058,
-    "separate": 0.004,
-    "stop": 0.0045,
-    "replace": 0.0051
+    "correction": 0.8556,
+    "status": 0.0702,
+    "separate": 0.0376,
+    "stop": 0.0108,
+    "replace": 0.0258
    }
   },
   {
@@ -147,11 +147,11 @@
    "message": "make it primes instead, the first 15",
    "label": "correction",
    "probs": {
-    "correction": 0.0758,
-    "status": 0.0004,
+    "correction": 0.0373,
+    "status": 0.0005,
     "separate": 0.0001,
     "stop": 0.0002,
-    "replace": 0.9234
+    "replace": 0.9619
    }
   },
   {
@@ -161,11 +161,11 @@
    "message": "use recursion with memoization",
    "label": "correction",
    "probs": {
-    "correction": 0.9879,
-    "status": 0.0036,
-    "separate": 0.0017,
+    "correction": 0.9711,
+    "status": 0.0157,
+    "separate": 0.0027,
     "stop": 0.004,
-    "replace": 0.0028
+    "replace": 0.0065
    }
   },
   {
@@ -175,11 +175,11 @@
    "message": "no mushrooms, my partner hates them",
    "label": "correction",
    "probs": {
-    "correction": 0.9993,
-    "status": 0.0002,
+    "correction": 0.9986,
+    "status": 0.0005,
     "separate": 0.0001,
     "stop": 0.0002,
-    "replace": 0.0003
+    "replace": 0.0006
    }
   },
   {
@@ -189,11 +189,11 @@
    "message": "make it four people, not two",
    "label": "correction",
    "probs": {
-    "correction": 0.973,
-    "status": 0.0027,
-    "separate": 0.001,
-    "stop": 0.0031,
-    "replace": 0.0202
+    "correction": 0.9507,
+    "status": 0.0034,
+    "separate": 0.0011,
+    "stop": 0.003,
+    "replace": 0.0418
    }
   },
   {
@@ -203,11 +203,11 @@
    "message": "keep it to half a page",
    "label": "correction",
    "probs": {
-    "correction": 0.9932,
-    "status": 0.0019,
-    "separate": 0.0006,
-    "stop": 0.0015,
-    "replace": 0.0028
+    "correction": 0.9781,
+    "status": 0.0075,
+    "separate": 0.0027,
+    "stop": 0.0021,
+    "replace": 0.0096
    }
   },
   {
@@ -217,11 +217,11 @@
    "message": "skip the third one, it is an old draft",
    "label": "correction",
    "probs": {
-    "correction": 0.7087,
-    "status": 0.0167,
-    "separate": 0.0079,
-    "stop": 0.1087,
-    "replace": 0.1581
+    "correction": 0.2786,
+    "status": 0.0294,
+    "separate": 0.0157,
+    "stop": 0.217,
+    "replace": 0.4593
    }
   },
   {
@@ -231,11 +231,11 @@
    "message": "only companies that do spray foam",
    "label": "correction",
    "probs": {
-    "correction": 0.997,
-    "status": 0.0007,
-    "separate": 0.0002,
-    "stop": 0.0006,
-    "replace": 0.0015
+    "correction": 0.988,
+    "status": 0.0024,
+    "separate": 0.0009,
+    "stop": 0.0012,
+    "replace": 0.0075
    }
   },
   {
@@ -245,11 +245,11 @@
    "message": "make the bars blue and add a title",
    "label": "correction",
    "probs": {
-    "correction": 0.9829,
-    "status": 0.0046,
-    "separate": 0.0022,
-    "stop": 0.0058,
-    "replace": 0.0046
+    "correction": 0.9827,
+    "status": 0.0075,
+    "separate": 0.0019,
+    "stop": 0.0028,
+    "replace": 0.0052
    }
   },
   {
@@ -259,11 +259,11 @@
    "message": "I hurt my shoulder, no overhead pressing",
    "label": "correction",
    "probs": {
-    "correction": 0.9901,
-    "status": 0.0017,
-    "separate": 0.0012,
-    "stop": 0.0025,
-    "replace": 0.0046
+    "correction": 0.9508,
+    "status": 0.0082,
+    "separate": 0.0073,
+    "stop": 0.005,
+    "replace": 0.0287
    }
   },
   {
@@ -273,11 +273,11 @@
    "message": "mornings only, he is in another timezone",
    "label": "correction",
    "probs": {
-    "correction": 0.9467,
-    "status": 0.0119,
-    "separate": 0.0135,
-    "stop": 0.0105,
-    "replace": 0.0173
+    "correction": 0.8795,
+    "status": 0.0301,
+    "separate": 0.0562,
+    "stop": 0.0076,
+    "replace": 0.0266
    }
   },
   {
@@ -287,11 +287,11 @@
    "message": "don't book anything yet, just list the options",
    "label": "correction",
    "probs": {
-    "correction": 0.9564,
-    "status": 0.0198,
-    "separate": 0.0044,
-    "stop": 0.0136,
-    "replace": 0.0057
+    "correction": 0.4107,
+    "status": 0.2823,
+    "separate": 0.049,
+    "stop": 0.2198,
+    "replace": 0.0382
    }
   },
   {
@@ -301,11 +301,11 @@
    "message": "what if you searched for the lease number instead of the sender?",
    "label": "correction",
    "probs": {
-    "correction": 0.9922,
-    "status": 0.0025,
-    "separate": 0.0006,
-    "stop": 0.0007,
-    "replace": 0.0041
+    "correction": 0.9899,
+    "status": 0.0046,
+    "separate": 0.001,
+    "stop": 0.0004,
+    "replace": 0.004
    }
   },
   {
@@ -315,11 +315,11 @@
    "message": "how's it going?",
    "label": "status",
    "probs": {
-    "correction": 0.0326,
-    "status": 0.9518,
-    "separate": 0.0106,
-    "stop": 0.0027,
-    "replace": 0.0024
+    "correction": 0.0791,
+    "status": 0.8507,
+    "separate": 0.0616,
+    "stop": 0.0021,
+    "replace": 0.0065
    }
   },
   {
@@ -329,11 +329,11 @@
    "message": "any update?",
    "label": "status",
    "probs": {
-    "correction": 0.0418,
-    "status": 0.952,
-    "separate": 0.0014,
-    "stop": 0.0021,
-    "replace": 0.0027
+    "correction": 0.1412,
+    "status": 0.8124,
+    "separate": 0.0216,
+    "stop": 0.008,
+    "replace": 0.0169
    }
   },
   {
@@ -343,11 +343,11 @@
    "message": "what are you doing right now?",
    "label": "status",
    "probs": {
-    "correction": 0.011,
-    "status": 0.9875,
-    "separate": 0.0003,
-    "stop": 0.0005,
-    "replace": 0.0007
+    "correction": 0.0179,
+    "status": 0.978,
+    "separate": 0.0011,
+    "stop": 0.001,
+    "replace": 0.0019
    }
   },
   {
@@ -357,11 +357,11 @@
    "message": "have you found anything yet?",
    "label": "status",
    "probs": {
-    "correction": 0.0097,
-    "status": 0.9896,
+    "correction": 0.0159,
+    "status": 0.9827,
     "separate": 0.0001,
-    "stop": 0.0001,
-    "replace": 0.0005
+    "stop": 0.0002,
+    "replace": 0.0012
    }
   },
   {
@@ -371,11 +371,11 @@
    "message": "are you stuck?",
    "label": "status",
    "probs": {
-    "correction": 0.1671,
-    "status": 0.6608,
-    "separate": 0.0373,
-    "stop": 0.1148,
-    "replace": 0.02
+    "correction": 0.158,
+    "status": 0.7083,
+    "separate": 0.0513,
+    "stop": 0.0581,
+    "replace": 0.0242
    }
   },
   {
@@ -385,11 +385,11 @@
    "message": "which file are you editing?",
    "label": "status",
    "probs": {
-    "correction": 0.1986,
-    "status": 0.693,
-    "separate": 0.0345,
-    "stop": 0.0502,
-    "replace": 0.0237
+    "correction": 0.1875,
+    "status": 0.7416,
+    "separate": 0.0198,
+    "stop": 0.0224,
+    "replace": 0.0288
    }
   },
   {
@@ -399,11 +399,11 @@
    "message": "status?",
    "label": "status",
    "probs": {
-    "correction": 0.0046,
-    "status": 0.9944,
-    "separate": 0.0001,
-    "stop": 0.0006,
-    "replace": 0.0002
+    "correction": 0.0086,
+    "status": 0.9904,
+    "separate": 0.0002,
+    "stop": 0.0004,
+    "replace": 0.0004
    }
   },
   {
@@ -413,11 +413,11 @@
    "message": "how much longer will this take?",
    "label": "status",
    "probs": {
-    "correction": 0.0991,
-    "status": 0.8294,
-    "separate": 0.0322,
-    "stop": 0.0322,
-    "replace": 0.0072
+    "correction": 0.1369,
+    "status": 0.7878,
+    "separate": 0.0444,
+    "stop": 0.021,
+    "replace": 0.0099
    }
   },
   {
@@ -427,11 +427,11 @@
    "message": "which step are you on?",
    "label": "status",
    "probs": {
-    "correction": 0.0203,
-    "status": 0.9772,
-    "separate": 0.0004,
-    "stop": 0.0008,
-    "replace": 0.0013
+    "correction": 0.0372,
+    "status": 0.9594,
+    "separate": 0.0005,
+    "stop": 0.0006,
+    "replace": 0.0024
    }
   },
   {
@@ -441,11 +441,11 @@
    "message": "is it still running?",
    "label": "status",
    "probs": {
-    "correction": 0.0124,
-    "status": 0.9866,
-    "separate": 0.0001,
-    "stop": 0.0003,
-    "replace": 0.0005
+    "correction": 0.0203,
+    "status": 0.9781,
+    "separate": 0.0002,
+    "stop": 0.0002,
+    "replace": 0.0011
    }
   },
   {
@@ -455,11 +455,11 @@
    "message": "what have you got so far?",
    "label": "status",
    "probs": {
-    "correction": 0.0097,
-    "status": 0.9896,
-    "separate": 0.0001,
+    "correction": 0.014,
+    "status": 0.9845,
+    "separate": 0.0002,
     "stop": 0.0002,
-    "replace": 0.0004
+    "replace": 0.0012
    }
   },
   {
@@ -469,11 +469,11 @@
    "message": "why is this taking so long?",
    "label": "status",
    "probs": {
-    "correction": 0.0924,
-    "status": 0.8771,
+    "correction": 0.0932,
+    "status": 0.8846,
     "separate": 0.0046,
-    "stop": 0.0206,
-    "replace": 0.0052
+    "stop": 0.0077,
+    "replace": 0.0098
    }
   },
   {
@@ -483,11 +483,11 @@
    "message": "hello? still there?",
    "label": "status",
    "probs": {
-    "correction": 0.1234,
-    "status": 0.8049,
-    "separate": 0.0215,
-    "stop": 0.0401,
-    "replace": 0.0101
+    "correction": 0.2427,
+    "status": 0.6597,
+    "separate": 0.0422,
+    "stop": 0.0328,
+    "replace": 0.0226
    }
   },
   {
@@ -497,11 +497,11 @@
    "message": "did the calendar lookup work?",
    "label": "status",
    "probs": {
-    "correction": 0.0597,
-    "status": 0.9344,
-    "separate": 0.0014,
-    "stop": 0.0018,
-    "replace": 0.0026
+    "correction": 0.131,
+    "status": 0.8545,
+    "separate": 0.0058,
+    "stop": 0.0021,
+    "replace": 0.0065
    }
   },
   {
@@ -511,11 +511,11 @@
    "message": "why did you pick that search query?",
    "label": "status",
    "probs": {
-    "correction": 0.519,
-    "status": 0.458,
-    "separate": 0.0051,
-    "stop": 0.0058,
-    "replace": 0.0122
+    "correction": 0.1813,
+    "status": 0.8124,
+    "separate": 0.001,
+    "stop": 0.0011,
+    "replace": 0.0043
    }
   },
   {
@@ -525,11 +525,11 @@
    "message": "what site are you on?",
    "label": "status",
    "probs": {
-    "correction": 0.2237,
-    "status": 0.6081,
-    "separate": 0.1057,
-    "stop": 0.0389,
-    "replace": 0.0236
+    "correction": 0.2029,
+    "status": 0.6251,
+    "separate": 0.1231,
+    "stop": 0.0214,
+    "replace": 0.0275
    }
   },
   {
@@ -539,11 +539,11 @@
    "message": "can you tell me what you have done so far?",
    "label": "status",
    "probs": {
-    "correction": 0.014,
-    "status": 0.9841,
-    "separate": 0.0003,
-    "stop": 0.0005,
-    "replace": 0.001
+    "correction": 0.0292,
+    "status": 0.9682,
+    "separate": 0.0004,
+    "stop": 0.0003,
+    "replace": 0.0019
    }
   },
   {
@@ -553,11 +553,11 @@
    "message": "ETA?",
    "label": "status",
    "probs": {
-    "correction": 0.059,
-    "status": 0.9225,
-    "separate": 0.0043,
-    "stop": 0.0116,
-    "replace": 0.0026
+    "correction": 0.1752,
+    "status": 0.785,
+    "separate": 0.0127,
+    "stop": 0.0185,
+    "replace": 0.0087
    }
   },
   {
@@ -567,11 +567,11 @@
    "message": "remind me to call Dave at 3pm",
    "label": "separate",
    "probs": {
-    "correction": 0.0329,
-    "status": 0.0016,
-    "separate": 0.961,
-    "stop": 0.0024,
-    "replace": 0.0021
+    "correction": 0.0471,
+    "status": 0.0023,
+    "separate": 0.9459,
+    "stop": 0.0016,
+    "replace": 0.003
    }
   },
   {
@@ -581,11 +581,11 @@
    "message": "what's the capital of Utah?",
    "label": "separate",
    "probs": {
-    "correction": 0.0124,
+    "correction": 0.0158,
     "status": 0.0017,
-    "separate": 0.983,
-    "stop": 0.0015,
-    "replace": 0.0015
+    "separate": 0.9799,
+    "stop": 0.0009,
+    "replace": 0.0017
    }
   },
   {
@@ -595,11 +595,11 @@
    "message": "after that, turn off the living room lights",
    "label": "separate",
    "probs": {
-    "correction": 0.0259,
+    "correction": 0.0229,
     "status": 0.0003,
-    "separate": 0.9731,
+    "separate": 0.9758,
     "stop": 0.0002,
-    "replace": 0.0005
+    "replace": 0.0007
    }
   },
   {
@@ -609,11 +609,11 @@
    "message": "also write me a haiku about coffee",
    "label": "separate",
    "probs": {
-    "correction": 0.0259,
-    "status": 0.0005,
-    "separate": 0.9724,
-    "stop": 0.0003,
-    "replace": 0.0009
+    "correction": 0.018,
+    "status": 0.0003,
+    "separate": 0.9805,
+    "stop": 0.0002,
+    "replace": 0.001
    }
   },
   {
@@ -623,11 +623,11 @@
    "message": "when you're done, summarize my unread Slack messages",
    "label": "separate",
    "probs": {
-    "correction": 0.0259,
-    "status": 0.0008,
-    "separate": 0.9713,
-    "stop": 0.0008,
-    "replace": 0.0013
+    "correction": 0.033,
+    "status": 0.001,
+    "separate": 0.9633,
+    "stop": 0.0004,
+    "replace": 0.0024
    }
   },
   {
@@ -637,11 +637,11 @@
    "message": "next I need a quote for the Smith job",
    "label": "separate",
    "probs": {
-    "correction": 0.0594,
-    "status": 0.0043,
-    "separate": 0.9287,
-    "stop": 0.0033,
-    "replace": 0.0043
+    "correction": 0.0529,
+    "status": 0.0038,
+    "separate": 0.937,
+    "stop": 0.0014,
+    "replace": 0.0049
    }
   },
   {
@@ -651,11 +651,11 @@
    "message": "separately, what's 17% of 2,340?",
    "label": "separate",
    "probs": {
-    "correction": 0.014,
-    "status": 0.0009,
-    "separate": 0.9838,
+    "correction": 0.0292,
+    "status": 0.0013,
+    "separate": 0.9673,
     "stop": 0.0005,
-    "replace": 0.0008
+    "replace": 0.0016
    }
   },
   {
@@ -665,11 +665,11 @@
    "message": "and then check my calendar for tomorrow",
    "label": "separate",
    "probs": {
-    "correction": 0.0292,
-    "status": 0.0015,
-    "separate": 0.9654,
-    "stop": 0.0021,
-    "replace": 0.0019
+    "correction": 0.0418,
+    "status": 0.0014,
+    "separate": 0.9519,
+    "stop": 0.001,
+    "replace": 0.0039
    }
   },
   {
@@ -679,11 +679,11 @@
    "message": "later, order more printer paper",
    "label": "separate",
    "probs": {
-    "correction": 0.0259,
-    "status": 0.0004,
-    "separate": 0.9724,
-    "stop": 0.0005,
-    "replace": 0.0007
+    "correction": 0.0419,
+    "status": 0.001,
+    "separate": 0.9538,
+    "stop": 0.0007,
+    "replace": 0.0027
    }
   },
   {
@@ -693,11 +693,11 @@
    "message": "one more thing for after: draft a thank-you note to the client",
    "label": "separate",
    "probs": {
-    "correction": 0.0533,
-    "status": 0.0005,
-    "separate": 0.9451,
-    "stop": 0.0004,
-    "replace": 0.0008
+    "correction": 0.06,
+    "status": 0.0006,
+    "separate": 0.9382,
+    "stop": 0.0002,
+    "replace": 0.001
    }
   },
   {
@@ -710,8 +710,8 @@
     "correction": 0.0124,
     "status": 0.0004,
     "separate": 0.9863,
-    "stop": 0.0003,
-    "replace": 0.0006
+    "stop": 0.0001,
+    "replace": 0.0008
    }
   },
   {
@@ -721,11 +721,11 @@
    "message": "after this, plan my workouts for the week",
    "label": "separate",
    "probs": {
-    "correction": 0.0159,
-    "status": 0.0004,
-    "separate": 0.982,
-    "stop": 0.0008,
-    "replace": 0.0009
+    "correction": 0.0229,
+    "status": 0.0007,
+    "separate": 0.974,
+    "stop": 0.0007,
+    "replace": 0.0017
    }
   },
   {
@@ -735,11 +735,11 @@
    "message": "once that's done, find me a good sci-fi movie",
    "label": "separate",
    "probs": {
-    "correction": 0.0259,
-    "status": 0.0007,
-    "separate": 0.9721,
-    "stop": 0.0003,
-    "replace": 0.001
+    "correction": 0.0531,
+    "status": 0.0011,
+    "separate": 0.9418,
+    "stop": 0.0006,
+    "replace": 0.0034
    }
   },
   {
@@ -749,11 +749,11 @@
    "message": "I also need to renew my car registration, can you look up how?",
    "label": "separate",
    "probs": {
-    "correction": 0.0229,
-    "status": 0.0005,
-    "separate": 0.9754,
-    "stop": 0.0004,
-    "replace": 0.0007
+    "correction": 0.0292,
+    "status": 0.0011,
+    "separate": 0.9679,
+    "stop": 0.0003,
+    "replace": 0.0015
    }
   },
   {
@@ -763,11 +763,11 @@
    "message": "also check my calendar",
    "label": "separate",
    "probs": {
-    "correction": 0.0845,
-    "status": 0.0018,
-    "separate": 0.9081,
-    "stop": 0.002,
-    "replace": 0.0037
+    "correction": 0.0841,
+    "status": 0.002,
+    "separate": 0.904,
+    "stop": 0.0011,
+    "replace": 0.0089
    }
   },
   {
@@ -777,11 +777,11 @@
    "message": "btw how do I center a div in CSS?",
    "label": "separate",
    "probs": {
-    "correction": 0.0259,
-    "status": 0.0017,
-    "separate": 0.9704,
-    "stop": 0.0008,
-    "replace": 0.0013
+    "correction": 0.0419,
+    "status": 0.0013,
+    "separate": 0.9546,
+    "stop": 0.0004,
+    "replace": 0.0018
    }
   },
   {
@@ -791,11 +791,11 @@
    "message": "stop",
    "label": "stop",
    "probs": {
-    "correction": 0.0097,
-    "status": 0.0012,
+    "correction": 0.0059,
+    "status": 0.0005,
     "separate": 0.0001,
-    "stop": 0.9881,
-    "replace": 0.0009
+    "stop": 0.9929,
+    "replace": 0.0005
    }
   },
   {
@@ -805,11 +805,11 @@
    "message": "cancel that",
    "label": "stop",
    "probs": {
-    "correction": 0.0329,
-    "status": 0.0011,
+    "correction": 0.0258,
+    "status": 0.001,
     "separate": 0.0001,
-    "stop": 0.9614,
-    "replace": 0.0045
+    "stop": 0.9673,
+    "replace": 0.0058
    }
   },
   {
@@ -819,11 +819,11 @@
    "message": "never mind, forget it",
    "label": "stop",
    "probs": {
-    "correction": 0.0106,
-    "status": 0.0005,
+    "correction": 0.0028,
+    "status": 0.0003,
     "separate": 0.0001,
-    "stop": 0.9519,
-    "replace": 0.0369
+    "stop": 0.9829,
+    "replace": 0.014
    }
   },
   {
@@ -833,11 +833,11 @@
    "message": "stop what you're doing",
    "label": "stop",
    "probs": {
-    "correction": 0.0067,
-    "status": 0.0002,
+    "correction": 0.0076,
+    "status": 0.0003,
     "separate": 0.0,
-    "stop": 0.9927,
-    "replace": 0.0004
+    "stop": 0.9913,
+    "replace": 0.0008
    }
   },
   {
@@ -847,11 +847,11 @@
    "message": "abort",
    "label": "stop",
    "probs": {
-    "correction": 0.2538,
-    "status": 0.2538,
-    "separate": 0.0098,
-    "stop": 0.4184,
-    "replace": 0.0642
+    "correction": 0.1795,
+    "status": 0.3353,
+    "separate": 0.0033,
+    "stop": 0.4305,
+    "replace": 0.0514
    }
   },
   {
@@ -861,11 +861,11 @@
    "message": "drop it, I'll do it myself",
    "label": "stop",
    "probs": {
-    "correction": 0.128,
-    "status": 0.0034,
-    "separate": 0.0014,
-    "stop": 0.8348,
-    "replace": 0.0324
+    "correction": 0.0518,
+    "status": 0.002,
+    "separate": 0.0009,
+    "stop": 0.9176,
+    "replace": 0.0277
    }
   },
   {
@@ -876,9 +876,9 @@
    "label": "stop",
    "probs": {
     "correction": 0.0025,
-    "status": 0.0001,
+    "status": 0.0002,
     "separate": 0.0,
-    "stop": 0.9972,
+    "stop": 0.9971,
     "replace": 0.0002
    }
   },
@@ -889,11 +889,11 @@
    "message": "I changed my mind, don't do this at all",
    "label": "stop",
    "probs": {
-    "correction": 0.0326,
+    "correction": 0.0283,
     "status": 0.0009,
     "separate": 0.0002,
-    "stop": 0.9527,
-    "replace": 0.0136
+    "stop": 0.9385,
+    "replace": 0.0321
    }
   },
   {
@@ -903,11 +903,11 @@
    "message": "please stop",
    "label": "stop",
    "probs": {
-    "correction": 0.0041,
-    "status": 0.0003,
-    "separate": 0.0,
-    "stop": 0.9952,
-    "replace": 0.0004
+    "correction": 0.0036,
+    "status": 0.0004,
+    "separate": 0.0001,
+    "stop": 0.9955,
+    "replace": 0.0005
    }
   },
   {
@@ -917,11 +917,11 @@
    "message": "nvm, cancel",
    "label": "stop",
    "probs": {
-    "correction": 0.0258,
-    "status": 0.001,
+    "correction": 0.014,
+    "status": 0.0006,
     "separate": 0.0001,
-    "stop": 0.9686,
-    "replace": 0.0045
+    "stop": 0.9787,
+    "replace": 0.0066
    }
   },
   {
@@ -931,11 +931,11 @@
    "message": "kill it",
    "label": "stop",
    "probs": {
-    "correction": 0.0292,
-    "status": 0.0011,
+    "correction": 0.0202,
+    "status": 0.0009,
     "separate": 0.0003,
-    "stop": 0.9666,
-    "replace": 0.0027
+    "stop": 0.9735,
+    "replace": 0.0051
    }
   },
   {
@@ -945,11 +945,11 @@
    "message": "forget the call, stop looking",
    "label": "stop",
    "probs": {
-    "correction": 0.0076,
+    "correction": 0.0052,
     "status": 0.0004,
     "separate": 0.0001,
-    "stop": 0.9907,
-    "replace": 0.0013
+    "stop": 0.9924,
+    "replace": 0.0019
    }
   }
  ],
@@ -961,11 +961,11 @@
    "message": "just the ones that are open on Sundays",
    "label": "correction",
    "probs": {
-    "correction": 0.9941,
-    "status": 0.0017,
-    "separate": 0.0004,
-    "stop": 0.0013,
-    "replace": 0.0025
+    "correction": 0.9852,
+    "status": 0.0052,
+    "separate": 0.0013,
+    "stop": 0.0017,
+    "replace": 0.0066
    }
   },
   {
@@ -975,11 +975,11 @@
    "message": "how's it going?",
    "label": "status",
    "probs": {
-    "correction": 0.0289,
-    "status": 0.9573,
-    "separate": 0.0083,
-    "stop": 0.0039,
-    "replace": 0.0016
+    "correction": 0.0518,
+    "status": 0.9179,
+    "separate": 0.0245,
+    "stop": 0.0029,
+    "replace": 0.0029
    }
   },
   {
@@ -990,10 +990,10 @@
    "label": "separate",
    "probs": {
     "correction": 0.0229,
-    "status": 0.0005,
+    "status": 0.0006,
     "separate": 0.975,
-    "stop": 0.0008,
-    "replace": 0.0008
+    "stop": 0.0005,
+    "replace": 0.0009
    }
   },
   {
@@ -1003,11 +1003,11 @@
    "message": "okay stop, I've got what I need",
    "label": "stop",
    "probs": {
-    "correction": 0.0369,
-    "status": 0.0073,
-    "separate": 0.0007,
-    "stop": 0.9527,
-    "replace": 0.0024
+    "correction": 0.0202,
+    "status": 0.004,
+    "separate": 0.0003,
+    "stop": 0.974,
+    "replace": 0.0015
    }
   },
   {
@@ -1017,11 +1017,11 @@
    "message": "name the new module dates.py, not date_utils.py",
    "label": "correction",
    "probs": {
-    "correction": 0.9917,
-    "status": 0.0013,
-    "separate": 0.0006,
-    "stop": 0.0012,
-    "replace": 0.0052
+    "correction": 0.9809,
+    "status": 0.0035,
+    "separate": 0.0019,
+    "stop": 0.0013,
+    "replace": 0.0123
    }
   },
   {
@@ -1031,11 +1031,11 @@
    "message": "what are you changing?",
    "label": "status",
    "probs": {
-    "correction": 0.2956,
-    "status": 0.6259,
-    "separate": 0.0189,
-    "stop": 0.0353,
-    "replace": 0.0243
+    "correction": 0.7573,
+    "status": 0.217,
+    "separate": 0.0058,
+    "stop": 0.0021,
+    "replace": 0.0178
    }
   },
   {
@@ -1045,11 +1045,11 @@
    "message": "also, can you check whether the nightly job is still failing?",
    "label": "separate",
    "probs": {
-    "correction": 0.1171,
-    "status": 0.0066,
-    "separate": 0.8656,
-    "stop": 0.0021,
-    "replace": 0.0085
+    "correction": 0.1989,
+    "status": 0.0047,
+    "separate": 0.7868,
+    "stop": 0.0008,
+    "replace": 0.0087
    }
   },
   {
@@ -1059,11 +1059,11 @@
    "message": "undo everything, I don't want that refactor anymore",
    "label": "stop",
    "probs": {
-    "correction": 0.0059,
-    "status": 0.0004,
+    "correction": 0.0095,
+    "status": 0.0008,
     "separate": 0.0001,
-    "stop": 0.9895,
-    "replace": 0.004
+    "stop": 0.9738,
+    "replace": 0.0157
    }
   },
   {
@@ -1073,11 +1073,11 @@
    "message": "keep the headings as they are",
    "label": "correction",
    "probs": {
-    "correction": 0.9906,
-    "status": 0.0036,
-    "separate": 0.0009,
-    "stop": 0.0028,
-    "replace": 0.0022
+    "correction": 0.9566,
+    "status": 0.0255,
+    "separate": 0.0057,
+    "stop": 0.0039,
+    "replace": 0.0083
    }
   },
   {
@@ -1087,11 +1087,11 @@
    "message": "done yet?",
    "label": "status",
    "probs": {
-    "correction": 0.0159,
-    "status": 0.9831,
+    "correction": 0.0259,
+    "status": 0.9727,
     "separate": 0.0002,
-    "stop": 0.0003,
-    "replace": 0.0005
+    "stop": 0.0002,
+    "replace": 0.001
    }
   },
   {
@@ -1101,11 +1101,11 @@
    "message": "afterwards, email the result to Maria",
    "label": "separate",
    "probs": {
-    "correction": 0.2368,
-    "status": 0.0081,
-    "separate": 0.7295,
-    "stop": 0.0151,
-    "replace": 0.0104
+    "correction": 0.2157,
+    "status": 0.0084,
+    "separate": 0.7527,
+    "stop": 0.0095,
+    "replace": 0.0138
    }
   },
   {
@@ -1115,10 +1115,10 @@
    "message": "hold on, cancel it",
    "label": "stop",
    "probs": {
-    "correction": 0.0179,
-    "status": 0.0009,
-    "separate": 0.0002,
-    "stop": 0.9795,
+    "correction": 0.0159,
+    "status": 0.0006,
+    "separate": 0.0001,
+    "stop": 0.9819,
     "replace": 0.0015
    }
   },
@@ -1129,11 +1129,11 @@
    "message": "include the iPhone 16 too",
    "label": "correction",
    "probs": {
-    "correction": 0.993,
-    "status": 0.0013,
+    "correction": 0.9923,
+    "status": 0.0017,
     "separate": 0.0009,
-    "stop": 0.0012,
-    "replace": 0.0036
+    "stop": 0.0005,
+    "replace": 0.0046
    }
   },
   {
@@ -1143,11 +1143,11 @@
    "message": "which stores have you checked?",
    "label": "status",
    "probs": {
-    "correction": 0.0838,
-    "status": 0.9006,
-    "separate": 0.0042,
-    "stop": 0.0061,
-    "replace": 0.0054
+    "correction": 0.0842,
+    "status": 0.9051,
+    "separate": 0.0029,
+    "stop": 0.0017,
+    "replace": 0.0061
    }
   },
   {
@@ -1157,11 +1157,11 @@
    "message": "separate question: is it worth upgrading my phone this year?",
    "label": "separate",
    "probs": {
-    "correction": 0.0417,
-    "status": 0.0039,
-    "separate": 0.9496,
-    "stop": 0.0021,
-    "replace": 0.0027
+    "correction": 0.094,
+    "status": 0.0036,
+    "separate": 0.8923,
+    "stop": 0.0032,
+    "replace": 0.0068
    }
   },
   {
@@ -1171,11 +1171,11 @@
    "message": "scrap this comparison",
    "label": "stop",
    "probs": {
-    "correction": 0.7433,
-    "status": 0.0419,
-    "separate": 0.0254,
-    "stop": 0.1006,
-    "replace": 0.0888
+    "correction": 0.4406,
+    "status": 0.041,
+    "separate": 0.0676,
+    "stop": 0.1837,
+    "replace": 0.2672
    }
   },
   {
@@ -1185,11 +1185,11 @@
    "message": "mention that I speak Spanish",
    "label": "correction",
    "probs": {
-    "correction": 0.9954,
+    "correction": 0.996,
     "status": 0.0013,
     "separate": 0.0008,
-    "stop": 0.0013,
-    "replace": 0.0012
+    "stop": 0.0008,
+    "replace": 0.001
    }
   },
   {
@@ -1199,11 +1199,11 @@
    "message": "how far along are you?",
    "label": "status",
    "probs": {
-    "correction": 0.1293,
-    "status": 0.8433,
-    "separate": 0.0073,
-    "stop": 0.0136,
-    "replace": 0.0064
+    "correction": 0.3139,
+    "status": 0.6646,
+    "separate": 0.0084,
+    "stop": 0.0057,
+    "replace": 0.0074
    }
   },
   {
@@ -1213,11 +1213,11 @@
    "message": "then find the cafe's address",
    "label": "separate",
    "probs": {
-    "correction": 0.8107,
-    "status": 0.0404,
-    "separate": 0.0587,
-    "stop": 0.0314,
-    "replace": 0.0587
+    "correction": 0.8559,
+    "status": 0.0332,
+    "separate": 0.062,
+    "stop": 0.0157,
+    "replace": 0.0332
    }
   },
   {
@@ -1227,11 +1227,11 @@
    "message": "I got the job elsewhere, stop",
    "label": "stop",
    "probs": {
-    "correction": 0.0052,
+    "correction": 0.0046,
     "status": 0.0001,
     "separate": 0.0,
     "stop": 0.9941,
-    "replace": 0.0006
+    "replace": 0.0012
    }
   },
   {
@@ -1241,11 +1241,11 @@
    "message": "skip the Downloads subfolder",
    "label": "correction",
    "probs": {
-    "correction": 0.9928,
-    "status": 0.0019,
-    "separate": 0.0006,
-    "stop": 0.0019,
-    "replace": 0.0028
+    "correction": 0.9544,
+    "status": 0.0175,
+    "separate": 0.0083,
+    "stop": 0.0044,
+    "replace": 0.0154
    }
   },
   {
@@ -1255,11 +1255,11 @@
    "message": "how much has been copied?",
    "label": "status",
    "probs": {
-    "correction": 0.0597,
-    "status": 0.9334,
-    "separate": 0.0012,
-    "stop": 0.0023,
-    "replace": 0.0034
+    "correction": 0.0943,
+    "status": 0.8949,
+    "separate": 0.0022,
+    "stop": 0.0017,
+    "replace": 0.0068
    }
   },
   {
@@ -1269,11 +1269,11 @@
    "message": "while it copies, tell me what the weather is tomorrow",
    "label": "separate",
    "probs": {
-    "correction": 0.1309,
-    "status": 0.0051,
-    "separate": 0.8538,
-    "stop": 0.0058,
-    "replace": 0.0045
+    "correction": 0.0846,
+    "status": 0.0023,
+    "separate": 0.9098,
+    "stop": 0.0007,
+    "replace": 0.0026
    }
   },
   {
@@ -1283,11 +1283,11 @@
    "message": "don't copy anything, pull the plug",
    "label": "stop",
    "probs": {
-    "correction": 0.033,
+    "correction": 0.0086,
     "status": 0.0006,
     "separate": 0.0001,
-    "stop": 0.9636,
-    "replace": 0.0027
+    "stop": 0.9888,
+    "replace": 0.0019
    }
   },
   {
@@ -1297,11 +1297,11 @@
    "message": "somewhere with parking",
    "label": "correction",
    "probs": {
-    "correction": 0.9375,
-    "status": 0.0152,
-    "separate": 0.0321,
-    "stop": 0.0081,
-    "replace": 0.0072
+    "correction": 0.7643,
+    "status": 0.0627,
+    "separate": 0.1328,
+    "stop": 0.014,
+    "replace": 0.0262
    }
   },
   {
@@ -1311,11 +1311,11 @@
    "message": "found anything?",
    "label": "status",
    "probs": {
-    "correction": 0.0229,
-    "status": 0.9753,
-    "separate": 0.0003,
-    "stop": 0.0005,
-    "replace": 0.001
+    "correction": 0.0531,
+    "status": 0.9409,
+    "separate": 0.001,
+    "stop": 0.0016,
+    "replace": 0.0034
    }
   },
   {
@@ -1325,11 +1325,11 @@
    "message": "and add 'send the invoice' to my to-do list",
    "label": "separate",
    "probs": {
-    "correction": 0.1059,
-    "status": 0.0015,
-    "separate": 0.887,
-    "stop": 0.0019,
-    "replace": 0.0036
+    "correction": 0.1623,
+    "status": 0.0026,
+    "separate": 0.8241,
+    "stop": 0.0018,
+    "replace": 0.0092
    }
   },
   {
@@ -1339,11 +1339,11 @@
    "message": "forget lunch, stop searching",
    "label": "stop",
    "probs": {
-    "correction": 0.0085,
+    "correction": 0.0059,
     "status": 0.0002,
     "separate": 0.0001,
-    "stop": 0.9871,
-    "replace": 0.004
+    "stop": 0.9853,
+    "replace": 0.0085
    }
   },
   {
@@ -1353,11 +1353,11 @@
    "message": "make it warmer, and suggest next month instead",
    "label": "correction",
    "probs": {
-    "correction": 0.9982,
-    "status": 0.0006,
-    "separate": 0.0002,
+    "correction": 0.9966,
+    "status": 0.0012,
+    "separate": 0.0003,
     "stop": 0.0004,
-    "replace": 0.0007
+    "replace": 0.0015
    }
   },
   {
@@ -1367,11 +1367,11 @@
    "message": "what are you writing?",
    "label": "status",
    "probs": {
-    "correction": 0.1031,
-    "status": 0.8629,
-    "separate": 0.0066,
-    "stop": 0.0179,
-    "replace": 0.0096
+    "correction": 0.2572,
+    "status": 0.6992,
+    "separate": 0.0145,
+    "stop": 0.0145,
+    "replace": 0.0145
    }
   },
   {
@@ -1381,11 +1381,11 @@
    "message": "also draft one to Lee, same thing",
    "label": "separate",
    "probs": {
-    "correction": 0.5987,
-    "status": 0.0067,
-    "separate": 0.3631,
-    "stop": 0.0052,
-    "replace": 0.0263
+    "correction": 0.4686,
+    "status": 0.0076,
+    "separate": 0.4686,
+    "stop": 0.0059,
+    "replace": 0.0494
    }
   },
   {
@@ -1395,11 +1395,11 @@
    "message": "actually don't reply at all, stop",
    "label": "stop",
    "probs": {
-    "correction": 0.0076,
-    "status": 0.0009,
+    "correction": 0.0052,
+    "status": 0.0005,
     "separate": 0.0001,
-    "stop": 0.9908,
-    "replace": 0.0007
+    "stop": 0.9936,
+    "replace": 0.0006
    }
   },
   {
@@ -1409,11 +1409,11 @@
    "message": "it only fails on Windows, look at the path handling",
    "label": "correction",
    "probs": {
-    "correction": 0.9302,
-    "status": 0.0525,
+    "correction": 0.5777,
+    "status": 0.397,
     "separate": 0.0034,
-    "stop": 0.0023,
-    "replace": 0.0117
+    "stop": 0.0021,
+    "replace": 0.0198
    }
   },
   {
@@ -1423,11 +1423,11 @@
    "message": "is the test still running?",
    "label": "status",
    "probs": {
-    "correction": 0.0665,
-    "status": 0.9178,
-    "separate": 0.0029,
-    "stop": 0.0079,
-    "replace": 0.0048
+    "correction": 0.0841,
+    "status": 0.9037,
+    "separate": 0.002,
+    "stop": 0.0042,
+    "replace": 0.0061
    }
   },
   {
@@ -1437,11 +1437,11 @@
    "message": "afterwards bump the version number",
    "label": "separate",
    "probs": {
-    "correction": 0.6382,
-    "status": 0.0594,
-    "separate": 0.1828,
-    "stop": 0.0524,
-    "replace": 0.0673
+    "correction": 0.3705,
+    "status": 0.0827,
+    "separate": 0.4199,
+    "stop": 0.0443,
+    "replace": 0.0827
    }
   },
   {
@@ -1451,11 +1451,11 @@
    "message": "enough, I'll look at it tomorrow, stop",
    "label": "stop",
    "probs": {
-    "correction": 0.0109,
-    "status": 0.0012,
-    "separate": 0.0019,
-    "stop": 0.9849,
-    "replace": 0.0012
+    "correction": 0.0123,
+    "status": 0.0015,
+    "separate": 0.0035,
+    "stop": 0.9807,
+    "replace": 0.0019
    }
   },
   {
@@ -1465,11 +1465,11 @@
    "message": "with rosemary, no olives",
    "label": "correction",
    "probs": {
-    "correction": 0.9972,
-    "status": 0.0007,
-    "separate": 0.0003,
+    "correction": 0.9949,
+    "status": 0.0017,
+    "separate": 0.0004,
     "stop": 0.0005,
-    "replace": 0.0013
+    "replace": 0.0025
    }
   },
   {
@@ -1479,11 +1479,11 @@
    "message": "anything good so far?",
    "label": "status",
    "probs": {
-    "correction": 0.011,
-    "status": 0.988,
-    "separate": 0.0002,
-    "stop": 0.0003,
-    "replace": 0.0006
+    "correction": 0.033,
+    "status": 0.964,
+    "separate": 0.0003,
+    "stop": 0.0004,
+    "replace": 0.0024
    }
   },
   {
@@ -1493,11 +1493,11 @@
    "message": "what's a good sourdough starter feeding ratio?",
    "label": "separate",
    "probs": {
-    "correction": 0.6512,
-    "status": 0.2715,
-    "separate": 0.0324,
-    "stop": 0.0197,
-    "replace": 0.0252
+    "correction": 0.8221,
+    "status": 0.1113,
+    "separate": 0.0281,
+    "stop": 0.0103,
+    "replace": 0.0281
    }
   },
   {
@@ -1507,11 +1507,11 @@
    "message": "I'm not baking tonight after all, cancel",
    "label": "stop",
    "probs": {
-    "correction": 0.0179,
-    "status": 0.0004,
+    "correction": 0.0066,
+    "status": 0.0003,
     "separate": 0.0001,
-    "stop": 0.9751,
-    "replace": 0.0066
+    "stop": 0.9791,
+    "replace": 0.014
    }
   }
  ],
@@ -1523,11 +1523,11 @@
    "message": "keep the legal terms in English",
    "label": "correction",
    "probs": {
-    "correction": 0.9873,
-    "status": 0.0028,
-    "separate": 0.0012,
-    "stop": 0.0052,
-    "replace": 0.0036
+    "correction": 0.9662,
+    "status": 0.0107,
+    "separate": 0.0039,
+    "stop": 0.0107,
+    "replace": 0.0084
    }
   },
   {
@@ -1537,11 +1537,11 @@
    "message": "use Latin American Spanish, not Spain's",
    "label": "correction",
    "probs": {
-    "correction": 0.9983,
-    "status": 0.0004,
-    "separate": 0.0001,
-    "stop": 0.0004,
-    "replace": 0.0008
+    "correction": 0.9963,
+    "status": 0.001,
+    "separate": 0.0002,
+    "stop": 0.0006,
+    "replace": 0.0019
    }
   },
   {
@@ -1551,11 +1551,11 @@
    "message": "actually just one pizza, we're only two",
    "label": "correction",
    "probs": {
-    "correction": 0.9877,
-    "status": 0.0017,
-    "separate": 0.0004,
-    "stop": 0.0017,
-    "replace": 0.0085
+    "correction": 0.9732,
+    "status": 0.0035,
+    "separate": 0.0007,
+    "stop": 0.0024,
+    "replace": 0.0202
    }
   },
   {
@@ -1565,11 +1565,11 @@
    "message": "add garlic knots",
    "label": "correction",
    "probs": {
-    "correction": 0.9639,
-    "status": 0.0045,
-    "separate": 0.0137,
-    "stop": 0.0057,
-    "replace": 0.0121
+    "correction": 0.9167,
+    "status": 0.009,
+    "separate": 0.0456,
+    "stop": 0.0042,
+    "replace": 0.0244
    }
   },
   {
@@ -1579,11 +1579,11 @@
    "message": "it must have free parking and breakfast",
    "label": "correction",
    "probs": {
-    "correction": 0.9986,
-    "status": 0.0004,
-    "separate": 0.0001,
+    "correction": 0.9955,
+    "status": 0.0017,
+    "separate": 0.0003,
     "stop": 0.0003,
-    "replace": 0.0006
+    "replace": 0.0022
    }
   },
   {
@@ -1593,11 +1593,11 @@
    "message": "stop looking at Booking.com, it's all sold out",
    "label": "correction",
    "probs": {
-    "correction": 0.7616,
-    "status": 0.1031,
-    "separate": 0.0027,
-    "stop": 0.1031,
-    "replace": 0.0295
+    "correction": 0.2973,
+    "status": 0.2315,
+    "separate": 0.0042,
+    "stop": 0.3817,
+    "replace": 0.0852
    }
   },
   {
@@ -1607,11 +1607,11 @@
    "message": "use YYYY-MM-DD, not DD-MM-YYYY",
    "label": "correction",
    "probs": {
-    "correction": 0.9922,
-    "status": 0.0017,
-    "separate": 0.0003,
-    "stop": 0.0017,
-    "replace": 0.0041
+    "correction": 0.9879,
+    "status": 0.0036,
+    "separate": 0.0006,
+    "stop": 0.0013,
+    "replace": 0.0067
    }
   },
   {
@@ -1621,11 +1621,11 @@
    "message": "use a regex, not a library",
    "label": "correction",
    "probs": {
-    "correction": 0.9992,
-    "status": 0.0002,
-    "separate": 0.0001,
-    "stop": 0.0003,
-    "replace": 0.0003
+    "correction": 0.998,
+    "status": 0.0007,
+    "separate": 0.0002,
+    "stop": 0.0002,
+    "replace": 0.0009
    }
   },
   {
@@ -1635,11 +1635,11 @@
    "message": "ignore transactions under $5",
    "label": "correction",
    "probs": {
-    "correction": 0.9826,
-    "status": 0.0052,
-    "separate": 0.0019,
-    "stop": 0.0052,
-    "replace": 0.0052
+    "correction": 0.9467,
+    "status": 0.0286,
+    "separate": 0.0082,
+    "stop": 0.0072,
+    "replace": 0.0093
    }
   },
   {
@@ -1649,11 +1649,11 @@
    "message": "put the budget review first",
    "label": "correction",
    "probs": {
-    "correction": 0.9971,
-    "status": 0.0005,
-    "separate": 0.0003,
-    "stop": 0.0005,
-    "replace": 0.0017
+    "correction": 0.9894,
+    "status": 0.0017,
+    "separate": 0.0017,
+    "stop": 0.0013,
+    "replace": 0.0059
    }
   },
   {
@@ -1663,11 +1663,11 @@
    "message": "check my other flight too, UA 777",
    "label": "correction",
    "probs": {
-    "correction": 0.8685,
-    "status": 0.0035,
-    "separate": 0.1175,
-    "stop": 0.0046,
-    "replace": 0.0059
+    "correction": 0.6935,
+    "status": 0.0032,
+    "separate": 0.2891,
+    "stop": 0.0015,
+    "replace": 0.0127
    }
   },
   {
@@ -1677,11 +1677,11 @@
    "message": "scrap the pizza, order sushi from Koi instead",
    "label": "correction",
    "probs": {
-    "correction": 0.1462,
-    "status": 0.0018,
-    "separate": 0.0013,
-    "stop": 0.0093,
-    "replace": 0.8413
+    "correction": 0.0936,
+    "status": 0.0025,
+    "separate": 0.0036,
+    "stop": 0.0127,
+    "replace": 0.8877
    }
   },
   {
@@ -1691,11 +1691,11 @@
    "message": "how's the translation going?",
    "label": "status",
    "probs": {
-    "correction": 0.0076,
-    "status": 0.9916,
+    "correction": 0.018,
+    "status": 0.981,
     "separate": 0.0001,
-    "stop": 0.0004,
-    "replace": 0.0004
+    "stop": 0.0002,
+    "replace": 0.0007
    }
   },
   {
@@ -1705,11 +1705,11 @@
    "message": "are you done yet?",
    "label": "status",
    "probs": {
-    "correction": 0.0418,
-    "status": 0.9515,
-    "separate": 0.0016,
-    "stop": 0.0024,
-    "replace": 0.0027
+    "correction": 0.0593,
+    "status": 0.9283,
+    "separate": 0.0038,
+    "stop": 0.0023,
+    "replace": 0.0063
    }
   },
   {
@@ -1719,11 +1719,11 @@
    "message": "what hotel are you looking at?",
    "label": "status",
    "probs": {
-    "correction": 0.2327,
-    "status": 0.6324,
-    "separate": 0.0404,
-    "stop": 0.0588,
-    "replace": 0.0357
+    "correction": 0.339,
+    "status": 0.559,
+    "separate": 0.0315,
+    "stop": 0.0246,
+    "replace": 0.0459
    }
   },
   {
@@ -1733,11 +1733,11 @@
    "message": "is it still renaming?",
    "label": "status",
    "probs": {
-    "correction": 0.0471,
-    "status": 0.9469,
-    "separate": 0.001,
-    "stop": 0.0027,
-    "replace": 0.0023
+    "correction": 0.0945,
+    "status": 0.8962,
+    "separate": 0.0015,
+    "stop": 0.0037,
+    "replace": 0.0042
    }
   },
   {
@@ -1747,11 +1747,11 @@
    "message": "what's the progress?",
    "label": "status",
    "probs": {
-    "correction": 0.0258,
-    "status": 0.9695,
-    "separate": 0.0013,
-    "stop": 0.0019,
-    "replace": 0.0015
+    "correction": 0.0471,
+    "status": 0.947,
+    "separate": 0.0014,
+    "stop": 0.0023,
+    "replace": 0.0021
    }
   },
   {
@@ -1761,11 +1761,11 @@
    "message": "how many rows have you matched so far?",
    "label": "status",
    "probs": {
-    "correction": 0.0748,
-    "status": 0.9118,
-    "separate": 0.0042,
-    "stop": 0.0037,
-    "replace": 0.0054
+    "correction": 0.105,
+    "status": 0.8787,
+    "separate": 0.0041,
+    "stop": 0.0025,
+    "replace": 0.0098
    }
   },
   {
@@ -1775,11 +1775,11 @@
    "message": "give me a quick update",
    "label": "status",
    "probs": {
-    "correction": 0.1858,
-    "status": 0.6484,
-    "separate": 0.1447,
-    "stop": 0.0119,
-    "replace": 0.0092
+    "correction": 0.275,
+    "status": 0.4001,
+    "separate": 0.3116,
+    "stop": 0.0027,
+    "replace": 0.0107
    }
   },
   {
@@ -1789,11 +1789,11 @@
    "message": "anything yet?",
    "label": "status",
    "probs": {
-    "correction": 0.011,
-    "status": 0.9877,
-    "separate": 0.0003,
-    "stop": 0.0005,
-    "replace": 0.0006
+    "correction": 0.053,
+    "status": 0.9401,
+    "separate": 0.0021,
+    "stop": 0.0014,
+    "replace": 0.0034
    }
   },
   {
@@ -1803,11 +1803,11 @@
    "message": "what are you up to?",
    "label": "status",
    "probs": {
-    "correction": 0.0254,
-    "status": 0.9542,
-    "separate": 0.0175,
-    "stop": 0.0016,
-    "replace": 0.0013
+    "correction": 0.0633,
+    "status": 0.8738,
+    "separate": 0.0559,
+    "stop": 0.0025,
+    "replace": 0.0046
    }
   },
   {
@@ -1817,11 +1817,11 @@
    "message": "how many files are done?",
    "label": "status",
    "probs": {
-    "correction": 0.1036,
-    "status": 0.8671,
-    "separate": 0.0109,
-    "stop": 0.0109,
-    "replace": 0.0075
+    "correction": 0.0938,
+    "status": 0.8896,
+    "separate": 0.006,
+    "stop": 0.0047,
+    "replace": 0.006
    }
   },
   {
@@ -1831,11 +1831,11 @@
    "message": "are you waiting on something?",
    "label": "status",
    "probs": {
-    "correction": 0.163,
-    "status": 0.7307,
-    "separate": 0.077,
-    "stop": 0.0221,
-    "replace": 0.0072
+    "correction": 0.2064,
+    "status": 0.4369,
+    "separate": 0.3402,
+    "stop": 0.0062,
+    "replace": 0.0103
    }
   },
   {
@@ -1845,11 +1845,11 @@
    "message": "what's the status?",
    "label": "status",
    "probs": {
-    "correction": 0.0124,
-    "status": 0.9859,
-    "separate": 0.0003,
-    "stop": 0.0005,
-    "replace": 0.0009
+    "correction": 0.0179,
+    "status": 0.9795,
+    "separate": 0.0004,
+    "stop": 0.0004,
+    "replace": 0.0017
    }
   },
   {
@@ -1860,10 +1860,10 @@
    "label": "separate",
    "probs": {
     "correction": 0.0259,
-    "status": 0.0008,
-    "separate": 0.9718,
+    "status": 0.001,
+    "separate": 0.9712,
     "stop": 0.0005,
-    "replace": 0.001
+    "replace": 0.0015
    }
   },
   {
@@ -1873,11 +1873,11 @@
    "message": "when's sunset today?",
    "label": "separate",
    "probs": {
-    "correction": 0.0467,
-    "status": 0.0081,
-    "separate": 0.9383,
-    "stop": 0.003,
-    "replace": 0.0038
+    "correction": 0.0527,
+    "status": 0.0063,
+    "separate": 0.9345,
+    "stop": 0.0016,
+    "replace": 0.0049
    }
   },
   {
@@ -1887,11 +1887,11 @@
    "message": "also, what's the weather in Portland next week?",
    "label": "separate",
    "probs": {
-    "correction": 0.0179,
-    "status": 0.001,
-    "separate": 0.9794,
-    "stop": 0.0005,
-    "replace": 0.0011
+    "correction": 0.0159,
+    "status": 0.0005,
+    "separate": 0.9826,
+    "stop": 0.0001,
+    "replace": 0.0008
    }
   },
   {
@@ -1901,11 +1901,11 @@
    "message": "can you add milk to the shopping list?",
    "label": "separate",
    "probs": {
-    "correction": 0.042,
-    "status": 0.0009,
-    "separate": 0.9551,
-    "stop": 0.0008,
-    "replace": 0.0013
+    "correction": 0.0373,
+    "status": 0.0004,
+    "separate": 0.961,
+    "stop": 0.0003,
+    "replace": 0.001
    }
   },
   {
@@ -1915,11 +1915,11 @@
    "message": "afterwards, book me a table for Friday",
    "label": "separate",
    "probs": {
-    "correction": 0.0372,
-    "status": 0.0013,
-    "separate": 0.9587,
-    "stop": 0.0013,
-    "replace": 0.0016
+    "correction": 0.0532,
+    "status": 0.0014,
+    "separate": 0.9425,
+    "stop": 0.0006,
+    "replace": 0.0023
    }
   },
   {
@@ -1929,11 +1929,11 @@
    "message": "while you do that, what's 15% tip on $84?",
    "label": "separate",
    "probs": {
-    "correction": 0.0371,
-    "status": 0.0024,
-    "separate": 0.9572,
-    "stop": 0.0013,
-    "replace": 0.0021
+    "correction": 0.0531,
+    "status": 0.0018,
+    "separate": 0.9419,
+    "stop": 0.0005,
+    "replace": 0.0026
    }
   },
   {
@@ -1943,11 +1943,11 @@
    "message": "next up: draft a thank-you note to Chris",
    "label": "separate",
    "probs": {
-    "correction": 0.117,
-    "status": 0.0051,
-    "separate": 0.8643,
-    "stop": 0.0051,
-    "replace": 0.0085
+    "correction": 0.1751,
+    "status": 0.0127,
+    "separate": 0.7846,
+    "stop": 0.0068,
+    "replace": 0.0209
    }
   },
   {
@@ -1957,11 +1957,11 @@
    "message": "separately: how do I reset my router?",
    "label": "separate",
    "probs": {
-    "correction": 0.0124,
-    "status": 0.0002,
-    "separate": 0.987,
+    "correction": 0.011,
+    "status": 0.0003,
+    "separate": 0.988,
     "stop": 0.0001,
-    "replace": 0.0003
+    "replace": 0.0005
    }
   },
   {
@@ -1971,11 +1971,11 @@
    "message": "I also need the phone number of the DMV",
    "label": "separate",
    "probs": {
-    "correction": 0.1188,
-    "status": 0.0009,
-    "separate": 0.8777,
+    "correction": 0.1815,
+    "status": 0.001,
+    "separate": 0.8135,
     "stop": 0.0007,
-    "replace": 0.0019
+    "replace": 0.0033
    }
   },
   {
@@ -1985,11 +1985,11 @@
    "message": "later I want a summary of today's news",
    "label": "separate",
    "probs": {
-    "correction": 0.0159,
-    "status": 0.0013,
-    "separate": 0.9808,
-    "stop": 0.0004,
-    "replace": 0.0017
+    "correction": 0.0059,
+    "status": 0.0002,
+    "separate": 0.9933,
+    "stop": 0.0001,
+    "replace": 0.0005
    }
   },
   {
@@ -1999,11 +1999,11 @@
    "message": "whenever you're free: when is the next full moon?",
    "label": "separate",
    "probs": {
-    "correction": 0.0471,
-    "status": 0.0021,
-    "separate": 0.9466,
-    "stop": 0.0023,
-    "replace": 0.0018
+    "correction": 0.033,
+    "status": 0.0008,
+    "separate": 0.9642,
+    "stop": 0.0009,
+    "replace": 0.0011
    }
   },
   {
@@ -2013,11 +2013,11 @@
    "message": "and my dentist's number, please",
    "label": "separate",
    "probs": {
-    "correction": 0.2196,
-    "status": 0.0024,
-    "separate": 0.7664,
-    "stop": 0.004,
-    "replace": 0.0075
+    "correction": 0.2171,
+    "status": 0.0045,
+    "separate": 0.7576,
+    "stop": 0.0051,
+    "replace": 0.0157
    }
   },
   {
@@ -2027,11 +2027,11 @@
    "message": "stop",
    "label": "stop",
    "probs": {
-    "correction": 0.0898,
-    "status": 0.0374,
-    "separate": 0.0011,
-    "stop": 0.8517,
-    "replace": 0.02
+    "correction": 0.0917,
+    "status": 0.0232,
+    "separate": 0.0009,
+    "stop": 0.8701,
+    "replace": 0.0141
    }
   },
   {
@@ -2041,11 +2041,11 @@
    "message": "cancel the order",
    "label": "stop",
    "probs": {
-    "correction": 0.0518,
-    "status": 0.0016,
-    "separate": 0.0005,
-    "stop": 0.9184,
-    "replace": 0.0277
+    "correction": 0.0176,
+    "status": 0.0013,
+    "separate": 0.0003,
+    "stop": 0.9632,
+    "replace": 0.0176
    }
   },
   {
@@ -2055,11 +2055,11 @@
    "message": "hold on, don't do that, stop",
    "label": "stop",
    "probs": {
-    "correction": 0.0086,
-    "status": 0.0004,
+    "correction": 0.0059,
+    "status": 0.0005,
     "separate": 0.0,
-    "stop": 0.9905,
-    "replace": 0.0005
+    "stop": 0.9926,
+    "replace": 0.0009
    }
   },
   {
@@ -2069,11 +2069,11 @@
    "message": "forget it",
    "label": "stop",
    "probs": {
-    "correction": 0.1262,
-    "status": 0.0081,
-    "separate": 0.0018,
-    "stop": 0.823,
-    "replace": 0.041
+    "correction": 0.0964,
+    "status": 0.0079,
+    "separate": 0.0033,
+    "stop": 0.8073,
+    "replace": 0.0851
    }
   },
   {
@@ -2083,11 +2083,11 @@
    "message": "enough",
    "label": "stop",
    "probs": {
-    "correction": 0.2918,
-    "status": 0.2006,
-    "separate": 0.0078,
-    "stop": 0.4812,
-    "replace": 0.0187
+    "correction": 0.3433,
+    "status": 0.1838,
+    "separate": 0.0071,
+    "stop": 0.4409,
+    "replace": 0.0249
    }
   },
   {
@@ -2097,11 +2097,11 @@
    "message": "I'll take it from here, stop",
    "label": "stop",
    "probs": {
-    "correction": 0.0159,
-    "status": 0.0019,
+    "correction": 0.011,
+    "status": 0.001,
     "separate": 0.0002,
-    "stop": 0.9809,
-    "replace": 0.0011
+    "stop": 0.9869,
+    "replace": 0.0009
    }
   },
   {
@@ -2111,11 +2111,11 @@
    "message": "abort mission",
    "label": "stop",
    "probs": {
-    "correction": 0.0598,
-    "status": 0.0018,
+    "correction": 0.0597,
+    "status": 0.002,
     "separate": 0.0006,
-    "stop": 0.9352,
-    "replace": 0.0026
+    "stop": 0.9343,
+    "replace": 0.0034
    }
   },
   {
@@ -2125,11 +2125,11 @@
    "message": "cancel this",
    "label": "stop",
    "probs": {
-    "correction": 0.0203,
-    "status": 0.0011,
-    "separate": 0.0002,
-    "stop": 0.976,
-    "replace": 0.0024
+    "correction": 0.0076,
+    "status": 0.0006,
+    "separate": 0.0001,
+    "stop": 0.9901,
+    "replace": 0.0017
    }
   },
   {
@@ -2139,11 +2139,11 @@
    "message": "no, stop, wrong thing entirely",
    "label": "stop",
    "probs": {
-    "correction": 0.046,
-    "status": 0.0023,
+    "correction": 0.0368,
+    "status": 0.0018,
     "separate": 0.0002,
-    "stop": 0.9236,
-    "replace": 0.0279
+    "stop": 0.9492,
+    "replace": 0.0119
    }
   },
   {
@@ -2153,11 +2153,11 @@
    "message": "shut it down",
    "label": "stop",
    "probs": {
-    "correction": 0.0059,
+    "correction": 0.0036,
     "status": 0.0004,
-    "separate": 0.0001,
-    "stop": 0.9933,
-    "replace": 0.0003
+    "separate": 0.0,
+    "stop": 0.9956,
+    "replace": 0.0004
    }
   },
   {
@@ -2167,11 +2167,11 @@
    "message": "stop it right now",
    "label": "stop",
    "probs": {
-    "correction": 0.0124,
-    "status": 0.0006,
+    "correction": 0.0076,
+    "status": 0.0004,
     "separate": 0.0001,
-    "stop": 0.9859,
-    "replace": 0.001
+    "stop": 0.9912,
+    "replace": 0.0008
    }
   },
   {
@@ -2181,11 +2181,827 @@
    "message": "never mind, I did it by hand",
    "label": "stop",
    "probs": {
-    "correction": 0.1036,
-    "status": 0.0066,
+    "correction": 0.0344,
+    "status": 0.0047,
+    "separate": 0.0028,
+    "stop": 0.4195,
+    "replace": 0.5386
+   }
+  }
+ ],
+ "real": [
+  {
+   "i": 0,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "why did the harness flag you for repeating the same attempt?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1291,
+    "status": 0.8418,
+    "separate": 0.0154,
+    "stop": 0.0073,
+    "replace": 0.0064
+   }
+  },
+  {
+   "i": 1,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "were you going in circles?",
+   "label": "status",
+   "probs": {
+    "correction": 0.23,
+    "status": 0.6252,
+    "separate": 0.0513,
+    "stop": 0.0582,
+    "replace": 0.0353
+   }
+  },
+  {
+   "i": 2,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "why did the harness flag you?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1856,
+    "status": 0.7341,
+    "separate": 0.0532,
+    "stop": 0.0152,
+    "replace": 0.0119
+   }
+  },
+  {
+   "i": 3,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "why did you pick that approach?",
+   "label": "status",
+   "probs": {
+    "correction": 0.118,
+    "status": 0.8718,
+    "separate": 0.0015,
+    "stop": 0.0036,
+    "replace": 0.0052
+   }
+  },
+  {
+   "i": 4,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "why are you writing it as one file?",
+   "label": "status",
+   "probs": {
+    "correction": 0.7635,
+    "status": 0.193,
+    "separate": 0.0158,
+    "stop": 0.0045,
+    "replace": 0.0231
+   }
+  },
+  {
+   "i": 5,
+   "task": "Find out why the nightly export job fails and fix it.",
+   "doing": "running code: project.grep('Traceback', 'logs/')",
+   "message": "what did that error mean?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0418,
+    "status": 0.9508,
+    "separate": 0.001,
+    "stop": 0.0008,
+    "replace": 0.0057
+   }
+  },
+  {
+   "i": 6,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "did the tests pass?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0751,
+    "status": 0.9153,
+    "separate": 0.002,
+    "stop": 0.0033,
+    "replace": 0.0042
+   }
+  },
+  {
+   "i": 7,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "why are you reading the log again?",
+   "label": "status",
+   "probs": {
+    "correction": 0.2068,
+    "status": 0.6369,
+    "separate": 0.0761,
+    "stop": 0.0523,
+    "replace": 0.028
+   }
+  },
+  {
+   "i": 8,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "which model are you using for this?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1989,
+    "status": 0.5407,
+    "separate": 0.1989,
+    "stop": 0.0346,
+    "replace": 0.0269
+   }
+  },
+  {
+   "i": 9,
+   "task": "Find out why the nightly export job fails and fix it.",
+   "doing": "running code: project.grep('Traceback', 'logs/')",
+   "message": "how many steps have you used so far?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1915,
+    "status": 0.6685,
+    "separate": 0.0905,
+    "stop": 0.0202,
+    "replace": 0.0294
+   }
+  },
+  {
+   "i": 10,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "do you think this will work?",
+   "label": "status",
+   "probs": {
+    "correction": 0.2576,
+    "status": 0.7003,
+    "separate": 0.0128,
+    "stop": 0.0165,
+    "replace": 0.0128
+   }
+  },
+  {
+   "i": 11,
+   "task": "Find out why the nightly export job fails and fix it.",
+   "doing": "running code: project.grep('Traceback', 'logs/')",
+   "message": "is that the right file you are looking at?",
+   "label": "status",
+   "probs": {
+    "correction": 0.3653,
+    "status": 0.6022,
+    "separate": 0.0067,
+    "stop": 0.0025,
+    "replace": 0.0234
+   }
+  },
+  {
+   "i": 12,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "is the front end designer working on this or just you?",
+   "label": "status",
+   "probs": {
+    "correction": 0.2807,
+    "status": 0.5943,
+    "separate": 0.0911,
+    "stop": 0.0158,
+    "replace": 0.0179
+   }
+  },
+  {
+   "i": 13,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "what is the harness doing right now?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0329,
+    "status": 0.9626,
+    "separate": 0.0011,
+    "stop": 0.001,
+    "replace": 0.0024
+   }
+  },
+  {
+   "i": 14,
+   "task": "Find out why the nightly export job fails and fix it.",
+   "doing": "running code: project.grep('Traceback', 'logs/')",
+   "message": "why did that last command fail?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1448,
+    "status": 0.8331,
+    "separate": 0.0056,
+    "stop": 0.003,
+    "replace": 0.0135
+   }
+  },
+  {
+   "i": 15,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "so what have you built so far?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0419,
+    "status": 0.9537,
+    "separate": 0.0009,
+    "stop": 0.0011,
+    "replace": 0.0024
+   }
+  },
+  {
+   "i": 16,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "can you make the buttons bigger?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9957,
+    "status": 0.0015,
+    "separate": 0.0009,
+    "stop": 0.0002,
+    "replace": 0.0017
+   }
+  },
+  {
+   "i": 17,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "could you use the front end designer for the page itself?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9526,
+    "status": 0.0154,
+    "separate": 0.0106,
+    "stop": 0.0016,
+    "replace": 0.0198
+   }
+  },
+  {
+   "i": 18,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "why not use a dark theme?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9888,
+    "status": 0.0059,
+    "separate": 0.0025,
+    "stop": 0.0004,
+    "replace": 0.0025
+   }
+  },
+  {
+   "i": 19,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "would it be better to split the tabs into separate pages?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9673,
+    "status": 0.0177,
+    "separate": 0.0045,
+    "stop": 0.0021,
+    "replace": 0.0084
+   }
+  },
+  {
+   "i": 20,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "can you also test the audio fades?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.8936,
+    "status": 0.0041,
+    "separate": 0.0942,
+    "stop": 0.0004,
+    "replace": 0.0077
+   }
+  },
+  {
+   "i": 21,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "could you run the tests on both fast and slow settings?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.8706,
+    "status": 0.0631,
+    "separate": 0.0298,
+    "stop": 0.0028,
+    "replace": 0.0338
+   }
+  },
+  {
+   "i": 22,
+   "task": "Find out why the nightly export job fails and fix it.",
+   "doing": "running code: project.grep('Traceback', 'logs/')",
+   "message": "can you check the cron schedule as well?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9325,
+    "status": 0.0219,
+    "separate": 0.0362,
+    "stop": 0.0002,
+    "replace": 0.0091
+   }
+  },
+  {
+   "i": 23,
+   "task": "Find out why the nightly export job fails and fix it.",
+   "doing": "running code: project.grep('Traceback', 'logs/')",
+   "message": "what if it is the timezone and not the data?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9708,
+    "status": 0.0201,
+    "separate": 0.0035,
+    "stop": 0.0004,
+    "replace": 0.0051
+   }
+  },
+  {
+   "i": 24,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "might be a good idea to involve the front end designer",
+   "label": "correction",
+   "probs": {
+    "correction": 0.979,
+    "status": 0.0096,
+    "separate": 0.0058,
+    "stop": 0.0024,
+    "replace": 0.0031
+   }
+  },
+  {
+   "i": 25,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "shouldn't the sliders have labels?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9885,
+    "status": 0.0059,
+    "separate": 0.0013,
+    "stop": 0.0007,
+    "replace": 0.0036
+   }
+  },
+  {
+   "i": 26,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "how about printing the failures in full?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.696,
+    "status": 0.256,
+    "separate": 0.0306,
+    "stop": 0.001,
+    "replace": 0.0164
+   }
+  },
+  {
+   "i": 27,
+   "task": "Find out why the nightly export job fails and fix it.",
+   "doing": "running code: project.grep('Traceback', 'logs/')",
+   "message": "can you try it with python 3.11 instead?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9471,
+    "status": 0.0252,
+    "separate": 0.0064,
+    "stop": 0.0016,
+    "replace": 0.0197
+   }
+  },
+  {
+   "i": 28,
+   "task": "Build the web GUI for JedStudio, a local photo/video/audio/3D editor, from the API brief.",
+   "doing": "running code: project.write('jedstudio/web/index.html', html)",
+   "message": "can you also check my calendar for tomorrow?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0329,
+    "status": 0.0009,
+    "separate": 0.9629,
+    "stop": 0.0005,
+    "replace": 0.0027
+   }
+  },
+  {
+   "i": 29,
+   "task": "Build a full test suite for the editor, run it, and tell me exactly how many passed and failed.",
+   "doing": "running code: subprocess.run(['pytest', '-q'])",
+   "message": "what's the weather like in Denver?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0259,
+    "status": 0.0013,
+    "separate": 0.9709,
+    "stop": 0.0005,
+    "replace": 0.0015
+   }
+  }
+ ],
+ "real_fresh": [
+  {
+   "i": 0,
+   "task": "Sync my photo library to the NAS and tell me what was copied.",
+   "doing": "running code: rsync_copy(src, dst)",
+   "message": "why did it stop and start again?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1457,
+    "status": 0.8386,
+    "separate": 0.0034,
+    "stop": 0.005,
+    "replace": 0.0073
+   }
+  },
+  {
+   "i": 1,
+   "task": "Sync my photo library to the NAS and tell me what was copied.",
+   "doing": "running code: rsync_copy(src, dst)",
+   "message": "did you skip any files?",
+   "label": "status",
+   "probs": {
+    "correction": 0.5762,
+    "status": 0.3495,
+    "separate": 0.0417,
+    "stop": 0.0073,
+    "replace": 0.0253
+   }
+  },
+  {
+   "i": 2,
+   "task": "Make a 6-slide deck about our Q3 results from results.xlsx.",
+   "doing": "running code: pptx.add_slide(layout, title)",
+   "message": "why is slide 3 so empty?",
+   "label": "status",
+   "probs": {
+    "correction": 0.4284,
+    "status": 0.55,
+    "separate": 0.0069,
+    "stop": 0.0018,
+    "replace": 0.0129
+   }
+  },
+  {
+   "i": 3,
+   "task": "Make a 6-slide deck about our Q3 results from results.xlsx.",
+   "doing": "running code: pptx.add_slide(layout, title)",
+   "message": "which template are you using?",
+   "label": "status",
+   "probs": {
+    "correction": 0.3494,
+    "status": 0.576,
+    "separate": 0.0473,
+    "stop": 0.0021,
+    "replace": 0.0253
+   }
+  },
+  {
+   "i": 4,
+   "task": "Fix the crash when the settings file is empty.",
+   "doing": "running code: project.sh('pytest tests/test_settings.py')",
+   "message": "what does that traceback mean?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0418,
+    "status": 0.9517,
+    "separate": 0.001,
+    "stop": 0.0011,
+    "replace": 0.0044
+   }
+  },
+  {
+   "i": 5,
+   "task": "Fix the crash when the settings file is empty.",
+   "doing": "running code: project.sh('pytest tests/test_settings.py')",
+   "message": "why did you run the test twice?",
+   "label": "status",
+   "probs": {
+    "correction": 0.2238,
+    "status": 0.6892,
+    "separate": 0.0441,
+    "stop": 0.0162,
+    "replace": 0.0267
+   }
+  },
+  {
+   "i": 6,
+   "task": "Fix the crash when the settings file is empty.",
+   "doing": "running code: project.sh('pytest tests/test_settings.py')",
+   "message": "did the system just flag you for something?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1522,
+    "status": 0.5312,
+    "separate": 0.2843,
+    "stop": 0.0182,
+    "replace": 0.0142
+   }
+  },
+  {
+   "i": 7,
+   "task": "Plan a three-day trip to Lisbon with a budget of 600 euros.",
+   "doing": "the model is writing its next step",
+   "message": "why did you choose that hotel?",
+   "label": "status",
+   "probs": {
+    "correction": 0.3426,
+    "status": 0.6401,
+    "separate": 0.0026,
+    "stop": 0.0055,
+    "replace": 0.0091
+   }
+  },
+  {
+   "i": 8,
+   "task": "Plan a three-day trip to Lisbon with a budget of 600 euros.",
+   "doing": "the model is writing its next step",
+   "message": "where are you getting these prices from?",
+   "label": "status",
+   "probs": {
+    "correction": 0.6949,
+    "status": 0.2256,
+    "separate": 0.0346,
+    "stop": 0.0144,
+    "replace": 0.0305
+   }
+  },
+  {
+   "i": 9,
+   "task": "Sync my photo library to the NAS and tell me what was copied.",
+   "doing": "running code: rsync_copy(src, dst)",
+   "message": "are you stuck or just slow?",
+   "label": "status",
+   "probs": {
+    "correction": 0.244,
+    "status": 0.4023,
+    "separate": 0.244,
+    "stop": 0.0617,
+    "replace": 0.048
+   }
+  },
+  {
+   "i": 10,
+   "task": "Make a 6-slide deck about our Q3 results from results.xlsx.",
+   "doing": "running code: pptx.add_slide(layout, title)",
+   "message": "how many slides are done?",
+   "label": "status",
+   "probs": {
+    "correction": 0.0669,
+    "status": 0.9232,
+    "separate": 0.0043,
+    "stop": 0.0014,
+    "replace": 0.0043
+   }
+  },
+  {
+   "i": 11,
+   "task": "Fix the crash when the settings file is empty.",
+   "doing": "running code: project.sh('pytest tests/test_settings.py')",
+   "message": "what have you tried so far?",
+   "label": "status",
+   "probs": {
+    "correction": 0.1049,
+    "status": 0.8786,
+    "separate": 0.0059,
+    "stop": 0.0046,
+    "replace": 0.0059
+   }
+  },
+  {
+   "i": 12,
+   "task": "Sync my photo library to the NAS and tell me what was copied.",
+   "doing": "running code: rsync_copy(src, dst)",
+   "message": "can you skip the videos folder?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9907,
+    "status": 0.0032,
     "separate": 0.0017,
-    "stop": 0.5263,
-    "replace": 0.3617
+    "stop": 0.0004,
+    "replace": 0.004
+   }
+  },
+  {
+   "i": 13,
+   "task": "Make a 6-slide deck about our Q3 results from results.xlsx.",
+   "doing": "running code: pptx.add_slide(layout, title)",
+   "message": "could you add a chart on slide 2?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9956,
+    "status": 0.001,
+    "separate": 0.0004,
+    "stop": 0.0001,
+    "replace": 0.0028
+   }
+  },
+  {
+   "i": 14,
+   "task": "Make a 6-slide deck about our Q3 results from results.xlsx.",
+   "doing": "running code: pptx.add_slide(layout, title)",
+   "message": "why not use our brand colours?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9967,
+    "status": 0.0013,
+    "separate": 0.0004,
+    "stop": 0.0001,
+    "replace": 0.0015
+   }
+  },
+  {
+   "i": 15,
+   "task": "Fix the crash when the settings file is empty.",
+   "doing": "running code: project.sh('pytest tests/test_settings.py')",
+   "message": "can you also add a test for the empty case?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9859,
+    "status": 0.0066,
+    "separate": 0.0031,
+    "stop": 0.0003,
+    "replace": 0.004
+   }
+  },
+  {
+   "i": 16,
+   "task": "Fix the crash when the settings file is empty.",
+   "doing": "running code: project.sh('pytest tests/test_settings.py')",
+   "message": "what if the file does not exist at all?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9317,
+    "status": 0.0464,
+    "separate": 0.0104,
+    "stop": 0.0012,
+    "replace": 0.0104
+   }
+  },
+  {
+   "i": 17,
+   "task": "Plan a three-day trip to Lisbon with a budget of 600 euros.",
+   "doing": "the model is writing its next step",
+   "message": "could you keep it under 500 euros?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9891,
+    "status": 0.0028,
+    "separate": 0.0009,
+    "stop": 0.0013,
+    "replace": 0.0059
+   }
+  },
+  {
+   "i": 18,
+   "task": "Plan a three-day trip to Lisbon with a budget of 600 euros.",
+   "doing": "the model is writing its next step",
+   "message": "how about adding a day trip to Sintra?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9751,
+    "status": 0.0074,
+    "separate": 0.0058,
+    "stop": 0.0021,
+    "replace": 0.0096
+   }
+  },
+  {
+   "i": 19,
+   "task": "Plan a three-day trip to Lisbon with a budget of 600 euros.",
+   "doing": "the model is writing its next step",
+   "message": "would it work to stay in Alfama instead?",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9919,
+    "status": 0.0032,
+    "separate": 0.0009,
+    "stop": 0.0009,
+    "replace": 0.0032
+   }
+  },
+  {
+   "i": 20,
+   "task": "Sync my photo library to the NAS and tell me what was copied.",
+   "doing": "running code: rsync_copy(src, dst)",
+   "message": "the NAS is at 192.168.1.20, not the old address",
+   "label": "correction",
+   "probs": {
+    "correction": 0.924,
+    "status": 0.0316,
+    "separate": 0.0103,
+    "stop": 0.0062,
+    "replace": 0.0279
+   }
+  },
+  {
+   "i": 21,
+   "task": "Make a 6-slide deck about our Q3 results from results.xlsx.",
+   "doing": "running code: pptx.add_slide(layout, title)",
+   "message": "use the numbers from the Q3 tab, not Q2",
+   "label": "correction",
+   "probs": {
+    "correction": 0.9949,
+    "status": 0.0012,
+    "separate": 0.0002,
+    "stop": 0.0002,
+    "replace": 0.0036
+   }
+  },
+  {
+   "i": 22,
+   "task": "Fix the crash when the settings file is empty.",
+   "doing": "running code: project.sh('pytest tests/test_settings.py')",
+   "message": "the crash only happens with a zero-byte file",
+   "label": "correction",
+   "probs": {
+    "correction": 0.1399,
+    "status": 0.805,
+    "separate": 0.0147,
+    "stop": 0.0215,
+    "replace": 0.0189
+   }
+  },
+  {
+   "i": 23,
+   "task": "Plan a three-day trip to Lisbon with a budget of 600 euros.",
+   "doing": "the model is writing its next step",
+   "message": "we are vegetarian, by the way",
+   "label": "correction",
+   "probs": {
+    "correction": 0.8095,
+    "status": 0.0033,
+    "separate": 0.1806,
+    "stop": 0.0011,
+    "replace": 0.0055
+   }
+  },
+  {
+   "i": 24,
+   "task": "Sync my photo library to the NAS and tell me what was copied.",
+   "doing": "running code: rsync_copy(src, dst)",
+   "message": "can you look up how much space the NAS has left?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.1975,
+    "status": 0.0098,
+    "separate": 0.7809,
+    "stop": 0.0019,
+    "replace": 0.0098
+   }
+  },
+  {
+   "i": 25,
+   "task": "Make a 6-slide deck about our Q3 results from results.xlsx.",
+   "doing": "running code: pptx.add_slide(layout, title)",
+   "message": "what is the capital of Portugal?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0418,
+    "status": 0.0024,
+    "separate": 0.9524,
+    "stop": 0.0008,
+    "replace": 0.0027
+   }
+  },
+  {
+   "i": 26,
+   "task": "Fix the crash when the settings file is empty.",
+   "doing": "running code: project.sh('pytest tests/test_settings.py')",
+   "message": "also, can you check if the printer is online?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.2183,
+    "status": 0.0075,
+    "separate": 0.762,
+    "stop": 0.0013,
+    "replace": 0.0109
+   }
+  },
+  {
+   "i": 27,
+   "task": "Plan a three-day trip to Lisbon with a budget of 600 euros.",
+   "doing": "the model is writing its next step",
+   "message": "what time is it in Tokyo right now?",
+   "label": "separate",
+   "probs": {
+    "correction": 0.0842,
+    "status": 0.0037,
+    "separate": 0.9048,
+    "stop": 0.002,
+    "replace": 0.0054
    }
   }
  ]

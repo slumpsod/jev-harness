@@ -109,3 +109,29 @@ browser.goto(step["url"])
 | A scope changed with `setup()` | existing accounts keep old scopes: `connect_and_wait` again. |
 | `can't reach Nango` | Docker or Nango stopped: `nango.start()`. |
 | `Docker Desktop didn't come up` | the user opens Docker Desktop, reads its error, tells you. |
+
+## Lessons from past runs
+
+<!-- 2026-10-02: Could you help me connect my Facebook account? -->
+- Use `nango.guide()["steps"]` directly (it already lists titles, actions, and URLs) instead of relying on `web.read`, which returned truncated content in this run and left you without the full registration details.
+- Before the first step, offer once to "click through it myself" using `nango.open_page(step["url"])` in the user's own already-signed-in browser, as the guide's "Driving the website yourself" section describes—this wasn't offered.
+- Remember that for OAUTH2 you must walk through `g["steps"]` ONE AT A TIME: state the title and `do`, open the page, type the callback URL EXACTLY as `g["callback_url"]`, and wait for "Done" before moving on; don't dump all steps at once.
+- The Facebook provider list includes both `facebook` (OAUTH2) and `facebook-system-user` (API_KEY)—confirm which the user actually needs before proceeding, since the setup flow differs.
+
+<!-- 2026-10-02: I can use your browser to click let’s just try it -->
+- Check `browser_mode()` and whether the user can actually click/type in the visible window before asking them to sign in; if they’re on mobile or blocked, stop and switch to a secure alternative instead of waiting for “Done”.
+- Check whether the user has already pasted credentials into chat before continuing; if yes, stop, tell them to rotate that password, and do not type, store, or reuse those credentials.
+- Check whether the user can create a Google Cloud project from the current device before opening `console.cloud.google.com/projectcreate`; if not, do not start that OAuth setup step.
+- Check that provider setup pages are opened with `nango.open_page(step["url"])` and that the user has completed the step before moving to `nango.setup()`; if not, stay on that step.
+
+<!-- 2026-10-05: could you help me connect my gmail. -->
+- Before driving the Google Auth Platform form, check `nango.guide("google-mail")` for the exact `callback_url` and verify the signed-in Google account/project first.
+- If `browser.do(...)` returns `needs_value` or `max_actions`, stop using high-level actions and call `browser.elements()`, then use direct commands like `browser.fill(i, text, enter=False)` and `browser.click(i)`.
+- In the Google consent-screen branding form, the “User support email” field is a custom dropdown: `browser.select(i, "<their email>")` opens it and picks the entry (or `browser.do(..., values={"User support email": "<their email>"})`). (Updated 2026-10-07: `select` handles custom dropdowns now; `click` on a dropdown is refused.)
+- If you must pause mid-Google-Cloud setup, save an artifact with the project, current URL, filled fields, and remaining steps; on restart, re-run `nango.status()` and `nango.guide("google-mail")` before continuing.
+
+<!-- 2026-10-06: could you help me connect my gmail. -->
+- Check `browser.elements("User support email")` before entering it; if it reports a dropdown, use `browser.select(index, exact_email)` instead of `browser.do("enter ...")`.
+- If `browser.html` does not expose the dropdown options, ask the user for the signed-in email once and pass that exact string to `browser.select`; do not try clicking the avatar to infer it.
+- After every Google Cloud “Next” click, verify the new step with `browser.read(...)` or `r["page"]` before issuing the next action, because the page can remain on the same screen if a required field is missing.
+- If a final “finish”/“create” click returns `stuck`, inspect the visible control with `browser.read` or `browser.look` and click the specific button/checkbox (for example “Agree and continue”) rather than retrying a generic “finish”.

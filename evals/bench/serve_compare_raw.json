@@ -1,0 +1,2002 @@
+[
+ {
+  "task": "ledger",
+  "kind": "code",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote ledger.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ledger__fast__r1\\ledger.py with summarize(path). It uses csv.DictReader, parses dates as YYYY-MM-DD or DD/MM/YYYY (zero-padded to \"YYYY-MM\"), parses amounts handling '1,234.50', '$12.00', '-12.5' and '(45.00)' (parentheses = negative; a trailing '-' is also accepted), skips blank-amount rows, counts exact 4-field duplicate rows once, buckets positives into \"in\" and negatives into \"out\" (positive), and returns months in ascending order with in/out/net rounded to 2 decimals. Verified against a self-made test CSV (_test_statement.csv) covering both date formats, all amount formats, a blank row, two exact duplicates, and a year-boundary ordering case \u2014 expected vs actual matched exactly (e.g. 2026-01: in 1260.25, out 895.00, net 365.25), plus edge checks (header-only CSV -> {}, '$(45.00)', '1,000,000.00', single-digit DMY dates).",
+  "seconds": 134.7,
+  "input": 93730,
+  "output": 10121,
+  "thinking": 5611,
+  "timed_out": false,
+  "steps": 9,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 6,
+  "total": 6,
+  "correct": true,
+  "tail": [
+   "......                                                                   [100%]",
+   "6 passed in 0.05s"
+  ],
+  "server": {
+   "decode_tps": 80.5,
+   "prefill_tps": 759.7,
+   "decoded": 10121,
+   "prefilled": 3700
+  }
+ },
+ {
+  "task": "ledger",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote ledger.py with summarize(path): parses a bank-statement CSV (date,description,amount,currency), handles YYYY-MM-DD and DD/MM/YYYY dates, amount formats 1,234.50 / $12.00 / -12.5 / (45.00), skips blank-amount rows, dedupes exact 4-field duplicates, splits into in (positive) / out (negative, stored positive), net = in - out, returns {\"YYYY-MM\": {in, out, net}} in ascending month order rounded to 2 decimals. Verified against a self-made test CSV covering all rules.",
+  "seconds": 75.8,
+  "input": 25992,
+  "output": 4817,
+  "thinking": 2409,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 6,
+  "total": 6,
+  "correct": true,
+  "tail": [
+   "......                                                                   [100%]",
+   "6 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 68.9,
+   "prefill_tps": 830.9,
+   "decoded": 4817,
+   "prefilled": 2437
+  }
+ },
+ {
+  "task": "ledger",
+  "kind": "code",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ledger__precision__r1\\ledger.py with summarize(path). It reads the CSV (csv.DictReader), strips fields, skips blank-amount rows, drops exact duplicates (all four fields identical), parses dates as YYYY-MM-DD or DD/MM/YYYY (day first), parses amounts in 1,234.50 / $12.00 / -12.5 / (45.00) forms, buckets by \"YYYY-MM\" month with positives as \"in\", negatives as positive \"out\", and returns {\"YYYY-MM\": {\"in\",\"out\",\"net\"}} sorted ascending, all rounded to 2 decimals. Tested against a generated CSV covering every rule (both date formats, all four amount styles, a duplicate row, a blank-amount row, rounding): e.g. Jan \u2192 in 1251.50, out 57.50, net 1194.00; Feb \u2192 100.00/7.25/92.75; Mar \u2192 0.01/0.00/0.01. All assertions passed.",
+  "seconds": 87.8,
+  "input": 26799,
+  "output": 5056,
+  "thinking": 3002,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 6,
+  "total": 6,
+  "correct": true,
+  "tail": [
+   "......                                                                   [100%]",
+   "6 passed in 0.05s"
+  ],
+  "server": {
+   "decode_tps": 61.9,
+   "prefill_tps": 814.2,
+   "decoded": 5056,
+   "prefilled": 2360
+  }
+ },
+ {
+  "task": "ttlcache",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote ttlcache.py with TTLCache(capacity, ttl, clock=time.monotonic) using an OrderedDict (front = LRU, back = MRU) storing (value, expires_at). put() supports per-entry ttl override, replaces+re-timestamps existing keys as MRU, and on a full cache purges expired entries before evicting LRU. get() returns default for missing/expired keys, removes expired entries when seen, marks hits MRU without extending TTL. Expired = clock() - stored_at >= ttl (expires exactly at the TTL). Also implemented delete(), purge(), keys() (LRU\u2192MRU, live only), __len__ (live only), plus __contains__/__getitem__ extras. Verified with a fake clock: 34/34 assertions passed, including exact-boundary expiry, eviction ordering (expired purged before LRU), and the real time.monotonic default.",
+  "seconds": 156.1,
+  "input": 40908,
+  "output": 10127,
+  "thinking": 6879,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 67.3,
+   "prefill_tps": 800.5,
+   "decoded": 10127,
+   "prefilled": 2199
+  }
+ },
+ {
+  "task": "ttlcache",
+  "kind": "code",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ttlcache__precision__r1\\ttlcache.py with TTLCache(capacity, ttl, clock=time.monotonic). Design: an OrderedDict of key -> [value, stored_at, ttl] kept in LRU->MRU order. put() replaces value+TTL and moves existing keys to MRU; for a new key that would exceed capacity it purges expired entries first, then evicts LRU. get() removes expired entries when seen, returns default for missing/expired, and refreshes LRU order without touching stored_at. delete() returns True only for live entries. purge() returns the count removed. keys() returns live keys LRU->MRU; __len__ counts live entries only. Expiry uses clock() - stored_at >= ttl (expires exactly at the TTL). Verified with 13 fake-clock tests covering exact-TTL expiry, LRU refresh vs TTL non-extension, per-entry ttl override (including re-put), delete/purge semantics, purge-before-evict on put, and len/keys behavior \u2014 all pass, plus a clean-import smoke test with the default monotonic clock.",
+  "seconds": 175.2,
+  "input": 87768,
+  "output": 10449,
+  "thinking": 6372,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 62.4,
+   "prefill_tps": 728.3,
+   "decoded": 10449,
+   "prefilled": 3286
+  }
+ },
+ {
+  "task": "ttlcache",
+  "kind": "code",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote ttlcache.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ttlcache__fast__r1\\ttlcache.py implementing TTLCache(capacity, ttl, clock=time.monotonic) over an OrderedDict (order = LRU\u2192MRU, each entry (value, stored_at, ttl)). Semantics: put() supports a per-entry ttl override, replaces value+TTL+recency on existing keys, and on a put that would exceed capacity purges all expired entries first, evicting the LRU only if still full; get() returns the value or default, removes expired entries when seen, marks recency but never extends the TTL; expiry is clock() - stored_at >= ttl (exact at TTL); delete() is True only for a live key; purge() returns the count removed; keys() lists live keys LRU\u2192MRU; len() counts live entries only. Verified with a fake clock: 12 test groups (basic put/get, exact-TTL expiry, no TTL extension on get, ttl override, replace semantics, LRU eviction with recency refresh, purge-then-evict ordering, delete, purge count, live-only len/keys, removed-when-seen, re-put without eviction, default time.monotonic) \u2014 ALL TESTS PASSED.",
+  "seconds": 157.9,
+  "input": 48030,
+  "output": 11648,
+  "thinking": 8122,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 77.3,
+   "prefill_tps": 817.9,
+   "decoded": 11648,
+   "prefilled": 3551
+  }
+ },
+ {
+  "task": "mdtable",
+  "kind": "code",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote mdtable.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\mdtable__precision__r1\\mdtable.py with parse_table(text).\n\nHow it works:\n- Scans lines for the first structural-pipe line whose next line is a separator row (every cell matches `:?-+:?`); a pipe line not followed by a separator is skipped (setext headings like `hello`/`---` are not tables).\n- Header cells (stripped) become the dict keys; leading/trailing pipes optional; cells split on `|` with `\\|` preserved in-cell as a plain `|`.\n- Cell values: `42`/`-7` -> int, `3.5` -> float, empty -> None, else str (so `nan`, `1e5`, `3.`, `.5` stay strings).\n- Short rows padded with None, extra cells dropped; table ends at the first blank line or first line without a pipe; returns [] when no table exists.\n\nVerified with 17 cases (basic table with alignments, escaped pipes in body and header, no-outer-pipe tables, padding/truncation, separator edge cases, CRLF, single-column tables, \"first table only\" behavior) \u2014 all pass, no warnings.",
+  "seconds": 227.1,
+  "input": 73664,
+  "output": 12600,
+  "thinking": 8023,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 59.2,
+   "prefill_tps": 1021.8,
+   "decoded": 12600,
+   "prefilled": 11047
+  }
+ },
+ {
+  "task": "mdtable",
+  "kind": "code",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote mdtable.py (3227 bytes, confirmed on disk) at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\mdtable__fast__r1\\mdtable.py with parse_table(text). Behavior: scans for the first pipe line whose next line is a valid separator row (cells matching :?-+:?, so ---, :--, --:, :-:; a pipe line not followed by a separator is not a table); optional leading/trailing pipes; cells split on | with \\| kept inside the cell as a plain |; cell values stripped and converted (integer -> int, decimal -> float, empty -> None, else str); rows shorter than the header padded with None, extra cells dropped; the table ends at the first blank line or the first line without a pipe; returns [] when there is no table. Verified by running 16 test cases in the REPL: \"cases run: 16 | passed: 16 | failed: 0\", covering int/float/None/str typing, escaped pipes in cells and header keys, no outer pipes, all separator variants, pad/drop, skipping non-table pipe lines, termination at blank line and at non-pipe line, CRLF endings, header-only table, and no-table text.",
+  "seconds": 219.0,
+  "input": 111421,
+  "output": 14696,
+  "thinking": 10200,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 72.8,
+   "prefill_tps": 998.6,
+   "decoded": 14696,
+   "prefilled": 12950
+  }
+ },
+ {
+  "task": "mdtable",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\mdtable__recommended__r1\\mdtable.py with parse_table(text). It scans for the first pipe line followed by a separator row (cells matching `:?-+:?`, so `---`, `:--`, `--:`, `:-:` all work), uses the header cells as keys, and splits cells on unescaped pipes (`\\|` becomes a literal `|`), with optional leading/trailing pipes. Cells are stripped and converted: integers (e.g. 30, -7) \u2192 int, decimals (e.g. 4.5) \u2192 float, empty \u2192 None, otherwise str. Short rows are padded with None, extra cells dropped; the table ends at the first blank line or line without a pipe; returns [] if no table. Verified in one pass: 16 checks, 16 passed, 0 failures; a sample run printed {'Name': 'Alice', 'Age': 30, 'Score': 4.5} and {'Name': 'Bob', 'Age': -7, 'Score': None}.",
+  "seconds": 166.2,
+  "input": 96409,
+  "output": 10287,
+  "thinking": 4761,
+  "timed_out": false,
+  "steps": 10,
+  "bounces": 2,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 65.9,
+   "prefill_tps": 596.1,
+   "decoded": 10287,
+   "prefilled": 2692
+  }
+ },
+ {
+  "task": "freeslot",
+  "kind": "code",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\freeslot__fast__r1\\freeslot.py with first_free(busy, duration, day_start, day_end).\n\nApproach: convert everything to minutes, clip every person's busy intervals to [day_start, day_end], sort and merge overlapping/touching intervals, then walk a cursor from day_start \u2014 the first cursor position with a full `duration` before the next busy stretch is the answer (touching allowed, not overlapping), else None if the meeting still doesn't fit before day_end.\n\nVerification (all numbers from the run log):\n- 16 targeted cases, 0 failures (\"targeted failures: 0 / 16\"), covering: touching intervals (meeting starting exactly when a block ends; gap exactly equal to duration touching both sides), unsorted+overlapping intervals, back-to-back busy across two people, no-fit (busy covers window; duration too long), non-multiple-of-5 starts (09:37), and busy intervals clipped at day_start/day_end.\n- Randomized brute-force cross-check: \"random trials compared: 20000 mismatches: 0\" \u2014 first_free matched a minute-by-minute brute-force enumerator on every trial.",
+  "seconds": 127.4,
+  "input": 87038,
+  "output": 9059,
+  "thinking": 4316,
+  "timed_out": false,
+  "steps": 10,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 77.9,
+   "prefill_tps": 634.4,
+   "decoded": 9059,
+   "prefilled": 2702
+  }
+ },
+ {
+  "task": "freeslot",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\freeslot__recommended__r1\\freeslot.py with first_free(busy, duration, day_start, day_end). Algorithm: convert \"HH:MM\" to minutes, merge all busy intervals (across people, handling unsorted/overlapping/touching), then walk from day_start \u2014 if the meeting [c, c+duration) fits before the next busy block, return c; otherwise push c to the block's end. Returns None when c+duration would exceed day_end (checked both mid-walk and at the end, so intervals beyond the day can't produce an out-of-day start). Touching intervals don't count as overlap; start times are any minute. Verified: 17 targeted cases (touching, unsorted/overlapping, no-fit, exact boundary fit) plus 5000 randomized inputs cross-checked against a brute-force minute scan \u2014 0 mismatches.",
+  "seconds": 187.9,
+  "input": 84639,
+  "output": 12057,
+  "thinking": 6750,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 67.3,
+   "prefill_tps": 817.5,
+   "decoded": 12057,
+   "prefilled": 4078
+  }
+ },
+ {
+  "task": "freeslot",
+  "kind": "code",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote freeslot.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\freeslot__precision__r1\\freeslot.py with first_free(busy, duration, day_start, day_end). It converts times to minutes, takes the union of all people's busy intervals (skipping degenerate ones), sorts and merges them (merging touching intervals, since a meeting starting at a touch point would overlap the next block), then walks a cursor from day_start returning the first gap >= duration, clamping gaps by day_end so the meeting fits fully inside the day; returns None if no gap fits. Verified: 21 hand-crafted cases (touching intervals, no-fit, unsorted/overlapping multi-person, busy outside day bounds, exact-fit gaps, arbitrary-minute starts) all pass, plus 5000 randomized trials cross-checked minute-by-minute against a brute-force reference with zero mismatches.",
+  "seconds": 176.2,
+  "input": 76198,
+  "output": 10456,
+  "thinking": 4596,
+  "timed_out": false,
+  "steps": 7,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 63.1,
+   "prefill_tps": 871.4,
+   "decoded": 10456,
+   "prefilled": 6251
+  }
+ },
+ {
+  "task": "bugfix",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "Fixed textstats.py so every function matches its docstring. All 3 visible tests pass, plus extra checks against each docstring. Bugs fixed:\n\n1. tokenize(): regex [a-z0-9]+ split words at apostrophes (\"Don't\" -> [\"don\",\"t\"]). Changed to [a-z0-9]+(?:'[a-z0-9]+)* so an apostrophe inside a word stays (\"don't\", \"o'clock\").\n2. top_n(): sorted(..., reverse=True) with key (-count, word) reversed the whole order, giving lowest count first and reverse-alphabetical ties. Removed reverse=True, so it now returns highest count first with ties broken alphabetically (a before b).\n3. sentences(): the bare split regex had no abbreviation handling, so \"Dr. Smith\" split into \"Dr.\" / \"Smith\". Now it only splits at . ! ? + whitespace + capital/digit when the word before the punctuation is not a known abbreviation (Dr, Mr, Mrs, Ms, Prof, St, Sr, Jr, Gen, Rep, Sen, vs, etc, e.g, i.e, U.S, U.K); the sentence keeps its ending punctuation.\n4. wrap(): off-by-one, len(cur)+1+len(word) < width capped lines at width-1. Changed to <= width so lines may be exactly `width` characters, words stay whole, and over-long words get their own line.\n\nFunction names and signatures unchanged.",
+  "seconds": 167.6,
+  "input": 88102,
+  "output": 10085,
+  "thinking": 5674,
+  "timed_out": false,
+  "steps": 10,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 64.2,
+   "prefill_tps": 703.4,
+   "decoded": 10085,
+   "prefilled": 3112
+  }
+ },
+ {
+  "task": "bugfix",
+  "kind": "code",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "Fixed all 4 bugs in textstats.py per the docstrings (names/signatures unchanged):\n\n1. tokenize: regex was [a-z0-9]+ which dropped apostrophes; now [a-z0-9]+(?:'[a-z0-9]+)* so \"Don't\" -> \"don't\", \"rock'n'roll\" stays whole.\n2. top_n: sorted with key=(-count, word) AND reverse=True, which inverted the alphabetical tie-break; removed reverse=True so ties break a-before-b.\n3. sentences: had no abbreviation handling; now abbreviations (Dr., Mr., Mrs., Ms., St., Jr., Sr., Prof., Rev., Gen., Capt., Col., Maj., Sgt., vs., etc., e.g., i.e.) are masked with a placeholder before splitting at .!? + whitespace + [A-Z0-9], then restored.\n4. wrap: off-by-one \u2014 len(cur)+1+len(word) < width rejected lines exactly at the limit; changed to <= width (\"lines of at most width characters\").\n\nVerified: all 3 visible pytest tests pass, plus extra spec checks (apostrophe/number tokens, tie order, abbreviation non-splits like \"Dr. Smith went home. He was tired.\", digit-start sentence starts, exact-width and over-long-word wrap).",
+  "seconds": 131.0,
+  "input": 67282,
+  "output": 7207,
+  "thinking": 4066,
+  "timed_out": false,
+  "steps": 9,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 60.9,
+   "prefill_tps": 930.7,
+   "decoded": 7207,
+   "prefilled": 7390
+  }
+ },
+ {
+  "task": "bugfix",
+  "kind": "code",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "Fixed all 4 bugs in textstats.py (names/signatures unchanged): (1) tokenize: regex now keeps apostrophes inside words \u2014 [a-z0-9]+(?:'[a-z0-9]+)* so \"Don't stop\" -> [\"don't\", \"stop\"]; (2) top_n: removed reverse=True, so key (-count, word) sorts highest count first with alphabetical tie-break; (3) sentences: added abbreviation handling \u2014 a boundary after \".\" is suppressed when it ends a known abbreviation (Dr., Mr., Mrs., Ms., Prof., St., Jr., Sr., etc., vs., e.g., i.e.); (4) wrap: off-by-one fixed from < to <= width so a line of exactly `width` chars is kept. All 3 visible tests pass, plus a 20-case spec battery covering the previously hidden bugs.",
+  "seconds": 178.9,
+  "input": 135050,
+  "output": 11841,
+  "thinking": 7377,
+  "timed_out": false,
+  "steps": 14,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 70.2,
+   "prefill_tps": 601.3,
+   "decoded": 11841,
+   "prefilled": 3377
+  }
+ },
+ {
+  "task": "todocli",
+  "kind": "code",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\todocli__precision__r1\\todo.py (standard library only, argparse). Verified by running it from a shell subprocess in a fresh directory. Observed results: empty `list` -> exit 0, no output; `add buy milk` / `add write report draft` / `add call mom` -> exit 0, stdout `added 1`, `added 2`, `added 3`; `list` -> `1 [ ] buy milk`, `2 [ ] write report draft`, `3 [ ] call mom`; `done 2` -> exit 0, `done 2`; `list` then shows only items 1 and 3; `list --all` shows `2 [x] write report draft` as well; `rm 1` -> exit 0, `removed 1`; a following `add new task` -> `added 4` (id 1 not reused); `done 99` and `rm 1` -> exit 1 with stderr `no such item: 99` / `no such item: 1`. Storage is JSON (`{\"next_id\": ..., \"items\": [{\"id\",\"text\",\"done\"}...]}`) in `--file PATH` or default `todo.json` in the cwd, created when first needed; all other commands exit 0. Test scratch files were removed.",
+  "seconds": 98.5,
+  "input": 45914,
+  "output": 5382,
+  "thinking": 2057,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 1.32s"
+  ],
+  "server": {
+   "decode_tps": 60.7,
+   "prefill_tps": 715.2,
+   "decoded": 5382,
+   "prefilled": 2761
+  }
+ },
+ {
+  "task": "todocli",
+  "kind": "code",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote the to-do tool at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\todocli__fast__r1\\todo.py (stdlib only: argparse, json, os, sys) and verified it from the shell.\n\nDesign: the JSON file stores {\"next_id\": N, \"items\": [{\"id\", \"text\", \"done\"}]}; a monotonic next_id counter guarantees ids start at 1 and are never reused even after rm. A missing file is treated as an empty list (list prints nothing, exit 0); the file is created on the first add.\n\nVerified via real `python todo.py ...` subprocess runs:\n- add joins words with spaces and prints `added N` (1, 2, then 3 after rm 1 \u2014 no reuse)\n- list prints `N [ ] text` / `N [x] text` by id; without --all only open items; empty \u2192 no output\n- done/rm print `done N` / `removed N`\n- done/rm on missing id \u2192 `no such item: N` on stderr, exit 1 (also when the file doesn't exist); everything else exits 0\n- --file works with custom paths (e.g. sub/mylist.json)",
+  "seconds": 63.4,
+  "input": 32847,
+  "output": 4795,
+  "thinking": 2297,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 1.28s"
+  ],
+  "server": {
+   "decode_tps": 85.9,
+   "prefill_tps": 773.6,
+   "decoded": 4795,
+   "prefilled": 2545
+  }
+ },
+ {
+  "task": "todocli",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\todocli__recommended__r1\\todo.py \u2014 stdlib-only argparse CLI: add (joins TEXT..., next id never reused via persisted next_id, prints 'added N'), list [--all] ('N [ ] text' / 'N [x] text' by id, open-only without --all, empty output when none), done N ('done N'), rm N ('removed N'); missing ids for done/rm print 'no such item: N' to stderr and exit 1, all else exits 0. --file PATH (default todo.json) is created only when a command mutates state. Verified end-to-end from the shell, including id non-reuse after rm and empty-file list behavior.",
+  "seconds": 71.6,
+  "input": 32474,
+  "output": 4328,
+  "thinking": 2088,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 1.31s"
+  ],
+  "server": {
+   "decode_tps": 68.1,
+   "prefill_tps": 841.2,
+   "decoded": 4328,
+   "prefilled": 2986
+  }
+ },
+ {
+  "task": "ledger",
+  "kind": "code",
+  "config": "fast",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ledger__fast__r2\\ledger.py with summarize(path). It reads the CSV with csv.DictReader, parses dates as YYYY-MM-DD or DD/MM/YYYY (day first) into \"YYYY-MM\" months, parses amounts in the forms 1,234.50 / $12.00 / -12.5 / (45.00) (parens = negative, $ and commas stripped), skips blank-amount rows, counts exact 4-field duplicates once, buckets positive amounts as \"in\" and negative as \"out\" (stored positive), and returns {\"YYYY-MM\": {\"in\", \"out\", \"net\"}} in ascending month order with all values rounded to 2 decimals. Verified against a self-made CSV covering duplicates, both date formats, all amount formats, blank amounts, negative-only months, and rounding \u2014 all assertions passed.",
+  "seconds": 117.2,
+  "input": 36218,
+  "output": 8220,
+  "thinking": 5883,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 6,
+  "total": 6,
+  "correct": true,
+  "tail": [
+   "......                                                                   [100%]",
+   "6 passed in 0.06s"
+  ],
+  "server": {
+   "decode_tps": 77.7,
+   "prefill_tps": 1023.5,
+   "decoded": 8220,
+   "prefilled": 8814
+  }
+ },
+ {
+  "task": "ledger",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote ledger.py with summarize(path) at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ledger__recommended__r2\\ledger.py. It handles both date formats (YYYY-MM-DD and DD/MM/YYYY day-first), all amount styles (1,234.50 / $12.00 / -12.5 / (45.00)), skips blank-amount rows, counts exact four-field duplicates once, buckets into in/out/net, and returns months in ascending order rounded to 2 decimals. Verified against a self-made test_ledger.csv (result: 2023-12 {in:100.0, out:0.0, net:100.0}, 2024-01 {in:2469.0, out:57.5, net:2411.5}, 2024-02 {in:12.0, out:0.0, net:12.0}, 2024-03 {in:0.34, out:10.01, net:-9.67}) plus edge cases (header-only file -> {}, duplicate blank row, trailing blank line) \u2014 all checks passed.",
+  "seconds": 88.2,
+  "input": 40442,
+  "output": 5382,
+  "thinking": 2801,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 6,
+  "total": 6,
+  "correct": true,
+  "tail": [
+   "......                                                                   [100%]",
+   "6 passed in 0.05s"
+  ],
+  "server": {
+   "decode_tps": 67.9,
+   "prefill_tps": 949.0,
+   "decoded": 5382,
+   "prefilled": 5389
+  }
+ },
+ {
+  "task": "ledger",
+  "kind": "code",
+  "config": "precision",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ledger__precision__r2\\ledger.py with summarize(path):\n- Parses both date formats (YYYY-MM-DD and day-first DD/MM/YYYY) and groups by \"YYYY-MM\", returned in ascending month order.\n- Parses amounts in all specified forms: 1,234.50, $12.00, -12.5, (45.00) \u2192 negative; blank-amount rows (and fully empty lines) are skipped.\n- Positive amounts go to \"in\", negatives to \"out\" as positive numbers; net = in - out; everything rounded to 2 decimals.\n- Exact duplicate rows (all four fields identical) are counted once; rows differing in any field (e.g. currency) still count.\n\nVerified against a self-made test CSV covering all rules (both date formats, all four amount formats, a duplicate, a near-duplicate, blank amount, empty line, 3 months for ordering, and rounding): result matched hand-computed expectations exactly (e.g. 2026-01: in 1447.50, out 57.50, net 1390.00). Edge cases (header-only file, BOM) also pass.",
+  "seconds": 147.0,
+  "input": 36754,
+  "output": 8601,
+  "thinking": 6085,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 6,
+  "total": 6,
+  "correct": true,
+  "tail": [
+   "......                                                                   [100%]",
+   "6 passed in 0.05s"
+  ],
+  "server": {
+   "decode_tps": 60.9,
+   "prefill_tps": 742.7,
+   "decoded": 8601,
+   "prefilled": 2022
+  }
+ },
+ {
+  "task": "ttlcache",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote ttlcache.py at the requested path with class TTLCache(capacity, ttl, clock=time.monotonic), implemented on an OrderedDict (least\u2192most recently used). Verified with a fake-clock suite covering: basic put/get with default; exact expiry at clock()-stored_at >= ttl (boundary checked and printed in the log: live at t=9.999, gone at t=10.0); per-entry ttl override in put; put on existing key replaces value+TTL and moves to MRU (including when the cache is full); successful get moves to MRU without extending TTL; capacity handling purges expired first then evicts LRU (both paths tested); delete() returns True only for present+live keys (False for missing or expired, and removes expired ones); purge() returns the count of expired entries removed; keys() returns live keys LRU\u2192MRU and drops expired entries when seen; len() counts live entries only. A smoke test with the real time.monotonic clock also passed. All tests green.",
+  "seconds": 197.3,
+  "input": 88121,
+  "output": 12533,
+  "thinking": 8329,
+  "timed_out": false,
+  "steps": 7,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 66.2,
+   "prefill_tps": 657.3,
+   "decoded": 12533,
+   "prefilled": 2268
+  }
+ },
+ {
+  "task": "ttlcache",
+  "kind": "code",
+  "config": "fast",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote ttlcache.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ttlcache__fast__r2\\ttlcache.py implementing TTLCache(capacity, ttl, clock=time.monotonic) with put/get/delete/purge/keys/len per spec. Verified with a fake clock: entries expire exactly when clock()-stored_at >= ttl; get refreshes LRU recency but not TTL; put of an existing key replaces value+TTL and makes it MRU without evicting; puts that would exceed capacity purge expired entries first, then evict LRU; delete returns True only for live entries; purge returns the number removed; keys() lists live keys LRU\u2192MRU; len counts live entries only. All assertions passed, plus a real-time monotonic-clock smoke test.",
+  "seconds": 72.1,
+  "input": 26623,
+  "output": 5648,
+  "thinking": 3002,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 84.5,
+   "prefill_tps": 721.8,
+   "decoded": 5648,
+   "prefilled": 1938
+  }
+ },
+ {
+  "task": "mdtable",
+  "kind": "code",
+  "config": "fast",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote mdtable.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\mdtable__fast__r2\\mdtable.py with parse_table(text) returning the first GitHub-style markdown table as a list of dicts. Implementation: a header candidate is a line containing an unescaped |, accepted only if the next line is a separator row (every cell matches :?-+:?); cells are split on | with \\| preserved inside a cell as plain | (via a sentinel), optional leading/trailing pipes removed, and all cells stripped. Values convert to int (e.g. 42, -7), float (e.g. 3.5), None for empty cells, else str; short rows are padded with None and extra cells dropped. The table ends at the first blank line or the first line without a pipe; returns [] when no table exists. Verified with 17 cases covering types, escaped pipes, colon separator variants (---/:--/--:/:-:), padding/truncation, single-column tables, non-table pipe lines, blank-line and no-pipe termination, and first-table-wins \u2014 all pass.",
+  "seconds": 165.5,
+  "input": 85367,
+  "output": 10816,
+  "thinking": 6540,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 70.9,
+   "prefill_tps": 959.0,
+   "decoded": 10816,
+   "prefilled": 8784
+  }
+ },
+ {
+  "task": "freeslot",
+  "kind": "code",
+  "config": "fast",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\freeslot__fast__r2\\freeslot.py with first_free(busy, duration, day_start, day_end). It unions all people's busy intervals, sorts and merges them (overlapping and touching blocks become one), then walks the free gaps between [day_start, day_end] and returns the earliest minute where a full `duration`-minute meeting fits without overlap (touching endpoints allowed), or None. Verified with 15 deterministic cases \u2014 including touching intervals (\"10:00\" after a 09:00\u201310:00 block, merged 09:00\u201311:00 touching pair), unsorted/overlapping input, busy outside day bounds, exact-fit, and no-fit (None) \u2014 plus 3000 randomized cases cross-checked against a minute-level brute force: 0 mismatches.",
+  "seconds": 82.1,
+  "input": 36221,
+  "output": 5974,
+  "thinking": 3256,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 79.2,
+   "prefill_tps": 768.8,
+   "decoded": 5974,
+   "prefilled": 2234
+  }
+ },
+ {
+  "task": "bugfix",
+  "kind": "code",
+  "config": "fast",
+  "rep": 2,
+  "error": null,
+  "answer": "Fixed textstats.py (all 4 functions now match their docstrings; names/signatures unchanged). All 3 visible tests pass (pytest exit 0).\n\nBugs fixed:\n1. tokenize: regex `[a-z0-9]+` split words at apostrophes (\"don't\" -> [\"don\",\"t\"]). Now `re.findall(r\"[a-z0-9]+(?:'[a-z0-9]+)*\", text.lower())` keeps internal apostrophes: \"Don't\" -> [\"don't\"], \"o'Brien's\" kept whole, punctuation still separates words.\n2. top_n: `reverse=True` inverted the sort, giving lowest counts first and reverse-alphabetical ties. Removed reverse=True so it sorts by (-count, word): highest count first, ties a-before-b.\n3. sentences: the plain split split on abbreviations (\"Dr. Smith\" broke into two sentences). Now splits only at . ! ? followed by whitespace + capital/digit, and skips the break when the preceding word is an abbreviation (Dr, Mr, Mrs, Ms, Prof, St, Jr, Sr, e.g, i.e, etc., ...). Also fixed so each returned sentence keeps its ending punctuation and has no leading/trailing spaces.\n4. wrap: off-by-one \u2014 `len(cur) + 1 + len(word) < width` refused lines that exactly filled the width; now `<= width`. Long words still get their own line; empty text returns [].\n\nVerified: pytest on test_visible.py -> 3 passed; plus manual checks of abbreviation handling (\"Dr. Smith met Mr. Jones.\" stays one sentence, \"Then? 2 PM.\" splits with punctuation kept), exact-width wrapping, and digit/capital boundaries.",
+  "seconds": 118.6,
+  "input": 65204,
+  "output": 7338,
+  "thinking": 4878,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 67.0,
+   "prefill_tps": 725.1,
+   "decoded": 7338,
+   "prefilled": 3042
+  }
+ },
+ {
+  "task": "todocli",
+  "kind": "code",
+  "config": "fast",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote the to-do tool at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\todocli__fast__r2\\todo.py (standard library only, argparse). It supports `add TEXT...` (prints `added N`), `list [--all]` (prints `N [ ] text` / `N [x] text` ordered by id; nothing if empty), `done N` (`done N`), and `rm N` (`removed N`). The JSON file (default `todo.json` in the cwd, override with `--file PATH`) stores a `next_id` counter so ids start at 1 and are never reused after rm. `done`/`rm` on a missing id print `no such item: N` to stderr and exit 1; all other commands exit 0. Verified from the shell with 16 checks (all passing): empty list, multi-word add, open-only vs --all listing, done marking, rm, id non-reuse, both error paths, and custom --file; plus a smoke run in the target directory.",
+  "seconds": 59.7,
+  "input": 30608,
+  "output": 4422,
+  "thinking": 1867,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 1.22s"
+  ],
+  "server": {
+   "decode_tps": 86.1,
+   "prefill_tps": 753.8,
+   "decoded": 4422,
+   "prefilled": 2253
+  }
+ },
+ {
+  "task": "ledger",
+  "kind": "code",
+  "config": "fast",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote ledger.py with summarize(path). It parses dates in YYYY-MM-DD or DD/MM/YYYY, amounts like 1,234.50 / $12.00 / -12.5 / (45.00), skips blank-amount rows, dedupes exact 4-field duplicates, and returns {\"YYYY-MM\": {\"in\", \"out\", \"net\"}} in ascending month order, all values rounded to 2 decimals. Verified against a self-made CSV covering both date formats, all amount styles, a duplicate row, a blank-amount row, and a 4-month spread: results matched the hand-computed expectations exactly.",
+  "seconds": 69.7,
+  "input": 40346,
+  "output": 5274,
+  "thinking": 2425,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 6,
+  "total": 6,
+  "correct": true,
+  "tail": [
+   "......                                                                   [100%]",
+   "6 passed in 0.05s"
+  ],
+  "server": {
+   "decode_tps": 84.1,
+   "prefill_tps": 745.8,
+   "decoded": 5274,
+   "prefilled": 2319
+  }
+ },
+ {
+  "task": "ttlcache",
+  "kind": "code",
+  "config": "fast",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ttlcache__fast__r3\\ttlcache.py implementing TTLCache(capacity, ttl, clock=time.monotonic) on an OrderedDict (LRU order, key -> [value, stored_at, ttl]).\n\nVerified with an injected FakeClock: a rerun of the suite printed \"total checks passed: 37\", covering:\n- get returns value/default; successful get makes the key MRU but does NOT extend its TTL (stored_at untouched)\n- expiry is exact: clock() - stored_at >= ttl (entry gone exactly at its TTL)\n- per-entry ttl override in put; re-putting an existing key replaces value+TTL and makes it MRU\n- put past capacity purges expired entries first, then evicts LRU only if still over\n- delete -> True only if present and live; purge() -> count of expired removed; keys() -> live keys LRU->MRU; len() counts live only\n- default clock (time.monotonic) smoke-tested with a 0.05 s (= 50 ms) TTL and a 60 ms sleep, then confirmed the entry expired",
+  "seconds": 103.8,
+  "input": 57031,
+  "output": 7699,
+  "thinking": 2776,
+  "timed_out": false,
+  "steps": 7,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 81.0,
+   "prefill_tps": 701.5,
+   "decoded": 7699,
+   "prefilled": 2664
+  }
+ },
+ {
+  "task": "mdtable",
+  "kind": "code",
+  "config": "fast",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote mdtable.py with parse_table(text) at the requested path. It finds the first pipe line followed by a valid separator row (cells of :?-+:?), parses the header as keys, converts cells (int / float / None for empty / str otherwise), pads short rows with None and drops extra cells, stops at the first blank or pipe-less line, and returns [] when no table exists. Handles optional leading/trailing pipes, escaped \\| (kept in the cell as a plain |), CRLF endings, and skips pipe lines not followed by a separator. Verified with 25 test cases (17 + 8) covering all the rules - all pass.",
+  "seconds": 246.1,
+  "input": 91351,
+  "output": 15302,
+  "thinking": 11949,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 67.9,
+   "prefill_tps": 1032.4,
+   "decoded": 15302,
+   "prefilled": 16676
+  }
+ },
+ {
+  "task": "freeslot",
+  "kind": "code",
+  "config": "fast",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote first_free(busy, duration, day_start, day_end) to C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\freeslot__fast__r3\\freeslot.py.\n\nHow it works: converts all busy \"HH:MM\" intervals to minutes and clips them to [day_start, day_end), sorts by start, merges overlapping/touching intervals, then walks the merged list. The first gap of at least `duration` minutes gives the earliest valid start (the meeting [start, start+duration) may touch busy intervals at its endpoints). Returns None if the window is smaller than duration or no gap is large enough.\n\nVerified: 15 test cases, 0 failures. Coverage includes touching intervals (merged, no gap between), an exact-fit meeting touching both neighbors, no-fit (whole window busy and window smaller than duration), unsorted/overlapping intervals, multiple people, busy intervals extending outside the day bounds, and non-5-minute start times.",
+  "seconds": 97.2,
+  "input": 49034,
+  "output": 7360,
+  "thinking": 3787,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.03s"
+  ],
+  "server": {
+   "decode_tps": 82.4,
+   "prefill_tps": 718.9,
+   "decoded": 7360,
+   "prefilled": 2384
+  }
+ },
+ {
+  "task": "bugfix",
+  "kind": "code",
+  "config": "fast",
+  "rep": 3,
+  "error": null,
+  "answer": "Fixed textstats.py (in place at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\bugfix__fast__r3\\textstats.py) so each function matches its docstring; all 3 visible tests pass (pytest: 3 passed) plus a 20-case docstring sanity check (len(checks2) == 20, all pass). Fixes:\n1. tokenize: regex was [a-z0-9]+, which dropped apostrophes (\"don't\" -> [\"don\",\"t\"]). Now [a-z0-9]+(?:'[a-z0-9]+)* keeps apostrophes inside words (don't, rock'n'roll) while still lowercasing and separating on everything else.\n2. top_n: used reverse=True, which inverted both sort keys (count ascending, ties word-descending). Removed reverse=True so it sorts by (-count, word): highest count first, alphabetical ties (a before b).\n3. sentences: plain split broke on abbreviations (\"Dr. Smith\" split after \"Dr.\"). Now known abbreviations (Dr., Mr., Mrs., Ms., Prof., St., Jr., Sr., Vs., Etc., Approx., e.g., i.e., case-insensitive, whole-word) are masked before splitting on [.!?]\\s+[A-Z0-9] and restored afterwards, so they don't end a sentence.\n4. wrap: off-by-one \u2014 condition len(cur)+1+len(word) < width made lines at most width-1 chars. Changed to <= width so lines use the full allowed width; words longer than width still get their own line.\nFunction names and signatures unchanged.",
+  "seconds": 161.1,
+  "input": 142978,
+  "output": 10704,
+  "thinking": 6364,
+  "timed_out": false,
+  "steps": 14,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 72.1,
+   "prefill_tps": 621.0,
+   "decoded": 10704,
+   "prefilled": 3491
+  }
+ },
+ {
+  "task": "todocli",
+  "kind": "code",
+  "config": "fast",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote the to-do CLI to C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\todocli__fast__r3\\todo.py (stdlib only, argparse) and verified it from the shell.\n\nBehavior:\n- `python todo.py [--file PATH] add TEXT...` \u2014 joins words with spaces, assigns the next id from a `next_id` counter (starts at 1, never reused even after rm), creates the JSON file on demand (default `todo.json` in cwd), prints `added N`.\n- `list [--all]` \u2014 prints `N [ ] text` / `N [x] text` ordered by id; without `--all` only open items; prints nothing when empty.\n- `done N` \u2014 prints `done N`; `rm N` \u2014 prints `removed N`.\n- `done`/`rm` on a missing id prints `no such item: N` to stderr and exits 1; every other command exits 0.\n\nTest results, exactly as logged:\n- First run (17 checks covering empty list, file creation, multi-word add, id non-reuse after rm, done/rm output and persistence across calls, error paths, `--file` isolation): 14/17 PASS. The 3 \"FAIL\"s (done/rm on missing ids) were a bug in my own test harness \u2014 it stripped the actual stderr before comparing it to the expected string that includes the trailing newline; the tool's rc=1, stderr, and empty stdout were already correct at that point.\n- Second run: re-checked the error paths with exact byte-for-byte comparison (6 assertions: done 99, rm 5, add, rm 1, done on removed id, empty list) \u2014 all passed.\n\nSo every specified behavior is implemented and verified; the earlier 3 failures were harness-comparison artifacts, not tool defects.",
+  "seconds": 76.4,
+  "input": 40982,
+  "output": 5515,
+  "thinking": 2250,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 1.29s"
+  ],
+  "server": {
+   "decode_tps": 83.3,
+   "prefill_tps": 760.5,
+   "decoded": 5515,
+   "prefilled": 2566
+  }
+ },
+ {
+  "task": "575b1a71",
+  "kind": "arc",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "[[5, 5, 5, 3, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [1, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 4, 5, 5, 5, 5], [5, 5, 2, 5, 5, 5, 5, 5, 5, 5], [5, 5, 2, 5, 5, 5, 5, 5, 5, 5], [1, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [1, 5, 5, 5, 5, 4, 5, 5, 5, 5]]",
+  "seconds": 90.6,
+  "input": 28637,
+  "output": 6882,
+  "thinking": 5826,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 81.7,
+   "prefill_tps": 824.7,
+   "decoded": 6882,
+   "prefilled": 3046
+  }
+ },
+ {
+  "task": "c7d4e6ad",
+  "kind": "arc",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[2,0,0,0,2,2,0,2,0,0],[2,0,0,2,2,2,2,2,0,0],[3,0,0,3,0,0,0,0,0,0],[3,0,0,3,3,3,0,0,0,0],[3,0,0,0,0,3,0,0,0,0],[4,0,0,4,4,4,4,0,0,0],[7,0,0,7,7,7,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]]",
+  "seconds": 31.2,
+  "input": 14349,
+  "output": 2347,
+  "thinking": 1569,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 91.0,
+   "prefill_tps": 846.9,
+   "decoded": 2347,
+   "prefilled": 2472
+  }
+ },
+ {
+  "task": "fd4b2b02",
+  "kind": "arc",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0], [3, 3, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0], [0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0], [0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 3, 3, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 3, 3, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0], [0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0], [3, 3, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0]]",
+  "seconds": 900.6,
+  "input": 223222,
+  "output": 61002,
+  "thinking": 58889,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 71.6,
+   "prefill_tps": 970.9,
+   "decoded": 61002,
+   "prefilled": 44275
+  }
+ },
+ {
+  "task": "ae58858e",
+  "kind": "arc",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "[[0, 0, 0, 0, 2, 2, 2, 0], [6, 6, 0, 0, 0, 0, 0, 0], [0, 6, 6, 0, 0, 6, 6, 0], [0, 6, 0, 0, 0, 6, 6, 0], [0, 0, 0, 0, 0, 0, 0, 0], [2, 0, 2, 2, 0, 0, 0, 2]]",
+  "seconds": 78.3,
+  "input": 54710,
+  "output": 5690,
+  "thinking": 3580,
+  "timed_out": false,
+  "steps": 9,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 82.0,
+   "prefill_tps": 797.7,
+   "decoded": 5690,
+   "prefilled": 3542
+  }
+ },
+ {
+  "task": "e99362f0",
+  "kind": "arc",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "[[8, 8, 9, 8], [8, 8, 2, 9], [8, 7, 8, 8], [8, 8, 8, 9], [8, 8, 8, 9]]",
+  "seconds": 57.9,
+  "input": 26026,
+  "output": 3846,
+  "thinking": 2773,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 75.2,
+   "prefill_tps": 781.8,
+   "decoded": 3846,
+   "prefilled": 2695
+  }
+ },
+ {
+  "task": "ca8de6ea",
+  "kind": "arc",
+  "config": "fast",
+  "rep": 1,
+  "error": null,
+  "answer": "[[7, 6, 5], [4, 2, 4], [5, 6, 7]]",
+  "seconds": 64.1,
+  "input": 22564,
+  "output": 4589,
+  "thinking": 3875,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 78.0,
+   "prefill_tps": 782.2,
+   "decoded": 4589,
+   "prefilled": 2324
+  }
+ },
+ {
+  "task": "mdtable",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote mdtable.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\mdtable__recommended__r2\\mdtable.py with parse_table(text). It scans for the first pipe line followed by a valid separator row (cells of dashes with optional colons, e.g. ---, :--, --:, :-:), uses the stripped header cells as keys, and collects data rows until the first blank line or line without a pipe. Cells split on unescaped | (an escaped \\| stays inside the cell as a plain |), leading/trailing pipes are optional, values are stripped and converted (42 and -7 become int, 3.5 becomes float, empty cells become None, anything else stays str), short rows are padded with None and extra cells are dropped; returns [] when there is no table. Verified: 15/15 test cases passed (basic table, alignment colons, escaped pipes, pipe-line-without-separator treated as no table, padding/dropping, table after intro text, end conditions, conversion edge cases) and a fresh-process smoke test printed [{'A': 'a|b', 'B': 3.5}] and [] as expected.",
+  "seconds": 219.8,
+  "input": 82273,
+  "output": 13432,
+  "thinking": 10079,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 63.4,
+   "prefill_tps": 701.3,
+   "decoded": 13432,
+   "prefilled": 2411
+  }
+ },
+ {
+  "task": "freeslot",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote freeslot.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\freeslot__recommended__r2\\freeslot.py with first_free(busy, duration, day_start, day_end).\n\nApproach: convert everything to integer minutes. For each busy interval [b0, b1), a meeting start s is forbidden iff [s, s+d) overlaps it (s < b1 and s+d > b0), i.e. s in [b0-d+1, b1-1]; touching intervals never forbid. Union those forbidden start-ranges, sort/merge, then walk from day_start skipping forbidden ranges; return the first s with s+d <= day_end, else None.\n\nVerified 12 cases, all passing (12 of 12 in the run above):\n- Back-to-back busy 10:00-11:00 & 11:00-12:00 with a 60-min meeting in 10:00-12:00 -> None\n- Gap between touching blocks 10:00-11:00 / 11:30-12:00, 30-min meeting -> 11:00 (touches both)\n- Fully busy day -> None\n- Unsorted + overlapping intervals -> earliest correct slot (11:00)\n- Two people: slot touching both people's boundaries -> 10:30; overlapping people -> None\n- Window shorter than meeting -> None; exact fit at day_start -> 09:00\n- Non-5-minute start times (09:57 for a 3-min meeting)\n- Person with an empty busy list -> 09:00\n- Two 15-min gaps with a 30-min meeting -> None; exact fit ending at day_end -> 09:45",
+  "seconds": 162.4,
+  "input": 82693,
+  "output": 10221,
+  "thinking": 6392,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 66.7,
+   "prefill_tps": 731.8,
+   "decoded": 10221,
+   "prefilled": 2622
+  }
+ },
+ {
+  "task": "bugfix",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 2,
+  "error": null,
+  "answer": "Fixed all four bugs in textstats.py (docstrings used as spec; names/signatures unchanged):\n1. tokenize: regex was [a-z0-9]+, dropping apostrophes \u2192 now [a-z0-9]+(?:'[a-z0-9]+)* so \"don't\" stays one word (leading/trailing apostrophes still separate).\n2. top_n: sorted(..., reverse=True) with key (-count, word) inverted the alphabetical tie-break \u2192 removed reverse=True; now highest count first, ties a-before-b.\n3. sentences: previously split after any . ! ? \u2014 now skips splits when the period ends a single letter (initials, e.g., i.e., U.S.) or a known abbreviation (Dr, Mr, Mrs, Ms, St, Vs, Inc, Ltd, Co, Corp, Fig); ! and ? always split as before.\n4. wrap: off-by-one used < width so lines maxed at width-1 \u2192 now <= width, so a line exactly at width fits; long words still get their own line.\nResult: pytest test_visible.py \u2192 3 passed; plus 28 additional spec checks across all functions (7 tokenize, 4 top_n, 11 sentences, 6 wrap) all pass.",
+  "seconds": 161.4,
+  "input": 102370,
+  "output": 9527,
+  "thinking": 4692,
+  "timed_out": false,
+  "steps": 11,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 6,
+  "total": 7,
+  "correct": false,
+  "tail": [
+   "C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\bugfix__recommended__r2\\_hidden\\test_bugfix_hidden.py:19: AssertionError: assert ['It was 5. 6 came next.'] == ['It was 5.', '6 came next.']",
+   "=========================== short test summary info ===========================",
+   "FAILED test_bugfix_hidden.py::test_sentences_basic - AssertionError: assert [...",
+   "1 failed, 6 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 65.3,
+   "prefill_tps": 899.7,
+   "decoded": 9527,
+   "prefilled": 7447
+  }
+ },
+ {
+  "task": "todocli",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 2,
+  "error": null,
+  "answer": "Created C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\todocli__recommended__r2\\todo.py (Python 3 stdlib only, argparse) and tested it from the shell with --file test_todo.json:\n- `add hello world` -> \"added 1\"; `add buy milk` -> \"added 2\"\n- `done 1` -> \"done 1\"; `list` -> \"2 [ ] buy milk\" (done item hidden); `list --all` -> \"1 [x] hello world\" and \"2 [ ] buy milk\" (ordered by id)\n- `rm 1` -> \"removed 1\"; second `rm 1` -> stderr \"no such item: 1\", exit 1\n- `add third task` -> \"added 3\" (id 1 not reused after rm)\n- `done 99` -> stderr \"no such item: 99\", exit 1\n- `rm 2` -> \"removed 2\"; `list` -> \"3 [ ] third task\"; `list --all` same\nDefault-file test in an empty temp cwd: `list` printed nothing and exited 0; `add default file works` -> \"added 1\" and created ./todo.json there; `list` -> \"1 [ ] default file works\". Test files were deleted afterward.",
+  "seconds": 110.4,
+  "input": 54685,
+  "output": 6513,
+  "thinking": 3434,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 1.22s"
+  ],
+  "server": {
+   "decode_tps": 65.3,
+   "prefill_tps": 727.2,
+   "decoded": 6513,
+   "prefilled": 2754
+  }
+ },
+ {
+  "task": "ledger",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ledger__recommended__r3\\ledger.py with summarize(path). It parses the CSV header, accepts dates as YYYY-MM-DD or DD/MM/YYYY (validated via datetime, grouped as YYYY-MM), parses amounts in the forms 1,234.50 / $12.00 / -12.5 / (45.00), skips blank-amount rows, counts exact duplicate rows (all four fields identical) once, buckets positives into \"in\" and negatives into \"out\" (as positive), and returns {\"YYYY-MM\": {\"in\", \"out\", \"net\"}} in ascending month order with everything rounded to 2 decimals (net = rounded in - rounded out). Verified against a self-made CSV covering both date formats, all amount styles, a duplicate row, a blank-amount row, out-of-order months, a header-only file, and sub-cent rounding \u2014 all checks passed.",
+  "seconds": 151.0,
+  "input": 83918,
+  "output": 9506,
+  "thinking": 5075,
+  "timed_out": false,
+  "steps": 9,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 6,
+  "total": 6,
+  "correct": true,
+  "tail": [
+   "......                                                                   [100%]",
+   "6 passed in 0.06s"
+  ],
+  "server": {
+   "decode_tps": 67.0,
+   "prefill_tps": 761.9,
+   "decoded": 9506,
+   "prefilled": 2837
+  }
+ },
+ {
+  "task": "ttlcache",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ttlcache__recommended__r3\\ttlcache.py with TTLCache(capacity, ttl, clock=time.monotonic). Implementation: entries stored as (value, ttl, stored_at) in an OrderedDict kept in LRU\u2192MRU order. put() replaces value+TTL on existing keys (re-stored with fresh clock time and moved to MRU); for new keys it purges expired entries first, then evicts LRU only if still at capacity. get() returns default on miss/expiry, removes expired entries when seen, updates MRU on hit but never extends the TTL. Expiry is inclusive: expired when clock() - stored_at >= ttl. delete() is True only for live entries; purge() returns the count removed; keys() lists live keys LRU\u2192MRU; len() counts live entries only. Verified with a fake clock: 11 scenario tests (exact-TTL expiry, no-extend-on-get, LRU ordering, purge-before-evict, per-entry ttl override, capacity 1, delete/purge semantics, etc.) plus 1 real-clock sanity check \u2014 all 12 PASS, matching the 12 PASS lines printed in the test run.",
+  "seconds": 128.3,
+  "input": 54254,
+  "output": 8169,
+  "thinking": 4589,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 67.6,
+   "prefill_tps": 735.5,
+   "decoded": 8169,
+   "prefilled": 2195
+  }
+ },
+ {
+  "task": "mdtable",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote mdtable.py (3570 bytes, verified on disk) at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\mdtable__recommended__r3\\mdtable.py with parse_table(text) implementing all specified rules: header keys from the first pipe line immediately followed by a separator row (cells matching ?-+? , e.g. ---, :--, --:, :-:); optional leading/trailing pipes; \\| kept inside a cell as a plain | (with escaped-backslash handling before pipes); value conversion (int -> int, decimal -> float, empty -> None, else stripped str); short rows padded with None, extra cells dropped; table ends at first blank line or first pipe-less line; returns [] when no table. Verified in a subprocess with warnings-as-errors: cases run: 19, failed: 0, passed: 19, exit code 0. Deliverable saved via save_artifact (logged earlier).",
+  "seconds": 243.2,
+  "input": 117185,
+  "output": 14923,
+  "thinking": 8192,
+  "timed_out": false,
+  "steps": 9,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 65.6,
+   "prefill_tps": 983.8,
+   "decoded": 14923,
+   "prefilled": 9639
+  }
+ },
+ {
+  "task": "freeslot",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\freeslot__recommended__r3\\freeslot.py with first_free(busy, duration, day_start, day_end). Approach: convert \"HH:MM\" to minutes, take the union of all people's busy intervals, clamp to [day_start, day_end], merge overlapping/touching intervals, then scan gaps left-to-right and return the first gap that fits duration (returning the gap's start), or None if none fits. Touching intervals are treated as non-overlapping (a meeting may start exactly when busy ends or end exactly when busy starts). Verified with the 18 test cases listed above (count confirmed in the last output) \u2014 every one printed PASS, covering: basic free at day start, touching back-to-back intervals (09:00\u201310:00 + 10:00\u201311:00 \u2192 11:00), unsorted+overlapping intervals, multi-person union, no-fit (small gaps, fully busy window, window shorter than duration), busy extending past the day bounds, free slot only at the very end of the window, non-5-minute start times (e.g. 09:34, 10:26), and empty busy list.",
+  "seconds": 82.4,
+  "input": 40991,
+  "output": 5056,
+  "thinking": 2184,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 68.8,
+   "prefill_tps": 765.2,
+   "decoded": 5056,
+   "prefilled": 2492
+  }
+ },
+ {
+  "task": "bugfix",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 3,
+  "error": null,
+  "answer": "Fixed textstats.py in place (docstrings left as the spec; names/signatures unchanged). Four bugs:\n\n1. tokenize(): regex `[a-z0-9]+` broke words at apostrophes (\"don't\" -> [\"don\",\"t\"]). Changed to `[a-z0-9]+(?:'[a-z0-9]+)*` so an internal apostrophe stays (\"don't\", \"rock'n'roll\") while leading/trailing apostrophes still separate.\n2. top_n(): `sorted(..., key=lambda kv: (-kv[1], kv[0]), reverse=True)` had inverted ordering (lowest count first). Removed `reverse=True` so highest count comes first and ties break alphabetically.\n3. sentences(): split at `[.!?] + whitespace + [A-Z0-9]` but ignored abbreviations, so \"Dr. Smith...\" split after \"Dr.\". Now abbreviation periods (Dr, Mr, Mrs, Ms, Prof, St, Jr, Sr, vs, etc, e.g., i.e.) are protected with a sentinel before splitting, so they don't end a sentence.\n4. wrap(): off-by-one `len(cur)+1+len(word) < width` produced lines one character shorter than needed; changed to `<= width` for correct greedy filling. Words longer than width still get their own line.\n\nVerification: all 3 visible tests in test_visible.py pass (3/3), plus 37 additional edge-case checks against the docstrings (7 tokenize, 5 top_n, 11 sentences, 8 wrap, and 6 more sentence edge cases) all pass \u2014 one wrap check initially failed only because my own test expectation was wrong about greedy filling, and it passes with the corrected expectation.",
+  "seconds": 222.7,
+  "input": 178185,
+  "output": 13078,
+  "thinking": 8281,
+  "timed_out": false,
+  "steps": 16,
+  "bounces": 2,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 62.2,
+   "prefill_tps": 620.7,
+   "decoded": 13078,
+   "prefilled": 3421
+  }
+ },
+ {
+  "task": "todocli",
+  "kind": "code",
+  "config": "recommended",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\todocli__recommended__r3\\todo.py \u2014 a stdlib-only argparse CLI with `add TEXT...`, `list [--all]`, `done N`, `rm N` and a global `--file PATH` (default todo.json, created on first mutation). IDs start at 1 and are never reused (a persistent next_id is stored alongside items). Verified from the shell: add prints `added N`; list prints `N [ ] text` / `N [x] text` in id order (open only without --all, nothing if empty); done/rm print `done N` / `removed N`; missing ids print `no such item: N` to stderr with exit 1; all other commands exit 0.",
+  "seconds": 58.8,
+  "input": 23489,
+  "output": 3524,
+  "thinking": 1885,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 1.30s"
+  ],
+  "server": {
+   "decode_tps": 69.7,
+   "prefill_tps": 927.8,
+   "decoded": 3524,
+   "prefilled": 2514
+  }
+ },
+ {
+  "task": "575b1a71",
+  "kind": "arc",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "[[5, 5, 5, 3, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [1, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 4, 5, 5, 5, 5], [5, 5, 2, 5, 5, 5, 5, 5, 5, 5], [5, 5, 2, 5, 5, 5, 5, 5, 5, 5], [1, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [1, 5, 5, 5, 5, 4, 5, 5, 5, 5]]",
+  "seconds": 94.6,
+  "input": 27433,
+  "output": 6029,
+  "thinking": 5182,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 68.3,
+   "prefill_tps": 889.2,
+   "decoded": 6029,
+   "prefilled": 3068
+  }
+ },
+ {
+  "task": "c7d4e6ad",
+  "kind": "arc",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [2, 0, 0, 0, 2, 2, 0, 2, 0, 0], [2, 0, 0, 2, 2, 2, 2, 2, 0, 0], [3, 0, 0, 3, 0, 0, 0, 0, 0, 0], [3, 0, 0, 3, 3, 3, 0, 0, 0, 0], [3, 0, 0, 0, 0, 3, 0, 0, 0, 0], [4, 0, 0, 4, 4, 4, 4, 0, 0, 0], [7, 0, 0, 7, 7, 7, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]",
+  "seconds": 83.5,
+  "input": 30251,
+  "output": 4946,
+  "thinking": 3646,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 64.5,
+   "prefill_tps": 876.3,
+   "decoded": 4946,
+   "prefilled": 3732
+  }
+ },
+ {
+  "task": "fd4b2b02",
+  "kind": "arc",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0], [3, 3, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0], [0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0], [0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 3, 3, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 3, 3, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0], [0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0], [3, 3, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0]]",
+  "seconds": 497.0,
+  "input": 173336,
+  "output": 29786,
+  "thinking": 27641,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 61.5,
+   "prefill_tps": 883.5,
+   "decoded": 29786,
+   "prefilled": 8347
+  }
+ },
+ {
+  "task": "ae58858e",
+  "kind": "arc",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "[[0,0,0,0,2,2,2,0],[6,6,0,0,0,0,0,0],[0,6,6,0,0,6,6,0],[0,6,0,0,0,6,6,0],[0,0,0,0,0,0,0,0],[2,0,2,2,0,0,0,2]]",
+  "seconds": 123.9,
+  "input": 30361,
+  "output": 8137,
+  "thinking": 7158,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 69.4,
+   "prefill_tps": 889.2,
+   "decoded": 8137,
+   "prefilled": 2742
+  }
+ },
+ {
+  "task": "e99362f0",
+  "kind": "arc",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "[[8, 8, 9, 8], [8, 8, 2, 9], [8, 7, 8, 8], [8, 8, 8, 9], [8, 8, 8, 9]]",
+  "seconds": 92.3,
+  "input": 33736,
+  "output": 5950,
+  "thinking": 4991,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 69.2,
+   "prefill_tps": 796.0,
+   "decoded": 5950,
+   "prefilled": 2500
+  }
+ },
+ {
+  "task": "ca8de6ea",
+  "kind": "arc",
+  "config": "recommended",
+  "rep": 1,
+  "error": null,
+  "answer": "[[7, 6, 5], [4, 2, 4], [5, 6, 7]]",
+  "seconds": 96.5,
+  "input": 14924,
+  "output": 5686,
+  "thinking": 4700,
+  "timed_out": false,
+  "steps": 3,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 65.2,
+   "prefill_tps": 1073.4,
+   "decoded": 5686,
+   "prefilled": 7454
+  }
+ },
+ {
+  "task": "ttlcache",
+  "kind": "code",
+  "config": "precision",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote ttlcache.py with TTLCache(capacity, ttl, clock=time.monotonic): put (per-entry ttl override; putting an existing key replaces value and TTL and makes it MRU), get (successful get makes the key MRU without extending its TTL; default on missing/expired), delete (True only if present and live), purge (returns count of expired removed), keys (live keys, LRU to MRU), __len__ (live entries only). Expiry is clock() - stored_at >= ttl so an entry expires exactly at its TTL; expired entries are removed when seen, and a put that would exceed capacity purges expired entries first, then evicts the least recently used entry. Checked with a fake clock: the 10 numbered scenarios in test_ttlcache.py (LRU order/eviction, exact-at-TTL expiry, no TTL extension on get, per-entry ttl override, replace-puts, purge-before-evict, delete semantics, len/keys filtering, defaults/contains, re-insert after expiry) all passed (\"ALL TESTS PASSED\", exit 0), plus a real-clock sanity check with the default time.monotonic clock.",
+  "seconds": 164.0,
+  "input": 94873,
+  "output": 9561,
+  "thinking": 4627,
+  "timed_out": false,
+  "steps": 10,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.05s"
+  ],
+  "server": {
+   "decode_tps": 61.7,
+   "prefill_tps": 578.3,
+   "decoded": 9561,
+   "prefilled": 2345
+  }
+ },
+ {
+  "task": "mdtable",
+  "kind": "code",
+  "config": "precision",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote mdtable.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\mdtable__precision__r2\\mdtable.py with parse_table(text) returning the first GitHub-style markdown table as a list of dicts. Implementation: scans for the first pipe line whose next line is a separator row (every cell fullmatching :?-+:?); header cells (split on unescaped |, optional outer pipes stripped, \\| kept as plain |) become the keys; body runs until the first blank or pipe-less line; short rows padded with None, extra cells dropped; values coerced (int for [+-]?digits, float for decimals like 3.5/.5, '' -> None, else str). Verified with 20 test cases (basic types, escaped pipes, missing outer pipes, alignment colons, padding/dropping, non-table pipe lines, early termination, no-table/empty input) \u2014 all pass.",
+  "seconds": 292.1,
+  "input": 91209,
+  "output": 16800,
+  "thinking": 11627,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 59.0,
+   "prefill_tps": 718.7,
+   "decoded": 16800,
+   "prefilled": 2279
+  }
+ },
+ {
+  "task": "freeslot",
+  "kind": "code",
+  "config": "precision",
+  "rep": 2,
+  "error": null,
+  "answer": "Wrote C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\freeslot__precision__r2\\freeslot.py with first_free(busy, duration, day_start, day_end).\n\nApproach: convert everything to minutes, clip busy intervals to [day_start, day_end), sort and merge (merging touching intervals is safe since a positive-duration meeting can never fit a zero-width gap), then walk the merged blocks: the earliest start is day_start or the end of some busy block \u2014 return the first candidate where the meeting fits before the next block and inside the window, else None. Touching intervals (one ends exactly when the other starts) do not overlap, so back-to-back bookings are allowed, and any minute (not just multiples of 5) is a valid start.\n\nVerified: 16 hand-crafted cases (count confirmed in the REPL log: \"hand-crafted cases: 16, all pass: True\") \u2014 touching blocks across people (both \"fits in the seam\" and \"seam is zero-width\" outcomes), unsorted/overlapping intervals, busy spanning/preceding the window, no-fit, 1-minute gaps, arbitrary-minute boundaries (09:01, 09:07), meeting ending exactly at day_end \u2014 plus 3,000 randomized trials matching a brute-force minute-by-minute reference exactly.",
+  "seconds": 251.3,
+  "input": 134206,
+  "output": 14455,
+  "thinking": 9827,
+  "timed_out": false,
+  "steps": 9,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 60.3,
+   "prefill_tps": 752.1,
+   "decoded": 14455,
+   "prefilled": 4639
+  }
+ },
+ {
+  "task": "bugfix",
+  "kind": "code",
+  "config": "precision",
+  "rep": 2,
+  "error": null,
+  "answer": "Fixed textstats.py (in place at bugfix__precision__r2\\textstats.py) against its docstrings. Final verification in the log: 3 visible tests + 23 docstring-derived checks = 26/26 passed. Bugs fixed, names/signatures unchanged:\n\n1. tokenize \u2014 old regex `[a-z0-9]+` dropped apostrophes (\"Don't\" \u2192 [\"don\",\"t\"]). Now `[a-z0-9]+(?:'[a-z0-9]+)*`, so internal apostrophes stay: don't, rock'n'roll; leading/trailing apostrophes still separate.\n2. top_n \u2014 `sorted(..., reverse=True)` reversed the alphabetical tie-break too (a after b). Dropped `reverse=True`; now `sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:n]` gives highest count first, ties a before b.\n3. sentences \u2014 no abbreviation handling, so \"Dr. Smith\" split into two sentences. Now periods of common abbreviations (Dr, Mr, Mrs, Ms, Prof, St, Jr, Sr, vs, etc, e.g, i.e) are temporarily parked before splitting, so they no longer end sentences; the split rule (. ! ? + whitespace + capital/digit) is otherwise unchanged.\n4. wrap \u2014 off-by-one: `len(cur) + 1 + len(word) < width` rejected lines of exactly `width` chars. Changed to `<= width`; words longer than width still get their own line.",
+  "seconds": 189.7,
+  "input": 101779,
+  "output": 10893,
+  "thinking": 5147,
+  "timed_out": false,
+  "steps": 10,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 61.2,
+   "prefill_tps": 780.4,
+   "decoded": 10893,
+   "prefilled": 4634
+  }
+ },
+ {
+  "task": "todocli",
+  "kind": "code",
+  "config": "precision",
+  "rep": 2,
+  "error": null,
+  "answer": "Complete. The tool is written to C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\todocli__precision__r2\\todo.py (stdlib only: argparse, json, os, sys) and was verified by running it in the shell. Exact results from the last verification run:\n- `add buy milk` -> rc 0, stdout `added 1`; `add call mom` -> rc 0, stdout `added 2` (with `--file v.json`; the JSON file was created)\n- `list` -> rc 0, `1 [ ] buy milk` then `2 [ ] call mom`\n- `done 1` -> rc 0, `done 1`\n- `list` -> rc 0, only `2 [ ] call mom` (open only)\n- `list --all` -> rc 0, `1 [x] buy milk` then `2 [ ] call mom`\n- `rm 2` -> rc 0, `removed 2`\n- `add new one` -> rc 0, `added 3` (id 2 not reused)\n- `list --all` -> rc 0, `1 [x] buy milk` then `3 [ ] new one`\n- `done 42` -> rc 1, empty stdout, stderr `no such item: 42`\n- `rm 7` -> rc 1, empty stdout, stderr `no such item: 7`\n- `rm 3` -> rc 0, `removed 3`; final `list --all` -> rc 0, `1 [x] buy milk`\n- Without `--file`, `add default item` -> rc 0, `added 1`, and `todo.json` was created in the current directory\n- `list` on a missing file -> rc 0, no output; `list` with only done items remaining -> rc 0, no output",
+  "seconds": 255.3,
+  "input": 120341,
+  "output": 14702,
+  "thinking": 7002,
+  "timed_out": false,
+  "steps": 10,
+  "bounces": 2,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 1.25s"
+  ],
+  "server": {
+   "decode_tps": 61.7,
+   "prefill_tps": 763.9,
+   "decoded": 14702,
+   "prefilled": 4196
+  }
+ },
+ {
+  "task": "ledger",
+  "kind": "code",
+  "config": "precision",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote ledger.py with summarize(path) at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ledger__precision__r3\\ledger.py. It parses date (YYYY-MM-DD or DD/MM/YYYY), amounts ('1,234.50', '$12.00', '-12.5', '(45.00)', blank skipped), dedupes exact four-field duplicates, and returns {\"YYYY-MM\": {\"in\",\"out\",\"net\"}} in ascending month order, rounded to 2 decimals. Verified against a hand-built test CSV covering both date formats, all amount styles, duplicates, a blank-amount row, and out-of-order months \u2014 all expectations matched.",
+  "seconds": 94.1,
+  "input": 33366,
+  "output": 5221,
+  "thinking": 3080,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 6,
+  "total": 6,
+  "correct": true,
+  "tail": [
+   "......                                                                   [100%]",
+   "6 passed in 0.08s"
+  ],
+  "server": {
+   "decode_tps": 61.9,
+   "prefill_tps": 1015.4,
+   "decoded": 5221,
+   "prefilled": 5721
+  }
+ },
+ {
+  "task": "ttlcache",
+  "kind": "code",
+  "config": "precision",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote ttlcache.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\ttlcache__precision__r3\\ttlcache.py with TTLCache(capacity, ttl, clock=time.monotonic).\n\nImplementation: an OrderedDict (least-recently-used first) mapping key -> (value, stored_at, ttl).\n- put(key, value, ttl=None): per-entry ttl overrides the default; re-putting an existing key replaces value, TTL and stored_at and moves it to MRU. For a new key at capacity, it first purges expired entries, and only if still full evicts the LRU entry.\n- get(key, default=None): returns the value or default if missing/expired; expired entries are removed when seen; a successful get moves the key to MRU but does not extend its TTL.\n- Expiry rule: clock() - stored_at >= ttl (expires exactly at the TTL).\n- delete(key) -> True only if the key was present and live; purge() -> count of expired entries removed; keys() -> live keys LRU->MRU (removing any it finds expired); __len__ counts live entries only. Bonus __contains__/__getitem__ with the same live semantics.\n\nVerified with a fake clock: 45 checks passed, covering LRU ordering, exact-boundary expiry, get-not-extending-TTL, per-entry ttl overrides, re-put resetting TTL, purge-before-evict at capacity, delete/purge return values, len counting only live entries, and the default real clock.",
+  "seconds": 305.7,
+  "input": 113349,
+  "output": 19121,
+  "thinking": 5854,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 64.0,
+   "prefill_tps": 645.7,
+   "decoded": 19121,
+   "prefilled": 2182
+  }
+ },
+ {
+  "task": "mdtable",
+  "kind": "code",
+  "config": "precision",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote mdtable.py with parse_table(text) returning the FIRST GitHub-style markdown table as a list of dicts. Behavior: the header row (a pipe line) must be followed by a separator row (cells of dashes with optional colons, e.g. `---`, `:--`, `--:`, `:-:`) or it is not a table; cells split on `|` with `\\|` kept inside the cell as a plain `|` and optional leading/trailing pipes; values stripped, integers -> int, decimals -> float, empty -> None, else str; short rows padded with None, extra cells dropped; the table ends at the first blank line or first line without a pipe; returns [] if there is no table. Verified with a 18-case test run (basic table, escaped pipes, no-outer-pipes, no-separator non-tables, colon separator variants, type conversions, padding, CRLF, first-table-only): passed: 18 of 18, failed: [].\n\n---\nNot verified - the harness's checks still found:\n- Your answer doesn't match what the work log shows (numbers, items or results differ, or it reports steps that didn't happen). Check it against your outputs and correct it.",
+  "seconds": 227.3,
+  "input": 105222,
+  "output": 13047,
+  "thinking": 8931,
+  "timed_out": false,
+  "steps": 8,
+  "bounces": 2,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 60.0,
+   "prefill_tps": 694.0,
+   "decoded": 13047,
+   "prefilled": 2572
+  }
+ },
+ {
+  "task": "freeslot",
+  "kind": "code",
+  "config": "precision",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote freeslot.py at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\freeslot__precision__r3\\freeslot.py with first_free(busy, duration, day_start, day_end). It converts everything to minutes, merges all people's busy intervals (touching intervals merge safely since blocked minutes are identical), then walks the sorted merged list: the candidate starts at day_start and jumps to each interval's end if the gap before it is too small; it returns the first candidate where candidate+duration fits before the next busy start (or by day_end), else None. Verified with 18 cases \u2014 all pass: touching intervals (both directions and chains), unsorted input, overlapping busy across people, no-fit (busy covers window, window shorter than duration), busy outside the window, meeting ending exactly at day_end, and non-round minute starts (e.g. 09:40, 13:05).",
+  "seconds": 176.5,
+  "input": 64044,
+  "output": 10490,
+  "thinking": 7028,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 8,
+  "total": 8,
+  "correct": true,
+  "tail": [
+   "........                                                                 [100%]",
+   "8 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 61.8,
+   "prefill_tps": 742.4,
+   "decoded": 10490,
+   "prefilled": 2381
+  }
+ },
+ {
+  "task": "bugfix",
+  "kind": "code",
+  "config": "precision",
+  "rep": 3,
+  "error": null,
+  "answer": "Fixed 4 bugs in textstats.py (names/signatures unchanged, docstrings kept as spec):\n1. tokenize: regex was [a-z0-9]+, splitting \"don't\" into don/t. Now [a-z0-9]+(?:'[a-z0-9]+)* so apostrophes inside words stay (don't, o'brien's, rock'n'roll) while leading/trailing apostrophes still separate.\n2. top_n: sorted with reverse=True, which reversed tie-breaking to z-before-a. Removed reverse so ties are alphabetical (a before b).\n3. sentences: blindly split after any .!?, so \"Dr. Smith...\" split after \"Dr.\". Now split candidates preceded by an abbreviation (single capital, Dr, Mr, Mrs, Ms, Prof, St, Jr, Sr, vs, cf, e.g, i.e) are skipped.\n4. wrap: off-by-one \u2014 used < instead of <=, rejecting lines exactly `width` chars long (\"at most width\" means <=).\nVerified: pytest test_visible.py -> 3 passed, plus 31 extra edge-case checks against the docstrings (7 tokenize + 5 top_n + 11 sentences + 8 wrap, all pass, total fails: 0).",
+  "seconds": 161.9,
+  "input": 109524,
+  "output": 9053,
+  "thinking": 4699,
+  "timed_out": false,
+  "steps": 12,
+  "bounces": 1,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 0.04s"
+  ],
+  "server": {
+   "decode_tps": 59.9,
+   "prefill_tps": 660.2,
+   "decoded": 9053,
+   "prefilled": 2983
+  }
+ },
+ {
+  "task": "todocli",
+  "kind": "code",
+  "config": "precision",
+  "rep": 3,
+  "error": null,
+  "answer": "Wrote the to-do CLI at C:\\Users\\Jedidiah\\Projects\\jev-harness\\evals\\bench\\runs\\serve_compare\\ws\\todocli__precision__r3\\todo.py (stdlib + argparse only). Verified from the shell: `add TEXT...` joins words and prints `added N` with monotonically increasing ids (never reused after `rm`); `list` prints `N [ ] text` / `N [x] text` by id, open-only by default and honors `--all`, printing nothing when empty; `done N` prints `done N`; `rm N` prints `removed N`; unknown ids for `done`/`rm` print `no such item: N` to stderr and exit 1, everything else exits 0. The JSON store (default `./todo.json`, overridable with `--file`) tracks items plus a `next_id` counter and is created on first write.",
+  "seconds": 83.4,
+  "input": 26394,
+  "output": 4860,
+  "thinking": 2864,
+  "timed_out": false,
+  "steps": 4,
+  "bounces": 0,
+  "escalated": false,
+  "passed": 7,
+  "total": 7,
+  "correct": true,
+  "tail": [
+   ".......                                                                  [100%]",
+   "7 passed in 1.23s"
+  ],
+  "server": {
+   "decode_tps": 64.0,
+   "prefill_tps": 835.4,
+   "decoded": 4860,
+   "prefilled": 2308
+  }
+ },
+ {
+  "task": "575b1a71",
+  "kind": "arc",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "[[5, 5, 5, 3, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [1, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 4, 5, 5, 5, 5], [5, 5, 2, 5, 5, 5, 5, 5, 5, 5], [5, 5, 2, 5, 5, 5, 5, 5, 5, 5], [1, 5, 5, 5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], [1, 5, 5, 5, 5, 4, 5, 5, 5, 5]]",
+  "seconds": 53.2,
+  "input": 16070,
+  "output": 3030,
+  "thinking": 2189,
+  "timed_out": false,
+  "steps": 3,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 64.8,
+   "prefill_tps": 977.3,
+   "decoded": 3030,
+   "prefilled": 4309
+  }
+ },
+ {
+  "task": "c7d4e6ad",
+  "kind": "arc",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [2, 0, 0, 0, 2, 2, 0, 2, 0, 0], [2, 0, 0, 2, 2, 2, 2, 2, 0, 0], [3, 0, 0, 3, 0, 0, 0, 0, 0, 0], [3, 0, 0, 3, 3, 3, 0, 0, 0, 0], [3, 0, 0, 0, 0, 3, 0, 0, 0, 0], [4, 0, 0, 4, 4, 4, 4, 0, 0, 0], [7, 0, 0, 7, 7, 7, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]",
+  "seconds": 47.5,
+  "input": 20575,
+  "output": 2637,
+  "thinking": 1629,
+  "timed_out": false,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 63.4,
+   "prefill_tps": 879.5,
+   "decoded": 2637,
+   "prefilled": 3164
+  }
+ },
+ {
+  "task": "fd4b2b02",
+  "kind": "arc",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "[stopped by the user before finishing]",
+  "seconds": 1200.1,
+  "input": 17906,
+  "output": 30093,
+  "thinking": 29255,
+  "timed_out": true,
+  "steps": 5,
+  "bounces": 0,
+  "escalated": false,
+  "correct": false,
+  "grid": false,
+  "server": {
+   "decode_tps": 57.6,
+   "prefill_tps": 870.6,
+   "decoded": 30093,
+   "prefilled": 3510
+  }
+ },
+ {
+  "task": "ae58858e",
+  "kind": "arc",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "[[0, 0, 0, 0, 2, 2, 2, 0], [6, 6, 0, 0, 0, 0, 0, 0], [0, 6, 6, 0, 0, 6, 6, 0], [0, 6, 0, 0, 0, 6, 6, 0], [0, 0, 0, 0, 0, 0, 0, 0], [2, 0, 2, 2, 0, 0, 0, 2]]",
+  "seconds": 133.0,
+  "input": 41094,
+  "output": 8212,
+  "thinking": 6833,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 64.9,
+   "prefill_tps": 873.0,
+   "decoded": 8212,
+   "prefilled": 3069
+  }
+ },
+ {
+  "task": "e99362f0",
+  "kind": "arc",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "[[8,8,9,8],[8,8,2,9],[8,7,8,8],[8,8,8,9],[8,8,8,9]]",
+  "seconds": 219.8,
+  "input": 52195,
+  "output": 12344,
+  "thinking": 11174,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 60.4,
+   "prefill_tps": 1051.4,
+   "decoded": 12344,
+   "prefilled": 13299
+  }
+ },
+ {
+  "task": "ca8de6ea",
+  "kind": "arc",
+  "config": "precision",
+  "rep": 1,
+  "error": null,
+  "answer": "[[7, 6, 5], [4, 2, 4], [5, 6, 7]]",
+  "seconds": 320.9,
+  "input": 71566,
+  "output": 18789,
+  "thinking": 17713,
+  "timed_out": false,
+  "steps": 6,
+  "bounces": 0,
+  "escalated": false,
+  "correct": true,
+  "grid": true,
+  "server": {
+   "decode_tps": 59.6,
+   "prefill_tps": 746.0,
+   "decoded": 18789,
+   "prefilled": 2388
+  }
+ }
+]

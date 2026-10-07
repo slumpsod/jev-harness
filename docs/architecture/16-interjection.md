@@ -2,8 +2,9 @@
 
 Status: built (`jevh/interject.py`, plus `worker.py`, `orchestrator.py`, `llm.py`, the dashboard and the CLI) and
 run live on 2026-10-03/04 on Qwen 3.8 27B (LM Studio, llama.cpp) with the semif Jev. The classifier is scored by
-`evals/interject_cases.py` (155 of 156 labelled messages right: dev 67/68, held-out 40/40, fresh 48/48; no correction,
-other request or stop was ever answered instead of added to the prompt; the fresh set is no longer an untouched test) and the
+`evals/interject_cases.py` (209 of 214 labelled messages right at 0.4: dev 68/68, held-out 39/40, fresh 48/48, and two sets of
+messages that are easy to take the wrong way, 29/30 and 25/28; one correction, a plain statement of fact, was answered instead of
+added, no other request or stop; the fresh and explanation sets are no longer untouched tests) and the
 whole feature by `evals/bench/interject.py`. The last *full* bench run (every check passed on both reps;
 `evals/bench/interject_last_summary.txt`) is from before the default below was changed: the changed part was re-run
 afterwards (`interject_add_summary.txt`, and the classifier above), the other stages do not depend on it. The
@@ -53,11 +54,11 @@ the task a step.
 | `/stop` | like the Stop button |
 
 Jev's question (`Jev.interject_kind`) has five options (correction, **replace**, status, separate, stop). Only two
-things act: "status" leading with at least `thresholds.interject_status` (0.6) gives the quick reply, and a "replace"
+things act: "status" leading with at least `thresholds.interject_status` (0.4) gives the quick reply, and a "replace"
 score of at least `thresholds.interject_replace` (0.5) makes the message stand alone as the request the gate judges
 (`Task.current`) instead of being added to it. "separate" and "stop" never act (they are commands); their options stay in
 the Choice because they keep such a message from being mistaken for a question. A question added to the prompt instead
-could end the task with a status report; a message taken for a question never reaches the task (none of the 116 that were not questions was).
+could end the task with a status report; a message taken for a question never reaches the task (one of the 146 that were not questions was: a statement of fact, "the crash only happens with a zero-byte file").
 With Jev down every message is added to the prompt.
 
 ## How a correction is applied

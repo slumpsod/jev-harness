@@ -505,7 +505,15 @@ def test_browser_mode_makes_a_visible_window_that_stays_signed_in(nango_dir, mon
     import os
     assert os.environ["JEVH_BROWSER_HEADED"] == "1" and r["visible"] and r["persistent"]
     assert os.environ["JEVH_BROWSER_PROFILE"] == str(nango_dir / "browser-profile") and (nango_dir / "browser-profile").is_dir()
-    monkeypatch.setenv("JEVH_BROWSER_DOCK", "/dock")      # the dashboard's own browser panel: leave it alone
-    monkeypatch.setenv("JEVH_BROWSER_HEADED", "0")
+    assert not r["docked"] and "a window the user can see" in r["notes"][-1]
+    monkeypatch.setenv("JEVH_BROWSER_DOCK", "/dock")      # the dashboard's own browser panel: the browser goes in it
+    monkeypatch.setenv("JEVH_BROWSER_HEADED", "0")        # (Watch browser off: it is still asked for, so it is shown)
     r = ns.browser_mode(persist=False)
-    assert os.environ["JEVH_BROWSER_HEADED"] == "0" and r["visible"] and not r["persistent"]
+    assert os.environ["JEVH_BROWSER_HEADED"] == "1" and r["visible"] and r["docked"] and not r["persistent"]
+    assert "Browser panel" in r["notes"][-1] and "window" not in r["notes"][-1].replace("no separate window", "")
+    dock = nango_dir / "sess" / "browsers"                                 # (the dock folder's parent is the session's folder)
+    dock.parent.mkdir(parents=True)
+    monkeypatch.setenv("JEVH_BROWSER_DOCK", str(dock))
+    ns.browser_mode()
+    assert json.loads((dock.parent / "browser-mode.json").read_text()) == {
+        "visible": True, "profile": str(nango_dir / "browser-profile")}     # the next turn of the session starts its browser the same way

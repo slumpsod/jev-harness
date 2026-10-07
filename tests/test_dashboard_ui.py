@@ -324,6 +324,31 @@ def _window(page, dashboard):
     assert "Model window: 100,096 tokens (what LM Studio loaded it with)" in said
     assert "the model supports up to 262,144" in said
     assert "Past 60.1k, older steps get condensed" in said                   # 60% of that window, not limits.compact_tokens
+    assert "of 100.1k tokens" in said                                        # the wheel is out of the window, not out of the 60k trigger
+    assert "of 100.1k tokens" in page.get_attribute("#ctxring", "aria-label")
+    assert not page.errors
+
+
+def test_a_live_list_you_scrolled_up_in_stays_where_you_left_it(dashboard, browse):
+    browse(lambda page: _scrolled(page, dashboard))
+
+
+def _scrolled(page, dashboard):
+    page.goto(dashboard)
+    page.wait_for_selector("#logi")
+    make = """(key) => {   // what renderChat draws: a fresh element for a live list each time its turn is redrawn
+        const old = document.querySelector('[data-follow="' + key + '"]'); if (old) old.remove();
+        const p = document.createElement('div'); p.dataset.follow = key;
+        p.style.cssText = 'height:60px;overflow:auto;position:fixed;top:0;left:0;width:200px;z-index:99';
+        p.innerHTML = '<div style="height:1000px"></div>'; document.body.appendChild(p);
+        followLists(document.body); return p.scrollTop; }"""
+    assert page.evaluate(make, "t:x") > 500                                  # a new list starts at its end
+    page.evaluate("document.querySelector('[data-follow=\"t:x\"]').scrollTop = 100")   # you scroll up to read
+    page.wait_for_function("FOLLOW.get('t:x') && FOLLOW.get('t:x').top === 100")
+    assert page.evaluate(make, "t:x") == 100                                 # the redraw leaves it where you put it
+    page.evaluate("(() => { const p = document.querySelector('[data-follow=\"t:x\"]'); p.scrollTop = p.scrollHeight; })()")
+    page.wait_for_function("FOLLOW.get('t:x').end === true")
+    assert page.evaluate(make, "t:x") > 500                                  # back at the end, it follows again
     assert not page.errors
 
 

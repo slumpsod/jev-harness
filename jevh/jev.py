@@ -79,10 +79,12 @@ INTERJECT_Q = ("The user sent `message` while the assistant works on `task` (`do
                "moment). What is the message?")
 INTERJECT_OPTIONS = {
     "correction": "It changes, narrows or adds to the task the assistant is doing: a correction, an extra requirement, "
-                  "a preference, or advice on how to go about it.",
+                  "a preference, information or advice on how to go about it, or a request or suggestion written as "
+                  "a question (\"can you make it bigger?\", \"why not use blue?\", \"what if you tried X?\").",
     "replace": "It swaps the task, or what the assistant is producing, for something else (\"check my calendar instead\", \"make it primes instead of Fibonacci\", \"never mind that, do this\").",
-    "status": "It asks how the work is going, what the assistant is doing, or what it has found so far, and asks "
-              "for nothing new.",
+    "status": "It asks how the work is going, what the assistant is doing, what it has found so far, or why it did "
+              "something or what something meant (an error, a flag the system raised), and asks for nothing new: "
+              "it is answered, not acted on.",
     "separate": "It is another request, unrelated to the current task, that can wait until the task is finished.",
     "stop": "It only tells the assistant to stop, cancel or drop the task, and asks for nothing in its place.",
 }

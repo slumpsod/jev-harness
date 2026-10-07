@@ -25,4 +25,4 @@ skills_allowed: [learned-*, nango-*, python-*, github-*, windows-system-admin, l
                  cyberpunk-2077-modding, dlss5-game-injection, minecraft-modpack-server]
 tools: [project, web, browser, nango]
 can_request: [front_end_designer, comfyui_manager]
-max_steps: 60
+max_steps: 80

@@ -18,7 +18,7 @@ class Persona:
     skills_allowed: list[str] = field(default_factory=lambda: ["*"])
     tools: list[str] = field(default_factory=list)          # modules pre-imported into the REPL
     can_request: list[str] = field(default_factory=list)    # persona names, or ["*"]
-    max_steps: int = 12
+    max_steps: int = 80
     code: bool = True                     # False = plain chat persona, no REPL
     fast_ok: bool = True                  # Jev may send easy tasks to config models.fast
     mcp: list[str] = field(default_factory=list)            # globs over "server.tool" MCP keys

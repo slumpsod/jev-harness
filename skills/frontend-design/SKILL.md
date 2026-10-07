@@ -21,3 +21,11 @@ description: Designing and building polished web UIs - layout, color, type, comp
    aspect ratio and pixel size; reference the returned artifact path in the markup.
 
 Deliver a single self-contained `index.html` (inline CSS/JS) unless asked otherwise.
+
+## Lessons from past runs
+
+<!-- 2026-10-04: could you resume work on the JedStudio project, I beleive we needed the front end designer but i cant quite remember. -->
+- Check the actual `<product-card>` boundaries and price markup before regexing; slice from one card start to the next instead of using a fixed 9,000-character window after a title.
+- Prefer already-saved local HTML or embedded JSON-LD/JSON endpoints over live `requests` calls; if a 429 appears, stop and use the cached page rather than retrying the same product URL.
+- Validate scraped handles/prices against `products.json` and mark missing fields explicitly before passing data to the front-end template.
+- Keep data harvesting separate from the design checklist; build the self-contained `index.html` from confirmed local data first.

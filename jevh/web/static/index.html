@@ -1203,9 +1203,11 @@ const CTX = [["instructions", "Instructions", "persona prompt, environment and h
   ["work", "Model's steps", "the model's code, replies and reasoning (and condensed notes of older steps)"],
   ["output", "Tool output", "what the code printed and returned"]];
 const ctxUsed = (c) => CTX.reduce((a, [k]) => a + (c.parts[k] || 0), 0);
+// the ring is out of the model's whole window when the harness knows it; older steps are condensed earlier, at c.limit
+const ctxSize = (c) => (c ? c.window || c.limit || 1 : 1);
 function renderCtx() {
   const c = S.ctx, el = $("ctxring");
-  const lim = c ? c.limit || 1 : 1, used = c ? ctxUsed(c) : 0;
+  const lim = ctxSize(c), used = c ? ctxUsed(c) : 0;
   const key = c ? `${c.turn}|${c.persona}|${c.step}|${used}` : "-";
   if (el.dataset.key === key) return;   // render() runs every frame while a turn is busy
   el.dataset.key = key;
@@ -1237,7 +1239,7 @@ function renderPop() {
   else {
     const used = ctxUsed(c);
     pop.innerHTML = `<h3>Context <span class="kv">${esc(c.persona)} · step ${c.step} · turn ${c.turn}</span></h3>
-      <div class="kv">${kfmt(used)} of ${kfmt(c.limit)} tokens (estimated). Past ${kfmt(c.limit)}, older steps get condensed.</div>
+      <div class="kv">${kfmt(used)} of ${kfmt(ctxSize(c))} tokens (estimated). Past ${kfmt(c.limit)}, older steps get condensed${c.window && c.limit < c.window ? " to leave room for the reply" : ""}.</div>
       ${windowNote(c)}
       <div class="rows">${CTX.map(([k, label, what], i) => `<div class="row" data-k="${k}" title="${esc(what)}"><i style="background:var(--c${i + 1})"></i>
         <span>${label}</span><span class="n">${kfmt(c.parts[k] || 0)}</span><span class="s">${used ? Math.round(((c.parts[k] || 0) / used) * 100) : 0}%</span></div>`).join("")}</div>`;
@@ -1279,7 +1281,8 @@ const B = {live: false, url: "", title: "", seen: new Set(), q: Promise.resolve(
 const anyRunning = () => S.order.some((id) => S.turns.get(id).status === "running");
 const undo = (x) => { try { return decodeURIComponent(x || ""); } catch { return x || ""; } };
 async function browserTick() {
-  if (S.tab === "browser" || (anyRunning() && $("watch").checked)) {
+  // (while a task runs even with Watch browser off: a task can ask for a browser to sign in on, and it opens its panel)
+  if (S.tab === "browser" || anyRunning()) {
     try {
       const r = await fetch(`/api/browser/frame?token=${encodeURIComponent(TOKEN)}`, {cache: "no-store"});
       B.live = r.status === 200;
@@ -1469,9 +1472,9 @@ function workHtml(t, id, running, persona, waiting) {
     if (!said && !errs && !warns) return "";
     head = `<span>${esc(said.charAt(0).toUpperCase() + said.slice(1) || "Worked on it")}</span>${errs ? `<span class="bad">· ${errs} failed</span>` : ""}${warns ? `<span class="warn">· ${warns} warning${warns > 1 ? "s" : ""}</span>` : ""}`;
   }
-  const rows = open ? `<div class="steps" ${running ? "data-follow" : ""}>${items.map((it) => stepHtml(id, it, persona, mode)).join("")}</div>` : "";
+  const rows = open ? `<div class="steps" ${running ? `data-follow="${esc(k)}"` : ""}>${items.map((it) => stepHtml(id, it, persona, mode)).join("")}</div>` : "";
   const tk = `t:${id}`, text = th ? thoughtOf(th) : "", tOpen = th && isOpen(tk, PR.thinking);
-  const thinking = th ? `<div class="work think ${tOpen ? "open" : ""}"><button type="button" class="workhead plain" data-tg="${tk}" data-def="${PR.thinking ? 1 : 0}" aria-expanded="${tOpen}"><span>Thinking</span>${tOpen ? "" : peekOf(text) ? `<span class="peek">${esc(peekOf(text))}</span>` : ""}${chev}</button>${tOpen ? `<div class="answer thought" data-follow>${md(text)}</div>` : ""}</div>` : "";
+  const thinking = th ? `<div class="work think ${tOpen ? "open" : ""}"><button type="button" class="workhead plain" data-tg="${tk}" data-def="${PR.thinking ? 1 : 0}" aria-expanded="${tOpen}"><span>Thinking</span>${tOpen ? "" : peekOf(text) ? `<span class="peek">${esc(peekOf(text))}</span>` : ""}${chev}</button>${tOpen ? `<div class="answer thought" data-follow="${esc(tk)}">${md(text)}</div>` : ""}</div>` : "";
   return `${head ? `<div class="work ${running ? "running" : ""} ${open ? "open" : ""}"><button type="button" class="workhead plain" data-tg="${k}" data-def="${def ? 1 : 0}" aria-expanded="${open}" ${items.length ? "" : "disabled"}>${head}${items.length ? chev : ""}</button>${rows}</div>` : ""}${thinking}`;
 }
 
@@ -1513,9 +1516,24 @@ function helloHtml() {
 }
 const cache = new Map();   // turn id -> the html last drawn: only a changed turn is touched, so text you selected elsewhere stays selected
 function resetChat() { cache.clear(); $("logi").dataset.mode = ""; schedule(); }
+// A live list (the steps, the thinking) follows its end only while you are at its end: scroll up in one to read, and it stays
+// where you put it. Each is a new element whenever its turn is redrawn, so where it was scrolled to is kept here, by its key.
+const FOLLOW = new Map();   // key -> {top, end}
+const atEnd = (p) => p.scrollTop + p.clientHeight >= p.scrollHeight - 8;
+document.addEventListener("scroll", (ev) => {
+  const p = ev.target;
+  if (p && p.dataset && p.dataset.follow) FOLLOW.set(p.dataset.follow, {top: p.scrollTop, end: atEnd(p)});
+}, true);   // scroll events do not bubble: listen on the way down
+function followLists(box) {
+  for (const p of box.querySelectorAll("[data-follow]")) {
+    const f = FOLLOW.get(p.dataset.follow);
+    p.scrollTop = !f || f.end ? p.scrollHeight : f.top;
+  }
+}
 function renderChat(keep) {
   const log = $("log"), box = $("logi");
   const stick = !keep && (S.stick || log.scrollTop + log.clientHeight >= log.scrollHeight - 90);
+  const was = log.scrollTop;   // redrawing a turn briefly shortens the page, which would drag a reader who scrolled up down with it
   if (!S.order.length) {
     const h = helloHtml();
     if (box.dataset.mode !== "hello" || cache.get("hello") !== h) { box.innerHTML = h; box.dataset.mode = "hello"; cache.clear(); cache.set("hello", h); }
@@ -1531,8 +1549,8 @@ function renderChat(keep) {
     if (el) el.replaceWith(node); else { node.classList.add("enter"); box.appendChild(node); }
     cache.set(id, html);
   });
-  if (stick) { log.scrollTop = log.scrollHeight; S.stick = false; }
-  for (const p of box.querySelectorAll("[data-follow]")) p.scrollTop = p.scrollHeight;   // live lists follow their end
+  followLists(box);
+  if (stick) { log.scrollTop = log.scrollHeight; S.stick = false; } else if (log.scrollTop !== was) log.scrollTop = was;
 }
 
 

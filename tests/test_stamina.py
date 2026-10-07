@@ -143,6 +143,26 @@ def test_going_in_circles_is_flagged_then_stopped(cfg):
     assert r.checkpoint and Path(r.checkpoint).exists()                  # ...and it can be resumed
 
 
+def test_the_quick_reply_can_say_why_the_harness_flagged_the_task(cfg):
+    """Notebook: asked "why did the harness flag you?", the task's model had no record of it and guessed."""
+    class Watch(list):   # what a quick reply would be given, at each event while the task runs
+        digests: list[str] = []
+
+        def append(self, item):
+            super().append(item)
+            lead = holder[0]._lead
+            if lead is not None:
+                self.digests.append(lead.digest())
+    holder = []
+    watch = Watch()
+    h, _ = harness(cfg, steps(10, final=False), circles=0.95, events=watch, progress_every=2)
+    holder.append(h)
+    h.turn("fix the build")
+    flagged = [d for d in watch.digests if "What the harness did to this task:" in d]
+    assert flagged and "progress check" in flagged[-1] and "score 0.95" in flagged[-1]
+    assert not any("What the harness did" in d for d in watch.digests[:2])     # nothing to say before it flagged anything
+
+
 def test_a_stopped_worker_reports_on_its_last_step(cfg):
     """Live (browser tasks): a stalled worker was cut off and the user got raw REPL output ("105 /
     Are You Human?"); given one step, it says what it found and what blocked it."""
@@ -301,3 +321,30 @@ def test_a_worker_reaching_new_pages_is_not_stopped_as_circling(cfg):
     same = [py("print({'url': 'https://shop.test/cart'})")] * 10
     h, _ = harness(cfg, same, circles=0.95, events=events, progress_every=2)
     assert h.turn("go through the checkout").answer.startswith("[daily_assistant stopped")
+
+
+def test_a_task_in_the_dashboard_always_gets_the_dock_folder_for_its_browser(cfg, monkeypatch):
+    """Live (2026-10-05): Watch browser was off, so the worker had no dock folder; browser_mode() then opened a window
+    on the PC's own screen, and the dashboard's Browser panel said "no browser open" to the user on another device."""
+    from jevh import orchestrator
+    seen = []
+
+    class Spy(orchestrator.Worker):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            seen.append(dict(self.env))
+    monkeypatch.setattr(orchestrator, "Worker", Spy)
+    for dashboard, watch in ((True, False), (True, True), (False, False)):
+        h, _ = harness(cfg, [py("final('ok')")])
+        h.browser_dock, h.watch_browser = dashboard, watch
+        h.turn("hello")
+    assert [("JEVH_BROWSER_DOCK" in e, e["JEVH_BROWSER_HEADED"]) for e in seen] == [(True, "0"), (True, "1"), (False, "0")]
+    assert seen[0]["JEVH_BROWSER_DOCK"].endswith("browsers") and seen[0]["JEVH_BROWSER_KEEP"] == "1"
+    assert "JEVH_BROWSER_KEEP" not in seen[2]                                 # (outside the dashboard a browser ends with its task)
+    # a task of this session asked for a browser to sign in on (nango.browser_mode() left its note): the next turn gets the same
+    h, _ = harness(cfg, [py("final('ok')")])
+    h.browser_dock, h.watch_browser = True, False
+    h.session_dir.mkdir(parents=True, exist_ok=True)
+    (h.session_dir / "browser-mode.json").write_text(json.dumps({"visible": True, "profile": "/keep/me"}))
+    h.turn("hello again")
+    assert seen[-1]["JEVH_BROWSER_HEADED"] == "1" and seen[-1]["JEVH_BROWSER_PROFILE"] == "/keep/me"

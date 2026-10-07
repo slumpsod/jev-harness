@@ -148,12 +148,19 @@ class Hub:
     def reset(self) -> None:
         if self.busy.locked():
             raise HTTPException(409, "wait for the running turn to finish")
+        self.close_browser()   # the session is over: so is the browser it kept open between turns
         mode, project, watch = self.harness.tier_mode, self.harness.project, self.harness.watch_browser
         self.harness = self._factory(self.publish)
         self.harness.tier_mode, self.harness.project, self.harness.watch_browser = mode, project, watch
         self.harness.browser_dock = True
         self.turns.clear()
         self.publish("reset", {"session": self.harness.session})
+
+    def close_browser(self) -> None:
+        """Close the docked Chrome this session kept open between turns (jevh/tools/browser.py close_kept), in the background."""
+        from ..tools.browser import close_kept
+        folder = Path(self.harness.session_dir)
+        threading.Thread(target=close_kept, args=(folder,), name="close-browser", daemon=True).start()
 
 
 # ---------------------------------------------------------------- docked browser
@@ -202,6 +209,7 @@ class BrowserDock:
         from playwright.sync_api import sync_playwright
         pw = sync_playwright().start()
         browser, at, dead = None, None, set()   # dead: info files whose browser is gone (a killed worker)
+        failed: dict = {}                       # attach attempts that failed, per info file: a slow Chrome gets a few tries
         try:
             while True:
                 fn, fut = self._jobs.get()
@@ -210,10 +218,12 @@ class BrowserDock:
                     if info and (browser is None or at != info["key"] or not browser.is_connected()):
                         browser = None
                         try:
-                            browser = pw.chromium.connect_over_cdp(f"http://127.0.0.1:{info['port']}", timeout=3000)
+                            browser = pw.chromium.connect_over_cdp(f"http://127.0.0.1:{info['port']}", timeout=8000)
                             at = info["key"]
                         except Exception:  # noqa: BLE001
-                            dead.add(info["key"])
+                            failed[info["key"]] = failed.get(info["key"], 0) + 1
+                            if failed[info["key"]] >= 4:
+                                dead.add(info["key"])
                     pages = [p for c in browser.contexts for p in c.pages if not p.is_closed()] if info and browser else []
                     fut.set_result(fn(pages[-1], info) if pages else None)   # the tool follows the newest tab too
                 except Exception as e:  # noqa: BLE001
@@ -237,7 +247,8 @@ class BrowserDock:
         kind = ev.get("kind")
 
         def act(page, _info):
-            vp = page.viewport_size or {"width": 1280, "height": 900}
+            # (a real Chrome has no viewport set by Playwright: ask the page how big it is)
+            vp = page.viewport_size or page.evaluate("({width: innerWidth, height: innerHeight})")
             x = min(max(float(ev.get("x", 0)), 0.0), 1.0) * vp["width"]
             y = min(max(float(ev.get("y", 0)), 0.0), 1.0) * vp["height"]
             if kind == "click":
@@ -312,6 +323,11 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     async def lifespan(_app: FastAPI):
         hub.loop = asyncio.get_running_loop()  # worker threads hand events to SSE via this loop
         yield
+        try:   # the dashboard is going away: so is the browser the session kept open
+            from ..tools.browser import close_kept
+            await asyncio.to_thread(close_kept, Path(hub.harness.session_dir))
+        except Exception:  # noqa: BLE001
+            pass
 
     app = FastAPI(title="jev-harness dashboard", docs_url=None, redoc_url=None, openapi_url=None,
                   lifespan=lifespan)

@@ -60,7 +60,7 @@ A plain YAML file in `personas/learned/` (gitignored), loaded beside the hand-wr
 straight away, so it can be tried in use, but fenced:
 
 - `draft: true`, shown as a draft in the CLI, the dashboard and the persona picker.
-- `mcp: []`, `can_request: []`, `tools: persona_creation.tools` (empty by default), `max_steps: 30`,
+- `mcp: []`, `can_request: []`, `tools: persona_creation.tools` (empty by default), `max_steps: 80`,
   the default persona's model.
 - No `skills_allowed` globs: the skill that made it is **owned** by it (`owner:` in the skill's
   frontmatter, `Persona.offered_skill`). An owned skill is offered to its owner only, so it leaves

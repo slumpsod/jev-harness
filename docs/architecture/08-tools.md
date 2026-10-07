@@ -62,6 +62,40 @@ with two nouls (`shows ≥ .55` and `holds ≥ .6`) and reports JS and console e
 dashboard's "Watch browser" on, the browser runs with a CDP port (`JEVH_BROWSER_DOCK`), and the
 dashboard mirrors it and passes the user's clicks back ([10](10-observability.md)).
 
+**A watched browser is the user's own Chrome** (or Edge), not Playwright's headless Chromium. Sites that sign people
+in refuse the automated one: Playwright's headless browser says `HeadlessChrome` in its user agent, has
+`navigator.webdriver` on and no `window.chrome`, and Google answers a sign-in from it with "this browser or app may not
+be secure" (Facebook is similar). So a watched session (a window, or docked) starts the installed Chrome normally
+(`tools/browser.py` `chrome_args`: its own debugging port and profile folder, no `--headless`, no
+`--enable-automation`, the real user agent; docked, the window is placed off every screen and kept painting) and
+attaches to it with `connect_over_cdp`. It is the same browser the user would open by hand, so they sign in on it
+themselves through the Browser panel (the model never types a password), and its profile (`browser-profile/chrome/`,
+when `browser_mode()` asked to stay signed in) keeps them signed in. Nothing is spoofed or patched; if a service still
+refuses it, the fallback is the user's own browser (`open_page(url)`). `JEVH_BROWSER_EXE` names another program,
+`JEVH_BROWSER_REAL=0` goes back to the bundled Chromium, which is also what is used when no Chrome is installed or the
+one found will not start (a profile already open in another Chrome, a root container). Headless runs (the evals, the
+final() gate's page check) are unchanged.
+
+**Forms on big consoles (Google Cloud's consent screen, 2026-10-05).** A live Gmail setup showed what a `do()` over a
+long form needs, and `tests/test_browser.py` replays it on `evals/browser_site/consent.html`:
+
+- *A value never goes into a site-wide search box.* Elements inside a header, nav, footer or search landmark carry
+  `nav`; the "one value, one empty field" fallback ignores them (it typed "User support email" into the console's header
+  search and left the form). A value also is not typed into a field that already holds something while the value belongs
+  to another control, and the same text is not typed again into a field that holds it.
+- *Custom dropdowns.* A control that opens a menu of `role=option` items (not a `<select>`) is filled by label like a
+  text field (`values={"User support email": "..."}`), and `browser.select(i, option)` opens it and clicks the
+  option, or says which options the menu has.
+- *Links that lead away.* "Skip to main content", "Learn more", help and feedback links are not offered to Jev unless
+  the goal names them; while values are being filled in, the site's own navigation is not offered either, and a click that
+  nevertheless left for another site goes back (and is noted in `actions`).
+- *Numbers follow controls.* Every look at the page (`read()`, a `do()`) renumbers the elements, so `click(i)`,
+  `fill(i, ...)`, `select(i, ...)` find the control the worker was shown (by kind, label and context) before acting, or
+  say "call browser.elements() again" when it is gone or there are several.
+- *Later turns.* `nango.browser_mode()` leaves `browser-mode.json` in the session folder; the next turns' browsers start
+  docked with the same profile (their REPL is a new process: before, the browser came up signed out on a blank page).
+  The watched Chrome is closed with a `Browser.close`, which makes Chrome write its cookies out.
+
 ## web.ask(question)
 
 ```mermaid

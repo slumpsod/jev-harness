@@ -29,7 +29,7 @@ def test_scoring_tells_right_from_wrong_from_unsure_and_ambiguous_sessions_accep
 
 
 def test_every_case_is_about_an_assistant_the_harness_ships_and_is_well_formed():
-    shipped = set(load_personas(load_config().personas_dirs, []))
+    shipped = {p.stem for p in (ROOT / "personas").glob("*.yaml")}   # the shipped ones, not the learned or home personas on this machine
     cases = sc.TUNING + sc.HELD + sc.HARD
     assert len(sc.TUNING) >= 50 and len(sc.HELD) >= 25 and len(sc.HARD) >= 20
     for reqs, want in cases:
@@ -42,7 +42,7 @@ def test_the_saved_scores_give_the_numbers_the_docs_quote_at_the_shipped_thresho
     saved = json.loads(sc.RAW.read_text(encoding="utf-8"))
     at = settings(load_config().raw)["min_confidence"]
     assert {k: len(v) for k, v in saved.items()} == {"tuning": 51, "held": 27, "hard": 23}
-    shipped = set(load_personas(load_config().personas_dirs, []))
+    shipped = {p.stem for p in (ROOT / "personas").glob("*.yaml")}   # the shipped ones, not the learned or home personas on this machine
     assert all(set(r["probs"]) == shipped for rows in saved.values() for r in rows)               # scored over today's assistants
     total = [sc.evaluate(rows, at) for rows in saved.values()]
     assert at == 0.6 and sum(e["wrong"] for e in total) == 0 and sum(e["right"] for e in total) == 99

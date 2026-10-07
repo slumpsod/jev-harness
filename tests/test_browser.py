@@ -524,3 +524,345 @@ def test_a_search_the_site_throws_away_is_reported_as_blocked(session, site):
     r = session.do("search for stays in Denver", {"destination": "Denver"})
     assert r["status"] == "blocked" and "threw the search away" in r["note"], r
     assert session.goto(site + "search.html?q=mug&page=2")["status"] == "done"     # a kept search is fine
+
+
+# ---- the watched browser is the user's own Chrome (Google and Facebook refuse Playwright's headless Chromium)
+
+def test_the_chrome_the_harness_starts_carries_nothing_that_marks_it_as_automated():
+    from jevh.tools.browser import chrome_args
+    docked = chrome_args(9333, "/tmp/p", (1280, 1000), offscreen=True)
+    shown = chrome_args(9333, "/tmp/p", (1280, 1000), offscreen=False)
+    for args in (docked, shown):
+        assert "--remote-debugging-port=9333" in args and "--user-data-dir=/tmp/p" in args
+        assert not any(a.startswith(("--headless", "--enable-automation", "--user-agent", "--disable-blink-features")) for a in args)
+    assert "--window-position=-32000,-32000" in docked                       # docked: the window sits where no screen is
+    assert not any(a.startswith("--window-position") for a in shown)         # a window the user asked to watch is on screen
+    assert "--disable-features=CalculateNativeWinOcclusion" in docked        # ...and is kept painting for the dashboard
+
+
+def test_the_chrome_to_use_can_be_named_and_a_missing_one_is_none(tmp_path, monkeypatch):
+    from jevh.tools.browser import find_chrome
+    exe = tmp_path / "chrome.exe"
+    exe.write_text("")
+    monkeypatch.setenv("JEVH_BROWSER_EXE", str(exe))
+    assert find_chrome() == str(exe)
+    monkeypatch.setenv("JEVH_BROWSER_EXE", str(tmp_path / "nope.exe"))
+    assert find_chrome() is None
+
+
+def test_a_chrome_that_will_not_start_falls_back_to_the_bundled_browser(tmp_path, monkeypatch, capfd):
+    """JEVH_BROWSER_EXE is a program that exits at once (python, given Chrome's flags): the session still comes up."""
+    import sys
+    from concurrent.futures import ThreadPoolExecutor
+    monkeypatch.setenv("JEVH_BROWSER_DOCK", str(tmp_path))
+    monkeypatch.setenv("JEVH_BROWSER_EXE", sys.executable)
+    own = ThreadPoolExecutor(1)
+    run = lambda fn: own.submit(fn).result(90)  # noqa: E731
+    try:
+        s = run(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16))
+    except Exception as e:  # noqa: BLE001 - no Chromium in this environment
+        pytest.skip(f"chromium unavailable: {e}")
+    try:
+        assert not s.real and "using the bundled Chromium" in capfd.readouterr().err
+        assert run(lambda: s.page.evaluate("1 + 1")) == 2
+    finally:
+        run(s.close)
+
+
+def test_a_watched_browser_is_an_ordinary_chrome_to_the_sites_it_visits(tmp_path, monkeypatch, capfd):
+    """Live where Chrome is installed: not headless, no webdriver flag, and it closes with the session."""
+    from concurrent.futures import ThreadPoolExecutor
+    from jevh.tools.browser import find_chrome
+    if not find_chrome():
+        pytest.skip("no Chrome or Edge installed")
+    monkeypatch.setenv("JEVH_BROWSER_DOCK", str(tmp_path))
+    own = ThreadPoolExecutor(1)
+    run = lambda fn: own.submit(fn).result(90)  # noqa: E731
+    s = run(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16, profile=str(tmp_path / "profile")))
+    try:
+        if not s.real and "could not use" in capfd.readouterr().err:
+            pytest.skip("this Chrome was tried and would not start here (a sandbox or a root container?)")
+        assert s.real                                                        # (not tried at all would be a bug, not a skip)
+        seen = run(lambda: s.page.evaluate("({wd: navigator.webdriver, ua: navigator.userAgent, chrome: typeof window.chrome})"))
+        assert seen["wd"] is False and "Headless" not in seen["ua"] and seen["chrome"] == "object"
+        assert (tmp_path / "profile" / "chrome").is_dir()                    # the profile that keeps the user signed in
+        proc = s._proc
+    finally:
+        run(s.close)
+    assert proc.poll() is not None and not list(tmp_path.glob("*.json"))     # Chrome left with the session
+
+    monkeypatch.setenv("JEVH_BROWSER_REAL", "0")                             # the switch back to the bundled Chromium
+    s = run(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16))
+    try:
+        assert not s.real and run(lambda: s.page.evaluate("navigator.webdriver")) is True
+    finally:
+        run(s.close)
+
+
+def test_a_chrome_left_behind_by_a_stopped_task_is_closed_before_the_next_one_starts(tmp_path, monkeypatch):
+    """Live (2026-10-05): a stopped task left its Chrome open on the profile; the next launch handed its page to that Chrome
+    and exited, so the session fell back to the bundled browser."""
+    from concurrent.futures import ThreadPoolExecutor
+    from jevh.tools.browser import find_chrome
+    if not find_chrome():
+        pytest.skip("no Chrome or Edge installed")
+    monkeypatch.setenv("JEVH_BROWSER_DOCK", str(tmp_path / "dock"))
+    prof = str(tmp_path / "profile")
+    first, second = ThreadPoolExecutor(1), ThreadPoolExecutor(1)
+    s1 = first.submit(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16, profile=prof)).result(90)
+    if not s1.real:
+        pytest.skip("this Chrome would not start here")
+    old = s1._proc
+    s2 = None
+    try:                                                                     # s1 is never closed: its task was stopped
+        s2 = second.submit(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16, profile=prof)).result(90)
+        assert s2.real and old.poll() is not None                            # the old Chrome was asked to close; the new one runs
+        assert second.submit(lambda: s2.page.evaluate("navigator.webdriver")).result(30) is False
+    finally:
+        if s2 is not None:
+            second.submit(s2.close).result(60)
+        if old.poll() is None:
+            old.kill()
+
+
+# ---- a form like Google Cloud's consent screen (evals/browser_site/consent.html): the 2026-10-05 session's failures
+
+def _consent(session, site, jev):
+    session.jev = jev
+    session.goto(site + "consent.html")
+    return session
+
+
+def test_values_reach_their_fields_and_a_custom_dropdown_and_nothing_wanders(session, site):
+    s = _consent(session, site, scripted("button 'Next'", "audience"))
+    r = s.do("fill in the app information and continue",
+             values={"App name": "Jev harness", "User support email": "jed@example.com"})
+    assert r["status"] == "done", r
+    assert s.page.evaluate("window.picked") == "jed@example.com"             # the custom dropdown was opened and its option clicked
+    assert s.page.url.endswith("consent.html#audience")                        # ...and Next moved the form on
+    assert not any("Skip to main" in h or "Learn more" in h or "another site" in h for h in r["actions"]), r["actions"]
+    s.goto(site + "consent.html")
+    assert s.page.input_value("#gs") == "" and s.page.input_value("#appname") == ""   # the header search got nothing
+
+
+def test_a_value_is_never_typed_into_a_site_wide_search_box(session, site):
+    """Live: do(values={"User support email": ...}) typed it into Google Cloud's header search and left the form."""
+    s = _consent(session, site, scripted("nothing at all", "never"))
+    s.page.evaluate("document.getElementById('appname').value = 'x'; document.getElementById('email').remove()")
+    r = s.do("set the contact", values={"Mood": "cheerful"})                   # matches no control; one empty box: the header's
+    assert s.page.input_value("#gs") == "", r["actions"]
+
+
+def test_a_filled_field_does_not_take_the_value_meant_for_another_control(session, site):
+    s = _consent(session, site, scripted("text field 'App name'", "never"))   # Jev keeps wanting the App name field
+    r = s.do("set the app information", values={"App name": "Jev harness", "User support email": "jed@example.com"})
+    assert s.page.input_value("#appname") == "Jev harness", r["actions"]       # (it was typed over with the email before)
+    typed = [h for h in r["actions"] if h.startswith("typed into text field 'App name'")]
+    assert not typed, r["actions"]                                             # (not the email, and not the same name again)
+
+
+def test_skip_links_and_learn_more_are_not_offered_and_a_link_that_leaves_the_site_goes_back(session, site):
+    s = _consent(session, site, scripted("link 'Documentation'", "never"))   # Jev wants to follow a documentation link
+    r = s.do("fill in the app name", values={"App name": "Jev harness"})
+    assert "it led to another site, so it went back" in " ".join(r["actions"]), r["actions"]
+    assert s.page.url.startswith(site) and "consent.html" in s.page.url        # back on the form, not on the help page
+    s = _consent(session, site, scripted("link 'Skip to main content'", "never"))
+    r = s.do("fill in the app name", values={"App name": "Jev harness"})
+    assert not any("Skip to main" in h for h in r["actions"]), r["actions"]
+    # a goal that names the link still gets it
+    s = _consent(session, site, scripted("link 'Learn more'", "help.html"))
+    r = s.do("click Learn more")
+    assert r["status"] == "done" and "help.html" in r["url"], r
+
+
+def test_a_worker_click_follows_the_control_it_was_shown_when_the_numbers_move(session, site):
+    s = _consent(session, site, scripted("none", "never"))
+    nxt = _num(s.elements("Next"), "Next")
+    s.page.evaluate("document.body.insertAdjacentHTML('afterbegin', '<button id=extra>Extra</button>')")   # renumbers the page
+    s.read()                                                                  # (every look at the page renumbers it)
+    r = s.click(nxt)
+    assert r["status"] == "done" and s.page.url.endswith("#audience"), r      # it was Next that was clicked, not the new button
+    s.goto(site + "consent.html")
+    gone = _num(s.elements("Next"), "Next")
+    s.page.evaluate("document.getElementById('next').remove()")
+    with pytest.raises(ValueError, match="it is gone.*browser.elements"):
+        s.click(gone)
+
+
+def test_select_opens_a_custom_dropdown_and_names_the_options_it_has(session, site):
+    s = _consent(session, site, scripted("none", "never"))
+    i = _num(s.elements("User support email"), "User support email")
+    r = s.select(i, "team@example.com")
+    assert r["status"] == "done" and s.page.evaluate("window.picked") == "team@example.com", r
+    r = s.select(_num(s.elements("User support email"), "User support email"), "nobody@example.com")
+    assert r["status"] == "error" and "jed@example.com | team@example.com" in r["note"], r
+
+
+def test_a_value_that_could_not_be_placed_is_not_typed_into_the_field_already_filled(session, site):
+    """Live: "User support email" went into the filled "App name". Here the dropdown has no such option, so the value is left
+    over, and Jev (asked which value goes in the App name box) names it."""
+    def rules(k, q, s):
+        if q["type"] == "choice":
+            crit = q["criteria"]
+            hit = next((key for key, d in crit.items() if d and "value 'User support email'" in d), None) or \
+                next((key for key, d in crit.items() if d and "text field 'App name'" in d), None)
+            return choice_ans(hit or "none", 0.9, crit)
+        if q["type"] == "noul":
+            return noul_ans(0.02)
+    s = _consent(session, site, FakeSystemOne(rules))
+    r = s.do("set the app information", values={"App name": "Jev harness", "User support email": "nobody@example.com"})
+    assert s.page.input_value("#appname") == "Jev harness", r["actions"]
+    assert any("failed: it has no option 'nobody@example.com'" in h for h in r["actions"]), r["actions"]   # said, not hidden
+
+
+def test_a_login_survives_closing_the_watched_browser_and_opening_it_again(tmp_path, monkeypatch, site):
+    """Live (2026-10-05): the second turn's browser came up signed out. Chrome writes its cookies out when it is asked to
+    close; ending the process loses the newest."""
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from jevh.tools.browser import find_chrome
+    if not find_chrome():
+        pytest.skip("no Chrome or Edge installed")
+    monkeypatch.setenv("JEVH_BROWSER_DOCK", str(tmp_path / "dock"))
+    prof = str(tmp_path / "profile")
+    own = ThreadPoolExecutor(1)
+    run = lambda fn: own.submit(fn).result(90)  # noqa: E731
+    s = run(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16, profile=prof))
+    if not s.real:
+        pytest.skip("this Chrome would not start here")
+    run(lambda: s.page.goto(site + "login.html"))
+    run(lambda: s.context.add_cookies([{"name": "sid", "value": "signed-in", "url": site, "expires": time.time() + 86400}]))
+    run(s.close)
+    s = run(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16, profile=prof))
+    try:
+        assert s.real
+        run(lambda: s.page.goto(site + "login.html"))
+        assert [c["value"] for c in run(lambda: s.context.cookies()) if c["name"] == "sid"] == ["signed-in"]
+    finally:
+        run(s.close)
+
+
+def test_a_click_goal_is_done_once_its_control_was_clicked(session, site):
+    """Live (2026-10-06, Google Cloud's consent form): "click Next ... to go to Audience" clicked Next, then - its done check
+    unconvinced - clicked the Internal radio and the sidebar's "Audience, 3 of 7" link, which threw the form away."""
+    def rules(k, q, s):   # a Jev that never sees the goal as met, and likes "Audience" and the radios
+        if q["type"] == "choice":
+            crit = q["criteria"]
+            pref = ("radio 'Internal'", "link 'Audience, 3 of 7'", "button 'Next'")
+            hit = next((key for p in pref for key, d in crit.items() if d and p in d), "none")
+            return choice_ans(hit, 0.9, crit)
+        if q["type"] == "noul":
+            return noul_ans(0.95 if k == "wanted" else 0.02)
+    s = _consent(session, site, FakeSystemOne(rules))
+    s.page.fill("#appname", "Jev harness")
+    r = s.do("click Next under the App Information section to go to Audience")
+    assert r["status"] == "done" and r["actions"] == ["clicked button 'Next'"], r
+    assert s.page.url.endswith("consent.html#audience") and s.page.evaluate("window.audience") is None
+
+
+def test_the_label_a_click_goal_names():
+    from jevh.tools.browser import click_label
+    assert click_label("click Next under the App Information section to go to Audience") == "Next"
+    assert click_label("click the Enable button for the Gmail API if not already enabled") == "Enable"
+    assert click_label("Click the “Save and continue” button") == "Save and continue"
+    assert click_label("click Get started to begin the OAuth consent screen setup") == "Get started"
+    assert click_label("open the shopping cart") is None and click_label("go to page 3 of the job listings") is None
+
+
+def _jev(prefer, nouls=None):
+    """A Jev whose Choice takes the first option in `prefer` that is offered; nouls by key (default 0.02, "wanted" 0.95)."""
+    nouls = {"wanted": 0.95, **(nouls or {})}
+
+    def rules(k, q, s):
+        if q["type"] == "choice":
+            crit = q["criteria"]
+            hit = next((key for p in prefer for key, d in crit.items() if d and p in d), "none")
+            return choice_ans(hit, 0.9, crit)
+        if q["type"] == "noul":
+            return noul_ans(nouls.get(k, 0.02))
+    return FakeSystemOne(rules)
+
+
+def _to_audience(s):
+    s.page.fill("#appname", "Jev harness")
+    s.page.click("#next")
+
+
+def test_the_side_menu_is_not_followed_while_a_form_is_being_filled_in(session, site):
+    """Live (2026-10-07): "select the 'External' audience option" (no values) clicked the side menu's "Audience, 3 of 7"
+    - the goal shares the word "audience" - and the form was thrown away."""
+    s = _consent(session, site, _jev(["link 'Audience, 3 of 7'", "radio 'External'"]))
+    _to_audience(s)
+    r = s.do("select the 'External' audience option")
+    assert r["actions"] == ["clicked radio 'External'"] and s.page.evaluate("window.audience") == "external", r
+    assert "consent.html" in s.page.url
+    s = _consent(session, site, _jev(["link 'Audience, 3 of 7'"]))           # a goal that names the menu link still gets it
+    r = s.do("open Audience")
+    assert r["actions"] == ["clicked link 'Audience, 3 of 7'"], r
+
+
+def test_a_button_the_goal_names_is_clicked_even_when_jev_thinks_the_form_is_not_ready(session, site):
+    """Live: on the Audience step Jev's "is the form filled in yet?" held Next back, and with Next gone it clicked the
+    Internal radio instead."""
+    s = _consent(session, site, _jev(["button 'Next'", "radio 'Internal'"], {"pending": 0.95}))
+    _to_audience(s)
+    s.page.click("text=External")
+    r = s.do("click Next to go to the Contact Information step")
+    assert r["actions"] == ["clicked button 'Next'"] and s.page.url.endswith("#contact"), r
+    assert s.page.evaluate("window.audience") == "external"                  # not flipped to Internal
+
+
+def test_a_click_goal_never_falls_back_to_other_controls(session, site):
+    s = _consent(session, site, _jev(["button 'Next'", "radio 'Internal'"]))
+    _to_audience(s)
+    s.page.evaluate("document.getElementById('next2').onclick = () => {}")   # Next does nothing: the form wants something
+    r = s.do("click Next to go to the Contact Information step")
+    assert r["status"] == "stuck" and "'Next' was clicked and nothing changed" in r["note"], r
+    assert s.page.evaluate("window.audience") is None and all("Internal" not in h for h in r["actions"]), r
+
+
+def test_a_checkbox_whose_label_holds_a_link_is_ticked_not_the_link_followed(session, site):
+    """Live: "I agree to the Google API Services: User Data Policy." - a click in the label's middle opened the policy."""
+    s = _consent(session, site, _jev(["checkbox 'I agree"]))
+    s.page.evaluate("['s1','s2','s3'].forEach(id => document.getElementById(id).hidden = true); document.getElementById('s4').hidden = false")
+    r = s.do("check the box to agree to the User Data Policy")
+    assert s.page.is_checked("#agree") and "consent.html" in s.page.url, r
+
+
+def test_a_docked_browser_stays_open_between_the_turns_of_a_dashboard_session(tmp_path, site):
+    """Live (2026-10-07): a task ran out of steps one click before the end of Google's consent form and told the user to
+    finish it in the Browser panel - but the browser closed with the task, and the next turn started on about:blank."""
+    import json
+    import os
+    import subprocess
+    import sys
+    from jevh.tools.browser import _alive, close_kept, find_chrome
+    from jevh.web.server import BrowserDock
+    if not find_chrome():
+        pytest.skip("no Chrome or Edge installed")
+    turn = str(Path(__file__).with_name("keep_turn.py"))
+    sess = tmp_path / "20991231-000000-test"
+    dock = sess / "browsers"
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    t1 = subprocess.Popen([sys.executable, turn, str(dock), "1", site], stdout=subprocess.PIPE, text=True, env=env)
+    try:
+        first = t1.stdout.readline().split()
+        if first[:2] != ["TURN1", "True"]:
+            pytest.skip("this Chrome would not start here")
+        port = json.loads((sess / "browser-kept.json").read_text())["port"]
+    finally:   # the task is stopped: its whole process tree is ended, as repl/client.py does
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(t1.pid)], capture_output=True)
+        else:
+            t1.kill()
+        t1.wait(30)
+    try:
+        assert _alive(port)                                                    # the browser outlived the task
+        f = BrowserDock(lambda: dock).frame()
+        assert f and f["url"].endswith("consent.html")                         # ...and the dashboard still shows it
+        out = subprocess.run([sys.executable, turn, str(dock), "2"], capture_output=True, text=True, env=env, timeout=120)
+        assert out.stdout.split() == ["TURN2", "True", "consent.html", "kept", "across", "turns"], out.stderr[-600:]
+        assert _alive(port)                                                    # a turn that ends normally leaves it too
+    finally:
+        assert close_kept(sess)                                                # the session ends: the browser goes
+    assert not _alive(port) and not (sess / "browser-kept.json").exists() and not list(dock.glob("*.json"))
