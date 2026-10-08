@@ -50,6 +50,10 @@ unknown, not as the model's maximum. Left out: a disk cache, the other servers' 
 
 First match wins; the code is `OpenAICompat.window()` (`llm.py`):
 
+0. **A llama.cpp server** (any provider without the LM Studio gate that answers `GET /props`; added 2026-10-07 when Jed
+   moved Qwen to llama-server): `default_generation_settings.n_ctx`, what one slot can use (76,032 for `-c 76000`, 2 slots,
+   unified KV), via `context.server_props()`, 2 s timeout, reused for 10 s. It wins over `context_length`: it is what each
+   request can really use, so the reason to override (a split KV cache) does not apply. `context.detect: false` turns it off.
 1. **`context_length` in config**, in the model's block (a persona's `model:`, `models.fast`) or its provider. It tells the
    harness what to assume. It does not change what LM Studio loads.
 2. **LM Studio**, for a provider with `exclusive: true` (the one the gate manages), unless `context.detect: false`:
@@ -134,8 +138,9 @@ compact = max(2048, min(window × compact_at, window − room))      compact_at 
 
 ## Other servers
 
-vLLM (`max_model_len` in `GET /v1/models`), llama.cpp (`/props`) and hosted models are not asked: nothing here runs them, and a
-wrong number would set the limit wrong. Give such a model `context_length` in its block or provider. Adding a probe means a
+vLLM (`max_model_len` in `GET /v1/models`) and hosted models are not asked: nothing here runs them, and a
+wrong number would set the limit wrong. (llama.cpp is: see above. The Status panel shows such a server as its own card,
+marked "used by the harness" when the config's models run on it; LM Studio's card then says it is not used.) Give such a model `context_length` in its block or provider. Adding a probe means a
 `window()` on its client and a live check beside `evals/bench/context_detect.py`.
 
 ## Checks

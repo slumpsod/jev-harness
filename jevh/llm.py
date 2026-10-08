@@ -187,8 +187,13 @@ class OpenAICompat:
         self.native_tools = False        # provider/persona native_tools: true -> tools= in chat()
 
     def window(self) -> Window | None:
-        """The model's context window: what config says, else what LM Studio loaded it with (jevh/context.py).
-        None when nothing can tell (not LM Studio, detection off, LM Studio unreachable)."""
+        """The model's context window (jevh/context.py): what a llama.cpp server was started with, else what config
+        says, else what LM Studio loaded it with. None when nothing can tell (detection off, the server unreachable)."""
+        if self.gate is None:
+            from . import context as ctxwin
+            props = ctxwin.server_props(self.base_url) if ctxwin.DETECT["on"] else None
+            if props:
+                return Window(props["context"], "llama.cpp", True, None, props.get("slots"))
         if self.context_length:
             return Window(int(self.context_length), "config")
         info = self.gate.model_info(self.model) if self.gate is not None else None

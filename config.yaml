@@ -224,6 +224,13 @@ tools:
   comfy_workflows: C:/Comfyui workflows
   tools_jev: local            # browser/web/project decisions: local (the adapter above) | cloud (TYPESAFE_API_KEY)
   browser_watch: false        # true: the browser tool opens a visible window with Jev's picks outlined
+  # Bot checks (Cloudflare "Just a moment", "Press & Hold", captchas, sites refusing a browser's requests) STOP the
+  # browser tool: it reports "blocked" and hands the page to you. browser_bot_check is the switch for ALL sites:
+  #   false (the default): they stop it nowhere, e.g. to test a site that sits behind one. It only stops the tool from
+  #          stopping: nothing here gets past a check, so a real challenge still needs a person.
+  #   true: they stop it on every site.
+  # Turn it on in config.local.yaml or ~/.jevh/config.yaml, not here. Takes effect for the next task.
+  browser_bot_check: false
   # nango: the user's connected accounts (Gmail, GitHub, Slack...). Needs NANGO_SECRET_KEY; see SETUP.md.
   # nango_url: https://api.nango.dev   # (default) Nango Cloud; on this machine (nango/docker-compose.yaml): http://localhost:3003
   nango_writes: ask           # changes (send, create, edit, delete): ask the user | deny | allow

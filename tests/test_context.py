@@ -447,3 +447,58 @@ def test_the_shipped_config_sets_the_context_block_and_keeps_compact_tokens_as_t
     s = ctxwin.settings(cfg.raw)
     assert s == ctxwin.DEFAULTS and 0 < s["compact_at"] < 1
     assert cfg.providers["lmstudio"]["exclusive"] and cfg.lim("compact_tokens") == 60000
+
+
+# ---- a llama.cpp server is asked what it was started with (GET /props) ----------------------------------------------
+
+@pytest.fixture
+def llama_server():
+    """A stand-in llama-server: /props as b11451 answers it (trimmed), and /v1 beside it."""
+    import http.server
+    props = {"default_generation_settings": {"n_ctx": 76032}, "total_slots": 2, "model_alias": "qwen3.8-27b",
+             "model_path": "C:\\models\\Qwen3.8-27B-UD-Q5_K_M.gguf", "build_info": "b11451-2207c8e57"}
+    asked = []
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            asked.append(self.path)
+            body = json.dumps(props).encode() if self.path == "/props" else b'{"error": "Unexpected endpoint"}'
+            self.send_response(200 if self.path == "/props" else 404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    ctxwin._PROPS.clear()
+    yield SimpleNamespace(url=f"http://127.0.0.1:{srv.server_address[1]}/v1", asked=asked, props=props)
+    srv.shutdown()
+    ctxwin._PROPS.clear()
+
+
+def test_a_llama_cpp_server_says_what_it_was_started_with_and_that_wins_over_config(llama_server):
+    """Live (2026-10-07): the harness ran on llama-server -c 76000 (76,032 per slot) while the config said 76000 and
+    the dashboard showed only LM Studio's 100,096."""
+    info = ctxwin.server_props(llama_server.url)
+    assert info == {"context": 76032, "slots": 2, "model": "qwen3.8-27b", "file": "Qwen3.8-27B-UD-Q5_K_M.gguf",
+                    "build": "b11451-2207c8e57"}
+    llm = OpenAICompat(llama_server.url, "qwen3.8-27b", context_length=76000)
+    assert llm.window() == Window(76032, "llama.cpp", True, None, 2)
+    llm.window()
+    assert llama_server.asked.count("/props") == 1                            # reused for PROPS_TTL seconds
+    ctxwin.DETECT["on"] = False                                                # context.detect: false -> config only
+    try:
+        ctxwin._PROPS.clear()
+        assert llm.window() == Window(76000, "config")
+    finally:
+        ctxwin.DETECT["on"] = True
+
+
+def test_a_server_that_is_not_llama_cpp_or_is_down_leaves_the_config_value(llama_server):
+    llama_server.props["default_generation_settings"] = {}                    # answers, but says nothing useful
+    assert OpenAICompat(llama_server.url, "m", context_length=32768).window() == Window(32768, "config")
+    ctxwin._PROPS.clear()
+    assert ctxwin.server_props("http://127.0.0.1:9/v1", timeout=0.5) is None   # nothing listens there
+    assert OpenAICompat("http://127.0.0.1:9/v1", "m").window() is None

@@ -11,9 +11,12 @@ loaded with, and condenses older steps (worker._compact) once the prompt is `com
 
 Where a model's window comes from, first match wins:
 
+  0. A llama.cpp server (llama-server; any other OpenAI-style server that answers GET /props the same way): what it was
+     started with, per slot (`default_generation_settings.n_ctx`; 76,032 for `-c 76000` with 2 slots and a unified KV
+     cache), reused for 10 s. It wins over `context_length`, because it is what each request can really use.
   1. `context_length` in the model's block (a persona's `model:`, `models.fast`) or in its provider: what to assume.
      It tells the harness; it does not change what LM Studio loads. Use it where nothing can be asked (vLLM,
-     llama.cpp, OpenAI), or to hold a model to less than it is loaded with.
+     OpenAI), or to hold a model to less than it is loaded with.
   2. LM Studio (a provider with `exclusive: true`): GET /api/v1/models, loaded_instances[].config.context_length.
      A model that is not loaded yet has no window until LM Studio loads it (what it loads with is LM Studio's own
      default for that model): until then limits.compact_tokens stands. The answer is reused for 10 s, so a model
@@ -39,6 +42,9 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 DEFAULTS = {"detect": True, "compact_at": 0.6, "min": 16384}
+DETECT = {"on": True}   # context.detect, for servers that have no gate (llama.cpp): set by configure()
+_PROPS: dict[str, tuple[float, dict[str, Any] | None]] = {}   # server root -> (when asked, what it said)
+PROPS_TTL = 10.0
 MIN_COMPACT = 2048   # never condense below this (a window this small cannot run the harness anyway)
 
 
@@ -50,7 +56,7 @@ def settings(raw: dict[str, Any] | None) -> dict[str, Any]:
 class Window:
     """What a model client knows about its model's context."""
     tokens: int | None            # what one request can use; None: not known (yet)
-    source: str                   # "lmstudio" (asked) | "config" (told)
+    source: str                   # "lmstudio" | "llama.cpp" (asked) | "config" (told)
     loaded: bool = True           # lmstudio: False while LM Studio has not loaded the model
     max: int | None = None        # the most the model itself supports (lmstudio)
     parallel: int | None = None   # the loaded instance's parallel slots (lmstudio)
@@ -96,10 +102,41 @@ def configure(cfg) -> dict[str, Any]:
     """Apply `context.detect` to every LM Studio gate (Harness and `jevh context` both call it). -> the settings."""
     from .lmstudio import gate_for
     s = settings(cfg.raw)
+    DETECT["on"] = bool(s["detect"])
     for prov in cfg.providers.values():
         if prov.get("exclusive") and prov.get("base_url"):
             gate_for(prov["base_url"]).detect = bool(s["detect"])
     return s
+
+
+def server_root(base_url: str) -> str:
+    """http://127.0.0.1:8080/v1 -> http://127.0.0.1:8080 (llama-server answers /props beside /v1)."""
+    root = str(base_url or "").rstrip("/")
+    return root[:-3] if root.endswith("/v1") else root
+
+
+def server_props(base_url: str, timeout: float = 2.0, fresh: bool = False) -> dict[str, Any] | None:
+    """What a llama.cpp server says about itself (GET /props), cached PROPS_TTL seconds:
+    {context (per slot), slots, model (its alias), file, build}. None when it is not such a server or does not answer."""
+    import time
+    import urllib.request
+    from pathlib import PureWindowsPath
+    root = server_root(base_url)
+    hit = _PROPS.get(root)
+    if hit and not fresh and time.time() - hit[0] < PROPS_TTL:
+        return hit[1]
+    info = None
+    try:
+        with urllib.request.urlopen(root + "/props", timeout=timeout) as r:
+            d = json.loads(r.read())
+        n_ctx = int((d.get("default_generation_settings") or {}).get("n_ctx") or 0)
+        if n_ctx > 0:
+            info = {"context": n_ctx, "slots": d.get("total_slots"), "model": d.get("model_alias") or "",
+                    "file": PureWindowsPath(str(d.get("model_path") or "")).name, "build": d.get("build_info") or ""}
+    except (OSError, ValueError, TypeError):
+        info = None
+    _PROPS[root] = (time.time(), info)
+    return info
 
 
 # -- jevh context -------------------------------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 """The dashboard in a real browser, against the real server with scripted models (no LLM needed).
 Skipped when Playwright's Chromium isn't installed."""
 import glob
+import json
 import os
 import socket
 import threading
@@ -401,3 +402,55 @@ def _history(page, dashboard):
     page.click('[data-h="back"]')
     page.wait_for_selector("#p-history .hgroup")
     assert page.inner_text("#ptitle") == "History" and not page.errors
+
+
+@pytest.fixture
+def llamacpp_dashboard(cfg, monkeypatch):
+    """The config puts every model on a llama.cpp server (as config.local.yaml does on Jed's machine)."""
+    from jevh import context as ctxwin
+    monkeypatch.setitem(cfg.providers, "llamacpp", {"type": "openai", "base_url": "http://127.0.0.1:8080/v1"})
+    monkeypatch.setitem(cfg.models, "strong", {"provider": "llamacpp", "model": "qwen3.8-27b"})
+    monkeypatch.setitem(cfg.models, "fast", None)
+    monkeypatch.setattr(ctxwin, "server_props", lambda url, **k: {"context": 76032, "slots": 2, "model": "qwen3.8-27b",
+                                                                    "file": "Qwen3.8-27B-UD-Q5_K_M.gguf", "build": "b11451"}
+                        if ":8080" in url else None)
+    yield from serve(cfg, REPLIES)
+
+
+def test_status_shows_the_llama_cpp_server_the_harness_runs_on(llamacpp_dashboard, browse):
+    browse(lambda page: _llamacpp(page, llamacpp_dashboard))
+
+
+def _llamacpp(page, dashboard):
+    page.goto(dashboard)
+    page.wait_for_function("document.getElementById('statmodel').textContent.includes('qwen3.8-27b')")
+    assert page.inner_text("#statmodel") == "qwen3.8-27b · 76.0k"             # the header names the server the harness uses
+    page.click("#stat")
+    page.wait_for_selector("#p-status .card h3:has-text('llama.cpp server')")
+    card = page.inner_text("#p-status .card:has(h3:has-text('llama.cpp server'))")
+    assert "used by the harness" in card.lower() and "76,032 context, 2 slots" in card
+    assert not page.errors
+
+
+def test_the_browser_panel_sends_a_press_and_its_release(dashboard, browse):
+    browse(lambda page: _hold_panel(page, dashboard))
+
+
+def _hold_panel(page, dashboard):
+    sent = []
+    page.route("**/api/browser/input**", lambda route: (sent.append(json.loads(route.request.post_data)["kind"]),
+                                                         route.fulfill(status=200, body='{"ok": true}')))
+    page.route("**/api/browser/frame**", lambda route: route.fulfill(     # as if a docked browser were up
+        status=200, body=b"", headers={"Content-Type": "image/jpeg", "X-Browser-Id": "t-1", "X-Page-Url": "about%3Ablank"}))
+    page.goto(dashboard)
+    page.click('#tabs [data-tab="browser"]')
+    page.wait_for_function("B.live === true")
+    box = page.locator("#screen").bounding_box()
+    page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    page.mouse.down()
+    page.wait_for_timeout(400)
+    page.mouse.move(box["x"] + box["width"] / 2 + 20, box["y"] + box["height"] / 2)
+    page.mouse.up()
+    page.wait_for_timeout(300)
+    assert sent[0] == "down" and sent[-1] == "up" and "click" not in sent, sent
+    assert not page.errors

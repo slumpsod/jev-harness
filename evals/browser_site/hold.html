@@ -1,0 +1,14 @@
+<!doctype html><html><head><title>Hold to confirm</title><style>button{font:16px sans-serif;padding:14px 22px;margin:8px}</style></head><body>
+<h1>Confirm your booking</h1>
+<!-- a hold-to-confirm button: it only counts once held for a full second (a click does nothing) -->
+<button id="confirm" type="button">Hold to confirm</button>
+<button id="del" type="button">Hold to delete account</button>
+<p id="said"></p>
+<script>
+  const hold = (id, done) => { let t0 = 0; const b = document.getElementById(id);
+    b.addEventListener('mousedown', () => { t0 = performance.now(); });
+    b.addEventListener('mouseup', () => { const ms = performance.now() - t0; window.lastHold = ms;
+      if (t0 && ms >= 1000) done(); t0 = 0; }); };
+  hold('confirm', () => { window.confirmed = true; document.getElementById('said').textContent = 'Confirmed'; });
+  hold('del', () => { window.deleted = true; });
+</script></body></html>
