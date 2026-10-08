@@ -197,3 +197,33 @@ def test_native_final_call_ends_the_task_and_unknown_calls_get_a_nudge(cfg):
     h.learning = False
     assert h.turn("weather in Salt Lake?", force="daily_assistant").answer == "Sunny, 72F."
     assert "<tool_call> text (weather) isn't run here" in llm.seen[1][-1]["content"]
+
+
+# ---- the browser's bot-check stop is off by default (no Playwright needed: runs on CI too) ----
+
+def test_bot_checks_are_off_by_default():
+    """Shipped config: the switch is off. Loaded without the setting, the tool stops nowhere."""
+    import os
+
+    import yaml
+    from jevh.config import ROOT
+    from jevh.tools import browser
+    assert yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))["tools"]["browser_bot_check"] is False
+    if not os.environ.get("JEVH_BROWSER_BOT_CHECK"):
+        assert browser.BOT_CHECK is False
+
+
+def test_bot_check_switch_defaults_off_and_only_an_explicit_on_turns_it_on():
+    from jevh.tools import browser
+    for on in ("1", "true", "on", "yes", "On", " TRUE "):
+        assert browser._bot_check(on) is True, on
+    for off in (None, "", "0", "false", "False", " off ", "no", "NO", "maybe", "2"):
+        assert browser._bot_check(off) is False, off
+
+
+def test_bot_check_exempt_is_everywhere_when_off_and_nowhere_when_on(monkeypatch):
+    from jevh.tools import browser
+    monkeypatch.setattr(browser, "BOT_CHECK", True)
+    assert not browser.bot_check_exempt("https://www.mysite.dev/x") and not browser.bot_check_exempt("https://friend.com/")
+    monkeypatch.setattr(browser, "BOT_CHECK", False)
+    assert browser.bot_check_exempt("https://friend.com/") and browser.bot_check_exempt("https://anything.example/a?b=1")

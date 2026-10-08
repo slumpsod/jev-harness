@@ -96,6 +96,28 @@ long form needs, and `tests/test_browser.py` replays it on `evals/browser_site/c
   docked with the same profile (their REPL is a new process: before, the browser came up signed out on a blank page).
   The watched Chrome is closed with a `Browser.close`, which makes Chrome write its cookies out.
 
+**Bot checks stop the tool only when you switch that on; it is off by default.** A page that reads like a bot check
+(`BOT_WALL`: "Just a moment...", "Press & Hold", "verify you are human", captcha...) is looked at 4 times 2 s apart, then
+`do()` and the direct actions answer `blocked`; a site turning away 3 of its own data requests (HTTP 403/429/435/456) is
+blocked too; `browser.hold()` refuses outright. On this experimental branch the model is no longer told to hand a bot check
+to the user or to stop: the tool guide (`jevh/tools/__init__.py`), the `blocked` note (`BLOCKED_NOTE`, now just "the site shows
+a bot check (...)"), `hold()`'s docstring, the refused-requests note and the thrown-away-search note (`STRIPPED_NOTE`, now
+just what the site did) carry no such instruction, so what the model does
+about a bot check is down to the model itself. One config setting (set it in `config.local.yaml` or `~/.jevh/config.yaml`) decides where
+this applies; it is `bot_check_exempt(url)` in `jevh/tools/browser.py`:
+
+- `tools.browser_bot_check` (default `false`) is the switch for **every** site. `true` means bot checks stop the tool on
+  every site; `false` (e.g. to test a site that sits behind a bot check) means no bot check stops the tool anywhere. It only
+  stops the tool from stopping: it does nothing to get past a check, so a real challenge still needs a person. Jev's
+  separate "something on the page blocks progress" question (`Q_BLOCKED`, before a task's first action) no longer counts a
+  bot check, captcha or "verify you are human" page as a blocker on this branch (a paywall or a no-permission page still
+  is), so it does not end `do()` on one either; the measurements are in the comment above `Q_BLOCKED`.
+
+It reaches a task's REPL only from config (`JEVH_BROWSER_BOT_CHECK`, always set by the orchestrator, so a variable left in
+the shell cannot change it; anything but an explicit on leaves the stop off) and is read once when the tool loads, so a
+change applies from the next task. It is a guard against mistakes, not a sandbox: code in the REPL could change it, as it
+could change anything in that process.
+
 ## web.ask(question)
 
 ```mermaid

@@ -896,7 +896,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
     <div class="topbar">
       <span class="sess" id="sess"></span>
       <span class="grow"></span>
-      <button class="stat" id="stat" type="button" title="LM Studio, Jev and ComfyUI: open Status" aria-label="Service status">
+      <button class="stat" id="stat" type="button" title="The model server, Jev and ComfyUI: open Status" aria-label="Service status">
         <i class="sdot" id="pill-lm"></i><i class="sdot" id="pill-jev"></i><i class="sdot" id="pill-comfy"></i><span id="statmodel"></span></button>
       <button type="button" class="flag" id="jotbtn" title="Jot down an idea or a problem (Notebook tab)"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">Jot</span></button>
       <button type="button" class="flag" id="flagbtn" title="Flag this session for review and say what went wrong"></button>
@@ -1228,7 +1228,7 @@ function renderCtx() {
 // the model's context window as the harness knows it (jevh/context.py): asked of LM Studio, or set in config
 function windowNote(c) {
   const n = (v) => Number(v).toLocaleString();
-  if (c.window) return `<div class="kv">Model window: <b>${n(c.window)}</b> tokens (${c.source === "lmstudio" ? "what LM Studio loaded it with" : "set in config"})${c.max && c.max > c.window ? `; the model supports up to ${n(c.max)}` : ""}.</div>`
+  if (c.window) return `<div class="kv">Model window: <b>${n(c.window)}</b> tokens (${c.source === "lmstudio" ? "what LM Studio loaded it with" : c.source === "llama.cpp" ? "what the llama.cpp server was started with" : "set in config"})${c.max && c.max > c.window ? `; the model supports up to ${n(c.max)}` : ""}.</div>`
     + (c.warn ? `<div class="kv warn">${esc(c.warn)}.</div>` : "");
   if (c.loaded === false) return `<div class="kv">Model window: not known yet, LM Studio has not loaded this model. The default limit applies until it does.</div>`;
   return "";
@@ -1318,7 +1318,22 @@ function flushTyped() { clearTimeout(B.timer); if (B.typed) { sendInput({kind: "
 const KEYS = new Set(["Enter", "Backspace", "Tab", "Escape", "Delete", "Home", "End", "PageUp", "PageDown",
   "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 const frac = (ev) => { const r = $("bframe").getBoundingClientRect(); return {x: (ev.clientX - r.left) / r.width, y: (ev.clientY - r.top) / r.height}; };
-$("screen").addEventListener("click", (ev) => { if (!B.live) return; $("screen").focus(); flushTyped(); sendInput({kind: "click", ...frac(ev)}); });
+// the press, the moves while it is held, the release: a click, a press-and-hold or a drag happen as you do them
+$("screen").addEventListener("pointerdown", (ev) => {
+  if (!B.live || ev.button !== 0) return;
+  ev.preventDefault(); $("screen").focus(); flushTyped();
+  B.down = true; B.moved = 0; sendInput({kind: "down", ...frac(ev)});
+});
+$("screen").addEventListener("pointermove", (ev) => {
+  if (!B.live || !B.down || ev.pointerType !== "mouse") return;   // (a finger moving is the panel scrolling)
+  const now = performance.now();
+  if (now - B.moved < 60) return;
+  B.moved = now; sendInput({kind: "move", ...frac(ev)});
+});
+const release = (ev) => { if (!B.down) return; B.down = false; sendInput({kind: "up", ...frac(ev)}); };
+$("screen").addEventListener("pointerup", release);
+$("screen").addEventListener("pointercancel", release);
+$("screen").addEventListener("pointerleave", release);
 $("screen").addEventListener("keydown", (ev) => {
   if (!B.live || ev.ctrlKey || ev.metaKey || ev.altKey) return;
   if (ev.key.length === 1) { B.typed += ev.key; clearTimeout(B.timer); B.timer = setTimeout(flushTyped, 150); ev.preventDefault(); }
@@ -2086,10 +2101,14 @@ async function refreshStatus() {
   let st;
   try { st = await api("/api/status"); } catch (e) { return; }
   const dot = (id, up, tip) => { const p = $(id); p.className = `sdot ${up ? "up" : "down"}`; p.title = tip; };
-  dot("pill-lm", st.lmstudio?.up, `LM Studio: ${st.lmstudio?.up ? (lmLoaded(st.lmstudio).join(", ") || "nothing loaded") : "down"}`);
+  const mine = (st.servers || []).find((s) => s.in_use);   // the harness's own model server, when it is not LM Studio
+  dot("pill-lm", mine ? mine.up : st.lmstudio?.up, mine ? `llama.cpp (${mine.name}): ${mine.up ? `${mine.model || "?"}, ${Number(mine.context || 0).toLocaleString()} context` : "down"}`
+    : `LM Studio: ${st.lmstudio?.up ? (lmLoaded(st.lmstudio).join(", ") || "nothing loaded") : "down"}`);
   dot("pill-jev", st.jev_adapter?.up && st.jev_backend?.up !== false, `Jev: ${st.jev_adapter?.up ? (st.jev_backend ? `${st.jev_backend.name} ${st.jev_backend.up ? "up" : "down"}` : "up") : "down"}`);
   dot("pill-comfy", st.comfyui?.up, `ComfyUI: ${st.comfyui?.up ? "up" : "down"}`);
-  $("statmodel").textContent = st.lmstudio?.up ? (lmLoaded(st.lmstudio, true).join(", ") || "no model loaded") : "LM Studio down";
+  // the model the harness runs on: a llama.cpp server when the config puts it there, else LM Studio's
+  $("statmodel").textContent = mine ? (mine.up ? `${mine.model || mine.name} · ${mine.context ? kfmt(mine.context) : "?"}` : `${mine.name} down`)
+    : st.lmstudio?.up ? (lmLoaded(st.lmstudio, true).join(", ") || "no model loaded") : "LM Studio down";
   if (S.tab !== "status") return;
   const svc = (name, s, extra = "") => `<div class="card"><h3>${name} <span class="badge ${s?.up ? "done" : "failed"}">${s?.up ? "up" : "down"}</span>${s?.ms != null ? `<span class="kv">${s.ms} ms</span>` : ""}</h3>${extra}${!s?.up && s?.error ? `<div class="kv">${esc(s.error)}</div>` : ""}</div>`;
   const gpus = (st.gpus || []).map((g) => `<div class="card gpu"><h3>GPU ${g.index} <span class="kv">${esc(g.name)}</span></h3>
@@ -2101,7 +2120,10 @@ async function refreshStatus() {
     <div class="kv">These couldn't be used, so the harness runs without them. Fix the file and start a new session.</div>
     <table><tr><th>what</th><th>problem</th></tr>${probs.map((p) => `<tr><td><b>${esc(p.kind)}</b> ${esc(p.name)}${p.path ? `<div class="kv">${esc(p.path)}</div>` : ""}</td><td>${p.skipped ? "" : '<span class="badge">loaded</span> '}${esc(p.error)}</td></tr>`).join("")}</table></div>` : "";
   $("p-status").innerHTML = `${versionCard()}${probCard}<div class="grid2">
-    ${svc("LM Studio", st.lmstudio, st.lmstudio?.up ? `<div class="kv">loaded: <b>${esc(lmLoaded(st.lmstudio).join(", ") || "nothing")}</b></div><div class="kv">gate: ${esc(st.lmstudio.gate.current || "-")}, ${st.lmstudio.gate.inflight} in flight</div>` : "")}
+    ${(st.servers || []).map((s) => svc(`llama.cpp server <span class="kv">${esc(s.name)}</span>`, s, s.up && s.context ? `<div class="kv">serving: <b>${esc(s.model || "?")}</b> (${Number(s.context).toLocaleString()} context${s.slots ? `, ${s.slots} slots` : ""})</div>
+      <div class="kv">${esc(s.file || "")}${s.build ? ` · ${esc(s.build)}` : ""}</div>` : `<div class="kv">${esc(s.url)}</div>`)
+      .replace("</h3>", `${s.in_use ? '<span class="badge done">used by the harness</span>' : ""}</h3>`)).join("")}
+    ${svc("LM Studio", st.lmstudio, st.lmstudio?.up ? `<div class="kv">loaded: <b>${esc(lmLoaded(st.lmstudio).join(", ") || "nothing")}</b></div><div class="kv">gate: ${esc(st.lmstudio.gate.current || "-")}, ${st.lmstudio.gate.inflight} in flight</div>${st.lmstudio.in_use === false ? '<div class="kv">not used by the harness: its models run on the server above (config models.strong); something else loaded this</div>' : ""}` : "")}
     ${svc("Jev adapter", st.jev_adapter)}
     ${st.jev_backend ? svc(`Jev backend (${esc(st.jev_backend.name)})`, st.jev_backend, st.jev_backend.info?.model ? `<div class="kv">${esc(st.jev_backend.info.model)}</div>` : "") : ""}
     ${st.comfyui ? svc("ComfyUI", st.comfyui) : ""}

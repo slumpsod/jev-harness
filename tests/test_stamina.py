@@ -348,3 +348,30 @@ def test_a_task_in_the_dashboard_always_gets_the_dock_folder_for_its_browser(cfg
     (h.session_dir / "browser-mode.json").write_text(json.dumps({"visible": True, "profile": "/keep/me"}))
     h.turn("hello again")
     assert seen[-1]["JEVH_BROWSER_HEADED"] == "1" and seen[-1]["JEVH_BROWSER_PROFILE"] == "/keep/me"
+
+
+def test_bot_check_switch_reaches_the_browser_only_from_config(cfg, monkeypatch):
+    """tools.browser_bot_check (default off) is always passed to a task's REPL as JEVH_BROWSER_BOT_CHECK, so a variable left
+    in the shell cannot turn the bot-check stop on; only an explicit on in config does."""
+    from jevh import orchestrator
+    seen = []
+
+    class Spy(orchestrator.Worker):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            seen.append(dict(self.env))
+    monkeypatch.setattr(orchestrator, "Worker", Spy)
+    monkeypatch.setenv("JEVH_BROWSER_BOT_CHECK", "1")
+    h, _ = harness(cfg, [py("final('ok')")])
+    h.turn("hello")
+    assert seen[-1]["JEVH_BROWSER_BOT_CHECK"] == "0"                 # nothing in config: off, whatever the shell says
+    for off in (False, "false", "off", "0", "No"):
+        monkeypatch.setitem(cfg.tools, "browser_bot_check", off)
+        h, _ = harness(cfg, [py("final('ok')")])
+        h.turn("hello")
+        assert seen[-1]["JEVH_BROWSER_BOT_CHECK"] == "0", off
+    for on in (True, "true", "on", "1"):
+        monkeypatch.setitem(cfg.tools, "browser_bot_check", on)
+        h, _ = harness(cfg, [py("final('ok')")])
+        h.turn("hello")
+        assert seen[-1]["JEVH_BROWSER_BOT_CHECK"] == "1", on

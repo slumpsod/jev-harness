@@ -769,6 +769,11 @@ class Harness:
         env = {}
         if "browser" in persona.tools:
             env["JEVH_BROWSER_HEADED"] = "1" if self.watch_browser else "0"
+            # bot checks stop it on every site only when config tools.browser_bot_check is on; off (the default) stops it
+            # nowhere. Always set, and anything but an explicit on leaves the stop off
+            check = self.cfg.tools.get("browser_bot_check", False)
+            env["JEVH_BROWSER_BOT_CHECK"] = "1" if check is True or str(check).strip().lower() in (
+                "1", "true", "on", "yes") else "0"
             # the sites the request names: goto() points out a mistyped one (live: "blavedemo.com")
             env["JEVH_TASK_HOSTS"] = " ".join(dict.fromkeys(
                 re.findall(r"(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?=[/:\s)\"',]|$)", task.text.lower())))[:2000]

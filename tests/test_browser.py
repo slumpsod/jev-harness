@@ -2,6 +2,7 @@
 Skipped when Playwright's Chromium isn't installed."""
 import functools
 import http.server
+import os
 import threading
 from pathlib import Path
 
@@ -243,6 +244,7 @@ def test_a_new_tab_link_is_followed_once_and_its_bot_check_reported(session, sit
     was clicked; "Buy" in the label also stopped it as if it were a payment."""
     import jevh.tools.browser as browser
     monkeypatch.setattr(browser, "WALL_WAIT", 0)
+    monkeypatch.setattr(browser, "BOT_CHECK", True)   # bot checks stop the tool only when switched on (config tools.browser_bot_check)
     session.jev = picks("glass-harbor")
     session.goto(site + "events.html")
     assert "link 'Buy Tickets' (in: Tue, Sep 29, 7:00 pm - Glass Harbor) (opens ticket.html?e=glass-harbor)" in \
@@ -309,7 +311,9 @@ def test_identical_buttons_are_told_apart_by_their_row(session, site):
     assert r["status"] == "done" and "Flight 9696" in r["page"], r
 
 
-def test_refused_data_requests_are_reported(session, site):
+def test_refused_data_requests_are_reported(session, site, monkeypatch):
+    import jevh.tools.browser as browser
+    monkeypatch.setattr(browser, "BOT_CHECK", True)   # refusals count as a block only when bot checks are switched on
     session.goto(site + "index.html")
     session.refused = [("127.0.0.1", 435)]
     assert session._refused_note() == "" and not session._refusing()     # one refusal can be anything
@@ -518,7 +522,8 @@ def test_a_search_the_site_throws_away_is_reported_as_blocked(session, site):
     """Booking.com toward a headless browser: searchresults.html?ss=Denver&checkin=... went on to a page with
     no query - no dates, no hotels, no error text - and the worker retried for 30 steps."""
     r = session.goto(site + "stays.html?ss=Denver&checkin=2026-10-14&checkout=2026-10-16")
-    assert r["status"] == "blocked" and "checkin, checkout, ss" in r["note"] and "own browser" in r["note"], r
+    assert r["status"] == "blocked" and "checkin, checkout, ss" in r["note"], r
+    assert not any(w in r["note"] for w in ("own browser", "tell the user", "Don't retry", "automated browsers")), r   # a plain fact
     session.goto(site + "stays.html")
     session.jev = picks("button 'Search'")
     r = session.do("search for stays in Denver", {"destination": "Denver"})
@@ -866,3 +871,81 @@ def test_a_docked_browser_stays_open_between_the_turns_of_a_dashboard_session(tm
     finally:
         assert close_kept(sess)                                                # the session ends: the browser goes
     assert not _alive(port) and not (sess / "browser-kept.json").exists() and not list(dock.glob("*.json"))
+
+
+# ---- press and hold (evals/browser_site/hold.html) ----------------------------------------------------------------
+
+def test_hold_presses_for_the_time_asked_and_a_click_would_not_do(session, site):
+    session.goto(site + "hold.html")
+    i = _num(session.elements("Hold to confirm"), "Hold to confirm")
+    r = session.click(i)
+    assert session.page.evaluate("window.confirmed") is None                 # a click is not a hold
+    r = session.hold(_num(session.elements("Hold to confirm"), "Hold to confirm"), 1.3)
+    assert r["status"] == "done" and r["action"] == "held button 'Hold to confirm' for 1.3 s", r
+    assert session.page.evaluate("window.confirmed") is True and session.page.evaluate("window.lastHold") >= 1200
+    assert "Confirmed" in r["page"]
+
+
+def test_a_hold_that_looks_hard_to_undo_asks_first(session, site):
+    session.goto(site + "hold.html")
+    i = _num(session.elements("Hold to delete"), "Hold to delete")
+    r = session.hold(i, 1.2)
+    assert r["status"] == "needs_confirmation" and "allow_irreversible=True" in r["note"], r
+    assert session.page.evaluate("window.deleted") is None
+
+
+def test_hold_on_a_bot_check_is_blocked_only_when_bot_checks_are_on_and_the_note_hands_nothing_off(session, site, monkeypatch):
+    """With bot checks switched on, hold() on a "Press & Hold" bot check answers blocked with the plain fact and no
+    instruction to hand it to the user; with them off (the default) it holds."""
+    import jevh.tools.browser as browser
+    session.goto(site + "holdwall.html")
+    monkeypatch.setattr(browser, "BOT_CHECK", True)
+    r = session.hold(_num(session.elements("Press"), "Press"), 5)
+    assert r["status"] == "blocked" and "bot check" in r["note"], r
+    assert not any(w in r["note"] for w in ("Browser panel", "Tell the user", "ask them")), r
+    monkeypatch.setattr(browser, "BOT_CHECK", False)
+    assert session.hold(_num(session.elements("Press"), "Press"), 0.3)["status"] == "done"
+
+
+def test_the_user_can_press_and_hold_in_the_browser_panel(tmp_path, monkeypatch, site):
+    """The dashboard passes the press, the moves and the release as they happen (a hold of a second is a hold)."""
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from jevh.web.server import BrowserDock
+    monkeypatch.setenv("JEVH_BROWSER_DOCK", str(tmp_path))
+    own = ThreadPoolExecutor(1)
+    run = lambda fn: own.submit(fn).result(60)  # noqa: E731
+    try:
+        s = run(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16))
+    except Exception as e:  # noqa: BLE001 - no Chromium in this environment
+        pytest.skip(f"chromium unavailable: {e}")
+    dock = BrowserDock(lambda: tmp_path)
+    try:
+        run(lambda: s.page.goto(site + "hold.html"))
+        box = run(lambda: s.page.locator("#confirm").bounding_box())
+        size = run(lambda: s.page.evaluate("({w: innerWidth, h: innerHeight})"))
+        at = {"x": (box["x"] + box["width"] / 2) / size["w"], "y": (box["y"] + box["height"] / 2) / size["h"]}
+        assert dock.send({"kind": "down", **at})
+        time.sleep(1.2)
+        assert dock.send({"kind": "move", **at}) and dock.send({"kind": "up", **at})
+        assert run(lambda: s.page.evaluate("window.confirmed")) is True
+    finally:
+        run(s.close)
+
+
+# ---- bot checks stop the tool when the switch is on (config tools.browser_bot_check, off by default) ---------------
+
+def test_bot_checks_stop_every_site_when_on_and_nothing_when_off(session, site, monkeypatch):
+    """config tools.browser_bot_check: on - every site's bot check stops the tool; off (the default) - none of them
+    stop it. The switch is global: there are no per-site exceptions."""
+    from jevh.tools import browser
+    assert browser.BOT_CHECK is False                                          # loaded without the setting: off
+    session.goto(site + "holdwall.html")
+    r = session.hold(_num(session.elements("Press"), "Press"), 0.3)
+    assert r["status"] == "done", r
+    session.jev = scripted("button 'Press & Hold'", "never")
+    assert session.do("open the page").get("status") != "blocked"
+    session.goto(site.replace("127.0.0.1", "localhost") + "holdwall.html")     # another host: not stopped either
+    assert session.hold(_num(session.elements("Press"), "Press"), 0.3)["status"] == "done"
+    monkeypatch.setattr(browser, "BOT_CHECK", True)                            # on: it stops on every site
+    assert session.hold(_num(session.elements("Press"), "Press"), 0.3)["status"] == "blocked"

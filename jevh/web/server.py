@@ -35,6 +35,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
+from .. import context as ctxwin
 from .. import update as updater
 from ..bus import jsonable, task_json
 from ..config import Config, load_config
@@ -253,6 +254,12 @@ class BrowserDock:
             y = min(max(float(ev.get("y", 0)), 0.0), 1.0) * vp["height"]
             if kind == "click":
                 page.mouse.click(x, y)
+            elif kind in ("down", "up", "move"):   # the user's own press-and-hold or drag, as it happens
+                page.mouse.move(x, y)
+                if kind == "down":
+                    page.mouse.down()
+                elif kind == "up":
+                    page.mouse.up()
             elif kind == "scroll":
                 page.mouse.move(x, y)
                 page.mouse.wheel(0, max(-2000.0, min(2000.0, float(ev.get("dy", 0)))))
@@ -821,6 +828,26 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                                    "gate": {"current": gate.current, "inflight": gate.inflight}}
             except Exception as e:  # noqa: BLE001
                 out["lmstudio"] = {"up": False, "error": str(e)[:200]}
+        # which servers the harness's models run on: models.strong/fast put every persona on one; else each persona's own
+        tiers = {k: v for k, v in (h.cfg.models or {}).items() if v}
+        used = {b.get("provider") for b in tiers.values()} if tiers.get("strong") else \
+            {p.model.get("provider") for p in h.personas.values()}
+        if getattr(h, "model_override", None):
+            used = {h.model_override.partition(":")[0]}
+        if "lmstudio" in out and lm:
+            out["lmstudio"]["in_use"] = any(h.cfg.providers.get(u) is lm for u in used)
+        servers = []
+        for name, prov in h.cfg.providers.items():   # a llama.cpp (or other OpenAI-style) server on this machine
+            url = str(prov.get("base_url") or "")
+            if prov.get("exclusive") or prov.get("type") != "openai" or not re.match(r"https?://(127\.0\.0\.1|localhost)[:/]", url):
+                continue
+            props = ctxwin.server_props(url)
+            row = {"name": name, "url": url, "in_use": name in used, "up": props is not None, **(props or {})}
+            if props is None:
+                row["up"] = bool(probe(url.rstrip("/") + "/models", 2.0).get("up"))   # up, but not llama.cpp
+            if row["up"] or row["in_use"]:   # (a server in the config that nothing uses and is not running: not news)
+                servers.append(row)
+        out["servers"] = servers
         out["jev_adapter"] = probe(h.cfg.jev.get("url", "http://127.0.0.1:33001").rstrip("/") + "/docs", 2.0)
         if h.cfg.jev.get("backend_health"):
             out["jev_backend"] = {"name": h.cfg.jev.get("backend"), **probe(h.cfg.jev["backend_health"], 2.0)}

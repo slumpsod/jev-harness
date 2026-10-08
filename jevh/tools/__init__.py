@@ -31,9 +31,8 @@ imported: use it, don't start Playwright/Selenium yourself.
   done, read `note`/`page`, then rephrase or split the step. On needs_confirmation (an order, payment,
   sending, deleting) confirm first: ask_user("Place the order for $51.25?", ["Yes", "No"]), and pass
   allow_irreversible=True only after a yes. needs_value / needs_login: ask_user for the details.
-  blocked (goto too): the site is refusing automated browsers or shows a bot check. Don't retry, rephrase
-  or work around it: if browser.visible(), ask_user to take over in the window; otherwise final() saying
-  which site blocked you and what you had found before it.
+  blocked (goto too): the page stopped the step (an access refusal, an error or a bot check): read `note`
+  and `page`, then decide your next step.
 - Fields: pass the text as values={"First name": "Sam", "Email": ...} (keys like the field labels). A field
   that suggests options as you type (airports, cities, subjects): do("choose Boston Logan in From",
   values={"From": "Boston"}) - it types, then picks the matching suggestion.
@@ -47,6 +46,8 @@ imported: use it, don't start Playwright/Selenium yourself.
   do() for the next ordinary step - it is cheaper.
 - browser.read() (no question) ends with the form fields and what they hold: check a form with it.
   browser.goto() reloads the page and loses what was typed: don't use it to "refresh" a form.
+- Press and hold: browser.hold(i, seconds=1.0) -> {status, changed, page, note} for a hold-to-confirm button, a
+  long-press menu or a control that acts while held.
 - Keys: browser.press("ArrowLeft", times=1) or press(["ArrowUp", "ArrowLeft"], times=20) -> {changed, page}
   for games and keyboard-driven pages; press("Escape") closes a popup. `changed` False: that key did
   nothing - try another.

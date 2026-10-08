@@ -84,9 +84,7 @@ CARD_FIELD = re.compile(r"card\s*(number|no\b|#)|\bcvv|\bcvc|security code|\bexp
 # query keys that aren't the search itself: tracking, and the hand-offs of a sign-in flow (their loss is normal)
 NOT_SEARCH_KEYS = re.compile(r"^(utm_|_ga|gclid$|fbclid$|label$|aid$|sid$|srpvid$|chal_t$|force_referer$|efdco$|ssne|"
                              r"ref$|src$|source$|next$|return|redirect|continue$|token$|code$|state$|session|lang$)", re.I)
-STRIPPED_NOTE = ("the site threw the search away: it sent {asked} on to {final} without {keys}. Sites do this to "
-                 "turn away automated browsers (Booking.com does). Don't retry or rebuild the URL: tell the user, "
-                 "say what is filled in and where, and let them finish the search in their own browser")
+STRIPPED_NOTE = "the site threw the search away: it sent {asked} on to {final} without {keys}"
 # links that would open a new tab open in this one: one page for the agent, and one for the dashboard's dock
 SAME_TAB_JS = """document.addEventListener('click', e => {
   const a = e.target && e.target.closest && e.target.closest('a[target]');
@@ -99,9 +97,7 @@ CANVAS_NOTE = ("the page's main content is drawn on a canvas (a game board, char
                "browser.press(keys) / click(i)")
 WALL_WAIT = 2.0   # seconds between looks while a bot check might clear by itself (4 looks)
 REFUSED = {403, 429, 435, 456}   # what bot managers answer a flagged client's API calls with
-BLOCKED_NOTE = ("the site shows a bot check ({}), which the agent does not get past - not by retrying, calling "
-                "the site's API or faking browser headers either. Tell the user; if browser.visible(), they can "
-                "complete it in the browser window and reply when done")
+BLOCKED_NOTE = "the site shows a bot check ({})"
 FORM_SEND = re.compile(r"\b(submit|send|save|confirm|continue|proceed|place)\b", re.I)   # buttons that send a form
 SEND_GOAL = re.compile(r"\b(finish|complete|book|order|register|sign\s*up|next|go on|move on)\b", re.I)
 SUBMIT_WORDS = re.compile(r"\b(save|submit|continue|apply|confirm|send|proceed|update|place)\b", re.I)
@@ -206,6 +202,24 @@ def dropped_search(asked: str, final: str) -> list[str]:
         return []
     kept = {k for k, _ in parse_qsl(urlsplit(final).query)}
     return [] if kept & set(keys) else keys
+
+
+def _bot_check(raw: str | None) -> bool:
+    """config tools.browser_bot_check (JEVH_BROWSER_BOT_CHECK) -> do bot checks stop the tool, on every site? Off unless it
+    says 1/true/on/yes: anything else, and a missing value, leaves them off (the default)."""
+    return str(raw if raw is not None else "0").strip().lower() in ("1", "true", "on", "yes")
+
+
+# Read once, when the tool is loaded (a task's REPL): do bot checks stop the tool (True, on every site) or not (False, the
+# default)? The orchestrator always passes it, so only the config sets it.
+BOT_CHECK = _bot_check(os.environ.get("JEVH_BROWSER_BOT_CHECK"))
+
+
+def bot_check_exempt(url: str) -> bool:
+    """Does a bot check on this page NOT stop the tool? The switch is global (BOT_CHECK): off - the default - means bot
+    checks never stop the tool, on means they stop it on every site. Switching off only stops the tool from stopping: it
+    does nothing to get past a check."""
+    return not BOT_CHECK
 
 
 def _site(url: str) -> str:
@@ -447,8 +461,13 @@ Q_DONE = ("Has `task.goal` been fully achieved on `page`, including every part i
           "submitting or opening a particular page)? Judge from `page` and `task.history`.")
 Q_ERROR = ("Does `page` show an error or rejection message (e.g. invalid credentials, a validation error, "
            "not found) caused by the actions in `task.history`?")
-Q_BLOCKED = ("Is there something on `page` that stops progress on `task.goal` and cannot be handled by "
-             "clicking or typing (a captcha, a paywall, an access-denied page)?")
+# Experimental branch: a bot check is not a blocker here, so Jev does not end do() on one (live, 6 local pages x 2: old wording
+# called a Press & Hold wall, a "Just a moment" page and a captcha page all blocked at 1.0; this one 0.04 / not reached / not
+# reached; a paywall and a no-permission page stay blocked at 1.0 and an ordinary page at 0.01). "An access-denied page" had to
+# go from the examples: PerimeterX-style walls are titled "Access to this page has been denied" and kept it at 0.99.
+Q_BLOCKED = ("Is there something on `page` that stops progress on `task.goal` and cannot be handled by clicking or typing "
+             "(a paywall, or a page saying the user lacks permission to view it)? A bot check, captcha or 'verify you are "
+             "human' page is not such a blocker.")
 Q_LOGIN = "Is `page` a sign-in or sign-up screen, or asking the user to log in, before `task.goal` can continue?"
 Q_IRREV = ("Would clicking `element`, by itself and with no further confirmation step, place an order, take a "
            "payment, send a message, publish, or delete something?")
@@ -802,7 +821,7 @@ class Session:
     def _refusing(self) -> bool:
         """The site turns away enough of its own data requests to call it blocked (live: Target's search
         said "We couldn't find a match" and the worker, told of the refusals, tried 5 more searches)."""
-        return len(self._refused_here()) >= 3
+        return len(self._refused_here()) >= 3 and not bot_check_exempt(self.page.url)
 
     def _refused_here(self) -> list[int]:
         """Refusals by the site now open (a blocked site doesn't taint the next one)."""
@@ -811,12 +830,11 @@ class Session:
 
     def _refused_note(self) -> str:
         codes = self._refused_here()
-        if len(codes) < 2:
+        if len(codes) < 2 or bot_check_exempt(self.page.url):
             return ""
         return (f"the site refused {len(codes)} of its own data requests (HTTP {', '.join(str(c) for c in sorted(set(codes)))}): it is likely "
                 f"blocking automated browsers, so parts of the page (results, prices) may be missing - "
-                f"don't report them as absent, and don't work around the block (its API, faked headers): "
-                f"tell the user")
+                f"don't report them as absent")
 
     def ask(self, state, questions):
         """Every Jev request goes through here (also from choose()/pick_passages(), which get
@@ -1055,6 +1073,23 @@ class Session:
                 return {"status": "needs_confirmation", "note": f"clicking {describe(e)} looks hard to undo: "
                         f"confirm with the user, then browser.click({i}, allow_irreversible=True)"}
         return self._direct("click", e)
+
+    def hold(self, i: int, seconds: float = 1.0, allow_irreversible: bool = False) -> dict:
+        """Press and hold element [i] for `seconds` (0.1-15), then let go -> {status, action, changed, url, page, note}:
+        a hold-to-confirm button, a long-press menu, a control that acts while held. A hold that looks hard to undo
+        ("Hold to delete") needs confirmation, as a click."""
+        e = self._element(i)
+        if e["kind"] in FIELDS:
+            return {"status": "error", "note": f"{describe(e)} is a field: use browser.fill({i}, text)"}
+        obs = self._last_obs or self.observe()
+        wall = None if bot_check_exempt(obs["url"]) else BOT_WALL.search(obs["title"] + "\n" + obs["text"][:1500])
+        if wall:
+            return {"status": "blocked", "note": BLOCKED_NOTE.format(repr(wall.group(0))), "url": obs["url"]}
+        label = e.get("label", "")
+        if not allow_irreversible and IRREVERSIBLE.search(label):
+            return {"status": "needs_confirmation", "note": f"holding {describe(e)} looks hard to undo: confirm with the "
+                    f"user, then browser.hold({i}, {seconds}, allow_irreversible=True)"}
+        return self._direct("hold", e, str(min(max(float(seconds), 0.1), 15.0)))
 
     def fill(self, i: int, text: str, enter: bool = False) -> dict:
         """Type `text` into field [i] (replacing what is there), read back; enter=True presses Enter after.
@@ -1470,7 +1505,11 @@ class Session:
 
     def _bot_wall(self, obs: dict) -> dict | None:
         """A bot check (Cloudflare, Akamai, captcha) on the page: give it a few seconds to clear by
-        itself, then report it. The agent doesn't try to get past it; a person can, in a visible browser."""
+        itself, then report it. The agent doesn't try to get past it; a person can, in a visible browser.
+        Not anywhere when config tools.browser_bot_check is off (the default): then the check is something being tested,
+        not a reason to stop. The switch is global - there are no per-site exceptions."""
+        if bot_check_exempt(obs["url"]):
+            return None
         for _ in range(4):
             m = BOT_WALL.search(obs["title"] + "\n" + obs["text"][:1500])
             if not m:
@@ -1692,6 +1731,18 @@ class Session:
             self._show(int(loc.get_attribute("data-jevh-i", timeout=2000) or target["i"]), caption)
         if tool == "pick":
             return f"{self._pick_custom(loc, str(value))} in {what}"
+        if tool == "hold":
+            box = loc.bounding_box(timeout=3000)
+            if not box:
+                raise RuntimeError("it is not on screen")
+            x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+            page.mouse.move(x, y)
+            page.mouse.down()
+            try:
+                page.wait_for_timeout(float(value) * 1000)
+            finally:
+                page.mouse.up()
+            return f"held {what} for {float(value):g} s"
         if tool == "select":
             opts = target.get("options", [])
             match = next((o for o in opts if o.lower() == str(value).lower()), None) or \
@@ -1787,6 +1838,10 @@ def click(i: int, allow_irreversible: bool = False) -> dict:
 
 def fill(i: int, text: str, enter: bool = False) -> dict:
     return _run(Session.fill, i, text, enter)
+
+
+def hold(i: int, seconds: float = 1.0, allow_irreversible: bool = False) -> dict:
+    return _run(Session.hold, i, seconds, allow_irreversible)
 
 
 def select(i: int, option: str) -> dict:

@@ -424,3 +424,22 @@ def test_a_new_session_closes_the_browser_the_last_one_kept_open(cfg, monkeypatc
     while not closed and time.time() < deadline:
         time.sleep(0.05)
     assert closed == [old]
+
+
+def test_status_shows_the_llama_cpp_server_the_harness_runs_on(cfg, monkeypatch):
+    """Live (2026-10-07): the Status panel showed only LM Studio (which Hermes had loaded Qwen into) while every task
+    ran on a llama.cpp server."""
+    from jevh import context as ctxwin
+    monkeypatch.setitem(cfg.providers, "llamacpp", {"type": "openai", "base_url": "http://127.0.0.1:8080/v1"})
+    monkeypatch.setitem(cfg.providers, "idle", {"type": "openai", "base_url": "http://127.0.0.1:8001/v1"})
+    monkeypatch.setitem(cfg.models, "strong", {"provider": "llamacpp", "model": "qwen3.8-27b"})
+    monkeypatch.setitem(cfg.models, "fast", None)                              # (as on Jed's machine: no fast tier)
+    monkeypatch.setattr(ctxwin, "server_props", lambda url, **k: {"context": 76032, "slots": 2, "model": "qwen3.8-27b",
+                                                                    "file": "q.gguf", "build": "b1"} if ":8080" in url else None)
+    client, _ = make_client(cfg)
+    st = client.get("/api/status", headers=auth()).json()
+    mine = [s for s in st["servers"] if s["name"] == "llamacpp"]
+    assert mine and mine[0]["in_use"] and mine[0]["up"] and mine[0]["context"] == 76032
+    assert not any(s["name"] == "idle" for s in st["servers"])                # not running, not used: not shown
+    if "lmstudio" in st and st["lmstudio"].get("up"):
+        assert st["lmstudio"]["in_use"] is False
