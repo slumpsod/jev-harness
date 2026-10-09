@@ -34,7 +34,7 @@ The assistant puts the widget on the board, takes a first look, and tells you wh
 | `github` | `repo` (`owner/name`) | the project's `releases.atom` |
 | `youtube` | `channel_id` | the channel's video feed |
 | `arxiv` | `query` | arXiv's API (newest first) |
-| `web` | `query`, `n` | a DuckDuckGo search, for what news sites don't cover; a page is "new" when it first appears |
+| `web` | `query`, `n` | a DuckDuckGo search, for what news sites don't cover; a page is "new" when it is in the results on two looks in a row (the bottom places shuffle between identical searches), so it is noticed one look late |
 
 `jevh newsroom kinds` prints this from the code, and the dashboard's **Add widget** form is generated from it too.
 

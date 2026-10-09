@@ -280,6 +280,14 @@ def make_cfg(where: Path, arm: str, tick: float | None = None):
     cfg.personas_dir = where / "personas"
     cfg.personas_dirs = [cfg.personas_dir]
     shutil.copytree(ROOT / "personas", cfg.personas_dir, ignore=shutil.ignore_patterns("learned"))
+    # No persona in this rep's copy has the desktop tool: it operates the real screen (the user's windows, tabs and
+    # sign-ins), and a bench worker drove their Chrome for 24 minutes trying to follow an X account (2026-10-09). Only
+    # this copy is changed: personas/ itself is never edited, so nothing needs turning back on.
+    for f in cfg.personas_dir.glob("*.yaml"):
+        data = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
+        if "desktop" in (data.get("tools") or []):
+            data["tools"] = [t for t in data["tools"] if t != "desktop"]
+            f.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     cfg.skills_dirs = [where / "skills", ROOT / "skills"]
     (where / "skills").mkdir(parents=True, exist_ok=True)
     if arm == "old":   # the daily assistant as it was before the Newsroom
@@ -334,8 +342,17 @@ def dry_script(name: str, task: dict, feed) -> dict:
     return {"code": code, "fire": task["group"] in ("track", "manage")}
 
 
+def choose_answer(q: dict) -> str:
+    """The bench's reply to a worker's question: an option that skips (the user is not here to log in, connect or confirm
+    anything: "Done - I'm logged in" was said for them once, and the worker then went on to act on the claim), else the
+    first option; to a question without options, that the worker should carry on without it."""
+    options = q.get("options") or []
+    skip = next((o for o in options if "skip" in str(o).lower()), None)
+    return skip or (options[0] if options else "Please carry on without that, using your best judgement.")
+
+
 class Answerer(threading.Thread):
-    """Answers the worker's questions to the user with the first option (or a plain yes) and counts them."""
+    """Answers the worker's questions to the user (choose_answer) and counts them."""
 
     def __init__(self, h):
         super().__init__(daemon=True)
@@ -345,7 +362,7 @@ class Answerer(threading.Thread):
         while not self.stop:
             for q in self.h.pending_questions():
                 self.asked.append(q["question"][:160])
-                self.h.answer(q["id"], (q.get("options") or ["Yes, go ahead."])[0])
+                self.h.answer(q["id"], choose_answer(q))
             time.sleep(0.3)
 
 

@@ -238,6 +238,10 @@ class Kind:
     title: Callable[[dict], str]                      # a name for a widget with these params
     ready: Callable[[], str | None] = lambda: None    # None, or what the user must set up first
     icon: str = "news"
+    # How many looks in a row an item the widget has never held must be in the results before it counts as new. 1: at
+    # once (a feed is stable). More, for a source whose results shuffle between two identical requests (a search
+    # engine's bottom places): there, a page that appears for one look is churn, not news.
+    settle: int = 1
 
     def public(self) -> dict:
         return {"name": self.name, "label": self.label, "description": self.description, "icon": self.icon,
@@ -253,10 +257,12 @@ def register(kind: Kind) -> Kind:
 
 
 def feed_kind(name: str, label: str, description: str, url: str, params: list[Param], title: str,
-              icon: str = "news") -> Kind:
-    """A kind that is one feed: `url` has {param} holes (values are URL-encoded), `title` the widget's default name."""
+              icon: str = "news", safe: dict[str, str] | None = None) -> Kind:
+    """A kind that is one feed: `url` has {param} holes (values are URL-encoded), `title` the widget's default name.
+    `safe`: per parameter, characters left as they are when it is encoded - the "/" in a GitHub project's owner/name,
+    which encoded to %2F made GitHub answer 404 for every project."""
     def fetch(p: dict) -> list[dict]:
-        quoted = {k: urllib.parse.quote(str(v), safe="") for k, v in p.items()}
+        quoted = {k: urllib.parse.quote(str(v), safe=(safe or {}).get(k, "")) for k, v in p.items()}
         return parse_feed(http_get(url.format_map(_Safe(quoted))))
     return register(Kind(name, label, description, params, fetch, lambda p: title.format_map(_Safe(p)), icon=icon))
 
@@ -298,10 +304,12 @@ def _web(p: dict) -> list[dict]:
 
 register(Kind(
     "web", "Web search", "Pages from a web search (DuckDuckGo), for what news sites don't cover: blogs, forums, "
-                         "product or status pages. No dates; a page is new when it first appears in the results.",
+                         "product or status pages. No dates; a page is new when it is in the results on two looks in a row "
+                         "(a search engine's bottom places shuffle between identical searches), so a new page is "
+                         "noticed one look late.",
     [Param("query", "the search", True, example='"open source" LLM inference benchmark'),
      Param("n", "results to keep", default=10)],
-    _web, lambda p: f"Web: {p['query']}", icon="globe"))
+    _web, lambda p: f"Web: {p['query']}", icon="globe", settle=2))
 
 
 def _rss(p: dict) -> list[dict]:
@@ -322,7 +330,8 @@ feed_kind("hn", "Hacker News", "Hacker News stories that match a search (hnrss.o
           [Param("query", "words to match", True, example="llama.cpp")], "Hacker News: {query}", icon="rss")
 feed_kind("github", "GitHub releases", "New releases of a GitHub project.",
           "https://github.com/{repo}/releases.atom",
-          [Param("repo", "owner/name", True, example="ggml-org/llama.cpp")], "Releases: {repo}", icon="box")
+          [Param("repo", "owner/name", True, example="ggml-org/llama.cpp")], "Releases: {repo}", icon="box",
+          safe={"repo": "/"})
 feed_kind("youtube", "YouTube channel", "New videos on a YouTube channel (by channel id, UC...).",
           "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}",
           [Param("channel_id", "the channel's id (starts with UC)", True, example="UCXXXXXXXXXXXXXXXXXXXXXX")],
@@ -553,6 +562,8 @@ class Newsroom:
                 url TEXT, source TEXT, published REAL, summary TEXT, author TEXT, first_seen REAL, read INTEGER DEFAULT 0,
                 UNIQUE(widget_id, uid));
             CREATE INDEX IF NOT EXISTS items_widget ON items(widget_id, read);
+            CREATE TABLE IF NOT EXISTS pending(widget_id INTEGER, uid TEXT, title TEXT, url TEXT, source TEXT, published REAL,
+                summary TEXT, author TEXT, looks INTEGER DEFAULT 1, PRIMARY KEY(widget_id, uid));
             CREATE TABLE IF NOT EXISTS notes(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, widget_id INTEGER, item_id INTEGER,
                 title TEXT, body TEXT, url TEXT, why TEXT DEFAULT '', read INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value INTEGER);
@@ -654,6 +665,7 @@ class Newsroom:
                 if title is None and w["title"] == KINDS[w["kind"]].title(w["params"]):
                     sets["title"] = KINDS[w["kind"]].title(new)[:120]
                 self._run("DELETE FROM items WHERE widget_id=?", (wid,), commit=False)
+                self._run("DELETE FROM pending WHERE widget_id=?", (wid,), commit=False)
         if sets:
             self._run(f"UPDATE widgets SET {', '.join(k + '=?' for k in sets)} WHERE id=?", [*sets.values(), wid])
         return self.widget(wid)
@@ -661,6 +673,7 @@ class Newsroom:
     def delete_widget(self, wid: int) -> bool:
         with self._lock:
             self.db.execute("DELETE FROM items WHERE widget_id=?", (wid,))
+            self.db.execute("DELETE FROM pending WHERE widget_id=?", (wid,))
             self.db.execute("DELETE FROM notes WHERE widget_id=?", (wid,))
             n = self.db.execute("DELETE FROM widgets WHERE id=?", (wid,)).rowcount
             self.db.execute("UPDATE meta SET value=value+1 WHERE key='rev'")
@@ -758,6 +771,9 @@ class Newsroom:
             self._run("UPDATE widgets SET title=? WHERE id=?", (f"Feed: {name}"[:120], wid), touch=False)   # (a feed has a name of its own)
         fresh: list[dict] = []
         with self._lock:
+            settle = KINDS[w["kind"]].settle
+            if settle > 1 and not first:
+                found = self._settled(wid, found, settle)
             for it in reversed(found):   # (oldest first, so the feed's order is the id order when times tie)
                 cur = self.db.execute(
                     "INSERT OR IGNORE INTO items(widget_id, uid, title, url, source, published, summary, author, first_seen, read) "
@@ -782,6 +798,25 @@ class Newsroom:
                 alerts.append(self.notify(w["title"], f"and {len(hits) - MAX_NOTES_PER_LOOK} more new items", "", wid,
                                           None, "more"))
         return {"widget": wid, "new": len(fresh) if not first else 0, "first": first, "alerts": alerts, "error": ""}
+
+    def _settled(self, wid: int, found: list[dict], settle: int) -> list[dict]:
+        """`found` without the items this widget has never held that have not yet been in the results `settle` looks in a
+        row; those wait in `pending` (an item in the results on one look only is dropped from it). An empty answer says
+        nothing - a search engine that is rate limiting sends one - so it leaves `pending` as it was. Call with the lock."""
+        if not found:
+            return found
+        held = {r["uid"] for r in self.db.execute("SELECT uid FROM items WHERE widget_id=?", (wid,))}
+        looks = {r["uid"]: r["looks"] for r in self.db.execute("SELECT uid, looks FROM pending WHERE widget_id=?", (wid,))}
+        keep, wait = [], []
+        for it in found:
+            n = looks.get(it["uid"], 0) + 1
+            (keep if it["uid"] in held or n >= settle else wait).append((it, n))
+        self.db.execute("DELETE FROM pending WHERE widget_id=?", (wid,))   # (what the results no longer show is dropped)
+        for it, n in wait:
+            self.db.execute("INSERT OR REPLACE INTO pending(widget_id, uid, title, url, source, published, summary, author, looks) "
+                            "VALUES (?,?,?,?,?,?,?,?,?)", (wid, it["uid"], it["title"], it["url"], it["source"], it["published"],
+                                                           it["summary"], it["author"], n))
+        return [it for it, _ in keep]
 
     def refresh_due(self, now: float | None = None, workers: int = 3) -> list[dict]:
         ids = self.due(now)

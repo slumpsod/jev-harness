@@ -43,7 +43,9 @@ flowchart LR
 1. `KINDS[kind].fetch(params)` -> raw items (RSS/Atom through `parse_feed`; X through a feed bridge, an API token or Nango; `web` through
    `tools/web.search`). A failure is stored on the widget (`error`, `fails`), never raised; `due` waits twice as long per failure, up to 6 h.
 2. Each item is cleaned (`_clean_item`: field caps, only `http(s)` links, a uid from the feed's id, else the link, else a hash of the title)
-   and inserted `OR IGNORE` on `(widget_id, uid)`: an item is new once.
+   and inserted `OR IGNORE` on `(widget_id, uid)`: an item is new once. A kind with `settle > 1` (`web`: a search engine's bottom
+   places shuffle between identical searches) first holds an unseen item in `pending` and lets it in only when the next look still
+   shows it (`Newsroom._settled`); an empty answer, which a rate-limited search sends, leaves `pending` as it was.
 3. **The first successful look is the baseline**: its items are stored as read and cannot notify.
 4. For the new items of a later look, `alert_matches(alert, item, judge, threshold)`: an `exclude` word vetoes; `all` notifies; a keyword
    (whole word at its start; 4+ letters may go on) notifies; otherwise, if the alert has `about` and a judge exists, Jev's P(yes) for

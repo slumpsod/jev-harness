@@ -170,3 +170,24 @@ def test_the_bench_reports_a_worker_that_says_it_did_it_when_the_board_is_empty(
 
 def test_the_real_source_list_covers_every_kind():
     assert {k for k, _ in bench.SOURCES} == set(nr.KINDS) - {"youtube"}, "a kind with no real source to check (youtube needs a channel id of yours)"
+
+
+def test_a_bench_worker_never_has_the_desktop_tool_and_the_real_personas_keep_it(tmp_path):
+    """A bench worker drove the user's real Chrome for 24 minutes trying to follow an X account (2026-10-09). The bench's own
+    copy of the personas has no desktop tool, in either arm; the shipped personas are not touched."""
+    import yaml
+    real = {f.stem for f in (ROOT / "personas").glob("*.yaml") if "desktop" in (yaml.safe_load(f.read_text(encoding="utf-8")) or {}).get("tools", [])}
+    assert {"daily_assistant", "high_end_dev"} <= real
+    for arm in ("new", "old"):
+        cfg = bench.make_cfg(tmp_path / arm, arm)
+        copies = {f.stem: yaml.safe_load(f.read_text(encoding="utf-8")).get("tools") or [] for f in cfg.personas_dir.glob("*.yaml")}
+        assert copies["daily_assistant"] and not [n for n, t in copies.items() if "desktop" in t]
+    assert {f.stem for f in (ROOT / "personas").glob("*.yaml") if "desktop" in f.read_text(encoding="utf-8")} == real
+
+
+def test_the_bench_never_claims_for_the_user_what_it_cannot_know():
+    """It answered "Done - I'm logged in" for the user (the first option), and the worker went on to act on the claim."""
+    assert bench.choose_answer({"options": ["Done - I'm logged in", "Skip the follow, just monitor new posts"]}) == \
+        "Skip the follow, just monitor new posts"
+    assert bench.choose_answer({"options": ["Yes, add it", "No"]}) == "Yes, add it"          # no skip on offer: the first
+    assert "without that" in bench.choose_answer({"options": []})                              # a free-text question

@@ -219,6 +219,85 @@ def test_the_first_look_is_the_baseline_and_only_later_items_notify(room, feed):
     assert room.widgets()[0]["unread"] == 2
 
 
+def test_a_github_project_keeps_its_slash_and_other_values_are_still_encoded(monkeypatch):
+    """The feed URL had the project's owner/name encoded to owner%2Fname, and GitHub answered 404 for every project."""
+    asked = []
+    monkeypatch.setattr(nr, "http_get", lambda url, *a, **k: asked.append(url) or b"<rss><channel/></rss>")
+    nr.KINDS["github"].fetch({"repo": "ggml-org/llama.cpp"})
+    nr.KINDS["hn"].fetch({"query": "llama.cpp & vision/audio"})
+    assert asked[0] == "https://github.com/ggml-org/llama.cpp/releases.atom"
+    assert asked[1] == "https://hnrss.org/newest?q=llama.cpp%20%26%20vision%2Faudio"      # a search is encoded whole
+
+
+@pytest.fixture
+def shuffling(monkeypatch):
+    """A `web`-like kind whose results the test sets: what a search engine does, unlike a feed."""
+    results = {"now": []}
+    kind = nr.Kind("shuffle", "Shuffle", "test", [nr.Param("q", "x", True)], lambda p: list(results["now"]),
+                   lambda p: "Shuffle", settle=2)
+    monkeypatch.setitem(nr.KINDS, "shuffle", kind)
+    monkeypatch.setattr(nr, "clean_params", lambda k, p: p)
+    return results
+
+
+def hit(n):
+    return {"title": f"Page {n}", "url": f"https://ex.test/{n}", "summary": "", "source": "ex.test"}
+
+
+def test_a_page_is_new_only_when_it_stays_in_the_results_for_two_looks(room, shuffling):
+    """DuckDuckGo moved 2 of its 10 results between two identical searches a few seconds apart: each swap was "new"."""
+    shuffling["now"] = [hit(1), hit(2), hit(3)]
+    w = room.add_widget("shuffle", {"q": "x"}, alert=True)
+    assert room.refresh(w["id"])["first"]                                              # the baseline holds all three
+    shuffling["now"] = [hit(1), hit(2), hit(4)]                                         # page 3 slid out, page 4 slid in
+    one = room.refresh(w["id"])
+    assert one["new"] == 0 and one["alerts"] == []                                      # once is churn, not news
+    shuffling["now"] = [hit(1), hit(2), hit(3)]                                         # ...and it slid back: nothing happened
+    assert room.refresh(w["id"])["new"] == 0
+    shuffling["now"] = [hit(5), hit(1), hit(2)]
+    assert room.refresh(w["id"])["new"] == 0
+    shuffling["now"] = [hit(5), hit(1), hit(2)]                                         # page 5 is still there: it is news
+    two = room.refresh(w["id"])
+    assert two["new"] == 1 and [n["body"] for n in two["alerts"]] == ["Page 5"]
+    assert room.refresh(w["id"])["new"] == 0                                            # and only once
+    assert {i["title"] for i in room.items(w["id"])} == {"Page 1", "Page 2", "Page 3", "Page 5"}
+
+
+def test_an_empty_answer_from_a_rate_limited_search_changes_nothing(room, shuffling):
+    shuffling["now"] = [hit(1)]
+    w = room.add_widget("shuffle", {"q": "x"}, alert=True)
+    room.refresh(w["id"])
+    shuffling["now"] = [hit(1), hit(2)]
+    assert room.refresh(w["id"])["new"] == 0
+    shuffling["now"] = []                                                               # DuckDuckGo says nothing for a while
+    assert room.refresh(w["id"])["new"] == 0
+    shuffling["now"] = [hit(1), hit(2)]
+    assert room.refresh(w["id"])["new"] == 1                                            # page 2 had been seen before the gap
+
+
+def test_pending_items_go_with_a_widget_and_with_a_changed_search(room, shuffling):
+    shuffling["now"] = [hit(1)]
+    w = room.add_widget("shuffle", {"q": "x"})
+    room.refresh(w["id"])
+    shuffling["now"] = [hit(1), hit(2)]
+    room.refresh(w["id"])
+    assert room.db.execute("SELECT COUNT(*) FROM pending").fetchone()[0] == 1
+    room.update_widget(w["id"], params={"q": "y"})
+    assert room.db.execute("SELECT COUNT(*) FROM pending").fetchone()[0] == 0
+    room.refresh(w["id"])
+    room.refresh(w["id"])
+    room.delete_widget(w["id"])
+    assert room.db.execute("SELECT COUNT(*) FROM pending").fetchone()[0] == 0
+
+
+def test_a_feed_still_counts_an_item_as_new_at_once(room, feed):
+    feed.set(A, B)
+    w = room.add_widget("rss", {"url": feed.url})
+    room.refresh(w["id"])
+    feed.set(C, A, B)
+    assert room.refresh(w["id"])["new"] == 1                                            # settle is 1 for a feed
+
+
 def test_alert_words_match_whole_words_so_ai_is_not_said():
     one = lambda kw, title: nr.alert_matches(nr.clean_alert(kw), {"title": title})
     assert one("AI", "OpenAI said no") is None and one("AI", "New AI chip") == "mentions AI"
