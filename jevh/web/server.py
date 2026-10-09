@@ -43,7 +43,7 @@ from ..interject import KINDS
 from ..lmstudio import gate_for
 from ..orchestrator import Harness
 from ..history import History
-from ..review import list_sessions
+from ..review import list_sessions, session_record
 from ..skills import load_roster
 
 STATIC = Path(__file__).with_name("static")
@@ -58,8 +58,9 @@ class Hub:
     def __init__(self, cfg: Config, harness_factory=None, model_override: str | None = None):
         self.cfg = cfg
         self.model_override = model_override
-        self._factory = harness_factory or (lambda on_event: Harness(cfg, on_event=on_event,
-                                                                     model_override=model_override))
+        # factory(on_event) -> a Harness for a new session; factory(on_event, session=id) -> one that carries on session `id`
+        self._factory = harness_factory or (lambda on_event, session=None: Harness(
+            cfg, on_event=on_event, model_override=model_override, session=session))
         self.harness = self._factory(self.publish)
         self.harness.browser_dock = True   # a watched browser shows in the Browser panel, not a window
         self.dock = BrowserDock(lambda: Path(self.harness.session_dir) / "browsers")
@@ -105,7 +106,8 @@ class Hub:
                 self._subs.remove(q)
 
     def _open_turn(self, message: str) -> dict:
-        turn = {"id": len(self.turns) + 1, "message": message, "status": "running", "started": time.time(),
+        # (numbered as the harness numbers its turns, which go on from where a resumed session stopped)
+        turn = {"id": max(len(self.turns), getattr(self.harness, "turn_no", 0)) + 1, "message": message, "status": "running", "started": time.time(),
                 "pin": self.pin, "tier_mode": self.harness.tier_mode}
         self.turns.append(turn)
         self.publish("turn_start", {"turn": dict(turn)})
@@ -156,6 +158,33 @@ class Hub:
         self.harness.browser_dock = True
         self.turns.clear()
         self.publish("reset", {"session": self.harness.session})
+
+    def load(self, session: str) -> dict:
+        """Carry on a past session: a harness for it (its memory, so Jev's follow-up check and the context see the
+        earlier turns; its folder, so new work lands beside the old) and its conversation shown again in the chat."""
+        if not self.busy.acquire(blocking=False):   # (held meanwhile: no message can start a turn on the harness we swap out)
+            raise HTTPException(409, "wait for the running turn to finish")
+        try:
+            if session == self.harness.session:
+                return {"session": session, "turns": len(self.turns), "already": True}
+            rec = session_record(self.harness.cfg.workspace, self.harness.memory, self.harness.failures, session)
+            self.close_browser()   # the session we leave is over for now: so is the browser it kept open
+            mode, project, watch = self.harness.tier_mode, self.harness.project, self.harness.watch_browser
+            self.harness = self._factory(self.publish, session=session)
+            self.harness.tier_mode, self.harness.project, self.harness.watch_browser = mode, project, watch
+            self.harness.browser_dock = True
+            self.turns.clear()
+            self.publish("reset", {"session": session, "loaded": True})
+            for t in rec["turns"]:   # (published one by one: an event carries the id of the newest turn)
+                turn = {"id": t["n"], "message": t["user"], "status": "done", "started": t["ts"], "persona": t["persona"],
+                        "answer": t["assistant"], "artifacts": [], "tasks": [], "restored": True}
+                self.turns.append(turn)
+                self.publish("turn_done", {"turn": dict(turn)})
+            if self.turns:
+                self.harness.turn_no = max(self.harness.turn_no, self.turns[-1]["id"])
+            return {"session": session, "turns": len(self.turns)}
+        finally:
+            self.busy.release()
 
     def close_browser(self) -> None:
         """Close the docked Chrome this session kept open between turns (jevh/tools/browser.py close_kept), in the background."""
@@ -482,6 +511,13 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         if out is None:
             raise HTTPException(404, "no such session")
         return out
+
+    @app.post("/api/history/{session}/load")
+    async def history_load(session: str) -> dict:
+        """Carry on a past session: new messages join its conversation and its folder. Refused while a turn runs."""
+        if not hub.history.exists(session):
+            raise HTTPException(404, "no such session")
+        return await asyncio.to_thread(hub.load, session)
 
     @app.post("/api/history/recategorize")
     async def history_recategorize(request: Request) -> dict:

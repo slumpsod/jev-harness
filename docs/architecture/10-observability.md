@@ -48,7 +48,7 @@ flowchart LR
 | `compact` | `_compact` | tokens before/after, full, notes, dropped | Inspector: timeline, CLI |
 | `progress_check` | `_stalled` | circles, stuck, strike, new_pages | Inspector, CLI |
 | `thinking_watch` | `_watch_fn` | p (testable), search, chars | Inspector |
-| `progress` | LLM `on_progress` | persona, chunks, thinking | live token counts |
+| `progress` | LLM `on_progress` | persona, chunks, thinking, tps | live token counts and speed: every 50 chunks, with `tps` the speed of those last 50; once more with `tps` 0 when a call that reported any ends |
 | `verify` | `_bounce` | ok, problems, checks, scores, bounced | Inspector, CLI |
 | `review` | `_verify_fn` | persona, tier of the reviewer | Inspector |
 | `escalate` | `_bounce` | the strong model swapped in | Inspector: timeline, CLI |
@@ -103,12 +103,19 @@ flowchart LR
   C["ExecResult.usage<br/>tools' own Jev calls"] -- "jev_tools" --> R
   D["gate.on_swap"] -- "swap" --> R
   R --> DB[("usage.db<br/>ts, session, turn, task, persona, kind,<br/>model, tier, calls, input, output,<br/>thinking, seconds, cost")]
-  DB --> S1["TurnResult.usage → footer line<br/>'12.1k in / 597 out (308 thinking) · model 24s · Jev 19.0s, 33 calls'"]
+  DB --> S1["TurnResult.usage → footer line<br/>'12.1k in / 597 out (308 thinking) · model 24s · 66 tok/s · Jev 19.0s, 33 calls'"]
   DB --> S2["CLI /usage: session, 24h, 7d"]
   DB --> S3["dashboard /api/usage: by kind, model, persona, per turn"]
 ```
 
 Cost is computed only for models priced under `prices:` in config.
+
+**Tokens per second** (`decode_seconds` per call): the time the model spent writing, the prompt's reading left out, so a long
+context does not drag the number down. It is llama.cpp's own `timings.predicted_ms` when the server sends it (it counts
+speculative decoding correctly), else the span between the first and the last streamed token, and only for a reply that
+streamed token by token. A model that reports neither (a hosted one, or a server that holds the reply back) has no rate, and the
+footer then shows none. The rate is the output of the calls with a known decode time over that time, so it never mixes in another
+model's tokens; with hand-offs running in parallel it is the average per stream, not the sum.
 
 ## Where to watch each part live
 
@@ -116,6 +123,7 @@ Cost is computed only for models priced under `prices:` in config.
 |---|---|
 | Routing, skills, memory, tools, tier, collaborators, approvals | dashboard **Inspector** (select a turn), under its timeline; CLI `/trace` shows raw Jev answers |
 | Every task and hand-off over time | dashboard **Inspector**'s timeline (one lane per task, tier colours, swap markers; a lane's name jumps to that task's decisions) |
+| How fast the model is writing now | the tokens-per-second figure beside the context ring under the message box (one stream: its rate; parallel hand-offs: the sum; hidden between calls and for replies under 50 tokens), the rate after a task's name in the Inspector's timeline, and the CLI's `generating:` line |
 | A step's thinking as it streams | `…/task folder/thinking/step-NN.txt`, dashboard `/api/thinking` |
 | Code and output per step | CLI `/verbose`; `code` / `output` events; dashboard: the chips under an answer open to one line per step, and a step opens to its code and output |
 | Context size and compaction | context ring under the message box (`context` event); `compact` events; `jevh context` for what each model's window is |

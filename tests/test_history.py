@@ -358,3 +358,65 @@ def test_a_flagged_session_says_so_and_the_one_you_are_in_is_marked_once_it_has_
         hub.harness.memory.db.commit()
     now = sorted_overview(c)
     assert [s["session"] for s in now["sessions"] if s["current"]] == [hub.harness.session]
+
+
+# -- resuming a session ---------------------------------------------------------------------------------------------
+
+def test_a_harness_given_a_session_goes_on_numbering_its_turns_and_starts_on_the_assistant_that_answered_last(cfg):
+    h, _ = make(cfg)
+    assert h.turn_no == 0 and h.current is None                                      # a new session starts clean
+    again = Harness(cfg, jev=Jev(cfg, CountingJev()), llm_factory=lambda p: ScriptedLLM([]), session=FIT)
+    assert (again.turn_no, again.current, again.session) == (2, "fitness_coach", FIT)
+    (cfg.workspace / "sessions" / FIT / "u5t1-fitness_coach").mkdir(parents=True)   # a turn that crashed: a folder, no memory
+    assert Harness(cfg, jev=Jev(cfg, CountingJev()), llm_factory=lambda p: ScriptedLLM([]), session=FIT).turn_no == 5
+
+
+@pytest.fixture
+def resume_client(cfg):
+    box = {}
+
+    def factory(on_event, session=None):
+        if session is None:
+            h, box["jev"] = make(cfg)
+            return h
+        h = Harness(cfg, jev=Jev(cfg, box["jev"]), llm_factory=lambda p: ScriptedLLM([py("final('picked it up')")]),
+                    on_event=on_event, session=session)
+        h.learning = False
+        return h
+    app = create_app(cfg, port=8740, harness_factory=factory, token=TOKEN)
+    return TestClient(app, base_url=BASE), app.state.hub
+
+
+def test_resuming_a_session_shows_its_conversation_again_and_the_next_message_joins_it(cfg, resume_client):
+    c, hub = resume_client
+    assert c.post(f"/api/history/{FIT}/load").status_code == 403                     # needs the token
+    assert c.post("/api/history/nope/load", headers=auth()).status_code == 404
+    assert c.post("/api/history/20261001-100000-zzzz/load", headers=auth()).status_code == 404
+    assert c.post(f"/api/history/{FIT}/load", headers=auth()).json() == {"session": FIT, "turns": 2}
+    state = c.get("/api/state", headers=auth()).json()
+    assert state["session"] == FIT and [(t["id"], t["status"], t["restored"]) for t in state["turns"]] == [(1, "done", True), (2, "done", True)]
+    assert state["turns"][1]["message"].startswith("swap the squats") and state["turns"][0]["persona"] == "fitness_coach"
+    kinds = [(e["kind"], e["turn"], e["data"].get("loaded")) for e in hub.events]    # what the chat is rebuilt from
+    assert kinds[-3:] == [("reset", None, True), ("turn_done", 1, None), ("turn_done", 2, None)]
+    assert c.post(f"/api/history/{FIT}/load", headers=auth()).json()["already"] is True
+    assert any(s["current"] for s in c.get("/api/history", headers=auth()).json()["sessions"] if s["session"] == FIT)
+
+    assert c.post("/api/chat", json={"message": "and one more leg day"}, headers=auth()).status_code == 200
+    deadline = time.time() + 20
+    while time.time() < deadline and not (len(hub.turns) == 3 and hub.turns[2]["status"] != "running"):
+        time.sleep(0.05)
+    new = hub.turns[2]
+    assert new["id"] == 3 and new["status"] == "done" and new["answer"] == "picked it up"
+    assert [t.user for t in hub.harness.memory.session_turns(FIT, 10)][-1] == "and one more leg day"   # the same conversation
+    assert list((cfg.workspace / "sessions" / FIT).glob("u3t1-*"))                                      # in the same folder, not over turn 1's
+
+
+def test_a_session_cannot_be_resumed_while_a_turn_runs(cfg, resume_client):
+    c, hub = resume_client
+    assert hub.busy.acquire(blocking=False)
+    try:
+        r = c.post(f"/api/history/{DEV}/load", headers=auth())
+        assert r.status_code == 409 and hub.harness.session != DEV
+    finally:
+        hub.busy.release()
+    assert c.post(f"/api/history/{DEV}/load", headers=auth()).status_code == 200

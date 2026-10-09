@@ -37,7 +37,7 @@ from .mcp import McpHub
 from .memory import Memory
 from .personas import Persona, load_learned, load_personas
 from .notebook import Notebook
-from .review import Reviewer
+from .review import TASK_DIR, Reviewer
 from .skills import load_roster, parse_skill
 from .tools import TOOLS
 from .tools import nango
@@ -248,6 +248,8 @@ class Harness:
         # the user's own ideas and problems to come back to; nothing in it reaches a worker (jevh/notebook.py)
         self.notebook = Notebook(self.cfg.workspace / "notebook.db")
         self.turn_no = 0
+        if session:   # a session picked up again (the dashboard's History tab): its turns go on from where it stopped
+            self.turn_no, self.current = self._where_it_stopped()
         self.turns_seen: dict[int, dict[str, Any]] = {}   # turn -> request, answer, lead task's folder (for flag())
         self._tl = threading.local()                 # which turn/task/persona this thread works for
         self.jev.on_call = lambda step, resp, n: self._record(
@@ -274,6 +276,15 @@ class Harness:
         self._queue: list[str] = []                  # requests sent while a turn ran: they run after it
         self._said: list[str] = []                   # this turn's corrections (kept with the turn in memory)
         self._goal = ""                               # the running turn's message (what a correction is judged against)
+
+    def _where_it_stopped(self) -> tuple[int, str | None]:
+        """(the last turn number this session used, the assistant that answered last). A turn that crashed left a task
+        folder but no remembered turn, so both are looked at: a new turn must not write into an old turn's folder."""
+        folders = [int(m[1]) for d in (self.session_dir.iterdir() if self.session_dir.is_dir() else [])
+                   if (m := TASK_DIR.match(d.name))]
+        remembered = self.memory.session_turns(self.session, 10 ** 6)
+        persona = remembered[-1].persona if remembered else None
+        return max(folders + [len(remembered)]), persona if persona in self.personas else None
 
     # -- public ----------------------------------------------------------------------
     def problems(self) -> list[dict]:
@@ -1065,8 +1076,8 @@ class Harness:
                 llm = self._llm_factory(replace(persona, model=self._model_cfg(persona, tier)))
                 for target in (llm, getattr(llm, "fallback", None)):
                     if target is not None and hasattr(target, "on_progress"):
-                        target.on_progress = lambda n, thinking=0, name=persona.name: self.on_event(
-                            "progress", {"persona": name, "chunks": n, "thinking": thinking})
+                        target.on_progress = lambda n, thinking=0, tps=0.0, name=persona.name: self.on_event(
+                            "progress", {"persona": name, "chunks": n, "thinking": thinking, "tps": round(tps, 1)})
                 self._llms[key] = Metered(llm, self._record, self._where, tier,
                                           str(self._model_cfg(persona, tier).get("model", "")))
             return self._llms[key]

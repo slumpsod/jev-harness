@@ -64,9 +64,16 @@ assistant's description as an option.
   request, when, how many turns, a "this session" and a "flagged" badge, and tags for the other categories Jev thought of.
   Search narrows the list as you type. A session opens read-only: its conversation, the category with Jev's odds (and
   "Ask again"), its files (opened through `/api/file`), who worked on it, failures logged, and its cost.
+- **Resume**: a session's row and its detail view have a Resume button. It makes that session the one you are in: the chat
+  shows its conversation again and your next message joins it. The new turn is a follow-up like any other (Jev's follow-up check
+  and the context read the session's remembered turns, the assistant that answered last is the "current" one), numbered after
+  the old ones, and its task folder lands beside theirs in `workspace/sessions/<id>/`. What is not brought back: the steps,
+  decisions and timeline of the old turns (only their requests and answers are kept in memory; the task folders still hold the
+  work logs, and the History detail shows who worked on them), and the browser the session had open. The session you leave is
+  untouched and stays in the list. Refused while a turn runs.
 - `GET /api/history` (the sessions, the groups, `pending`, `stale`, `error`), `GET /api/history/<session>`,
-  `POST /api/history/recategorize` (one session or all). Only session ids of the form the harness makes, and only ones this
-  workspace has, are read.
+  `POST /api/history/<session>/load` (resume it), `POST /api/history/recategorize` (one session or all). Only session ids of the
+  form the harness makes, and only ones this workspace has, are read or resumed.
 - `workspace/history.db`: the saved odds (per workspace, kept between runs).
 - Config: `history:` in `config.yaml` (`enabled`, `min_confidence` 0.6, `also_at` 0.25, `max_requests` 6).
 
@@ -94,8 +101,8 @@ assistant's description as an option.
   without an error, every category an assistant or one of the two special ones, a question 94 ms at the median, a second look asks
   nothing, "sort again" asks about every session, every session reads back with the turns the list says. Its committed summary
   has counts only, sorted among the assistants the repo ships (`--workspace` reads sessions from another workspace); the titles stay on your screen.
-- `tests/test_history.py` (25), `tests/test_session_category_evals.py` (4) and a browser test of the tab: the reading and saving, the
+- `tests/test_history.py` (29), `tests/test_session_category_evals.py` (4) and a browser test of the tab: the reading and saving, the
   background thread (asked once, again when a session grew, Jev down, history off, an empty session, one read from its folder),
-  the endpoints and their token, and the dashboard grouping, searching and reading a session. Each of five deliberate breakages (the
+  the endpoints and their token, and the dashboard grouping, searching, reading and resuming a session. Each of five deliberate breakages (the
   question landing in a running turn's trace, `min_confidence` ignored, every session re-asked, any well-formed id accepted, no pause
   after Jev failed) made its test fail.

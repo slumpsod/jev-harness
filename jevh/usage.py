@@ -32,7 +32,11 @@ class Usage:
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute("""CREATE TABLE IF NOT EXISTS usage(
             ts REAL, session TEXT, turn INTEGER, task INTEGER, persona TEXT, kind TEXT, model TEXT, tier TEXT,
-            calls INTEGER, input INTEGER, output INTEGER, thinking INTEGER, seconds REAL, cost REAL)""")
+            calls INTEGER, input INTEGER, output INTEGER, thinking INTEGER, seconds REAL, cost REAL, decode_seconds REAL DEFAULT 0)""")
+        try:   # a usage.db from before tokens per second were measured
+            self.db.execute("ALTER TABLE usage ADD COLUMN decode_seconds REAL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
         self.db.execute("CREATE INDEX IF NOT EXISTS usage_turn ON usage(session, turn)")
         self.db.commit()
 
@@ -44,14 +48,15 @@ class Usage:
 
     def record(self, *, session: str, turn: int, kind: str, model: str = "", persona: str = "", task: int | None = None,
                tier: str = "", calls: int = 1, input_tokens: int = 0, output_tokens: int = 0, thinking: int = 0,
-               seconds: float = 0.0) -> dict[str, Any]:
+               seconds: float = 0.0, decode_seconds: float = 0.0) -> dict[str, Any]:
         row = {"ts": time.time(), "session": session, "turn": turn, "task": task, "persona": persona, "kind": kind,
                "model": model, "tier": tier, "calls": calls, "input": int(input_tokens), "output": int(output_tokens),
                "thinking": int(thinking), "seconds": float(seconds),
-               "cost": self.cost(model, input_tokens, output_tokens)}
+               "cost": self.cost(model, input_tokens, output_tokens), "decode_seconds": float(decode_seconds)}
         with self._lock:
-            self.db.execute("INSERT INTO usage VALUES (:ts,:session,:turn,:task,:persona,:kind,:model,:tier,:calls,"
-                            ":input,:output,:thinking,:seconds,:cost)", row)
+            self.db.execute("INSERT INTO usage(ts,session,turn,task,persona,kind,model,tier,calls,input,output,thinking,"
+                            "seconds,cost,decode_seconds) VALUES (:ts,:session,:turn,:task,:persona,:kind,:model,:tier,:calls,"
+                            ":input,:output,:thinking,:seconds,:cost,:decode_seconds)", row)
             self.db.commit()
         return row
 
@@ -68,7 +73,9 @@ class Usage:
             where.append("ts>=?")
             args.append(since)
         clause = ("WHERE " + " AND ".join(where)) if where else ""
-        cols = "SUM(calls), SUM(input), SUM(output), SUM(thinking), SUM(seconds), SUM(cost)"
+        # (decode_tokens: the output of the calls whose decode time is known, so a rate never mixes in a model that reports none)
+        cols = ("SUM(calls), SUM(input), SUM(output), SUM(thinking), SUM(seconds), SUM(cost), SUM(decode_seconds), "
+                "SUM(CASE WHEN decode_seconds > 0 THEN output ELSE 0 END)")
         with self._lock:
             total = self.db.execute(f"SELECT {cols} FROM usage {clause}", args).fetchone()
             groups = {g: self.db.execute(f"SELECT {g}, {cols} FROM usage {clause} GROUP BY {g} "
@@ -78,7 +85,8 @@ class Usage:
 
         def pack(r):
             return {"calls": r[0] or 0, "input": r[1] or 0, "output": r[2] or 0, "thinking": r[3] or 0,
-                    "seconds": round(r[4] or 0.0, 2), "cost": round(r[5] or 0.0, 4)}
+                    "seconds": round(r[4] or 0.0, 2), "cost": round(r[5] or 0.0, 4),
+                    "decode_seconds": round(r[6] or 0.0, 2), "decode_tokens": r[7] or 0}
         out = {"total": pack(total), "turns": turns}
         for g, rows in groups.items():
             out[f"by_{g}"] = {(r[0] or "-"): pack(r[1:]) for r in rows}
@@ -116,6 +124,9 @@ def brief(summary: dict[str, Any]) -> str:
     parts = [f"{_k(tin)} in / {_k(tout)} out" + (f" ({_k(think)} thinking)" if think else "")]
     if msecs:
         parts.append(f"model {msecs:.0f}s")
+    dsecs = sum(x.get("decode_seconds", 0) for x in llm if x)
+    if dsecs:   # tokens per second while it was writing: the time reading the prompt is not in it
+        parts.append(f"{sum(x.get('decode_tokens', 0) for x in llm if x) / dsecs:.0f} tok/s")
     if jcalls:
         parts.append(f"Jev {jsecs:.1f}s, {jcalls} calls")
     if k.get("swap"):
@@ -166,7 +177,8 @@ class Metered:
             self._record(kind=w.get("kind", "llm"), model=getattr(res, "model", "") or self._model,
                          persona=w.get("persona", ""), task=w.get("task"), tier=self._tier,
                          input_tokens=getattr(res, "input_tokens", 0), output_tokens=getattr(res, "output_tokens", 0),
-                         thinking=getattr(res, "thinking_tokens", 0), seconds=time.monotonic() - started)
+                         thinking=getattr(res, "thinking_tokens", 0), seconds=time.monotonic() - started,
+                         decode_seconds=getattr(res, "decode_seconds", 0.0) or 0.0)
 
     def __getattr__(self, name):
         return getattr(self._inner, name)
