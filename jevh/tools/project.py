@@ -64,6 +64,13 @@ def _path(rel: str) -> Path:
     return p
 
 
+def _rel(path: str) -> str:
+    """The project-relative POSIX path `path` names, however it was written ("src/a.py", "./src/a.py", the absolute
+    path): one file must have one backup. Keyed by the spelling, a second spelling copied the already-edited file
+    over the original's backup (undo then restored the edit), and an absolute one was "backed up" onto itself."""
+    return _path(path).relative_to(_root()).as_posix()
+
+
 def _git_files(base: Path) -> list[str] | None:
     """The repo's files minus what .gitignore excludes (tracked + untracked), or None if `base`
     isn't a git repo. Without it, find/grep walked generated data - session folders, saved runs."""
@@ -159,7 +166,8 @@ def read(path: str, start: int = 1, end: int | None = None) -> str:
     return body + more
 
 
-def _backup(rel: str) -> None:
+def _backup(path: str) -> None:
+    rel = _rel(path)
     if rel in _touched:
         return
     p = _path(rel)
@@ -221,10 +229,11 @@ def write(path: str, text: str, rule_ok: str | None = None) -> str:
 
 
 def sh(cmd: str, timeout: float = 120) -> dict:
-    """Run a shell command with the project as working directory."""
+    """Run a shell command with the project as working directory. Its stdin is empty: a command that asks a
+    question gets an end of file instead of waiting."""
+    from jevh import procs   # (kills what the command started on a timeout: plain subprocess.run waited for it)
     try:
-        r = subprocess.run(cmd, shell=True, cwd=_root(), capture_output=True, text=True, timeout=timeout,
-                           encoding="utf-8", errors="replace")
+        r = procs.run(cmd, shell=True, cwd=_root(), timeout=timeout)
     except subprocess.TimeoutExpired as e:
         out = ((e.stdout or "") + (e.stderr or "")) if isinstance(e.stdout, str) else ""
         return {"code": None, "out": f"[timed out after {timeout}s]\n{out[-3000:]}"}
@@ -238,7 +247,7 @@ def changed() -> list[str]:
 
 def undo(path: str | None = None) -> list[str]:
     done = []
-    for rel in [path] if path else list(_touched):
+    for rel in [_rel(path)] if path else list(_touched):
         existed = _touched.pop(rel, None)
         if existed is None:
             continue

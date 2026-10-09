@@ -25,6 +25,7 @@ the Nango it set up in <workspace>/nango/ (JEVH_NANGO_DIR), which are used when 
 """
 from __future__ import annotations
 
+import contextvars
 import json as jsonlib
 import os
 import re
@@ -33,6 +34,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +44,25 @@ READ_METHODS = {"GET", "HEAD", "OPTIONS"}
 # users.lookupByEmail, Google's batchGet... (the last path segment, after its last "." or ":")
 READ_POST = re.compile(r"^(search|query|list|history|info|replies|members|batchget|lookup\w*)$", re.I)
 _cache: dict[str, tuple[float, Any]] = {}
+# The harness's settings for this module (JEVH_NANGO_DIR, JEVH_NANGO_URL, JEVH_NANGO_WRITES) when it calls it in its own
+# process (nango.summary() for the prompt): set per call with `using`, not in os.environ, which every Harness in the
+# process shared - the first one's settings stuck, and its folder replaced the others'. A worker's REPL gets the same
+# values as environment variables.
+_SETTINGS: contextvars.ContextVar[dict[str, str]] = contextvars.ContextVar("nango_settings", default={})
+
+
+def _setting(name: str, default: str | None = None) -> str | None:
+    return _SETTINGS.get().get(name) or os.environ.get(name, default)
+
+
+@contextmanager
+def using(settings: dict[str, str]):
+    """Calls made inside use these settings (environment-variable names) over the process environment."""
+    token = _SETTINGS.set({**_SETTINGS.get(), **settings})
+    try:
+        yield
+    finally:
+        _SETTINGS.reset(token)
 _allowed: set[str] = set()   # "all changes to this integration" the user allowed for this task
 
 
@@ -59,7 +80,7 @@ class Refused(NangoError):
 
 def _state_dir() -> Path:
     """Where the Nango this harness set up keeps its key and URL (and the browser's sign-in profile)."""
-    d = os.environ.get("JEVH_NANGO_DIR")
+    d = _setting("JEVH_NANGO_DIR")
     if d:
         return Path(d)
     from jevh.config import load_config
@@ -95,7 +116,7 @@ def configured() -> bool:
 
 
 def _base() -> str:
-    return (os.environ.get("JEVH_NANGO_URL") or _state("url") or DEFAULT_URL).rstrip("/")
+    return (_setting("JEVH_NANGO_URL") or _state("url") or DEFAULT_URL).rstrip("/")
 
 
 def _ask(question: str, options: list | None = None, secret: bool = False) -> str | None:
@@ -285,7 +306,7 @@ def is_read(method: str, path: str, body: Any = None) -> bool:
 
 def _approve(integration: str, method: str, path: str, body: Any, params: dict | None = None,
              base_url: str | None = None) -> None:
-    mode = os.environ.get("JEVH_NANGO_WRITES", "ask").lower()
+    mode = (_setting("JEVH_NANGO_WRITES") or "ask").lower()
     if base_url is None and (mode == "allow" or integration in _allowed):
         return
     what = f"{method} {path} on {integration}" + (f" (sent to {base_url})" if base_url else "")

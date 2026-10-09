@@ -7,16 +7,21 @@ an optional API key for the hosted API, no disk cache, stdlib only.
 """
 from __future__ import annotations
 
+import http.client
 import json
+import threading
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+from .errors import Cancelled
+
 Question = dict
 RETRY_STATUSES = {408, 429, 500, 502, 503, 504}
 TOTALS = {"calls": 0, "seconds": 0.0, "tokens": 0}   # every ask() in this process
+_TOTALS_LOCK = threading.Lock()   # (a browser tool's thread and the REPL's main thread both ask)
 
 
 def noul(instructions) -> Question:
@@ -40,7 +45,9 @@ def score(instructions, criteria: Sequence[str]) -> Question:
 
 
 class SystemOneError(RuntimeError):
-    pass
+    """Jev could not give a usable answer: unreachable, timed out, or replied with something malformed. The one
+    exception the client raises for any of these, so the harness's "Jev down: degrade, never crash" handlers
+    (Harness._safe and friends, which catch only this) see every one of them."""
 
 
 @dataclass
@@ -49,25 +56,38 @@ class Answer:
     kind: str
     raw: dict[str, Any] = field(default_factory=dict)
 
+    def _field(self, key: str, cast):
+        try:
+            return cast(self.raw[key])
+        except (KeyError, TypeError, ValueError):
+            raise SystemOneError(f"Jev's answer to {self.id!r} has no usable {key!r}: {str(self.raw)[:200]}") from None
+
     @property
     def noul(self) -> float:
-        return float(self.raw["noul"])
+        return self._field("noul", float)
 
     @property
     def choice(self) -> str:
-        return str(self.raw["choice"])
+        return self._field("choice", str)
 
     @property
     def score(self) -> float:
-        return float(self.raw["score"])
+        return self._field("score", float)
 
     @property
     def probabilities(self) -> dict[str, float]:
-        return {k: float(v) for k, v in (self.raw.get("probabilities") or {}).items()}
+        try:
+            return {k: float(v) for k, v in (self.raw.get("probabilities") or {}).items()}
+        except (AttributeError, TypeError, ValueError):
+            raise SystemOneError(f"Jev's answer to {self.id!r} has unusable probabilities: "
+                                 f"{str(self.raw)[:200]}") from None
 
     @property
     def confidence(self) -> float:
-        return float(self.raw.get("confidence") or 0.0)
+        try:
+            return float(self.raw.get("confidence") or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
 
 
 @dataclass
@@ -97,32 +117,64 @@ class SystemOneClient:
         self.max_retries = max_retries
         self.calls = 0
 
-    def ask(self, state: Any, questions: Mapping[str, Question]) -> Response:
+    def ask(self, state: Any, questions: Mapping[str, Question], cancel: threading.Event | None = None) -> Response:
+        """`cancel`: a set event ends the wait at once with Cancelled (the user pressed Stop). The request itself
+        finishes on its own thread and its answer is dropped: a blocked read cannot be woken from another thread on
+        Windows (see llm.py), and before this a Stop waited out every Jev call in flight, up to the full timeout."""
         payload: dict[str, Any] = {"state": state, "questions": dict(questions)}
         if self.backend:
             payload["model"] = self.backend
         started = time.perf_counter()
-        raw = self._post(payload)
+        raw = self._post(payload) if cancel is None else self._post_until(payload, cancel)
         self.calls += 1
-        answers = {k: Answer(id=k, kind=str(v.get("type", "")), raw=dict(v))
-                   for k, v in (raw.get("answers") or {}).items()}
+        listed = raw.get("answers") or {}
+        if not isinstance(listed, dict) or not all(isinstance(v, dict) for v in listed.values()):
+            raise SystemOneError(f"adapter sent answers in an unknown shape: {str(listed)[:200]}")
+        answers = {k: Answer(id=k, kind=str(v.get("type", "")), raw=dict(v)) for k, v in listed.items()}
         missing = set(questions) - set(answers)
         if missing:
             raise SystemOneError(f"adapter omitted answers for: {sorted(missing)}")
+        usage = raw.get("usage") if isinstance(raw.get("usage"), dict) else {}
+        try:
+            tokens = int(usage.get("input_tokens") or 0)
+        except (TypeError, ValueError):
+            tokens = 0
         resp = Response(model=str(raw.get("model", self.backend)), answers=answers,
-                        latency_s=time.perf_counter() - started,
-                        input_tokens=int((raw.get("usage") or {}).get("input_tokens") or 0))
-        TOTALS["calls"] += 1   # read by the worker REPL to report its tools' Jev use
-        TOTALS["seconds"] += resp.latency_s
-        TOTALS["tokens"] += resp.input_tokens
+                        latency_s=time.perf_counter() - started, input_tokens=tokens)
+        with _TOTALS_LOCK:   # read by the worker REPL to report its tools' Jev use
+            TOTALS["calls"] += 1
+            TOTALS["seconds"] += resp.latency_s
+            TOTALS["tokens"] += resp.input_tokens
         return resp
 
     def health(self) -> dict[str, Any]:
         with urllib.request.urlopen(f"{self.base_url}/health", timeout=10) as r:
             return json.loads(r.read().decode("utf-8"))
 
+    def _post_until(self, payload: dict[str, Any], cancel: threading.Event) -> dict[str, Any]:
+        if cancel.is_set():
+            raise Cancelled("stopped by the user")
+        box: dict[str, Any] = {}
+        done = threading.Event()
+
+        def run() -> None:
+            try:
+                box["raw"] = self._post(payload)
+            except BaseException as e:  # noqa: BLE001 - handed to the caller
+                box["error"] = e
+            finally:
+                done.set()
+        threading.Thread(target=run, name="jev-ask", daemon=True).start()
+        while not done.wait(0.1):
+            if cancel.is_set():
+                raise Cancelled("stopped by the user while Jev was answering")
+        if "error" in box:
+            raise box["error"]
+        return box["raw"]
+
     def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        # ("replace": a lone surrogate in a state - text a page or a worker produced - cannot be encoded as UTF-8)
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8", "replace")
         attempt = 0
         while True:
             headers = {"Content-Type": "application/json"}
@@ -132,9 +184,12 @@ class SystemOneClient:
                                          headers=headers)
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as r:
-                    return json.loads(r.read().decode("utf-8"))
+                    text = r.read()
             except urllib.error.HTTPError as e:
-                detail = e.read().decode("utf-8", "replace")
+                try:
+                    detail = e.read().decode("utf-8", "replace")
+                except (OSError, http.client.HTTPException):
+                    detail = ""
                 if e.code in RETRY_STATUSES and attempt < self.max_retries:
                     attempt += 1
                     time.sleep(2.0 ** attempt)
@@ -146,3 +201,23 @@ class SystemOneClient:
                     time.sleep(2.0 ** attempt)
                     continue
                 raise SystemOneError(f"systemone unreachable at {self.base_url}: {e.reason}") from e
+            except TimeoutError as e:
+                # urllib wraps only what fails while the request is sent: a timeout waiting for the answer came out raw
+                # and, not being a SystemOneError, crashed the turn instead of degrading it. Not retried: an adapter
+                # that took the whole timeout is unlikely to answer the next try sooner.
+                raise SystemOneError(f"systemone at {self.base_url} did not answer within {self.timeout:.0f}s") from e
+            except (ConnectionError, http.client.HTTPException, OSError) as e:
+                # the adapter dropped the connection (restarted mid-request: RemoteDisconnected), or cut its answer
+                # short (IncompleteRead): also raw before, also crashed the turn
+                if attempt < self.max_retries:
+                    attempt += 1
+                    time.sleep(2.0 ** attempt)
+                    continue
+                raise SystemOneError(f"systemone at {self.base_url} failed: {type(e).__name__}: {e}") from e
+            try:
+                data = json.loads(text.decode("utf-8"))
+            except ValueError as e:   # (UnicodeDecodeError is a ValueError too)
+                raise SystemOneError(f"systemone sent a reply that is not JSON: {text[:200]!r}") from e
+            if not isinstance(data, dict):
+                raise SystemOneError(f"systemone sent {type(data).__name__}, not an object: {str(data)[:200]}")
+            return data

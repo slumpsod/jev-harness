@@ -23,13 +23,15 @@ import time
 from pathlib import Path
 from typing import Any
 
+from . import store
+
 
 class Usage:
     def __init__(self, path: Path, prices: dict[str, dict[str, float]] | None = None):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.prices = prices or {}
         self._lock = threading.Lock()
-        self.db = sqlite3.connect(path, check_same_thread=False)
+        self.db = store.connect(path)
         self.db.execute("""CREATE TABLE IF NOT EXISTS usage(
             ts REAL, session TEXT, turn INTEGER, task INTEGER, persona TEXT, kind TEXT, model TEXT, tier TEXT,
             calls INTEGER, input INTEGER, output INTEGER, thinking INTEGER, seconds REAL, cost REAL, decode_seconds REAL DEFAULT 0)""")

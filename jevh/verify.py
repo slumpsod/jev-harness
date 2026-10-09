@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from . import procs
 from .config import shell_env
 from .decide import noul
 
@@ -127,6 +128,13 @@ DELIVERABLE = re.compile(r"\b(?:make|create|write|generate|produce|build|save|ex
 
 
 FILE_NAME = re.compile(r"[\w .()~\\/:-]{0,250}\.[A-Za-z0-9]{1,5}")
+TEXT_CHECK_BYTES = 8 * 1024 * 1024   # of a text artifact read for its checks
+
+
+def _head(p: Path, n: int) -> bytes:
+    """The first `n` bytes of a file."""
+    with open(p, "rb") as f:
+        return f.read(n)
 
 
 def _names_a_file(text: str, p: Path) -> bool:
@@ -282,9 +290,13 @@ class Verifier:
         `files_from`: see answer_rules."""
         v = Verdict(ok=True)
         for a in artifacts:
-            for p in self._file(Path(a)):
-                v.problems.append(p)
-            v.checks[f"file {Path(a).name}"] = "pass" if not v.problems else "see problems"
+            try:
+                probs, note = self._file(Path(a)), None
+            except OSError as e:   # (locked by another program on Windows): not the worker's fault, and no reason to
+                probs, note = [], f"skipped: can't read it ({type(e).__name__})"   # fail the whole gate over it
+            v.problems += probs
+            # (this file's own problems: it read the running total, so every file after a bad one showed "see problems")
+            v.checks[f"file {Path(a).name}"] = note or ("pass" if not probs else "see problems")
         html = [Path(a) for a in artifacts if Path(a).suffix.lower() in (".html", ".htm") and Path(a).is_file()]
         if html and self.settings.get("render_html", True):
             for page in html:
@@ -337,8 +349,8 @@ class Verifier:
         if p.stat().st_size == 0:
             return [f"{p.name} is empty."]
         ext = p.suffix.lower()
-        if ext in IMAGE_MAGIC:
-            head = p.read_bytes()[:8]
+        if ext in IMAGE_MAGIC:   # (only the first bytes are read: the whole file used to be, for 8 of them)
+            head = _head(p, 8)
             return [] if head.startswith(IMAGE_MAGIC[ext]) else [f"{p.name} isn't a valid {ext[1:]} image."]
         if ext in OOXML or ext == ".zip":
             try:
@@ -350,20 +362,25 @@ class Verifier:
                 return [f"{p.name} isn't a valid {ext[1:]} file: it has no {OOXML[ext]} part inside."]
             return []
         if ext == ".pdf":
-            return [] if p.read_bytes()[:5] == b"%PDF-" else [f"{p.name} isn't a valid PDF."]
+            return [] if _head(p, 5) == b"%PDF-" else [f"{p.name} isn't a valid PDF."]
         if ext not in (".html", ".htm", ".py", ".json", ".md", ".txt", ".css", ".js", ".csv", ".svg"):
             return []
-        text = p.read_text(encoding="utf-8", errors="replace")
+        # A big data file is checked on its first TEXT_CHECK_BYTES: read whole (and a CSV's every row kept in a list),
+        # a 2 GB export held the gate, and the memory, for as long as that took. Its end is cut at a line break.
+        partial = p.stat().st_size > TEXT_CHECK_BYTES
+        text = _head(p, TEXT_CHECK_BYTES).decode("utf-8", errors="replace")
+        if partial:
+            text = text[:text.rfind("\n") + 1] or text
         problems = []
         if _names_a_file(text.strip(), p):
             return [f"{p.name} holds only {text.strip()[:120]!r} - a file name, not the file's content. Hand over "
                     f"the file itself: save_artifact('{p.name}', path=<its path>), or list its path in final()."]
-        if ext == ".py":
+        if ext == ".py" and not partial:   # (a part of a file can't be compiled or parsed on its own)
             try:
                 compile(text, p.name, "exec")
             except SyntaxError as e:
                 problems.append(f"{p.name} has a syntax error on line {e.lineno}: {e.msg}.")
-        elif ext == ".json":
+        elif ext == ".json" and not partial:
             try:
                 json.loads(text)
             except ValueError as e:
@@ -422,10 +439,11 @@ class Verifier:
         try:
             # no bytecode cache: an edit within the same second at the same size would otherwise run
             # stale .pyc files (the gate runs right after the worker's edits), and it keeps the
-            # user's project free of __pycache__ folders
-            r = subprocess.run(cmd, shell=True, cwd=project, capture_output=True, text=True, encoding="utf-8",
-                               errors="replace", timeout=float(self.settings.get("project_timeout", 600)),
-                               env={**shell_env(), "PYTHONDONTWRITEBYTECODE": "1"})
+            # user's project free of __pycache__ folders. procs.run, not subprocess.run: on Windows a test
+            # suite's own child (npm test's node, a test server) kept the pipes open past the timeout,
+            # and the gate - and the task - waited for it indefinitely.
+            r = procs.run(cmd, shell=True, cwd=project, timeout=float(self.settings.get("project_timeout", 600)),
+                          env={**shell_env(), "PYTHONDONTWRITEBYTECODE": "1"})
         except subprocess.TimeoutExpired:
             return [f"The project's tests ({cmd}) didn't finish within the time limit."], "fail: timeout"
         if r.returncode == 0 or (r.returncode == 5 and "pytest" in cmd):  # 5 = no tests collected

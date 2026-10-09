@@ -48,6 +48,15 @@ from ..skills import load_roster
 
 STATIC = Path(__file__).with_name("static")
 MAX_EVENTS = 5000
+# Events waiting to be sent on one open stream. A stream that falls this far behind (a phone asleep with the page open:
+# the connection stays up, nothing is read) stops getting more; when it is read again it ends, and the page reconnects
+# from the last event it saw, the rest coming from `events`. Unbounded, it held every event of the session in memory.
+SUB_QUEUE = 2000
+
+
+class _Stream(asyncio.Queue):
+    """One open event stream's queue (at most SUB_QUEUE events)."""
+    behind = False   # an event was dropped because the stream fell too far behind: it ends when next read
 
 
 # ---------------------------------------------------------------- app state
@@ -71,7 +80,7 @@ class Hub:
         self.busy = threading.Lock()
         self._drain = threading.Lock()   # held to decide: run the next queued request, or let go of `busy`
         self._lock = threading.Lock()
-        self._subs: list[asyncio.Queue] = []
+        self._subs: list[_Stream] = []
         self.loop: asyncio.AbstractEventLoop | None = None
         self.pin: str | None = None
         self.updated: dict | None = None   # set once the code on disk was updated: a restart loads it
@@ -92,13 +101,30 @@ class Hub:
             subs = list(self._subs)
         if self.loop:
             for q in subs:
-                self.loop.call_soon_threadsafe(q.put_nowait, evt)
+                try:
+                    self.loop.call_soon_threadsafe(self._offer, q, evt)
+                except RuntimeError:   # the event loop is closed: the server is shutting down
+                    return
 
-    def subscribe(self) -> asyncio.Queue:
-        q: asyncio.Queue = asyncio.Queue()
+    @staticmethod
+    def _offer(q: _Stream, evt: dict) -> None:
+        """(on the event loop) Queue an event for one stream, unless it has fallen SUB_QUEUE events behind."""
+        try:
+            q.put_nowait(evt)
+        except asyncio.QueueFull:
+            q.behind = True   # the stream ends when it is read again; the page reconnects and catches up
+
+    def subscribe(self) -> _Stream:
+        q = _Stream(maxsize=SUB_QUEUE)
         with self._lock:
             self._subs.append(q)
         return q
+
+    def since(self, seq: int) -> list[dict]:
+        """The kept events after `seq`. (Under the lock: a worker thread trimming the list meanwhile made a copy taken
+        without it skip events.)"""
+        with self._lock:
+            return [e for e in self.events if e["seq"] > seq]
 
     def unsubscribe(self, q: asyncio.Queue) -> None:
         with self._lock:
@@ -149,15 +175,20 @@ class Hub:
         return turn
 
     def reset(self) -> None:
-        if self.busy.locked():
+        # (held, not just looked at: a message arriving between a look and the swap started its turn on the harness
+        # being replaced - that turn's Stop then went to the new one, and clearing `turns` dropped it from the page)
+        if not self.busy.acquire(blocking=False):
             raise HTTPException(409, "wait for the running turn to finish")
-        self.close_browser()   # the session is over: so is the browser it kept open between turns
-        mode, project, watch = self.harness.tier_mode, self.harness.project, self.harness.watch_browser
-        self.harness = self._factory(self.publish)
-        self.harness.tier_mode, self.harness.project, self.harness.watch_browser = mode, project, watch
-        self.harness.browser_dock = True
-        self.turns.clear()
-        self.publish("reset", {"session": self.harness.session})
+        try:
+            self.close_browser()   # the session is over: so is the browser it kept open between turns
+            mode, project, watch = self.harness.tier_mode, self.harness.project, self.harness.watch_browser
+            self.harness = self._factory(self.publish)
+            self.harness.tier_mode, self.harness.project, self.harness.watch_browser = mode, project, watch
+            self.harness.browser_dock = True
+            self.turns.clear()
+            self.publish("reset", {"session": self.harness.session})
+        finally:
+            self.busy.release()
 
     def load(self, session: str) -> dict:
         """Carry on a past session: a harness for it (its memory, so Jev's follow-up check and the context see the
@@ -808,6 +839,10 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             path.write_text(re.sub(r"^draft:\s*true\s*\n", "", path.read_text(encoding="utf-8"), count=1, flags=re.M),
                             encoding="utf-8")
         elif body.get("action") == "delete":
+            # a skill's own folder only: a SKILL.md sitting straight in learned/ (the roster finds it: rglob) would
+            # otherwise take every learned skill with it
+            if learned_root not in path.parent.resolve().parents:
+                raise HTTPException(409, f"{s.name} is not in a folder of its own under learned/: delete it by hand")
             shutil.rmtree(path.parent)
         else:
             raise HTTPException(400, "action must be approve|delete")
@@ -817,7 +852,11 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @app.post("/api/memory/forget")
     async def forget(request: Request) -> dict:
         body = await request.json()
-        hub.harness.memory.retire_fact(int(body.get("id", -1)))
+        try:
+            fact = int(body.get("id", -1))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "id must be a number") from None
+        hub.harness.memory.retire_fact(fact)
         return {"ok": True}
 
     @app.post("/api/reset")
@@ -828,7 +867,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @app.get("/api/events")
     async def events(request: Request, since: int = 0):
         q = hub.subscribe()
-        backlog = [e for e in hub.events if e["seq"] > since]
+        backlog = hub.since(since)
 
         async def stream():
             try:
@@ -836,6 +875,8 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                     yield f"id: {e['seq']}\ndata: {json.dumps(e)}\n\n"
                 last = backlog[-1]["seq"] if backlog else since
                 while not await request.is_disconnected():
+                    if q.behind:
+                        break   # it fell SUB_QUEUE events behind: the page reconnects with `last` and catches up
                     try:
                         e = await asyncio.wait_for(q.get(), timeout=15)
                     except asyncio.TimeoutError:
@@ -953,7 +994,9 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
 
     @app.get("/api/file")
     def file(path: str):
-        root = hub.harness.cfg.workspace.resolve()
+        # what the page opens: a session's files (artifacts, task folders). The rest of the workspace holds every
+        # conversation (memory.db), the usage and failure logs and the Nango secret key (nango/): not for a link
+        root = (hub.harness.cfg.workspace / "sessions").resolve()
         p = Path(path).resolve()
         if not p.is_file() or not p.is_relative_to(root):
             raise HTTPException(404, "not found")

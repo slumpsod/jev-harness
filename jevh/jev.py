@@ -5,12 +5,14 @@ Workers never talk to Jev about routing; they only see the result.
 """
 from __future__ import annotations
 
+import inspect
 import os
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 from .config import Config
 from .decide import SystemOneClient, SystemOneError, choice, noul, score
+from .errors import Cancelled
 from .personas import Persona
 from .skills import Skill
 
@@ -211,9 +213,20 @@ class Jev:
         self.choice_max = int(cfg.jev.get("choice_max", CHOICE_MAX))   # options per Choice the backend takes
         self.trace: list[dict[str, Any]] = []
         self.on_call = None   # (step, response, n_questions): usage tracking
+        # () -> the cancel event of the work the calling thread does (the harness sets it: the running turn's Stop), or
+        # None. A Stop then ends a Jev call in flight instead of waiting it out.
+        self.cancel_for = None
+        try:
+            self._client_cancels = "cancel" in inspect.signature(self.client.ask).parameters
+        except (TypeError, ValueError):
+            self._client_cancels = False
 
     def _ask(self, step: str, state: Any, questions: dict) -> Any:
-        resp = self.client.ask(state, questions)
+        cancel = self.cancel_for() if self.cancel_for is not None else None
+        if cancel is not None and cancel.is_set():
+            raise Cancelled("stopped by the user")
+        resp = (self.client.ask(state, questions, cancel=cancel) if cancel is not None and self._client_cancels
+                else self.client.ask(state, questions))
         if self.on_call is not None:
             self.on_call(step, resp, len(questions))
         self.trace.append({"step": step, "model": resp.model, "latency_s": round(resp.latency_s, 3),

@@ -194,6 +194,14 @@ def test_healthy_progress_is_left_alone(cfg):
     assert [d["stuck"] for k, d in events if k == "progress_check"] == [False, False]
 
 
+def test_progress_every_zero_switches_the_check_off(cfg):
+    """(it raised ZeroDivisionError at the first step, failing every code task)"""
+    events = []
+    h, _ = harness(cfg, steps(3), events=events, progress_every=0)
+    assert h.turn("do a long job").answer == "all done"
+    assert not [k for k, _ in events if k == "progress_check"]
+
+
 def test_checkpoint_and_resume_in_the_same_folder(cfg):
     h, llm = harness(cfg, [py("open('draft.txt', 'w').write('half of it')\nprint('saved draft')"),
                            py("print('still going')")])
@@ -211,6 +219,30 @@ def test_checkpoint_and_resume_in_the_same_folder(cfg):
     seen = llm.seen[-1]
     assert any("saved draft" in m["content"] for m in seen) and "Resumed after an interruption" in seen[-1]["content"]
     assert h.resumable() == []                                            # taken over, not offered again
+
+
+def test_a_resumed_task_that_stops_again_can_be_resumed_from_where_it_got_to(cfg):
+    """A resumed run saves its checkpoint over the one it resumed (same folder). resume() then wrote the OLD
+    conversation back over it, marked "resumed_by": the resumed run's progress was lost, and a task that hit the
+    step limit a second time was no longer offered at all."""
+    h, llm = harness(cfg, [py("open('draft.txt', 'w').write('1')\nprint('step one')"), py("print('step two')")])
+    h.personas["daily_assistant"].max_steps = 2
+    r = h.turn("write the report")
+    assert "step limit" in r.answer
+
+    llm.replies = [py("print('step three')"), py("print('step four')")]
+    r2 = h.resume()
+    assert "step limit" in r2.answer and r2.checkpoint == r.checkpoint
+    ck = json.loads(Path(r2.checkpoint).read_text(encoding="utf-8"))
+    assert "resumed_by" not in ck and ck["stopped"] == "max_steps"
+    assert any("step four" in str(m.get("content")) for m in ck["messages"])    # the second run's own progress
+    assert [x["path"] for x in h.resumable()] == [r2.checkpoint]                  # and it can go on
+
+    h.personas["daily_assistant"].max_steps = 5
+    llm.replies = [py("final('report finished')")]
+    assert h.resume().answer == "report finished"
+    assert any("step four" in str(m["content"]) for m in llm.seen[-1])          # it went on from the second run
+    assert h.resumable() == []
 
 
 def test_background_jobs(tmp_path):

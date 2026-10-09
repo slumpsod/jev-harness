@@ -160,3 +160,45 @@ def test_an_idle_gate_asks_again_what_another_process_loaded():
     with lm.use("qwen3.8-27b@q6_k"):   # asked again, and it's there: nothing to do
         pass
     assert lm.log == ["unload ornith", "load qwen3.8-27b"]
+
+
+def test_a_stop_ends_the_wait_for_another_models_turn():
+    """A hand-off waiting for the GPU (another model's request in flight) held a Stop until that request ended - up to
+    max_wait, or a whole swap - and the turn could not end before it."""
+    import pytest
+    from jevh.errors import Cancelled
+    lm = FakeLMStudio(loaded=["ornith"])
+    holding, release = threading.Event(), threading.Event()
+
+    def busy():
+        with lm.use("ornith"):
+            holding.set()
+            release.wait(10)
+    threading.Thread(target=busy, daemon=True).start()
+    assert holding.wait(5)
+    cancel = threading.Event()
+    threading.Timer(0.3, cancel.set).start()
+    t = time.time()
+    with pytest.raises(Cancelled):
+        with lm.use("qwen3.8-27b", cancel):
+            pass
+    assert time.time() - t < 2
+    release.set()
+    assert "load qwen3.8-27b" not in lm.log      # it never swapped
+
+
+def test_a_failed_swap_forgets_which_model_it_thought_was_loaded():
+    """The swap unloads first: when the load then failed, the gate still believed the old model loaded, and the next
+    request for it went straight through to a model that was gone."""
+    import pytest
+
+    class NoLoad(FakeLMStudio):
+        def _load(self, model):
+            raise RuntimeError("LM Studio /api/v1/models/load: HTTP 404 model not found")
+    lm = NoLoad(loaded=["ornith"])
+    with lm.use("ornith"):
+        pass
+    with pytest.raises(RuntimeError):
+        with lm.use("qwen3.8-27b"):
+            pass
+    assert lm.current is None and lm.state == {}   # ornith was unloaded; the gate asks LM Studio next time

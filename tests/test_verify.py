@@ -51,6 +51,24 @@ def test_files_are_checked(cfg, tmp_path):
     assert "Email" not in problems  # a placeholder= attribute on an input is fine
 
 
+def test_each_file_check_reports_its_own_result_and_a_big_csv_is_read_only_in_part(cfg, tmp_path):
+    """A file's check read the running problem list, so every file after a bad one showed "see problems"; and a big
+    data file was read whole, a CSV's every row kept in a list."""
+    import time as _time
+    from jevh import verify
+    v = verifier(cfg)
+    (tmp_path / "bad.json").write_text("{broken", encoding="utf-8")
+    row = "1,Ana,Lyon,2026-10-08,42.5\n"
+    with open(tmp_path / "big.csv", "w", encoding="utf-8") as f:
+        f.write("id,name,city,day,score\n" + row * (verify.TEXT_CHECK_BYTES // len(row) + 50_000))
+    arts = [str(tmp_path / "bad.json"), str(tmp_path / "big.csv")]
+    t = _time.time()
+    r = v.check("export it", "Done.", arts, "CODE:\nx")
+    assert _time.time() - t < 5
+    assert r.checks["file bad.json"] == "see problems" and r.checks["file big.csv"] == "pass"
+    assert len(r.problems) == 1 and "bad.json" in r.problems[0]
+
+
 def test_office_files_pdfs_and_csvs_must_hold_up(cfg, tmp_path):
     import zipfile
     v = verifier(cfg)
