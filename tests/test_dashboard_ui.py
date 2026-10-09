@@ -46,9 +46,10 @@ class Windowed(ScriptedLLM):
 def serve(cfg, replies, model=ScriptedLLM, jev_rules=rules, setup=None):
     """The dashboard on a free port with a scripted model; yields its address. `setup(harness)` runs on the new harness
     (past sessions to remember)."""
-    def factory(on_event):
-        h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(jev_rules)), llm_factory=lambda p: model(list(replies)), on_event=on_event)
-        if setup:
+    def factory(on_event, session=None):
+        h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(jev_rules)), llm_factory=lambda p: model(list(replies)), on_event=on_event,
+                    session=session)
+        if setup and not session:   # (a session picked up again already has its past)
             setup(h)
         return h
     with socket.socket() as s:
@@ -402,6 +403,64 @@ def _history(page, dashboard):
     page.click('[data-h="back"]')
     page.wait_for_selector("#p-history .hgroup")
     assert page.inner_text("#ptitle") == "History" and not page.errors
+
+
+def test_a_turns_footer_gives_tokens_per_second_only_when_the_decode_time_is_known(dashboard, browse):
+    def body(page):
+        page.goto(dashboard)
+        page.wait_for_function("typeof usageBrief === 'function'")
+        llm = lambda **k: {"by_kind": {"llm": {"input": 9000, "output": 2600, "thinking": 0, "seconds": 35, **k}}, "total": {}}
+        assert " 60 tok/s" in page.evaluate("(u) => usageBrief(u)", llm(decode_seconds=10, decode_tokens=600))
+        assert "tok/s" not in page.evaluate("(u) => usageBrief(u)", llm())
+        assert not page.errors
+    browse(body)
+
+
+def test_the_message_box_shows_the_speed_the_model_is_writing_at_while_it_writes(dashboard, browse):
+    def body(page):
+        page.goto(dashboard)
+        page.wait_for_function("typeof handle === 'function'")
+        page.evaluate("""() => {
+          handle({seq: 1, kind: "turn_start", turn: 1, data: {turn: {id: 1, message: "hi", status: "running", started: Date.now() / 1000}}});
+          render();
+        }""")
+        assert page.locator("#tps").is_hidden()                                   # nothing written yet
+        page.evaluate("""() => { handle({seq: 2, kind: "progress", turn: 1, data: {persona: "daily_assistant", chunks: 50, thinking: 0, tps: 61.4}}); render(); }""")
+        assert page.inner_text("#tps") == "61 tok/s" and page.locator("#tps").is_visible()
+        page.evaluate("""() => { handle({seq: 3, kind: "progress", turn: 1, data: {persona: "high_end_dev", chunks: 50, thinking: 0, tps: 20}}); render(); }""")
+        assert page.inner_text("#tps") == "81 tok/s (2 streams)"                  # hand-offs in parallel: the sum
+        page.evaluate("""() => { for (const p of ["daily_assistant", "high_end_dev"]) handle({seq: 4, kind: "progress", turn: 1, data: {persona: p, chunks: 90, thinking: 0, tps: 0}}); render(); }""")
+        assert page.locator("#tps").is_hidden()                                   # the calls ended: nothing is being written
+        page.evaluate("""() => { handle({seq: 5, kind: "progress", turn: 1, data: {persona: "daily_assistant", chunks: 50, thinking: 0, tps: 40}}); S.live.daily_assistant.at -= 20000; render(); }""")
+        assert page.locator("#tps").is_hidden()                                   # a report that stopped coming is not kept on show
+        assert not page.errors
+    browse(body)
+
+
+def test_a_past_session_can_be_resumed_from_the_history_tab(history_dashboard, browse):
+    browse(lambda page: _resume(page, history_dashboard))
+
+
+def _resume(page, dashboard):
+    page.goto(dashboard)
+    page.click('#tabs [data-tab="history"]')
+    page.wait_for_function("document.querySelectorAll('#p-history .hrow').length === 4 && !document.querySelector('[data-cat=__waiting]')",
+                           timeout=20000)
+    page.locator("#p-history .hrow", has_text="workouts").locator('[data-h="load"]').click()   # the row's own Resume button
+    page.wait_for_function("document.querySelectorAll('#logi .turn').length === 2")           # the conversation is back in the chat
+    chat = page.inner_text("#logi")
+    assert "plan my workouts" in chat and "swap the squats" in chat and "Mon push, Tue pull" in chat
+    assert "20261002-100000-bbbb" in page.inner_text("#sess")
+    assert page.inner_text("#ptitle") == "History" and page.locator("#side.on, #app[data-panel=open]").count() == 1   # (a wide screen keeps the panel)
+    page.wait_for_function("!document.querySelector('#p-history .hrow [data-h=load]') || "
+                           "document.querySelectorAll('#p-history .hrow [data-h=load]').length === 3")   # this session no longer offers Resume
+    assert "this session" in page.inner_text("#p-history")
+    page.locator("#p-history .hrow", has_text="flask app").click()                              # the detail view has its own button
+    page.wait_for_selector("#p-history .hhead .primary")
+    assert page.inner_text("#p-history .hhead .primary") == "Resume this session"
+    page.click("#p-history .hhead .primary")
+    page.wait_for_function("document.querySelectorAll('#logi .turn').length === 2 && document.querySelector('#logi').innerText.includes('flask app')")
+    assert "20261001-100000-aaaa" in page.inner_text("#sess") and not page.errors
 
 
 @pytest.fixture

@@ -298,3 +298,64 @@ def test_a_reply_that_never_starts_streaming_is_given_up_on_early():
     finally:
         L.FIRST_CHUNK_BASE = old
         srv.shutdown()
+
+
+def timed_stream(n: int, delay: float, timings: dict | None = None, hold: bool = False):
+    """A server that streams `n` one-token chunks `delay` apart (`hold`: all of them at once, after the wait), then its usage."""
+    import time as _t
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            if hold:
+                _t.sleep(n * delay)
+            for i in range(n):
+                self.wfile.write(f"data: {json.dumps({'choices': [{'delta': {'content': 'x '}}]})}\n\n".encode())
+                self.wfile.flush()
+                if not hold:
+                    _t.sleep(delay)
+            last = {"choices": [], "usage": {"prompt_tokens": 100, "completion_tokens": n}, **({"timings": timings} if timings else {})}
+            self.wfile.write(f"data: {json.dumps(last)}\n\ndata: [DONE]\n\n".encode())
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+def test_decode_time_is_what_the_server_says_else_the_span_the_tokens_streamed_in():
+    ask = [{"role": "user", "content": "hi"}]
+    srv = timed_stream(20, 0.03, timings={"predicted_ms": 400.0})
+    r = OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "m").chat(ask)
+    srv.shutdown()
+    assert r.decode_seconds == 0.4 and r.output_tokens == 20                       # llama.cpp's own figure wins
+    srv = timed_stream(20, 0.03)
+    r = OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "m").chat(ask)
+    srv.shutdown()
+    assert 0.4 < r.decode_seconds < 1.5                                            # ~19 gaps of 30 ms, measured from the stream
+    srv = timed_stream(20, 0.03, hold=True)
+    r = OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "m").chat(ask)
+    srv.shutdown()
+    assert r.decode_seconds == 0.0                                                 # sent all at once: it says nothing about speed
+
+
+def test_progress_reports_the_speed_of_the_last_50_chunks_and_a_zero_when_the_call_ends():
+    seen = []
+    srv = timed_stream(120, 0.01)
+    llm = OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "m")
+    llm.on_progress = lambda n, thinking=0, tps=0.0: seen.append((n, round(tps)))
+    llm.chat([{"role": "user", "content": "hi"}])
+    srv.shutdown()
+    assert [n for n, _ in seen][:2] == [50, 100] and len(seen) == 3 and seen[-1][1] == 0
+    assert all(10 < tps < 120 for _, tps in seen[:2])                              # 10 ms a token: under 100 a second
+    short = []
+    srv = timed_stream(20, 0.001)
+    llm = OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "m")
+    llm.on_progress = lambda *a: short.append(a)
+    llm.chat([{"role": "user", "content": "hi"}])
+    srv.shutdown()
+    assert short == []                                                             # a short reply reports nothing at all

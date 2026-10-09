@@ -455,6 +455,7 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 .ctx .ring { display: inline-grid; } .ctx svg { display: block; }
 .ctx .ring .track { fill: none; stroke: var(--surface3); stroke-width: 12; } .ctx .ring .seg { fill: none; stroke-width: 12; transition: opacity .15s; }
 .ctx .rt b { font-weight: 600; }
+.tps { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; padding: 0 4px; } .tps b { font-weight: 600; color: var(--text); }
 .ctx svg:hover .seg { opacity: .45; } .ctx svg .seg:hover { opacity: 1; }
 .sendbtn, .stopbtn { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border-radius: calc(var(--r) * .8); flex: none; }
 .sendbtn { background: var(--grad); color: var(--on-accent); border: 0; box-shadow: var(--glow); }
@@ -519,6 +520,7 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 .hrow:hover, .hrow:focus-visible { background: var(--hover); outline: none; }
 .hrow .ht { display: block; font-size: 13px; overflow-wrap: anywhere; }
 .hrow .hm { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 3px; font-size: 11.5px; color: var(--muted); }
+.hrow .hgo { margin-left: auto; height: 24px; padding: 0 11px; font-size: 12px; border-radius: var(--pill); background: transparent; }
 .tag { font-size: 11px; padding: 1px 8px; border-radius: var(--pill); border: 1px solid var(--line2); color: var(--muted); }
 .htitle { margin: 12px 0 2px; font: 650 16px/1.35 var(--font-display); overflow-wrap: anywhere; }
 .hturn { margin: 14px 0; } .hturn .hu { font-weight: 600; font-size: 13.5px; overflow-wrap: anywhere; white-space: pre-wrap; }
@@ -753,7 +755,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 
 /* the conversation column adapts to its own width: opening the panel narrows it */
 @container chat (max-width: 800px) { .topbar .lbl, .topbar .sess, .stat span { display: none; } button.flag, button.ghost { padding: 0 9px; } .cchip.proj { display: none; } }
-@container chat (max-width: 520px) { .ctx .rt { display: none; } .cchip { padding: 0 6px; } .cchip select { max-width: 96px; } .cchip:has(select) > svg.ic:first-child { display: none; } }
+@container chat (max-width: 520px) { .tps { display: none; } .ctx .rt { display: none; } .cchip { padding: 0 6px; } .cchip select { max-width: 96px; } .cchip:has(select) > svg.ic:first-child { display: none; } }
 @container chat (max-width: 600px) { .cchip.tog .lbl { display: none; } .topbar { padding-inline: 14px; } .log-inner { padding-inline: 18px; } .composer { padding-inline: 14px; } }
 
 /* ======================================================================
@@ -916,6 +918,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
           <label class="cchip proj" title="A folder the project tool may read, edit and run commands in (dev and designer). Empty = none."><svg class="ic"><use href="#i-folder"/></svg>
             <input id="project" placeholder="Project folder" aria-label="Project folder"></label>
           <span class="grow"></span>
+          <span class="tps" id="tps" hidden title="Tokens per second the model is writing right now (the last 50 or so tokens)"></span>
           <div class="ctx" id="ctxring" tabindex="0" role="button" aria-haspopup="dialog"></div>
           <button class="stopbtn" id="stop" type="button" hidden title="Stop this turn: the model, running code and hand-offs" aria-label="Stop"><svg class="ic"><use href="#i-stop"/></svg></button>
           <button class="sendbtn" id="send" type="submit" title="Send" aria-label="Send"><svg class="ic"><use href="#i-send"/></svg></button>
@@ -1064,7 +1067,7 @@ function dec(t, taskId) { if (!t.decisions.has(taskId)) t.decisions.set(taskId, 
 function handle(e) {
   S.lastSeq = Math.max(S.lastSeq, e.seq);
   const d = e.data || {};
-  if (e.kind === "reset") { S.turns.clear(); S.order = []; S.selected = null; S.live = {}; S.ctx = null; $("sess").textContent = `session ${d.session}`; S.open.clear(); S.stick = true; resetChat(); refreshReviews(); if (S.tab === "history") { H.open = null; H.detail = null; refreshHistory(); } return; }
+  if (e.kind === "reset") { S.turns.clear(); S.order = []; S.selected = null; S.live = {}; S.ctx = null; $("sess").textContent = `session ${d.session}`; S.open.clear(); S.stick = true; resetChat(); refreshReviews(); if (d.loaded) refreshArtifacts(); if (S.tab === "history") { H.open = null; H.detail = null; refreshHistory(); } return; }
   if (e.kind.startsWith("review_")) { reviewEvent(e.kind, d); return; }
   if (e.kind === "history") { if (S.tab === "history") refreshHistory(); return; }
   if (e.turn == null) return;
@@ -1075,7 +1078,7 @@ function handle(e) {
       const {tasks, trace, ...rest} = d.turn;  // keep our own Map of tasks; merge the final snapshot into it
       Object.assign(t, rest);
       (tasks || []).forEach((x) => upsertTask(t, x));
-      if (e.kind === "turn_start") { S.selected = t.id; S.stick = true; const i = S.queued.indexOf(d.turn.message); if (i >= 0) S.queued.splice(i, 1); } else { S.live = {}; afterTurn(t, e); if (S.tab === "history") refreshHistory(); }
+      if (e.kind === "turn_start") { S.selected = t.id; S.stick = true; const i = S.queued.indexOf(d.turn.message); if (i >= 0) S.queued.splice(i, 1); } else { S.live = {}; if (!rest.restored) afterTurn(t, e); if (S.tab === "history") refreshHistory(); }   // (a resumed session's old turns are not new work: no panel pops open)
       break;
     }
     case "route": t.route = d.decision; break;
@@ -1137,7 +1140,7 @@ function handle(e) {
     case "code": t.activity.push({ts: e.ts, kind: "code", task: d.task_id, persona: d.persona, step: d.step, text: d.code}); break;
     case "output": t.activity.push({ts: e.ts, kind: "output", task: d.task_id, persona: d.persona, step: d.step, text: d.output, error: d.error}); break;
     case "context": S.ctx = t.context = {...d, turn: t.id}; break;
-    case "progress": S.live[d.persona] = {chunks: d.chunks, thinking: d.thinking}; break;
+    case "progress": S.live[d.persona] = {chunks: d.chunks, thinking: d.thinking, tps: d.tps || 0, at: Date.now()}; break;
     case "swap": t.swaps.push({ts: e.ts, ...d}); t.activity.push({ts: e.ts, kind: "swap", text: `LM Studio: unloaded ${(d.unloaded || []).join(", ") || "nothing"} -> loaded ${d.loaded} (${secs(d.seconds)})`}); break;
     case "jev_error": t.activity.push({ts: e.ts, kind: "warn", text: `Jev unavailable during ${d.step}: ${d.error}`}); break;
     case "unwaited": t.activity.push({ts: e.ts, kind: "warn", text: `${d.task.to} never waited on a hand-off; kept its artifacts`}); break;
@@ -1194,6 +1197,14 @@ function render() {
   document.title = busy ? "\u25cf Working - Jev Harness" : "Jev Harness";
   renderQueue();
   renderCtx();
+  renderTps(busy);
+}
+// the speed the model is writing at right now: a stream reports every ~50 tokens and once more, at 0, when it ends. One
+// stream shows its own rate, hand-offs running in parallel show the sum. A report that stopped coming is not shown.
+function renderTps(busy) {
+  const live = Object.values(S.live).filter((x) => x.tps > 0 && Date.now() - x.at < 15000), el = $("tps");
+  const total = live.reduce((a, x) => a + x.tps, 0), text = busy && live.length ? `<b>${Math.round(total)}</b> tok/s${live.length > 1 ? ` (${live.length} streams)` : ""}` : "";
+  if (el.dataset.t !== text) { el.dataset.t = text; el.innerHTML = text; el.hidden = !text; }
 }
 
 // ---- context ring: what the running worker's prompt is made of, out of its compaction limit ----
@@ -1592,7 +1603,7 @@ function timelineHtml(t) {
     if (x.status === "rejected") return `${label}<div class="reject">refused: ${esc(x.answer || x.reason || "")}</div>`;
     if (!x.started) return `${label}<div class="track">${swaps}</div>`;
     const end = x.finished || now, running = !x.finished;
-    const liveTok = running && S.live[x.to] ? ` ${S.live[x.to].chunks} tok` : "";
+    const lv = running && S.live[x.to], liveTok = lv ? ` ${lv.chunks} tok${lv.tps > 0 ? ` · ${Math.round(lv.tps)}/s` : ""}` : "";
     return `${label}<div class="track">${swaps}<div class="bar ${tier} ${running ? "running" : ""}" style="left:${X(x.started)};width:calc(${X(end)} - ${X(x.started)})" title="${esc(x.model || "")}"><span class="t">${secs(end - x.started)}${liveTok}</span></div></div>`;
   }).join("");
   const done = tasks.filter((x) => x.depth === 1 && x.finished && x.started).map((x) => [x.started, x.finished]).sort((a, b) => a[0] - b[0]);
@@ -1695,7 +1706,7 @@ async function refreshHistory() {
 function historyRow(s) {
   const tags = (s.also || []).map((c) => `<span class="tag" title="Jev also thought of this field">${esc(catName(c))}</span>`).join("");
   return `<div class="hrow" role="button" tabindex="0" data-session="${esc(s.session)}"><span class="ht">${esc(s.title || "(no request recorded)")}</span>
-    <span class="hm"><span>${esc(hwhen(s.last || s.started))}</span><span>&middot; ${s.turns} turn${s.turns === 1 ? "" : "s"}</span>${s.current ? '<span class="badge running">this session</span>' : ""}${s.flag ? '<span class="badge cancelled">flagged</span>' : ""}${tags}</span></div>`;
+    <span class="hm"><span>${esc(hwhen(s.last || s.started))}</span><span>&middot; ${s.turns} turn${s.turns === 1 ? "" : "s"}</span>${s.current ? '<span class="badge running">this session</span>' : ""}${s.flag ? '<span class="badge cancelled">flagged</span>' : ""}${tags}${s.current ? "" : `<button type="button" class="hgo" data-h="load" data-load="${esc(s.session)}" title="Carry on this session in the chat: your next message joins its conversation">Resume</button>`}</span></div>`;
 }
 function historyList() {
   const D = H.data, q = H.q.trim().toLowerCase();
@@ -1735,7 +1746,7 @@ function renderHistoryDetail(el) {
     Object.keys(who).length ? `Worked by ${Object.entries(who).map(([p, n]) => esc(p) + (n > 1 ? ` &times;${n}` : "")).join(", ")}` : "",
     d.failures.length ? `${d.failures.length} failure${d.failures.length === 1 ? "" : "s"} logged` : "",
     d.usage && d.usage.total && d.usage.total.calls ? esc(usageBrief(d.usage)) : ""].filter(Boolean);
-  el.innerHTML = `<div class="hhead"><button type="button" data-h="back">&larr; All sessions</button></div>
+  el.innerHTML = `<div class="hhead"><button type="button" data-h="back">&larr; All sessions</button>${d.current ? "" : `<button type="button" class="primary" data-h="load" data-load="${esc(d.session)}" title="Carry on this session in the chat: your next message joins its conversation and its files">Resume this session</button>`}</div>
     <h3 class="htitle">${esc(s.title || d.turns.length && d.turns[0].user || d.session)}</h3>
     <div class="kv">${s.started ? esc(hwhen(s.started)) + " &middot; " : ""}${d.turns.length} turn${d.turns.length === 1 ? "" : "s"} &middot; ${esc(d.session)}${d.current ? " (this session)" : ""}</div>
     <div class="card" style="margin-top:12px"><h3>Category <span class="badge">${d.category ? esc(catName(d.category)) : "not sorted yet"}</span>${d.category && d.confidence ? `<span class="kv">Jev, ${pct(d.confidence)} sure</span>` : ""}
@@ -1746,6 +1757,15 @@ function renderHistoryDetail(el) {
 }
 $("p-history").addEventListener("click", async (ev) => {
   const row = ev.target.closest("[data-session]"), btn = ev.target.closest("[data-h]");
+  if (btn && btn.dataset.h === "load") {   // (before the row: the button sits inside it)
+    btn.disabled = true;
+    try {
+      await api(`/api/history/${encodeURIComponent(btn.dataset.load)}/load`, {method: "POST"});
+      if (matchMedia("(max-width: 900px)").matches) closePanel();   // (a phone shows the chat, not both)
+    } catch (e) { alert(e.message); }
+    btn.disabled = false;
+    return;
+  }
   if (row) { H.open = row.dataset.session; H.detail = null; H.key = ""; $("p-history").innerHTML = ""; return refreshHistory(); }
   if (!btn) return;
   const act = btn.dataset.h;
@@ -1773,6 +1793,7 @@ function usageBrief(u) {
   const sum = (xs, f) => xs.reduce((a, x) => a + (x[f] || 0), 0);
   const parts = [`${kfmt(sum(llm, "input"))} in / ${kfmt(sum(llm, "output"))} out` + (sum(llm, "thinking") ? ` (${kfmt(sum(llm, "thinking"))} thinking)` : "")];
   if (sum(llm, "seconds")) parts.push(`model ${secs(sum(llm, "seconds"))}`);
+  if (sum(llm, "decode_seconds")) parts.push(`${Math.round(sum(llm, "decode_tokens") / sum(llm, "decode_seconds"))} tok/s`);   // while it was writing: reading the prompt is not in it
   if (sum(jev, "calls")) parts.push(`Jev ${sum(jev, "seconds").toFixed(1)}s, ${sum(jev, "calls")} calls`);
   if (k.swap) parts.push(`swaps ${secs(k.swap.seconds)}`);
   if (u.total && u.total.cost) parts.push(`$${u.total.cost.toFixed(4)}`);

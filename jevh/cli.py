@@ -118,7 +118,7 @@ class Printer:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
         self._lock = threading.Lock()
-        self._live: dict[str, tuple[int, int]] = {}
+        self._live: dict[str, tuple[int, int, float]] = {}
         self._ctx_seen: set[tuple] = set()   # context events come every step: each window is said once
 
     def __call__(self, kind: str, data: dict) -> None:
@@ -242,8 +242,8 @@ class Printer:
                 console.print(f"[dim]{_indent(t)}{t.to} finished ({r.stopped}, {r.steps} steps, "
                               f"{t.finished - t.started:.0f}s)[/]")
         elif kind == "progress":
-            self._live[data["persona"]] = (data["chunks"], data.get("thinking", 0))
-            line = " | ".join(f"{p} {n} tok ({t} think)" for p, (n, t) in self._live.items())
+            self._live[data["persona"]] = (data["chunks"], data.get("thinking", 0), data.get("tps", 0))
+            line = " | ".join(f"{p} {n} tok ({t} think){f' {r:.0f} tok/s' if r else ''}" for p, (n, t, r) in self._live.items())
             console.print(f"[dim]    generating: {esc(line)}[/]", end="\r")
         elif kind == "unwaited":
             t, r = data["task"], data["result"]

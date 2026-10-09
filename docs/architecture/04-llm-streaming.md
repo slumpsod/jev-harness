@@ -141,5 +141,6 @@ LM Studio cannot be reached. [17 Context length](17-context-length.md).
 
 Every client from `Harness._llm` is wrapped. After each call it records one row:
 `kind` (`llm`, or `learn` on the learning thread), `model` (the loaded one), `persona`, `task`,
-`tier`, `input`, `output`, `thinking` tokens and `seconds`. It takes these from the calling
+`tier`, `input`, `output`, `thinking` tokens, `seconds` and `decode_seconds` (the tokens per second shown in a turn's footer,
+[10](10-observability.md#usage-tracking-usagepy)). It takes these from the calling
 thread's `_where()` tags. See [10](10-observability.md).

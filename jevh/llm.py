@@ -41,6 +41,7 @@ class LLMResult:
     tool_calls: list = field(default_factory=list)   # native calls: [{"id", "name", "arguments" (JSON text)}]
     interrupted: bool = False   # a `watch` callback stopped it mid-thinking (see OpenAICompat.chat)
     redirected: bool = False    # the `interrupt` event cut it: the user sent a message that changes the task
+    decode_seconds: float = 0.0   # time spent producing the tokens, the prompt's reading excluded (0: not known)
 
 
 class LLM(Protocol):
@@ -180,7 +181,8 @@ class OpenAICompat:
         self.idle_timeout = idle_timeout
         self.extra = extra or {}
         self.name = f"{model}@{self.base_url}"
-        self.on_progress = None  # callable(tokens_so_far) set by the UI, optional
+        self.on_progress = None  # callable(chunks, thinking_chunks, tokens_per_second) set by the UI, optional: every 50 chunks,
+                                 # and once more with a rate of 0 when a call that reported any ends
         self.gate = gate         # lmstudio.ExclusiveModels: one model resident at a time
         self.context_length = context_length   # config: what to assume the window is (wins over asking the server)
         self.unlimited_thinking = False  # think: unlimited -> no cap, and workers skip the first-step nudge
@@ -244,7 +246,7 @@ class OpenAICompat:
         thought: list[str] = []
         calls: dict[int, dict[str, str]] = {}   # streamed tool calls, assembled by index
         st: dict[str, Any] = {"usage": {}, "finish": None, "chunks": 0, "thinking": 0, "streaming": False,
-                              "r": None, "err": None}
+                              "r": None, "err": None, "t0": None, "t1": None, "timings": {}, "mark": None, "reported": False}
         finished = threading.Event()     # the reader thread is over
         ended = threading.Event()        # this call is over (the reader finished, or the caller stopped waiting for it)
         stopped = threading.Event()      # the caller stopped waiting: the reader must leave the results alone
@@ -281,8 +283,12 @@ class OpenAICompat:
                             _set_read_timeout(r, self.idle_timeout)
                         evt = json.loads(data)
                         st["usage"] = evt.get("usage") or st["usage"]
+                        st["timings"] = evt.get("timings") or st["timings"]   # (llama-server: its own count of the decode time)
                         for ch in evt.get("choices") or []:
                             delta = ch.get("delta") or {}
+                            if delta.get("content") or delta.get("reasoning_content") or delta.get("reasoning") or delta.get("tool_calls"):
+                                st["t1"] = time.monotonic()
+                                st["t0"] = st["t0"] or st["t1"]
                             parts.append(delta.get("content") or "")
                             piece = delta.get("reasoning_content") or delta.get("reasoning")
                             if piece:
@@ -301,7 +307,10 @@ class OpenAICompat:
                             st["finish"] = ch.get("finish_reason") or st["finish"]
                         st["chunks"] += 1
                         if self.on_progress and st["chunks"] % 50 == 0:
-                            self.on_progress(st["chunks"], st["thinking"])
+                            now = time.monotonic()   # the speed of the last 50 chunks (a chunk is about a token)
+                            since, was = st["mark"] or (st["t0"] or now, 0)
+                            st["mark"], st["reported"] = (now, st["chunks"]), True
+                            self.on_progress(st["chunks"], st["thinking"], (st["chunks"] - was) / max(now - since, 1e-3))
             except BaseException as e:  # noqa: BLE001 - handed to the caller, which maps it to the harness's errors
                 st["err"] = e
             finally:
@@ -328,6 +337,8 @@ class OpenAICompat:
             if st["r"] is not None:   # dropping the connection is what stops the server's generation
                 _abort(st["r"])
         feed.close(f"{st['thinking']} thinking chunks")
+        if self.on_progress and st["reported"]:   # (the call is over: nothing is being written now)
+            self.on_progress(st["chunks"], st["thinking"], 0.0)
         try:
             if cut == "cancel":
                 raise Cancelled("stopped by the user while the model was replying")
@@ -367,7 +378,13 @@ class OpenAICompat:
             text += (f"\n[output cut off at max_tokens: ~{thinking} thinking + "
                      f"~{chunks - thinking} answer tokens]")
         counted = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
-        return LLMResult(text=text, input_tokens=int(usage.get("prompt_tokens") or 0),
+        # decode time: the server's own figure (llama.cpp's timings), else the span the tokens streamed in - but only a
+        # stream that came token by token (a server that holds the reply back and sends it at once says nothing)
+        n_out = int(usage.get("completion_tokens") or 0)
+        span = st["t1"] - st["t0"] if st["t0"] and st["t1"] and not cut else 0.0
+        decode = float((st["timings"] or {}).get("predicted_ms") or 0) / 1000 or (
+            span if span >= 0.3 and chunks >= n_out * 0.5 else 0.0)
+        return LLMResult(decode_seconds=round(max(decode, 0.0), 3), text=text, input_tokens=int(usage.get("prompt_tokens") or 0),
                          output_tokens=int(usage.get("completion_tokens") or 0), model=self.model,
                          thinking_tokens=int(counted if counted is not None else thinking), reasoning=reasoning,
                          tool_calls=[{**c, "id": c["id"] or f"call_{i}", "arguments": clean_call_args(c["arguments"])}
