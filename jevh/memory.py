@@ -18,6 +18,8 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from . import store
+
 CHUNK_CHARS = 900
 STOP = set("""a an and are as at be been but by can could did do does for from had has have how i if in into is it
 its just me my no not of on or our please so some than that the their them then there these they this to up us
@@ -66,7 +68,7 @@ class Memory:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self.db = sqlite3.connect(self.root / "memory.db", check_same_thread=False)
+        self.db = store.connect(self.root / "memory.db")
         self.db.executescript("""
             CREATE TABLE IF NOT EXISTS turns(id INTEGER PRIMARY KEY, persona TEXT, session TEXT, ts REAL,
                                              user TEXT, assistant TEXT);
@@ -85,9 +87,16 @@ class Memory:
         path = self.root / "timeline.jsonl"
         if not path.exists():
             return
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                self._insert(Turn(**json.loads(line)))
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+                turn = Turn(*(row[k] for k in ("persona", "user", "assistant", "session", "ts")))
+            except (ValueError, TypeError, KeyError):
+                # a line cut short by a crash mid-write: one bad line stopped the harness from starting at all
+                continue
+            self._insert(turn)
         self.db.commit()
 
     def _insert(self, t: Turn) -> None:

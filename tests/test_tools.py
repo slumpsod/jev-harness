@@ -67,6 +67,25 @@ def test_project_tool_edits_inside_the_folder_and_undoes(tmp_path):
     assert not (tmp_path / "escape.txt").exists()
 
 
+def test_project_undo_restores_the_original_whatever_way_the_path_was_written(tmp_path):
+    """Backups were keyed by the path as written: editing "./src/app.py" after "src/app.py" copied the edited file over
+    the original's backup (undo then restored the edit), and an absolute path was copied onto itself and failed."""
+    proj = tmp_path / "proj"
+    (proj / "src").mkdir(parents=True)
+    app = proj / "src" / "app.py"
+    app.write_text("v0\n", encoding="utf-8")
+    with Repl(tmp_path / "wd", tmp_path / "arts", tools={"project": "jevh.tools.project"},
+              env={"JEVH_PROJECT": str(proj)}) as r:
+        out = r.run("print(project.edit('src/app.py', 'v0', 'v1'))\n"
+                    "print(project.edit('./src/app.py', 'v1', 'v2'))\n"
+                    f"print(project.edit({str(app)!r}, 'v2', 'v3'))\n"
+                    "print(project.changed())")
+        assert not out.error, out.output
+        assert "['src/app.py']" in out.output
+        assert r.run(f"project.undo({str(app)!r})").output.strip() == "['src/app.py']"
+    assert app.read_text(encoding="utf-8") == "v0\n"
+
+
 def test_mcp_hub_lists_and_calls_tools():
     hub = McpHub(FAKE_MCP)
     try:
@@ -77,6 +96,21 @@ def test_mcp_hub_lists_and_calls_tools():
         assert hub.call("fake.add", {"a": 2, "b": 3}) == "5"
         with pytest.raises(McpError, match="it broke"):
             hub.call("fake.boom", {})
+    finally:
+        hub.close()
+
+
+def test_an_mcp_server_logging_odd_lines_to_stdout_keeps_working():
+    """A log line that was JSON but not an object (a bare number), or not UTF-8, ended the reader thread: every call
+    after it waited its whole timeout. And a call that got no answer raised a bare TimeoutError, not McpError."""
+    noisy = {"fake": {**FAKE_MCP["fake"], "env": {"FAKE_MCP_NOISE": "1"}, "timeout": 3}}
+    hub = McpHub(noisy)
+    try:
+        assert hub.call("fake.echo", {"text": "one"}) == "one"
+        assert hub.call("fake.add", {"a": 2, "b": 3}) == "5"      # the reader survived the noise
+        with pytest.raises(McpError, match="no answer within"):
+            hub.call("fake.hang", {})
+        assert hub.call("fake.echo", {"text": "after"}) == "after"
     finally:
         hub.close()
 

@@ -16,7 +16,10 @@ import os
 import subprocess
 import threading
 from concurrent.futures import Future
+from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
+
+from .procs import kill_tree
 
 PROTOCOL = "2025-06-18"
 
@@ -79,22 +82,32 @@ class McpServer:
             self.proc.stdin.flush()
 
     def _read(self) -> None:
-        for line in self.proc.stdout:
-            try:
-                msg = json.loads(line)
-            except json.JSONDecodeError:
-                continue  # servers sometimes log to stdout
-            if "id" in msg and ("result" in msg or "error" in msg):
-                fut = self._pending.pop(msg["id"], None)
-                if fut:
-                    fut.set_result(msg)
-            elif "id" in msg and "method" in msg:  # server -> client request: answer pings, refuse the rest
-                reply = {"jsonrpc": "2.0", "id": msg["id"]}
-                reply.update({"result": {}} if msg["method"] == "ping" else
-                             {"error": {"code": -32601, "message": "not supported by this client"}})
-                self._send(reply)
-        for fut in list(self._pending.values()):
-            fut.set_result({"error": {"message": f"MCP server {self.name} exited"}})
+        """Answers to our requests, and the server's own requests. Anything else on stdout is skipped: servers log there,
+        and a log line that was not UTF-8 (UnicodeDecodeError) or was JSON but not an object (a bare number) used to
+        end this thread - every later call then waited its whole timeout for an answer nobody would read."""
+        try:
+            for line in self.proc.stdout:
+                try:
+                    msg = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(msg, dict) or isinstance(msg.get("id"), (dict, list)):
+                    continue
+                if "id" in msg and ("result" in msg or "error" in msg):
+                    fut = self._pending.pop(msg["id"], None)
+                    if fut and not fut.done():
+                        fut.set_result(msg)
+                elif "id" in msg and "method" in msg:  # server -> client request: answer pings, refuse the rest
+                    reply = {"jsonrpc": "2.0", "id": msg["id"]}
+                    reply.update({"result": {}} if msg["method"] == "ping" else
+                                 {"error": {"code": -32601, "message": "not supported by this client"}})
+                    self._send(reply)
+        except (OSError, ValueError):   # its pipes closed under us (killed)
+            pass
+        finally:
+            for fut in list(self._pending.values()):
+                if not fut.done():
+                    fut.set_result({"error": {"message": f"MCP server {self.name} exited"}})
 
     def request(self, method: str, params: dict) -> dict:
         if not self.proc or self.proc.poll() is not None:
@@ -102,10 +115,18 @@ class McpServer:
         rid = next(self._ids)
         fut: Future = Future()
         self._pending[rid] = fut
-        self._send({"jsonrpc": "2.0", "id": rid, "method": method, "params": params})
-        msg = fut.result(self.timeout)
+        try:
+            self._send({"jsonrpc": "2.0", "id": rid, "method": method, "params": params})
+            msg = fut.result(self.timeout)
+        except FutureTimeout:
+            raise McpError(f"{self.name} {method}: no answer within {self.timeout:.0f}s") from None
+        except (OSError, ValueError) as e:   # it exited as we wrote (BrokenPipeError)
+            raise McpError(f"MCP server {self.name} is not running: {type(e).__name__}") from None
+        finally:
+            self._pending.pop(rid, None)   # (a timed-out request's entry stayed for good)
         if "error" in msg:
-            raise McpError(f"{self.name} {method}: {msg['error'].get('message', msg['error'])}")
+            err = msg["error"]
+            raise McpError(f"{self.name} {method}: {err.get('message', err) if isinstance(err, dict) else err}")
         return msg.get("result") or {}
 
     def call(self, tool: str, arguments: dict) -> str:
@@ -127,7 +148,7 @@ class McpServer:
 
     def close(self) -> None:
         if self.proc and self.proc.poll() is None:
-            self.proc.kill()
+            kill_tree(self.proc)   # (a launcher - uvx, npx - would otherwise leave the real server running)
 
 
 class McpHub:

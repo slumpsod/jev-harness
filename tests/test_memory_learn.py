@@ -206,3 +206,16 @@ def test_a_long_output_line_keeps_the_part_with_the_answers_number():
     kept = evidence_lines("Model\nBLEU\n" + para, evidence_terms("28.4"))
     assert "score of 28.4" in kept and kept.startswith("...") and len(kept) < 220   # live: cut at char 200 before
     assert evidence_lines("short line with 28.4 in it", evidence_terms("28.4")) == "short line with 28.4 in it"
+
+
+def test_a_cut_off_line_in_the_timeline_does_not_stop_memory_from_loading(tmp_path):
+    """memory.db is rebuilt from timeline.jsonl when it is empty (a reset, a new machine): a last line cut short by a
+    crash mid-write raised out of Memory() and the harness would not start."""
+    import json as _json
+    from jevh.memory import Memory
+    root = tmp_path / "memory"
+    root.mkdir()
+    good = _json.dumps({"persona": "p", "user": "what is 2+2?", "assistant": "4", "session": "s", "ts": 1.0})
+    (root / "timeline.jsonl").write_text(good + "\n" + good[:25] + "\n", encoding="utf-8")
+    m = Memory(root)
+    assert m.count() == 1 and m.own("p", 5)[0].assistant == "4"

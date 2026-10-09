@@ -1,3 +1,4 @@
+import os
 import time
 
 from jevh.decide import SystemOneError
@@ -32,6 +33,42 @@ def test_plain_answer_turn_writes_memory(cfg):
     r = h.turn("hi")
     assert r.persona == "daily_assistant" and r.answer == "Hello Jed!"
     assert h.memory.own("daily_assistant", 5)[0].assistant == "Hello Jed!"
+
+
+def test_each_harness_gives_its_workers_its_own_tool_settings_and_leaves_the_environment_alone(cfg, monkeypatch):
+    """The harness wrote its tool settings into os.environ (setdefault): a second Harness in the same process (the
+    dashboard's next session, the next test) kept the first one's, and the Nango folder was replaced for everyone."""
+    from jevh.tools import nango
+    monkeypatch.delenv("JEVH_COMFY_URL", raising=False)
+    keys = ("JEVH_COMFY_URL", "JEVH_NANGO_DIR", "JEVH_JEV_URL", "JEVH_JEV_BACKEND")
+    before = {k: os.environ.get(k) for k in keys}
+    script = py("import os\nfinal(os.environ.get('JEVH_COMFY_URL', '-') + ' ' + os.environ['JEVH_NANGO_DIR'])")
+    answers = []
+    for url in ("http://127.0.0.1:1111", "http://127.0.0.1:2222"):
+        cfg.tools = {**cfg.tools, "comfy_url": url}
+        h, _ = harness(cfg, team_rules("daily_assistant"), {"daily_assistant": [script]})
+        answers.append(h.turn("which comfy?").answer)
+    assert answers[0].startswith("http://127.0.0.1:1111 ") and answers[1].startswith("http://127.0.0.1:2222 ")
+    assert answers[1].endswith(str(cfg.workspace / "nango"))
+    assert {k: os.environ.get(k) for k in keys} == before
+    with nango.using(h.tool_env):   # the harness's own nango calls (the prompt's account line) use its folder too
+        assert nango._state_dir() == cfg.workspace / "nango"
+
+
+def test_a_finished_answer_survives_a_memory_or_usage_store_that_fails(cfg):
+    """Saving the turn comes after the work: memory.db locked by the other dashboard past its timeout raised out of
+    the turn, and the user lost an answer that was already done."""
+    import sqlite3
+    events = []
+    h, _ = harness(cfg, team_rules("daily_assistant"), {"daily_assistant": ["Hello Jed!"]}, events)
+
+    def locked(*a, **k):
+        raise sqlite3.OperationalError("database is locked")
+    h.memory.append = locked
+    h.usage.summary = locked
+    r = h.turn("hi")
+    assert r.answer == "Hello Jed!" and r.usage == {}
+    assert any(k == "memory_error" and "database is locked" in d["error"] for k, d in events)
 
 
 def test_fitness_app_pulls_in_dev_and_designer(cfg):
@@ -185,6 +222,38 @@ def test_step_limit_warns_and_harvests_files(cfg):
     assert not any("thinking" in a for a in r.artifacts), r.artifacts
     prompts = [m["content"] for m in llms["high_end_dev"].seen[-1] if m["role"] == "user"]
     assert any("2 steps left" in c for c in prompts)
+
+
+def test_harvest_hands_over_the_workers_files_not_its_installed_packages(cfg):
+    """Every file in the folder was copied but only the first 20 by name handed over: after an npm install, node_modules
+    (sorting before report.md) filled all 20 places, the report was lost, and thousands of files were copied."""
+    step = py("import os\n"
+              "os.makedirs('node_modules/pkg', exist_ok=True)\n"
+              "for i in range(30):\n    open(f'node_modules/pkg/f{i}.js', 'w').write('x')\n"
+              "open('report.md', 'w').write('# report')\n"
+              "os.makedirs('sub', exist_ok=True)\nopen('sub/out.csv', 'w').write('a,b')\n"
+              "final('done')")
+    h, _ = harness(cfg, team_rules("daily_assistant"), {"daily_assistant": [step]})
+    r = h.turn("write the report")
+    names = [a.rsplit("daily_assistant_", 1)[-1] for a in r.artifacts]
+    assert names == ["report.md", "sub_out.csv"], r.artifacts
+    assert not any("node_modules" in p.name for p in h.artifacts.iterdir())
+
+
+def test_a_gate_that_crashes_hands_the_answer_over_marked_unchecked(cfg):
+    """The gate's own failure ended the task as failed and the finished answer was lost; and a TypeError from inside
+    it ran the whole gate twice (`except TypeError` stood for "an old verify callable")."""
+    cfg.raw = {**cfg.raw, "verify": {**(cfg.raw.get("verify") or {}), "enabled": True}}
+    calls = []
+    h, _ = harness(cfg, team_rules("daily_assistant"), {"daily_assistant": [py("final('the answer')")]})
+
+    def crash(*a, **k):
+        calls.append(1)
+        raise TypeError("a bug inside the gate")
+    h.verifier.check = crash
+    r = h.turn("question")
+    assert r.answer.startswith("the answer") and "could not check this answer" in r.answer
+    assert len(calls) == 1
 
 
 class SlowLLM(ScriptedLLM):

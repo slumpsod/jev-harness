@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from .. import procs
 from ..config import shell_env
 from . import checks
 from .cases import Case
@@ -101,9 +102,8 @@ def remove_tree(repo: Path, dest: Path, branch: str | None = None) -> None:
 def run_tests(tree: Path, command: str, timeout: float = 1800) -> tuple[bool, str]:
     env = shell_env()
     env["PYTHONPATH"] = str(tree) + os.pathsep + env.get("PYTHONPATH", "")
-    try:
-        p = subprocess.run(command, shell=True, cwd=tree, env=env, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=timeout)
+    try:   # (procs.run: a test suite's own children are killed with it on a timeout, not waited for)
+        p = procs.run(command, shell=True, cwd=tree, env=env, timeout=timeout)
     except subprocess.TimeoutExpired:
         return False, f"tests timed out after {timeout:.0f}s"
     out = (p.stdout or "") + (p.stderr or "")

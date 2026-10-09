@@ -33,6 +33,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
+from . import store
 from .review import list_sessions, session_record, session_tasks
 
 DEFAULTS = {"enabled": True, "min_confidence": 0.6, "also_at": 0.25, "max_requests": 6, "request_chars": 280}
@@ -59,7 +60,7 @@ class SessionIndex:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self.db = sqlite3.connect(self.path, check_same_thread=False)
+        self.db = store.connect(self.path)
         self.db.execute("CREATE TABLE IF NOT EXISTS categories(session TEXT PRIMARY KEY, category TEXT, confidence REAL, "
                         "probs TEXT, turns INTEGER, roster TEXT, asked REAL)")
         self.db.commit()
@@ -201,6 +202,11 @@ class Categorizer:
                            input_tokens=getattr(resp, "input_tokens", 0), seconds=getattr(resp, "latency_s", 0.0))
         except Exception:  # noqa: BLE001 - accounting must never break the tab
             pass
+        if not probs:
+            # nothing usable (an empty distribution): asked again on a later visit. Raising here (max() of nothing) was
+            # taken for Jev being down - the whole queue was dropped, and this session, first again 30 s later, failed
+            # the same way every time, so no other session was ever categorized
+            return
         top = max(probs, key=lambda k: probs[k])
         self.index.put(session, top, probs[top], probs, turns, roster)
 

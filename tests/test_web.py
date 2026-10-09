@@ -182,6 +182,62 @@ def test_file_endpoint_blocks_paths_outside_workspace(cfg, tmp_path):
     assert client.get("/api/file", params={"path": traversal, "token": TOKEN}).status_code == 404
 
 
+def test_file_endpoint_serves_session_files_only_not_the_rest_of_the_workspace(cfg):
+    """The page opens a session's files; the rest of the workspace is every conversation (memory.db), the logs and the
+    Nango secret key, which /api/file used to hand to anyone holding the page's token."""
+    client, _ = make_client(cfg)
+    key = cfg.workspace / "nango" / "secret.json"
+    key.parent.mkdir(parents=True, exist_ok=True)
+    key.write_text('{"secret": "sk-live"}', encoding="utf-8")
+    assert client.get("/api/file", params={"path": str(key), "token": TOKEN}).status_code == 404
+    assert client.get("/api/file", params={"path": str(cfg.workspace / "usage.db"), "token": TOKEN}).status_code == 404
+
+
+def test_an_event_stream_that_falls_behind_is_bounded_and_told_to_catch_up(cfg):
+    """A phone asleep with the page open keeps its stream connected but reads nothing: its queue grew with every event
+    of the session. Now it stops at SUB_QUEUE, and the stream ends (the page reconnects from its last event)."""
+    from jevh.web.server import SUB_QUEUE, Hub
+    _, app = make_client(cfg)
+    hub = app.state.hub
+    q = hub.subscribe()
+    for i in range(SUB_QUEUE + 50):
+        Hub._offer(q, {"seq": i})
+    assert q.qsize() == SUB_QUEUE and q.behind
+    hub.unsubscribe(q)
+    hub.publish("ping", {})
+    assert [e["kind"] for e in hub.since(hub.seq - 1)] == ["ping"]
+
+
+def test_reset_is_refused_while_a_turn_holds_the_harness(cfg):
+    client, app = make_client(cfg)
+    hub = app.state.hub
+    before = hub.harness
+    assert hub.busy.acquire(blocking=False)   # (a turn starting at this moment would hold it)
+    try:
+        assert client.post("/api/reset", headers=auth()).status_code == 409
+        assert hub.harness is before
+    finally:
+        hub.busy.release()
+    assert client.post("/api/reset", headers=auth()).status_code == 200 and hub.harness is not before
+
+
+def test_deleting_a_learned_skill_never_takes_the_learned_folder_with_it(cfg, tmp_path):
+    cfg.skills_dirs = [tmp_path / "skills"]
+    learned = tmp_path / "skills" / "learned"
+    (learned / "learned-keep").mkdir(parents=True)
+    (learned / "learned-keep" / "SKILL.md").write_text("---\nname: learned-keep\ndescription: kept\n---\nbody\n",
+                                                       encoding="utf-8")
+    (learned / "SKILL.md").write_text("---\nname: stray\ndescription: put straight in learned/\n---\nbody\n",
+                                      encoding="utf-8")
+    client, _ = make_client(cfg)
+    r = client.post("/api/skills/review", json={"name": "stray", "action": "delete"}, headers=auth())
+    assert r.status_code == 409
+    assert (learned / "learned-keep" / "SKILL.md").is_file()
+    assert client.post("/api/skills/review", json={"name": "learned-keep", "action": "delete"},
+                       headers=auth()).status_code == 200
+    assert not (learned / "learned-keep").exists() and (learned / "SKILL.md").is_file()
+
+
 def test_settings_validate(cfg):
     client, app = make_client(cfg)
     assert client.post("/api/settings", json={"tier_mode": "fast"}, headers=auth()).json()["tier_mode"] == "fast"
