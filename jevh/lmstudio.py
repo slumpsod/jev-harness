@@ -26,7 +26,10 @@ import urllib.request
 from contextlib import contextmanager
 from typing import Callable, Iterator
 
+from .errors import Cancelled
+
 _GATES: dict[str, "ExclusiveModels"] = {}
+CANCEL_POLL = 0.5   # seconds between looks at a waiter's cancel event
 _GATES_LOCK = threading.Lock()
 
 
@@ -106,21 +109,32 @@ class ExclusiveModels:
 
     # -- public ------------------------------------------------------------------------
     @contextmanager
-    def use(self, model: str) -> Iterator[None]:
+    def use(self, model: str, cancel: threading.Event | None = None) -> Iterator[None]:
+        """`cancel`: a set event ends the wait for the GPU with Cancelled. Without it, a hand-off waiting for another
+        model's requests to finish (up to max_wait, or a whole swap) held a Stop until then, and the turn with it."""
         with self._cond:
             if self.current is not None and self.inflight == 0 and time.monotonic() - self.last_used >= self.recheck:
                 self.current = None   # idle a while: ask LM Studio what's loaded (_swap_to is a no-op if it's ours)
             deadline = time.monotonic() + self.max_wait
             while self.current is not None and not self._same(self.current, model):
+                self._check(cancel)
                 if self.inflight == 0:
                     idle = time.monotonic() - self.last_used
                     if idle >= self.linger or time.monotonic() >= deadline:
                         break
-                    self._cond.wait(self.linger - idle)
+                    self._cond.wait(self._slice(self.linger - idle, cancel))
                 else:
-                    self._cond.wait(max(0.05, deadline - time.monotonic()) if time.monotonic() < deadline else None)
+                    self._cond.wait(self._slice(max(0.05, deadline - time.monotonic())
+                                                if time.monotonic() < deadline else None, cancel))
+            self._check(cancel)
             if self.current is None or not self._same(self.current, model):
-                self._swap_to(model)  # holding the lock: nobody else starts a request mid-swap
+                try:
+                    self._swap_to(model)  # holding the lock: nobody else starts a request mid-swap
+                except BaseException:
+                    # what is loaded now is unknown (models may have been unloaded before the load failed): believing
+                    # the old one still loaded sent the next request for it straight through, to a model that was gone
+                    self.current = None
+                    raise
                 self.current = model
             self.inflight += 1
         try:
@@ -184,6 +198,18 @@ class ExclusiveModels:
         self._request("POST", "/api/v1/models/load", {"model": model}, timeout=self.load_timeout)
 
     # -- internals ---------------------------------------------------------------------
+    @staticmethod
+    def _check(cancel: threading.Event | None) -> None:
+        if cancel is not None and cancel.is_set():
+            raise Cancelled("stopped by the user while waiting for the model")
+
+    @staticmethod
+    def _slice(timeout: float | None, cancel: threading.Event | None) -> float | None:
+        """A condition wait, cut into short ones when there is a cancel event to look at."""
+        if cancel is None:
+            return timeout
+        return CANCEL_POLL if timeout is None else min(timeout, CANCEL_POLL)
+
     @staticmethod
     def _same(a: str, b: str) -> bool:
         return a == b or _base(a) == _base(b)

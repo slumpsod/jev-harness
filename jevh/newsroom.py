@@ -842,16 +842,22 @@ def default_path() -> Path:
     return load_config().workspace / "newsroom.db"
 
 
-def export_env(cfg) -> None:
-    """Hand the store's place and the X settings to worker REPLs (children inherit the environment)."""
+def worker_env(cfg) -> dict[str, str]:
+    """The store's place and the X settings, as environment variables for a worker's REPL (the harness adds them to
+    each worker's own, not to the process's: Harness.tool_env). An X setting already in the environment wins."""
     s = settings(cfg.raw)
-    os.environ["JEVH_NEWSROOM_DB"] = str(cfg.workspace / "newsroom.db")
-    if s["x_feed"]:
-        os.environ.setdefault("JEVH_NEWSROOM_X_FEED", str(s["x_feed"]))
-    if s["x_integration"]:
-        os.environ.setdefault("JEVH_NEWSROOM_X_INTEGRATION", str(s["x_integration"]))
+    env = {"JEVH_NEWSROOM_DB": str(cfg.workspace / "newsroom.db")}
+    for name, value in (("JEVH_NEWSROOM_X_FEED", s["x_feed"]), ("JEVH_NEWSROOM_X_INTEGRATION", s["x_integration"])):
+        if value and name not in os.environ:
+            env[name] = str(value)
     if s["allow_local"]:
-        os.environ["JEVH_NEWSROOM_ALLOW_LOCAL"] = "1"
+        env["JEVH_NEWSROOM_ALLOW_LOCAL"] = "1"
+    return env
+
+
+def export_env(cfg) -> None:
+    """The same settings for a process that uses the store itself (the dashboard's runner, `jevh newsroom`)."""
+    os.environ.update(worker_env(cfg))
 
 
 # ---------------------------------------------------------------- the `jevh newsroom` command

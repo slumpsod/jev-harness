@@ -27,6 +27,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from . import store
+
 KINDS = ("idea", "problem", "note")
 STATUSES = ("open", "done")
 MAX_CHARS = 20000
@@ -47,7 +49,7 @@ class Notebook:
     def __init__(self, path: Path):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self.db = sqlite3.connect(path, check_same_thread=False)
+        self.db = store.connect(path)
         self.db.row_factory = sqlite3.Row
         self.db.executescript("""
             CREATE TABLE IF NOT EXISTS entries(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, updated REAL,

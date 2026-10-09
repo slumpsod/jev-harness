@@ -269,7 +269,7 @@ def run_scenario(cfg, name: str, request: str, key: str, run_dir: Path, stop=Non
 
     h = Harness(cfg, on_event=on_event)
     box["h"] = h
-    os.environ["JEVH_NANGO_DIR"] = real_nango_dir    # the harness pointed it at the scenario's workspace
+    h.tool_env["JEVH_NANGO_DIR"] = real_nango_dir    # the harness pointed it at the scenario's workspace
     h.learning = False
     if extra.get("dock"):    # the dashboard's own browser panel: Chromium with no window, so nothing pops up on screen
         h.watch_browser, h.browser_dock = True, True

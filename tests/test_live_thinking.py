@@ -359,3 +359,40 @@ def test_progress_reports_the_speed_of_the_last_50_chunks_and_a_zero_when_the_ca
     llm.chat([{"role": "user", "content": "hi"}])
     srv.shutdown()
     assert short == []                                                             # a short reply reports nothing at all
+
+
+def streams(*chunks: str):
+    """A server whose reply streams these `data:` payloads, as written."""
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            for c in chunks:
+                self.wfile.write(f"data: {c}\n\n".encode())
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+def test_an_error_the_server_streams_mid_reply_is_an_error_not_an_empty_reply():
+    """llama.cpp and LM Studio report a failure mid-reply (a context overflow) as a stream event. Ignored, it read as an
+    empty reply, and the worker was told to continue, step after step, until its step limit."""
+    from jevh.llm import LLMError
+    srv = streams(json.dumps({"choices": [{"delta": {"content": "Let me"}}]}),
+                  json.dumps({"error": {"code": 400, "message": "the request exceeds the available context size"}}))
+    with pytest.raises(LLMError, match="exceeds the available context size"):
+        OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "m").chat([{"role": "user", "content": "hi"}])
+    srv.shutdown()
+
+
+def test_a_stream_chunk_that_is_not_json_is_an_llm_error_not_a_crash():
+    from jevh.llm import LLMError
+    srv = streams("{not json")
+    with pytest.raises(LLMError, match="not JSON"):
+        OpenAICompat(f"http://127.0.0.1:{srv.server_address[1]}/v1", "m").chat([{"role": "user", "content": "hi"}])
+    srv.shutdown()

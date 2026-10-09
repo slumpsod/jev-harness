@@ -52,6 +52,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
+from . import procs, store
 from .bus import Task, jsonable
 from .config import shell_env
 from .decide import noul
@@ -76,7 +77,7 @@ class FailureLog:
     def __init__(self, path: Path):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self.db = sqlite3.connect(path, check_same_thread=False)
+        self.db = store.connect(path)
         self.db.row_factory = sqlite3.Row
         self.db.execute("""CREATE TABLE IF NOT EXISTS failures(
             id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, session TEXT, turn INTEGER, task INTEGER,
@@ -189,10 +190,9 @@ class Hook:
     def __call__(self, event: dict[str, Any]) -> list[dict[str, Any]]:
         if self.python:
             return as_failures(self._func()(event))
-        try:
-            p = subprocess.run(self.command, shell=True, input=json.dumps(event, default=str), capture_output=True,
-                               text=True, encoding="utf-8", errors="replace", timeout=self.timeout, cwd=self.root,
-                               env=shell_env())
+        try:   # (procs.run: a hook that starts something in the background must not hang the turn past its timeout)
+            p = procs.run(self.command, shell=True, input=json.dumps(event, default=str), timeout=self.timeout,
+                          cwd=self.root, env=shell_env())
         except subprocess.TimeoutExpired:
             raise HookError(f"timed out after {self.timeout:.0f}s") from None
         out = p.stdout.strip()

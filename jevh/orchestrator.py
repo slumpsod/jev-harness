@@ -234,15 +234,7 @@ class Harness:
                     self.on_event("swap", {"unloaded": dropped, "loaded": model, "seconds": secs}),
                     self._record(kind="swap", model=model, seconds=secs, calls=1))
         self.context_settings = ctxwin.configure(self.cfg)   # context.detect: do the LM Studio gates ask the windows
-        for key, env in (("comfy_url", "JEVH_COMFY_URL"), ("comfy_workflows", "JEVH_COMFY_WORKFLOWS"),
-                         ("tools_jev", "JEVH_TOOLS_JEV"), ("nango_url", "JEVH_NANGO_URL"),
-                         ("nango_writes", "JEVH_NANGO_WRITES")):
-            if self.cfg.tools.get(key):  # REPL children inherit these
-                os.environ.setdefault(env, str(self.cfg.tools[key]))
-        os.environ["JEVH_NANGO_DIR"] = str(self.cfg.workspace / "nango")   # the key/URL nango.start() keeps
-        newsroom.export_env(self.cfg)   # where the Newsroom board lives, for worker REPLs (jevh/newsroom.py)
-        os.environ.setdefault("JEVH_JEV_URL", str(self.cfg.jev.get("url", "http://127.0.0.1:33001")))
-        os.environ.setdefault("JEVH_JEV_BACKEND", str(self.cfg.jev.get("backend", "semif")))
+        self.tool_env = self._tool_env()
         self.verifier = Verifier(self.jev, self.cfg)
         self.usage = Usage(self.cfg.workspace / "usage.db", self.cfg.raw.get("prices"))
         # sessions the user flagged for review, with their notes; a model can judge one (jevh/review.py)
@@ -254,6 +246,9 @@ class Harness:
             self.turn_no, self.current = self._where_it_stopped()
         self.turns_seen: dict[int, dict[str, Any]] = {}   # turn -> request, answer, lead task's folder (for flag())
         self._tl = threading.local()                 # which turn/task/persona this thread works for
+        # a Stop ends the turn's Jev calls in flight (only the turn's: learning, the quick reply and the History tab keep
+        # theirs). A thread that never said what it works for - the thinking watch's - is the turn's.
+        self.jev.cancel_for = lambda: self._cancel if self._running and getattr(self._tl, "kind", "llm") == "llm" else None
         self.jev.on_call = lambda step, resp, n: self._record(
             kind="jev", model=resp.model, input_tokens=resp.input_tokens, seconds=resp.latency_s,
             persona=getattr(self._tl, "persona", ""), task=getattr(self._tl, "task", None))
@@ -263,6 +258,7 @@ class Harness:
         self.forge = Forge(self.cfg, self.jev, self.memory, self.skills_home, self.learner._chat,
                            lambda kind, data: self.on_event(kind, data))
         self._learn_threads: list[threading.Thread] = []
+        self._threads_lock = threading.Lock()        # (task threads start spot checks while learning starts)
         self._cancel = threading.Event()             # set by cancel(); every worker of the turn checks it
         self._running = False
         self._workers: set[Worker] = set()           # running workers (their REPLs are killed on cancel)
@@ -278,6 +274,29 @@ class Harness:
         self._queue: list[str] = []                  # requests sent while a turn ran: they run after it
         self._said: list[str] = []                   # this turn's corrections (kept with the turn in memory)
         self._goal = ""                               # the running turn's message (what a correction is judged against)
+
+    def _tool_env(self) -> dict[str, str]:
+        """What this harness's config tells the tools in a worker's REPL, as environment variables for that REPL (the
+        nango tool also gets them when the harness calls it itself: nango.using). They used to be written into the
+        process's os.environ, which every Harness in the process shares: the first one's settings stuck for the
+        others, and its Nango folder replaced theirs. A variable already set in the environment still wins."""
+        env = {}
+        for key, name in (("comfy_url", "JEVH_COMFY_URL"), ("comfy_workflows", "JEVH_COMFY_WORKFLOWS"),
+                          ("tools_jev", "JEVH_TOOLS_JEV"), ("nango_url", "JEVH_NANGO_URL"),
+                          ("nango_writes", "JEVH_NANGO_WRITES")):
+            if self.cfg.tools.get(key) and name not in os.environ:
+                env[name] = str(self.cfg.tools[key])
+        for name, value in (("JEVH_JEV_URL", self.cfg.jev.get("url", "http://127.0.0.1:33001")),
+                            ("JEVH_JEV_BACKEND", self.cfg.jev.get("backend", "semif"))):
+            if name not in os.environ:
+                env[name] = str(value)
+        env["JEVH_NANGO_DIR"] = str(self.cfg.workspace / "nango")   # the key/URL nango.start() keeps
+        env.update(newsroom.worker_env(self.cfg))   # where the Newsroom board lives (jevh/newsroom.py)
+        return env
+
+    def _nango_summary(self) -> str:
+        with nango.using(self.tool_env):
+            return nango.summary()
 
     def _where_it_stopped(self) -> tuple[int, str | None]:
         """(the last turn number this session used, the assistant that answered last). A turn that crashed left a task
@@ -341,8 +360,7 @@ class Harness:
         result = self.run_task(root, goal=message, allow_collab=True, resume=resume)
         cancelled = root.status == "cancelled"
         if root.status == "done":  # a crashed turn's error text must not become "memory"
-            self.memory.append(route.persona, message, result.answer, self.session,
-                               turn_notes(result) + self._said_notes())
+            self._remember(route.persona, message, result.answer, turn_notes(result) + self._said_notes())
             learn = self.learning and result.stopped in ("final", "plain")
             # the catch-all persona ended up with it (the router's confidence in the catch-all says nothing: it
             # is the persona everything lands on): Jev decides, after the turn, whether any assistant is for it
@@ -350,7 +368,7 @@ class Harness:
             if learn or check_fit:
                 self._learn(route.persona, message, result, learn, check_fit)
         elif cancelled:  # kept, so a redirect ("no, just the USPS part") has the request as context
-            self.memory.append(route.persona, message, STOPPED_NOTE, self.session, self._said_notes().strip())
+            self._remember(route.persona, message, STOPPED_NOTE, self._said_notes().strip())
         self.current = route.persona
         self.turns_seen[self.turn_no] = {   # what flag() needs to log this turn as wrong later
             "request": message, "answer": result.answer, "persona": route.persona, "task": root.id,
@@ -359,10 +377,24 @@ class Harness:
         for old in [k for k in self.turns_seen if k <= self.turn_no - 200]:
             del self.turns_seen[old]
         return TurnResult(route.persona, result.answer, result.artifacts, self.board.tasks,
-                          list(self.jev.trace), time.time() - started, cancelled,
-                          self.usage.summary(self.session, self.turn_no),
+                          list(self.jev.trace), time.time() - started, cancelled, self._turn_usage(),
                           str(root.checkpoint) if (cancelled or result.stopped in RESUMABLE) and root.checkpoint
                           else None)
+
+    def _remember(self, persona: str, user: str, assistant: str, notes: str) -> None:
+        """Keep the turn in memory. The work is done by now: a store that fails (memory.db locked by the other
+        dashboard for longer than its timeout, a full disk) is reported, and the user still gets the answer."""
+        try:
+            self.memory.append(persona, user, assistant, self.session, notes)
+        except Exception as e:  # noqa: BLE001 - bookkeeping must never cost the user a finished answer
+            self.on_event("memory_error", {"error": f"the turn was not saved to memory: {type(e).__name__}: {e}"[:300]})
+
+    def _turn_usage(self) -> dict[str, Any]:
+        """This turn's usage totals, or {} when usage.db can't be read right now (the same reasoning as _remember)."""
+        try:
+            return self.usage.summary(self.session, self.turn_no)
+        except Exception:  # noqa: BLE001
+            return {}
 
     # -- resume ----------------------------------------------------------------------
     def resumable(self, limit: int = 10) -> list[dict[str, Any]]:
@@ -394,15 +426,22 @@ class Harness:
             path = found[0]["path"]
         ck = Path(path)
         data = json.loads(ck.read_text(encoding="utf-8"))
-        data["checkpoint_path"] = str(ck)
         task = data.get("task_text", "").split("\n\n(In your REPL:")[0]
         result = self.turn(task, force=data["persona"], resume=data)
-        try:  # mark the old checkpoint as taken over, so it isn't offered twice
-            data.pop("checkpoint_path", None)
-            data["resumed_by"] = self.session
-            ck.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        except OSError:
-            pass
+        own = result.tasks[0].checkpoint if result.tasks else None
+        # A run resumed in its own folder (every checkpoint that names its workdir) saves its checkpoint over this one,
+        # and that save is what says whether it can be resumed again. Writing the old conversation back over it (as this
+        # did) threw away everything the resumed run did, and its "resumed_by" hid the task from resumable(): one that
+        # hit the step limit a second time could not be continued. Only a checkpoint the run left behind (one from before
+        # tasks kept their folder) is marked as taken over, so it isn't offered twice.
+        if own is None or Path(own).resolve() != ck.resolve():
+            try:
+                data["resumed_by"] = self.session
+                tmp = ck.with_suffix(".tmp")
+                tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+                os.replace(tmp, ck)
+            except OSError:
+                pass
         return result
 
     # -- stop / ask ------------------------------------------------------------------
@@ -488,7 +527,9 @@ class Harness:
         probs: dict[str, float] = {}
         if kind is None:
             if cfg["classify"]:
-                task = self._lead_task.current if self._lead_task else self._goal
+                with self._ilock:   # (read once: the turn ending on its thread sets it to None between two reads)
+                    lead_task, goal = self._lead_task, self._goal
+                task = lead_task.current if lead_task is not None else goal
                 probs = self._safe("interject", lambda: self.jev.interject_kind(text, task, st.get("doing", "")), {})
                 kind = decide_interject(probs, self.cfg.t("interject_status"))
             else:
@@ -665,8 +706,7 @@ class Harness:
             run()
             return
         t = threading.Thread(target=run, name=kind, daemon=False)
-        self._learn_threads = [x for x in self._learn_threads if x.is_alive()] + [t]
-        t.start()
+        self._track(t)
 
     def _audit_llm(self, persona: str, own):
         """The model a spot check uses: config failures.audit_model "same" (the task's own: no model swap)
@@ -676,8 +716,17 @@ class Harness:
             return self._llm(self.personas[persona], "strong")
         return own
 
+    def _track(self, t: threading.Thread) -> None:
+        """Start a background thread wait_learning() joins. (Under a lock: two threads replacing the list at once
+        each dropped the other's thread, which wait_learning() then never waited for.)"""
+        with self._threads_lock:
+            self._learn_threads = [x for x in self._learn_threads if x.is_alive()] + [t]
+        t.start()
+
     def wait_learning(self, timeout: float | None = None) -> None:
-        for t in list(self._learn_threads):
+        with self._threads_lock:
+            threads = list(self._learn_threads)
+        for t in threads:
             t.join(timeout)
 
     def _learn(self, persona: str, message: str, result: WorkerResult, learn: bool = True,
@@ -719,8 +768,7 @@ class Harness:
             run()
             return
         t = threading.Thread(target=run, name="learn", daemon=False)
-        self._learn_threads = [x for x in self._learn_threads if x.is_alive()] + [t]
-        t.start()
+        self._track(t)
 
     def _unfit(self, message: str) -> bool:
         """Jev says no assistant (a created persona included) is for this request."""
@@ -751,7 +799,10 @@ class Harness:
         persona = self.personas[task.to]
         turn_no = getattr(self._tl, "turn", self.turn_no)
         self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = turn_no, persona.name, task.id, "llm"
-        skills = self._safe("skills", lambda: self.jev.pick_skills(task.jev_text, persona, self.roster),
+        # one roster for the whole task: learning (another thread) swaps self.roster for a fresh one when it writes a
+        # skill, and a skill picked from the old roster but deleted meanwhile raised a KeyError that ended the turn
+        roster = self.roster
+        skills = self._safe("skills", lambda: self.jev.pick_skills(task.jev_text, persona, roster),
                             SkillDecision([]))
         self.on_event("skills", {"task": task, "decision": skills})
         candidates = self.memory.candidates(persona.name, self.cfg.lim("memory_candidates_own"),
@@ -773,13 +824,13 @@ class Harness:
         tools = self._pick_tools(task, persona)
         self.on_event("tools", {"task": task, "decision": tools})
         catalog = self.mcp.catalog() if tools.mcp else {}
-        picked = [self.roster[s] for s in skills.skills]
-        notes = {"nango": nango.summary()} if "nango" in tools.tools else {}
+        picked = [roster[s] for s in skills.skills if s in roster]
+        notes = {"nango": self._nango_summary()} if "nango" in tools.tools else {}
         system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
                               [catalog[k] for k in tools.mcp if k in catalog], tool_notes=notes)
         ctx = {"request": task.text, "memory": mem.kept, "inputs": task.inputs,
                "skills": {s.name: s.body for s in picked}}
-        env = {}
+        env = dict(self.tool_env)   # (the REPL gets these; the process environment is left alone)
         if "browser" in persona.tools:
             env["JEVH_BROWSER_HEADED"] = "1" if self.watch_browser else "0"
             # bot checks stop it on every site only when config tools.browser_bot_check is on; off (the default) stops it
@@ -971,7 +1022,7 @@ class Harness:
             return ToolDecision([])
         own = {t: TOOLS[t].description for t in persona.tools
                if t in TOOLS and (t != "project" or self.project)}
-        if "nango" in own and (accounts := nango.summary()):   # Jev judges "my email" knowing Gmail is connected
+        if "nango" in own and (accounts := self._nango_summary()):   # Jev judges "my email" knowing Gmail is connected
             own["nango"] += f" ({accounts.rstrip('.')})"
         mcp = {}
         if persona.mcp and self.mcp:
@@ -1105,9 +1156,13 @@ class Harness:
         return cfg
 
     def _safe(self, step: str, fn: Callable[[], Any], fallback: Any) -> Any:
-        """Jev down -> degrade (default persona, no skills/memory/collab), never crash."""
+        """Jev down -> degrade (default persona, no skills/memory/collab), never crash. Stopped by the user -> the
+        same fallback at once and no error: the turn ends at its next check (run_task), as it did before a Stop could
+        cut a Jev call short - only without waiting for the call first."""
         try:
             return fn()
         except SystemOneError as e:
             self.on_event("jev_error", {"step": step, "error": str(e)})
+            return fallback
+        except Cancelled:
             return fallback

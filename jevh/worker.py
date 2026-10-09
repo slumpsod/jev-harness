@@ -162,6 +162,10 @@ TIMEOUT_RESTORED_NOTE = ("[timed out after {secs:.0f}s; the REPL was restarted a
                          "previous step was brought back - variables: {vars}; functions/classes: {defs}.{lost} "
                          "Anything this block created or changed in memory is gone; files it wrote are still there.]")
 SKILL_PROMPT_CHARS = 6000   # longer skills: head in the prompt, full text in ctx['skills']
+HARVEST_MAX = 20            # files handed over from the worker's folder when it ends without naming any
+# installed packages, never the worker's own deliverable: not walked when harvesting (dist/ and build/ are, since a
+# web app's built page can be the deliverable; the HARVEST_MAX cap bounds what is copied from them)
+HARVEST_SKIP = {"node_modules", "bower_components", "site-packages", "venv", "env"}
 CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
 # Some local models (seen: ornith in LM Studio) sometimes answer in their native tool-call
 # template instead of a fenced block: <tool_call><function=python><parameter=content>...
@@ -582,10 +586,10 @@ class Worker:
         text = (text or "").strip()
         if not text:
             return False
-        with self._steer_lock:
-            self._steers.append((text, replaces))
-        if abort:
-            self.interrupt.set()
+        with self._steer_lock:   # (set under the lock: set after it, it could land just after _deliver_steers had
+            self._steers.append((text, replaces))   # taken the message and cleared it, cutting the next reply for
+            if abort:                                # nothing - a wasted model call)
+                self.interrupt.set()
         return True
 
     def _steers_pending(self) -> bool:
@@ -1041,8 +1045,8 @@ class Worker:
     def _stalled(self, messages: list[dict], step: int) -> bool:
         """Every `progress_every` steps, Jev looks at the recent steps: going in circles? The first
         time the worker is told to change approach; a second time in a row stops it."""
-        if self.progress is None or step % self.progress_every:
-            return False
+        if self.progress is None or self.progress_every <= 0 or step % self.progress_every:
+            return False   # (progress_every: 0 switches the check off; it raised ZeroDivisionError at step 1)
         recent = messages[-2 * self.progress_every:]
         # a page it hadn't reached before is progress, however alike the steps look (live: Booking.com's first
         # strike came right after the dates were picked by hand, BlazeDemo's right after the flight was chosen)
@@ -1158,15 +1162,27 @@ class Worker:
         self._note("checking the answer before handing it over")
         # what the final() block itself printed counts as seen (print(total); final(...) is common)
         seen = messages + ([{"role": "user", "content": prefix.strip()}] if prefix.startswith("Output:") else [])
+        gate_failed = False
         try:
-            verdict = self.verify(answer, artifacts, seen, changed, task_idx=self._task_idx)
-        except TypeError:   # a verify callable from before task_idx
-            verdict = self.verify(answer, artifacts, seen, changed)
+            if self._verify_takes_task_idx():
+                verdict = self.verify(answer, artifacts, seen, changed, task_idx=self._task_idx)
+            else:   # a verify callable from before task_idx
+                verdict = self.verify(answer, artifacts, seen, changed)
+        except Cancelled:
+            raise
+        except Exception as e:  # noqa: BLE001 - the gate's own failure must not cost the user a finished answer
+            # (it ended the task as "failed" before, the answer lost; now it is handed over, marked as not checked. And
+            # a TypeError from inside the gate no longer runs the whole gate a second time, as `except TypeError` did)
+            from .verify import Verdict
+            gate_failed = True
+            verdict = Verdict(ok=False, problems=[f"the harness could not check this answer: {type(e).__name__}: {e}"[:300]],
+                              checks={"gate": f"error: {type(e).__name__}"})
         self._verdict = verdict
         # the last-step report of a stalled worker is taken as it is, problems listed under it: sent back,
         # it went on trying (live: a report on Target's bot block bounced for "says it will do more", and the
         # worker then tried Target's API with a faked browser header)
-        can_retry = self._bounces < self.max_bounces and step < self.limit and self._wrap_step is None
+        can_retry = (self._bounces < self.max_bounces and step < self.limit and self._wrap_step is None
+                     and not gate_failed)
         self.on_step("verify", {"persona": self.persona.name, "step": step, "ok": verdict.ok,
                                 "problems": verdict.problems, "checks": verdict.checks, "scores": verdict.scores,
                                 "bounced": (not verdict.ok) and can_retry, "answer": answer[:4000]})
@@ -1186,12 +1202,20 @@ class Worker:
             f"say plainly what is not done.]" + self._steps_left_note(step))})
         return True
 
+    def _verify_takes_task_idx(self) -> bool:
+        try:
+            params = inspect.signature(self.verify).parameters
+        except (TypeError, ValueError):
+            return False
+        return "task_idx" in params or any(p.kind == p.VAR_KEYWORD for p in params.values())
+
     def _with_unresolved(self, answer: str) -> str:
         v = getattr(self, "_verdict", None)
         if v is None or v.ok:
             return answer
+        # ((p.splitlines() or [""]): an empty problem string raised IndexError here, after all the work was done)
         return answer + "\n\n---\nNot verified - the harness's checks still found:\n" + "\n".join(
-            f"- {p.splitlines()[0]}" for p in v.problems)
+            f"- {(p.splitlines() or [''])[0]}" for p in v.problems)
 
     def _check(self) -> None:
         if self.cancel.is_set():
@@ -1292,21 +1316,39 @@ class Worker:
         return ""
 
     def _harvest(self) -> list[str]:
-        """Step limit hit: keep the work instead of losing it - copy files the worker
-        wrote in its scratch dir into the artifact store."""
-        out = []
-        self.artifacts.mkdir(parents=True, exist_ok=True)
-        for p in sorted(self.workdir.rglob("*")):
-            rel = p.relative_to(self.workdir)
+        """Step limit hit: keep the work instead of losing it - copy files the worker wrote in its scratch dir into the
+        artifact store: at most HARVEST_MAX, the folder's own files before those in its subfolders. Only those are
+        copied: every file used to be, while only the first 20 by name were handed over - after an npm install, all of
+        node_modules was copied, and its files sorted ahead of (and pushed out) the page the worker had written."""
+        own = {self.checkpoint, self._state_path}   # the harness's files, and their half-written copies
+        own |= {self.checkpoint.with_suffix(".tmp"), Path(f"{self._state_path}.tmp")} if self.checkpoint else set()
+        found: list[tuple[int, str, Path]] = []
+        for dirpath, dirnames, filenames in os.walk(self.workdir):
+            here = Path(dirpath)
+            depth = len(here.relative_to(self.workdir).parts)
             # thinking/ is the harness's own log of each step, not the worker's work: shipped as artifacts, the
             # final() gate checked them for placeholders ("example" in sam@example.com) and the worker then
             # edited its own logs to get past the check (live, the demoqa form)
-            if p.is_file() and p.stat().st_size and p not in (self.checkpoint, self._state_path) and \
-                    rel.parts[0] != "thinking" and not any(part.startswith((".", "__")) for part in rel.parts):
-                dest = self.artifacts / f"{self.persona.name}_{'_'.join(rel.parts)}"
+            dirnames[:] = [d for d in dirnames if not d.startswith((".", "__")) and d not in HARVEST_SKIP
+                           and not (depth == 0 and d == "thinking")]
+            for f in filenames:
+                p = here / f
+                try:
+                    if f.startswith((".", "__")) or p in own or not p.is_file() or not p.stat().st_size:
+                        continue
+                except OSError:
+                    continue
+                found.append((depth, p.relative_to(self.workdir).as_posix(), p))
+        out = []
+        self.artifacts.mkdir(parents=True, exist_ok=True)
+        for _, rel, p in sorted(found)[:HARVEST_MAX]:
+            dest = self.artifacts / f"{self.persona.name}_{rel.replace('/', '_')}"
+            try:
                 shutil.copyfile(p, dest)
-                out.append(str(dest))
-        return out[:20]
+            except OSError:   # (locked by another program on Windows, or gone): the rest are still kept
+                continue
+            out.append(str(dest))
+        return out
 
     def _chat(self, task: str, ctx: dict[str, Any], system: str, prior: list | None = None) -> WorkerResult:
         memory = ctx.get("memory") or []

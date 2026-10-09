@@ -75,6 +75,46 @@ def test_input_is_blocked(tmp_path):
         assert r.run("input('?')").error
 
 
+def test_a_subprocess_reading_stdin_gets_an_end_of_file_not_the_protocol_pipe(tmp_path):
+    """A child started without stdin= inherited the REPL's stdin, which is the host's protocol pipe: one that read it (a
+    prompt, a test calling input()) waited there until the step timed out, or swallowed the host's answer to a
+    callback, and the REPL then waited for that answer forever."""
+    with make(tmp_path, llm_query=lambda p, data=None: p.upper()) as r:
+        t = time.time()
+        res = r.run("import subprocess, sys\n"
+                    "child = subprocess.Popen([sys.executable, '-c', 'import sys; print(repr(sys.stdin.read()))'],"
+                    " stdout=subprocess.PIPE, text=True)\n"
+                    "print(llm_query('still here'))\n"
+                    "print('child read', child.communicate(timeout=10)[0].strip())")
+        assert not res.error, res.output
+        assert "STILL HERE" in res.output and "child read ''" in res.output
+        assert time.time() - t < 10
+
+
+def test_a_lone_surrogate_in_the_output_does_not_kill_the_repl(tmp_path):
+    """Half an emoji (a JSON string cut mid-pair) printed by the worker could not be written to the host as UTF-8: the
+    REPL died, and every variable with it."""
+    with make(tmp_path) as r:
+        r.run("keep = 7")
+        res = r.run("print('half an emoji:', chr(0xD83D))")
+        assert not res.error and "half an emoji:" in res.output
+        assert r.run("keep").output.strip() == "7"   # the same REPL, its variables intact
+
+
+def test_a_variable_too_big_to_snapshot_is_skipped_without_losing_the_rest(tmp_path):
+    """The snapshot after every step pickled each variable in full before dropping the ones over 16 MB: a large one
+    held a second copy in memory and could outlast the snapshot's time limit, which restarts the REPL and loses every
+    variable. It now stops pickling a variable once it passes the cap."""
+    with Repl(tmp_path / "w", tmp_path / "a", timeout=20) as r:
+        r.run("small = [3, 1, 4]\nbig = [str(i) * 12 for i in range(3_000_000)]")   # ~150 MB as a pickle
+        t = time.time()
+        info = r.snapshot(tmp_path / "state.pkl")
+        took = time.time() - t
+        assert info["saved"] == ["small"] and "big" in info["skipped"], info
+        assert took < 0.4, took   # (measured: 0.05 s capped, 0.67 s when the whole 150 MB was pickled first)
+        assert r.run("len(big), small").output.strip() == "(3000000, [3, 1, 4])"   # nothing was lost
+
+
 def test_output_truncated(tmp_path):
     with make(tmp_path) as r:
         out = r.run("print('x' * 5000)").output

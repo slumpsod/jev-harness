@@ -2,7 +2,11 @@
 
 Protocol: JSON lines. The host writes ops to our stdin; we answer on a private dup of
 the original stdout. fd 1 is then pointed at stderr, so prints from subprocesses the
-worker's code starts cannot corrupt the protocol.
+worker's code starts cannot corrupt the protocol. The same goes for stdin: ops are read
+from a private dup of it, and fd 0 is pointed at the null device, so a subprocess that
+reads its stdin (a prompt, a test calling input()) gets an end of file. Inheriting the
+protocol pipe, it waited there until the step timed out, or swallowed the host's next
+message (a callback's answer) and left the REPL waiting for it.
 
 host -> repl   {"op": "init", "tools": {"alias": "module"}}
                {"op": "set", "name": ..., "value": ...}
@@ -31,13 +35,23 @@ from pathlib import Path
 
 _PROTO_OUT = os.fdopen(os.dup(1), "w", encoding="utf-8", buffering=1)
 os.dup2(2, 1)
-_PROTO_IN = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
+_PROTO_IN = io.TextIOWrapper(os.fdopen(os.dup(0), "rb"), encoding="utf-8")
+_NULL_IN = os.open(os.devnull, os.O_RDONLY)
+os.dup2(_NULL_IN, 0)   # (on Windows this also makes the null device the process's standard input handle)
+os.close(_NULL_IN)
 sys.stdin = io.StringIO("")
 ARTIFACTS = Path(os.environ.get("JEVH_ARTIFACTS", "artifacts")).resolve()
 
 
 def _send(msg: dict) -> None:
-    _PROTO_OUT.write(json.dumps(msg, ensure_ascii=False, default=str) + "\n")
+    line = json.dumps(msg, ensure_ascii=False, default=str) + "\n"
+    try:
+        _PROTO_OUT.write(line)
+    except UnicodeEncodeError:
+        # a lone surrogate (half an emoji from a cut-off JSON string, an undecodable file name) cannot be written as
+        # UTF-8: the write raised, the REPL died, and every variable the worker had went with it. (The text is encoded
+        # whole before anything is written, so nothing half-written precedes this.)
+        _PROTO_OUT.write(line.encode("utf-8", "replace").decode("utf-8"))
     _PROTO_OUT.flush()
 
 
@@ -263,6 +277,34 @@ _BUILTINS = set(G)   # the harness's own helpers: never snapshotted (they come b
 IMPORTS: dict[str, None] = {}
 DEFS: dict[str, str] = {}
 MAX_VAR_BYTES = 16 * 1024 * 1024
+MAX_SNAPSHOT_BYTES = 128 * 1024 * 1024   # all variables together; past it, the rest are named as not saved
+
+
+class _TooBig(Exception):
+    """A value's pickle passed its cap: stop serializing it."""
+
+
+class _Capped:
+    """A pickle's destination that refuses to grow past `cap` bytes. A snapshot is taken after every step: pickling a
+    2 GB frame in full only to drop it for being over MAX_VAR_BYTES held a second copy in memory and could outlast the
+    snapshot's time limit, and a snapshot that times out restarts the REPL, losing every variable it was meant to keep."""
+
+    def __init__(self, cap: int):
+        self.cap, self.buf = cap, bytearray()
+
+    def write(self, data) -> int:
+        n = memoryview(data).nbytes
+        if len(self.buf) + n > self.cap:
+            raise _TooBig
+        self.buf += data
+        return n
+
+
+def _dumps(ser, value, cap: int) -> bytes:
+    """`ser.dumps(value)` (the serializer's own default protocol), or _TooBig as soon as it passes `cap` bytes."""
+    out = _Capped(cap)
+    ser.Pickler(out).dump(value)
+    return bytes(out.buf)
 
 
 def _remember_defs(code: str, tree: ast.Module) -> None:
@@ -292,20 +334,18 @@ def _user_names() -> list[str]:
 def snapshot(path: str) -> dict:
     """Write the worker's variables (plus import/def sources) to `path`, atomically."""
     ser, kind = _serializer()
-    values, skipped = {}, []
+    values, skipped, total = {}, [], 0
     for name in _user_names():
         v = G[name]
         if name in DEFS and (callable(v) or isinstance(v, type)) and kind == "pickle":
             continue   # re-created from source
         try:
-            blob = ser.dumps(v)
-        except Exception:  # noqa: BLE001 - open files, generators, sockets...
-            skipped.append(name)
-            continue
-        if len(blob) > MAX_VAR_BYTES:
+            blob = _dumps(ser, v, min(MAX_VAR_BYTES, MAX_SNAPSHOT_BYTES - total))
+        except Exception:  # noqa: BLE001 - too big (_TooBig), open files, generators, sockets...
             skipped.append(name)
             continue
         values[name] = blob
+        total += len(blob)
     defs = {n: s for n, s in DEFS.items() if n in G}
     data = {"version": 1, "serializer": kind, "imports": list(IMPORTS), "defs": defs, "values": values,
             "skipped": skipped}

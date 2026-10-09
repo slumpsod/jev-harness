@@ -5,7 +5,6 @@ import collections
 import json
 import os
 import queue
-import signal
 import subprocess
 import sys
 import threading
@@ -15,8 +14,10 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..config import ROOT, shell_env
+from ..procs import kill_tree as _kill_tree   # the REPL and everything it started (Playwright, Chromium, jobs)
 
 Handler = Callable[..., Any]
+START_TIMEOUT = 30.0   # seconds a new REPL may take to say it is ready (imports, a cold disk, an antivirus scan)
 
 
 @dataclass
@@ -34,21 +35,6 @@ def truncate(text: str, cap: int) -> str:
     head = int(cap * 0.6)
     tail = cap - head
     return f"{text[:head]}\n... [{len(text) - cap} chars omitted; use peek() or slice] ...\n{text[-tail:]}"
-
-
-def _kill_tree(proc: subprocess.Popen) -> None:
-    """Kill the REPL and everything it started (the browser tool's Playwright driver and
-    Chromium would otherwise outlive it on Windows)."""
-    if os.name == "nt":
-        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True,
-                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    else:   # macOS / Linux: the REPL leads its own process group (start_new_session), children included
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            pass
-    if proc.poll() is None:
-        proc.kill()
 
 
 class Repl:
@@ -81,9 +67,15 @@ class Repl:
         self._q = queue.Queue()
         threading.Thread(target=self._read_stdout, args=(self.proc, self._q), daemon=True).start()
         threading.Thread(target=self._read_stderr, args=(self.proc,), daemon=True).start()
-        msg = self._q.get(timeout=30)
+        try:
+            msg = self._q.get(timeout=START_TIMEOUT)
+        except queue.Empty:
+            msg = None
         if not msg or msg.get("type") != "ready":
-            raise RuntimeError(f"REPL failed to start: {''.join(self.stderr_tail)[-1000:]}")
+            # (a REPL that never said it was ready is killed, not left waiting on its stdin for the rest of the run)
+            _kill_tree(self.proc)
+            self.proc = None
+            raise RuntimeError(f"REPL failed to start: {''.join(self.stderr_tail)[-1000:] or 'no reply'}")
         if self.tools:
             res = self._roundtrip({"op": "init", "tools": self.tools}, self.timeout)
             if res.error:
@@ -133,10 +125,13 @@ class Repl:
 
     # -- internals -------------------------------------------------------------------
     def _write(self, msg: dict) -> None:
-        if self.proc is None:
+        proc = self.proc   # (a Stop on another thread may clear self.proc at any moment)
+        if proc is None:
             raise RuntimeError("the REPL was stopped")
-        self.proc.stdin.write((json.dumps(msg, ensure_ascii=False, default=str) + "\n").encode("utf-8"))
-        self.proc.stdin.flush()
+        # "replace": a lone surrogate (half an emoji from a cut-off JSON string) in a callback's answer cannot be encoded
+        # as UTF-8; strict, it raised here and failed the whole task over one character
+        proc.stdin.write((json.dumps(msg, ensure_ascii=False, default=str) + "\n").encode("utf-8", "replace"))
+        proc.stdin.flush()
 
     def _roundtrip(self, msg: dict, timeout: float) -> ExecResult:
         if self.proc is None or self.proc.poll() is not None:
@@ -155,6 +150,8 @@ class Repl:
             budget -= time.monotonic() - started
             if reply is None:
                 err = "".join(self.stderr_tail)[-1500:]
+                if self.proc is not None:   # what it started (a browser, a job) must not outlive it
+                    _kill_tree(self.proc)
                 self.proc = None
                 return ExecResult(f"[REPL process died]\n{err}", error=True)
             if reply.get("type") == "call":
@@ -175,12 +172,19 @@ class Repl:
 
     @staticmethod
     def _read_stdout(proc: subprocess.Popen, q: queue.Queue) -> None:
-        for line in proc.stdout:
-            try:
-                q.put(json.loads(line.decode("utf-8")))
-            except json.JSONDecodeError:
-                continue
-        q.put(None)
+        try:
+            for line in proc.stdout:
+                try:
+                    msg = json.loads(line.decode("utf-8"))
+                except ValueError:   # not JSON, or not UTF-8 (UnicodeDecodeError): not a protocol line
+                    continue
+                if isinstance(msg, dict):
+                    q.put(msg)
+        except (OSError, ValueError):   # the pipe went away under us (a Stop killed the REPL)
+            pass
+        finally:
+            # always: without it the host would wait the whole repl_timeout for a reply that can never come
+            q.put(None)
 
     def _read_stderr(self, proc: subprocess.Popen) -> None:
         for line in proc.stderr:

@@ -217,7 +217,7 @@ class OpenAICompat:
         `body_extra`: fields laid over this one request's body (a smaller max_tokens for a quick side question)."""
         if self.gate is None:
             return self._chat(messages, cancel, tools, live, watch, watch_every, watch_after, interrupt, body_extra)
-        with self.gate.use(self.model):
+        with self.gate.use(self.model, cancel):   # (a Stop ends the wait for another model's turn on the GPU too)
             return self._chat(messages, cancel, tools, live, watch, watch_every, watch_after, interrupt, body_extra)
 
     def _chat(self, messages: list[dict[str, str]], cancel: threading.Event | None = None,
@@ -281,7 +281,20 @@ class OpenAICompat:
                         if not st["streaming"]:
                             st["streaming"] = True
                             _set_read_timeout(r, self.idle_timeout)
-                        evt = json.loads(data)
+                        try:
+                            evt = json.loads(data)
+                        except ValueError:   # (raw JSONDecodeError before: the worker failed on it as a crash)
+                            raise LLMError(f"{self.name}: the server sent a stream chunk that is not JSON: "
+                                           f"{data[:200]!r}") from None
+                        if not isinstance(evt, dict):
+                            continue
+                        if evt.get("error"):
+                            # a server that fails mid-reply says so in the stream (llama.cpp, LM Studio: a context
+                            # overflow, a crashed slot). Ignored, it read as an empty reply, and the worker was asked
+                            # to continue, step after step, until the step limit
+                            err = evt["error"]
+                            raise LLMError(f"{self.name}: the server reported an error: "
+                                           f"{str(err.get('message') if isinstance(err, dict) else err)[:300]}")
                         st["usage"] = evt.get("usage") or st["usage"]
                         st["timings"] = evt.get("timings") or st["timings"]   # (llama-server: its own count of the decode time)
                         for ch in evt.get("choices") or []:

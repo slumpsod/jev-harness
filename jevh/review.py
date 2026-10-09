@@ -37,6 +37,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from . import store
+
 STATUSES = ("open", "decided", "dismissed")
 VERDICTS = ("failure", "not_failure")
 TASK_DIR = re.compile(r"^u(\d+)t(\d+)-(.+)$")   # a task's folder: u<turn>t<task>-<persona>
@@ -54,7 +56,7 @@ class ReviewLog:
     def __init__(self, path: Path):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self.db = sqlite3.connect(path, check_same_thread=False)
+        self.db = store.connect(path)
         self.db.row_factory = sqlite3.Row
         self.db.executescript("""
             CREATE TABLE IF NOT EXISTS flags(id INTEGER PRIMARY KEY AUTOINCREMENT, session TEXT UNIQUE, ts REAL,
