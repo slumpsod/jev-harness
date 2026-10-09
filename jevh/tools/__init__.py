@@ -11,6 +11,7 @@ from dataclasses import dataclass
 class ToolInfo:
     description: str     # what Jev sees when deciding if the tool helps
     guide: str           # what the worker's prompt gets when it does
+    pointer: str = ""    # one line the prompt carries when Jev did NOT pick the tool: where to read about it
 
 
 TOOLS: dict[str, ToolInfo] = {
@@ -69,6 +70,38 @@ imported: use it, don't start Playwright/Selenium yourself.
 - Testing an app you built or changed: t = browser.test(url, ["add the blue mug to the cart", "open the
   cart"], expect="the cart has 1 blue mug") -> {passed, why, steps, js_errors, console_errors,
   screenshot}. One flow per test; if it fails, read `why` and fix the app (or the test), then rerun."""),
+    "desktop": ToolInfo(
+        "operate any app installed on the user's computer (not a website): the Claude app, Telegram, Spotify, Notepad, "
+        "Calculator, File Explorer, Windows Settings, an installer, or any program the user names, even an unfamiliar one - "
+        "click its buttons, type in it, send a message in it, press its keyboard shortcuts (Ctrl+N), close its dialogs, "
+        "list which apps are open",
+        """desktop (Windows apps through UI Automation; you state outcomes, Jev picks the window and each control in
+~1s). It is already imported: use it, don't write ctypes/comtypes/pyautogui code and don't look() first.
+- Start with what you need: desktop.windows() (what is open, front first; tabs=True adds browser tabs;
+  `parked` = off-screen) or desktop.where("the claude code tab") (Jev picks the window/tab); desktop.open("notepad")
+  starts an app ('calculator', 'explorer', a folder path) and waits for its window.
+- Then one outcome per call: r = desktop.do("open the List tab", window="JevLab") -> {status, actions, note, page}.
+  `window` = an app name or part of its title. Say values in the goal ("set Display name to Ana") or pass
+  values={"Display name": "Ana"}; end a goal with its last click ("..., and press OK"). Keys: do("press Ctrl+N",
+  window="Claude") or desktop.key("ctrl+n", window=...) - sent only once that window is in front.
+  status: done | likely_done | needs_confirmation | needs_value | needs_user | ambiguous | error | stuck | no_window |
+  max_actions. Anything but done: read `note` and `page` (what the window shows), then rephrase or split the step.
+- Check results with desktop.read(question=None, window=...) (the window's text and fields; with a question, only the
+  passages that answer it) - not by assuming. desktop.look(question, window) lets your own model see a screenshot,
+  ~40-60 s: only for what is drawn (a chart, an image), never to find controls.
+- Jev stuck? desktop.elements("send", window=...) -> numbered controls; desktop.click(i), desktop.fill(i, text,
+  submit=False), desktop.select(i, option). Numbers change with the window: list again after each action.
+- needs_confirmation (send, delete, pay, close without saving; typing over someone's text): ask_user first, then repeat
+  with allow_irreversible=True. If the user's request itself says to do exactly that, you may pass it straight away.
+  needs_user (the user did not allow a password, an admin prompt, a window that will not come to the front): tell the
+  user. A password: pass it in values={"Password": pw} or fill(i, pw); the tool asks the user itself whether it may be
+  typed, and types it only if they say yes - you cannot answer for them, and if they say no, do not work around it
+  (no raw SendMessage/keybd_event): ask them to type it in the window. Never print or repeat the password.
+- The user's own windows and documents are theirs: don't type into one unless the task says so; to add text use
+  fill(i, text, replace=False) or a new window/tab (ctrl+n). "pressed Enter; the field emptied (sent)" means a message
+  went; an autocomplete that takes the Enter is handled for you.""",
+        pointer="desktop operates apps on the user's own computer (windows, clicks, typing, shortcuts, dialogs): for anything "
+                "in an app on their desktop, read help(desktop) first and use desktop.do()/read(), not ctypes or look(). Never repeat a password in your answer."),
     "project": ToolInfo(
         "read, search, edit and run code or files in the user's project folder",
         """project (the user's project folder; ctx['project'] is its path):

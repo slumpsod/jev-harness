@@ -1,0 +1,135 @@
+{
+ "app": "JevLab",
+ "title": "JevLab - Alpha",
+ "layers": [],
+ "scrollable": false,
+ "text": "Items: 5",
+ "elements": [
+  {
+   "kind": "list item",
+   "label": "Alpha",
+   "layer": "",
+   "disabled": false,
+   "context": "Items"
+  },
+  {
+   "kind": "list item",
+   "label": "Bravo",
+   "layer": "",
+   "disabled": false,
+   "context": "Items"
+  },
+  {
+   "kind": "list item",
+   "label": "Charlie",
+   "layer": "",
+   "disabled": false,
+   "context": "Items"
+  },
+  {
+   "kind": "list item",
+   "label": "Delta",
+   "layer": "",
+   "disabled": false,
+   "context": "Items"
+  },
+  {
+   "kind": "list item",
+   "label": "Echo",
+   "layer": "",
+   "disabled": false,
+   "context": "Items"
+  },
+  {
+   "kind": "button",
+   "label": "Remove selected",
+   "layer": "",
+   "disabled": false,
+   "context": "List"
+  },
+  {
+   "kind": "button",
+   "label": "Delete all",
+   "layer": "",
+   "disabled": false,
+   "context": "List"
+  },
+  {
+   "kind": "tab",
+   "label": "Form",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "List",
+   "layer": "",
+   "disabled": false,
+   "selected": true,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Composer",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Dialogs",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Login",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Counter",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "menu item",
+   "label": "File",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "menu item",
+   "label": "System",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Minimize",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Maximize",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Close",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  }
+ ]
+}

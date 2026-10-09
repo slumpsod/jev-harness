@@ -1,0 +1,30 @@
+{
+ "app": "JevLab",
+ "title": "JevLab - Alpha",
+ "layers": [
+  "dialog 'Confirm delete'"
+ ],
+ "scrollable": false,
+ "text": "-- dialog 'Confirm delete' --\nDelete all items? This cannot be undone.",
+ "elements": [
+  {
+   "kind": "button",
+   "label": "Yes",
+   "layer": "dialog 'Confirm delete'",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "No",
+   "layer": "dialog 'Confirm delete'",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Close",
+   "layer": "dialog 'Confirm delete'",
+   "disabled": true,
+   "chrome": true
+  }
+ ]
+}

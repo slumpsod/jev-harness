@@ -1,0 +1,109 @@
+{
+ "app": "JevLab",
+ "title": "JevLab - Alpha",
+ "layers": [],
+ "scrollable": false,
+ "text": "Username\nPassword",
+ "elements": [
+  {
+   "kind": "text field",
+   "label": "Username",
+   "layer": "",
+   "disabled": false,
+   "value": "",
+   "context": "Login"
+  },
+  {
+   "kind": "password",
+   "label": "Password",
+   "layer": "",
+   "disabled": false,
+   "value": "",
+   "context": "Login"
+  },
+  {
+   "kind": "button",
+   "label": "Sign in",
+   "layer": "",
+   "disabled": false,
+   "context": "Login"
+  },
+  {
+   "kind": "tab",
+   "label": "Form",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "List",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Composer",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Dialogs",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Login",
+   "layer": "",
+   "disabled": false,
+   "selected": true,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Counter",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "menu item",
+   "label": "File",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "menu item",
+   "label": "System",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Minimize",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Maximize",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Close",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  }
+ ]
+}

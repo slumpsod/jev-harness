@@ -1,0 +1,2469 @@
+[
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-form",
+   "goal": "set the full name to Ana",
+   "want": [
+    "Full name"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.999,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.026,
+    "none": {
+     "0": 0.991,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.001,
+     "8": 0.0,
+     "9": 0.001,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.007
+    },
+    "words": "Full name"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.999,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.026,
+    "none": {
+     "0": 0.991,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.001,
+     "8": 0.0,
+     "9": 0.001,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.007
+    },
+    "words": "Full name"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.999,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.026,
+    "none": {
+     "0": 0.991,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.001,
+     "8": 0.0,
+     "9": 0.001,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.007
+    },
+    "words": "Full name"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-form",
+   "goal": "choose Japan as the country",
+   "want": [
+    "dropdown:Country"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.001,
+     "1": 0.0,
+     "2": 0.999,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.076,
+    "none": {
+     "0": 0.001,
+     "1": 0.0,
+     "2": 0.994,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.002,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.003
+    },
+    "words": "Country"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.001,
+     "1": 0.0,
+     "2": 0.999,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.076,
+    "none": {
+     "0": 0.001,
+     "1": 0.0,
+     "2": 0.994,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.002,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.003
+    },
+    "words": "Country"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.001,
+     "1": 0.0,
+     "2": 0.999,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.076,
+    "none": {
+     "0": 0.001,
+     "1": 0.0,
+     "2": 0.994,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.002,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.003
+    },
+    "words": "Country"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-form",
+   "goal": "tick the newsletter checkbox",
+   "want": [
+    "Subscribe to newsletter"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.002,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.997,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.029,
+    "none": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.997,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.002
+    },
+    "words": "Subscribe to newsletter"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.002,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.997,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.029,
+    "none": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.997,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.002
+    },
+    "words": "Subscribe to newsletter"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.002,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.997,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.029,
+    "none": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.997,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.002
+    },
+    "words": "Subscribe to newsletter"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-form",
+   "goal": "pick the Large size",
+   "want": [
+    "radio:Large"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.002,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.002,
+     "5": 0.001,
+     "6": 0.995,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.047,
+    "none": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.002,
+     "5": 0.0,
+     "6": 0.996,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.001,
+     "none": 0.001
+    },
+    "words": "Large"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.002,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.002,
+     "5": 0.001,
+     "6": 0.995,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.047,
+    "none": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.002,
+     "5": 0.0,
+     "6": 0.996,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.001,
+     "none": 0.001
+    },
+    "words": "Large"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.002,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.002,
+     "5": 0.001,
+     "6": 0.995,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.047,
+    "none": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.002,
+     "5": 0.0,
+     "6": 0.996,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.001,
+     "none": 0.001
+    },
+    "words": "Large"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-form",
+   "goal": "submit the form",
+   "want": [
+    "button:Submit"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.289,
+     "1": 0.175,
+     "2": 0.083,
+     "3": 0.05,
+     "4": 0.03,
+     "5": 0.002,
+     "6": 0.003,
+     "7": 0.289,
+     "8": 0.011,
+     "9": 0.064,
+     "10": 0.001,
+     "11": 0.001,
+     "12": 0.0,
+     "13": 0.001,
+     "14": 0.001,
+     "15": 0.0
+    },
+    "done": 0.009,
+    "none": {
+     "0": 0.363,
+     "1": 0.018,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.363,
+     "8": 0.0,
+     "9": 0.034,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.001,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.221
+    },
+    "words": "Submit"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.289,
+     "1": 0.175,
+     "2": 0.083,
+     "3": 0.05,
+     "4": 0.03,
+     "5": 0.002,
+     "6": 0.003,
+     "7": 0.289,
+     "8": 0.011,
+     "9": 0.064,
+     "10": 0.001,
+     "11": 0.001,
+     "12": 0.0,
+     "13": 0.001,
+     "14": 0.001,
+     "15": 0.0
+    },
+    "done": 0.009,
+    "none": {
+     "0": 0.363,
+     "1": 0.018,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.363,
+     "8": 0.0,
+     "9": 0.034,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.001,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.221
+    },
+    "words": "Submit"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.289,
+     "1": 0.175,
+     "2": 0.083,
+     "3": 0.05,
+     "4": 0.03,
+     "5": 0.002,
+     "6": 0.003,
+     "7": 0.289,
+     "8": 0.011,
+     "9": 0.064,
+     "10": 0.001,
+     "11": 0.001,
+     "12": 0.0,
+     "13": 0.001,
+     "14": 0.001,
+     "15": 0.0
+    },
+    "done": 0.009,
+    "none": {
+     "0": 0.363,
+     "1": 0.018,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.363,
+     "8": 0.0,
+     "9": 0.034,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.001,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.221
+    },
+    "words": "Submit"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-form",
+   "goal": "open the Composer tab",
+   "want": [
+    "tab:Composer"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.009,
+     "1": 0.001,
+     "2": 0.001,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.001,
+     "11": 0.987,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.022,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.001,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.002,
+     "8": 0.0,
+     "9": 0.019,
+     "10": 0.0,
+     "11": 0.829,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.127
+    },
+    "words": "Composer"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.009,
+     "1": 0.001,
+     "2": 0.001,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.001,
+     "11": 0.987,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.022,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.001,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.002,
+     "8": 0.0,
+     "9": 0.019,
+     "10": 0.0,
+     "11": 0.829,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.127
+    },
+    "words": "Composer"
+   },
+   {
+    "labels": {
+     "0": "text field 'Full name' (in: Form)",
+     "1": "text field 'Email address' (in: Form)",
+     "2": "dropdown 'Country' (in: Form)",
+     "3": "checkbox 'Subscribe to newsletter' (in: Form) (unchecked)",
+     "4": "radio 'Small' (in: Size) (unchecked)",
+     "5": "radio 'Medium' (in: Size) (unchecked)",
+     "6": "radio 'Large' (in: Size) (unchecked)",
+     "7": "button 'Submit' (in: Form)",
+     "8": "button 'Reset form' (in: Form)",
+     "9": "tab 'Form' (in: Sections) (selected)",
+     "10": "tab 'List' (in: Sections)",
+     "11": "tab 'Composer' (in: Sections)",
+     "12": "tab 'Dialogs' (in: Sections)",
+     "13": "tab 'Login' (in: Sections)",
+     "14": "tab 'Counter' (in: Sections)",
+     "15": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.009,
+     "1": 0.001,
+     "2": 0.001,
+     "3": 0.0,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.001,
+     "11": 0.987,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.022,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.001,
+     "4": 0.0,
+     "5": 0.0,
+     "6": 0.0,
+     "7": 0.002,
+     "8": 0.0,
+     "9": 0.019,
+     "10": 0.0,
+     "11": 0.829,
+     "12": 0.0,
+     "13": 0.0,
+     "14": 0.0,
+     "15": 0.0,
+     "none": 0.127
+    },
+    "words": "Composer"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-list",
+   "goal": "remove Charlie from the list",
+   "want": [
+    "list item:Charlie"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "list item 'Alpha' (in: Items)",
+     "1": "list item 'Bravo' (in: Items)",
+     "2": "list item 'Charlie' (in: Items)",
+     "3": "list item 'Delta' (in: Items)",
+     "4": "list item 'Echo' (in: Items)",
+     "5": "button 'Remove selected' (in: List)",
+     "6": "button 'Delete all' (in: List)",
+     "7": "tab 'Form' (in: Sections)",
+     "8": "tab 'List' (in: Sections) (selected)",
+     "9": "tab 'Composer' (in: Sections)",
+     "10": "tab 'Dialogs' (in: Sections)",
+     "11": "tab 'Login' (in: Sections)",
+     "12": "tab 'Counter' (in: Sections)",
+     "13": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.032,
+     "1": 0.015,
+     "2": 0.099,
+     "3": 0.002,
+     "4": 0.006,
+     "5": 0.831,
+     "6": 0.011,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.001,
+     "13": 0.001
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.033,
+     "1": 0.007,
+     "2": 0.169,
+     "3": 0.001,
+     "4": 0.003,
+     "5": 0.67,
+     "6": 0.004,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.001,
+     "13": 0.005,
+     "none": 0.103
+    },
+    "words": "Charlie"
+   },
+   {
+    "labels": {
+     "0": "list item 'Alpha' (in: Items)",
+     "1": "list item 'Bravo' (in: Items)",
+     "2": "list item 'Charlie' (in: Items)",
+     "3": "list item 'Delta' (in: Items)",
+     "4": "list item 'Echo' (in: Items)",
+     "5": "button 'Remove selected' (in: List)",
+     "6": "button 'Delete all' (in: List)",
+     "7": "tab 'Form' (in: Sections)",
+     "8": "tab 'List' (in: Sections) (selected)",
+     "9": "tab 'Composer' (in: Sections)",
+     "10": "tab 'Dialogs' (in: Sections)",
+     "11": "tab 'Login' (in: Sections)",
+     "12": "tab 'Counter' (in: Sections)",
+     "13": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.032,
+     "1": 0.015,
+     "2": 0.099,
+     "3": 0.002,
+     "4": 0.006,
+     "5": 0.831,
+     "6": 0.011,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.001,
+     "13": 0.001
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.033,
+     "1": 0.007,
+     "2": 0.169,
+     "3": 0.001,
+     "4": 0.003,
+     "5": 0.67,
+     "6": 0.004,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.001,
+     "13": 0.005,
+     "none": 0.103
+    },
+    "words": "Charlie"
+   },
+   {
+    "labels": {
+     "0": "list item 'Alpha' (in: Items)",
+     "1": "list item 'Bravo' (in: Items)",
+     "2": "list item 'Charlie' (in: Items)",
+     "3": "list item 'Delta' (in: Items)",
+     "4": "list item 'Echo' (in: Items)",
+     "5": "button 'Remove selected' (in: List)",
+     "6": "button 'Delete all' (in: List)",
+     "7": "tab 'Form' (in: Sections)",
+     "8": "tab 'List' (in: Sections) (selected)",
+     "9": "tab 'Composer' (in: Sections)",
+     "10": "tab 'Dialogs' (in: Sections)",
+     "11": "tab 'Login' (in: Sections)",
+     "12": "tab 'Counter' (in: Sections)",
+     "13": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.032,
+     "1": 0.015,
+     "2": 0.099,
+     "3": 0.002,
+     "4": 0.006,
+     "5": 0.831,
+     "6": 0.011,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.001,
+     "13": 0.001
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.033,
+     "1": 0.007,
+     "2": 0.169,
+     "3": 0.001,
+     "4": 0.003,
+     "5": 0.67,
+     "6": 0.004,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.001,
+     "13": 0.005,
+     "none": 0.103
+    },
+    "words": "Charlie"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-list",
+   "goal": "remove Charlie from the list",
+   "want": [
+    "button:Remove selected"
+   ],
+   "history": [
+    "selected list item 'Charlie'"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "list item 'Alpha' (in: Items)",
+     "1": "list item 'Bravo' (in: Items)",
+     "2": "list item 'Charlie' (in: Items)",
+     "3": "list item 'Delta' (in: Items)",
+     "4": "list item 'Echo' (in: Items)",
+     "5": "button 'Remove selected' (in: List)",
+     "6": "button 'Delete all' (in: List)",
+     "7": "tab 'Form' (in: Sections)",
+     "8": "tab 'List' (in: Sections) (selected)",
+     "9": "tab 'Composer' (in: Sections)",
+     "10": "tab 'Dialogs' (in: Sections)",
+     "11": "tab 'Login' (in: Sections)",
+     "12": "tab 'Counter' (in: Sections)",
+     "13": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.022,
+     "1": 0.012,
+     "2": 0.019,
+     "3": 0.001,
+     "4": 0.003,
+     "5": 0.936,
+     "6": 0.005,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0
+    },
+    "done": 0.047,
+    "none": {
+     "0": 0.033,
+     "1": 0.007,
+     "2": 0.015,
+     "3": 0.001,
+     "4": 0.002,
+     "5": 0.845,
+     "6": 0.002,
+     "7": 0.0,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.001,
+     "13": 0.004,
+     "none": 0.089
+    },
+    "words": "Charlie"
+   },
+   {
+    "labels": {
+     "0": "list item 'Alpha' (in: Items)",
+     "1": "list item 'Bravo' (in: Items)",
+     "2": "list item 'Charlie' (in: Items)",
+     "3": "list item 'Delta' (in: Items)",
+     "4": "list item 'Echo' (in: Items)",
+     "5": "button 'Remove selected' (in: List)",
+     "6": "button 'Delete all' (in: List)",
+     "7": "tab 'Form' (in: Sections)",
+     "8": "tab 'List' (in: Sections) (selected)",
+     "9": "tab 'Composer' (in: Sections)",
+     "10": "tab 'Dialogs' (in: Sections)",
+     "11": "tab 'Login' (in: Sections)",
+     "12": "tab 'Counter' (in: Sections)",
+     "13": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.022,
+     "1": 0.012,
+     "2": 0.019,
+     "3": 0.001,
+     "4": 0.003,
+     "5": 0.936,
+     "6": 0.005,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0
+    },
+    "done": 0.047,
+    "none": {
+     "0": 0.033,
+     "1": 0.007,
+     "2": 0.015,
+     "3": 0.001,
+     "4": 0.002,
+     "5": 0.845,
+     "6": 0.002,
+     "7": 0.0,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.001,
+     "13": 0.004,
+     "none": 0.089
+    },
+    "words": "Charlie"
+   },
+   {
+    "labels": {
+     "0": "list item 'Alpha' (in: Items)",
+     "1": "list item 'Bravo' (in: Items)",
+     "2": "list item 'Charlie' (in: Items)",
+     "3": "list item 'Delta' (in: Items)",
+     "4": "list item 'Echo' (in: Items)",
+     "5": "button 'Remove selected' (in: List)",
+     "6": "button 'Delete all' (in: List)",
+     "7": "tab 'Form' (in: Sections)",
+     "8": "tab 'List' (in: Sections) (selected)",
+     "9": "tab 'Composer' (in: Sections)",
+     "10": "tab 'Dialogs' (in: Sections)",
+     "11": "tab 'Login' (in: Sections)",
+     "12": "tab 'Counter' (in: Sections)",
+     "13": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.022,
+     "1": 0.012,
+     "2": 0.019,
+     "3": 0.001,
+     "4": 0.003,
+     "5": 0.936,
+     "6": 0.005,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.0,
+     "13": 0.0
+    },
+    "done": 0.047,
+    "none": {
+     "0": 0.033,
+     "1": 0.007,
+     "2": 0.015,
+     "3": 0.001,
+     "4": 0.002,
+     "5": 0.845,
+     "6": 0.002,
+     "7": 0.0,
+     "8": 0.001,
+     "9": 0.0,
+     "10": 0.0,
+     "11": 0.0,
+     "12": 0.001,
+     "13": 0.004,
+     "none": 0.089
+    },
+    "words": "Charlie"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-composer",
+   "goal": "send the message hello",
+   "want": [
+    "Prompt"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "2": "text field 'Prompt' (in: Composer)",
+     "3": "button 'Send' (in: Composer)",
+     "4": "tab 'Form' (in: Sections)",
+     "5": "tab 'List' (in: Sections)",
+     "6": "tab 'Composer' (in: Sections) (selected)",
+     "7": "tab 'Dialogs' (in: Sections)",
+     "8": "tab 'Login' (in: Sections)",
+     "9": "tab 'Counter' (in: Sections)",
+     "10": "menu item 'File'"
+    },
+    "jev": {
+     "2": 0.976,
+     "3": 0.016,
+     "4": 0.001,
+     "5": 0.0,
+     "6": 0.004,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "scroll": 0.002
+    },
+    "done": 0.029,
+    "none": {
+     "2": 0.974,
+     "3": 0.012,
+     "4": 0.001,
+     "5": 0.0,
+     "6": 0.003,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "none": 0.009
+    },
+    "words": "Send"
+   },
+   {
+    "labels": {
+     "2": "text field 'Prompt' (in: Composer)",
+     "3": "button 'Send' (in: Composer)",
+     "4": "tab 'Form' (in: Sections)",
+     "5": "tab 'List' (in: Sections)",
+     "6": "tab 'Composer' (in: Sections) (selected)",
+     "7": "tab 'Dialogs' (in: Sections)",
+     "8": "tab 'Login' (in: Sections)",
+     "9": "tab 'Counter' (in: Sections)",
+     "10": "menu item 'File'"
+    },
+    "jev": {
+     "2": 0.976,
+     "3": 0.016,
+     "4": 0.001,
+     "5": 0.0,
+     "6": 0.004,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "scroll": 0.002
+    },
+    "done": 0.029,
+    "none": {
+     "2": 0.974,
+     "3": 0.012,
+     "4": 0.001,
+     "5": 0.0,
+     "6": 0.003,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "none": 0.009
+    },
+    "words": "Send"
+   },
+   {
+    "labels": {
+     "2": "text field 'Prompt' (in: Composer)",
+     "3": "button 'Send' (in: Composer)",
+     "4": "tab 'Form' (in: Sections)",
+     "5": "tab 'List' (in: Sections)",
+     "6": "tab 'Composer' (in: Sections) (selected)",
+     "7": "tab 'Dialogs' (in: Sections)",
+     "8": "tab 'Login' (in: Sections)",
+     "9": "tab 'Counter' (in: Sections)",
+     "10": "menu item 'File'"
+    },
+    "jev": {
+     "2": 0.976,
+     "3": 0.016,
+     "4": 0.001,
+     "5": 0.0,
+     "6": 0.004,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "scroll": 0.002
+    },
+    "done": 0.029,
+    "none": {
+     "2": 0.974,
+     "3": 0.012,
+     "4": 0.001,
+     "5": 0.0,
+     "6": 0.003,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.0,
+     "10": 0.0,
+     "none": 0.009
+    },
+    "words": "Send"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-dialogs",
+   "goal": "open the settings dialog",
+   "want": [
+    "button:Open settings"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "button 'Open settings' (in: Dialogs)",
+     "1": "button 'Show notice' (in: Dialogs)",
+     "2": "text field 'Notes' (in: Dialogs)",
+     "5": "button 'Export...' (in: Dialogs)",
+     "6": "tab 'Form' (in: Sections)",
+     "7": "tab 'List' (in: Sections)",
+     "8": "tab 'Composer' (in: Sections)",
+     "9": "tab 'Dialogs' (in: Sections) (selected)",
+     "10": "tab 'Login' (in: Sections)",
+     "11": "tab 'Counter' (in: Sections)",
+     "12": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.346,
+     "1": 0.022,
+     "2": 0.445,
+     "5": 0.007,
+     "6": 0.008,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.036,
+     "10": 0.002,
+     "11": 0.002,
+     "12": 0.001,
+     "scroll": 0.128
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.213,
+     "1": 0.02,
+     "2": 0.31,
+     "5": 0.005,
+     "6": 0.004,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.018,
+     "10": 0.002,
+     "11": 0.025,
+     "12": 0.003,
+     "none": 0.398
+    },
+    "words": "Open settings"
+   },
+   {
+    "labels": {
+     "0": "button 'Open settings' (in: Dialogs)",
+     "1": "button 'Show notice' (in: Dialogs)",
+     "2": "text field 'Notes' (in: Dialogs)",
+     "5": "button 'Export...' (in: Dialogs)",
+     "6": "tab 'Form' (in: Sections)",
+     "7": "tab 'List' (in: Sections)",
+     "8": "tab 'Composer' (in: Sections)",
+     "9": "tab 'Dialogs' (in: Sections) (selected)",
+     "10": "tab 'Login' (in: Sections)",
+     "11": "tab 'Counter' (in: Sections)",
+     "12": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.346,
+     "1": 0.022,
+     "2": 0.445,
+     "5": 0.007,
+     "6": 0.008,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.036,
+     "10": 0.002,
+     "11": 0.002,
+     "12": 0.001,
+     "scroll": 0.128
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.213,
+     "1": 0.02,
+     "2": 0.31,
+     "5": 0.005,
+     "6": 0.004,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.018,
+     "10": 0.002,
+     "11": 0.025,
+     "12": 0.003,
+     "none": 0.398
+    },
+    "words": "Open settings"
+   },
+   {
+    "labels": {
+     "0": "button 'Open settings' (in: Dialogs)",
+     "1": "button 'Show notice' (in: Dialogs)",
+     "2": "text field 'Notes' (in: Dialogs)",
+     "5": "button 'Export...' (in: Dialogs)",
+     "6": "tab 'Form' (in: Sections)",
+     "7": "tab 'List' (in: Sections)",
+     "8": "tab 'Composer' (in: Sections)",
+     "9": "tab 'Dialogs' (in: Sections) (selected)",
+     "10": "tab 'Login' (in: Sections)",
+     "11": "tab 'Counter' (in: Sections)",
+     "12": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.346,
+     "1": 0.022,
+     "2": 0.445,
+     "5": 0.007,
+     "6": 0.008,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.036,
+     "10": 0.002,
+     "11": 0.002,
+     "12": 0.001,
+     "scroll": 0.128
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.213,
+     "1": 0.02,
+     "2": 0.31,
+     "5": 0.005,
+     "6": 0.004,
+     "7": 0.001,
+     "8": 0.001,
+     "9": 0.018,
+     "10": 0.002,
+     "11": 0.025,
+     "12": 0.003,
+     "none": 0.398
+    },
+    "words": "Open settings"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-dialogs",
+   "goal": "save the notes to a file",
+   "want": [
+    "button:Export..."
+   ],
+   "history": [
+    "typed into text field 'Notes'"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "button 'Open settings' (in: Dialogs)",
+     "1": "button 'Show notice' (in: Dialogs)",
+     "2": "text field 'Notes' (in: Dialogs)",
+     "5": "button 'Export...' (in: Dialogs)",
+     "6": "tab 'Form' (in: Sections)",
+     "7": "tab 'List' (in: Sections)",
+     "8": "tab 'Composer' (in: Sections)",
+     "9": "tab 'Dialogs' (in: Sections) (selected)",
+     "10": "tab 'Login' (in: Sections)",
+     "11": "tab 'Counter' (in: Sections)",
+     "12": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.045,
+     "1": 0.004,
+     "2": 0.897,
+     "5": 0.019,
+     "6": 0.008,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.002,
+     "10": 0.001,
+     "11": 0.001,
+     "12": 0.001,
+     "scroll": 0.024
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.066,
+     "1": 0.005,
+     "2": 0.806,
+     "5": 0.015,
+     "6": 0.005,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.001,
+     "10": 0.001,
+     "11": 0.002,
+     "12": 0.001,
+     "none": 0.096
+    },
+    "words": "Notes"
+   },
+   {
+    "labels": {
+     "0": "button 'Open settings' (in: Dialogs)",
+     "1": "button 'Show notice' (in: Dialogs)",
+     "2": "text field 'Notes' (in: Dialogs)",
+     "5": "button 'Export...' (in: Dialogs)",
+     "6": "tab 'Form' (in: Sections)",
+     "7": "tab 'List' (in: Sections)",
+     "8": "tab 'Composer' (in: Sections)",
+     "9": "tab 'Dialogs' (in: Sections) (selected)",
+     "10": "tab 'Login' (in: Sections)",
+     "11": "tab 'Counter' (in: Sections)",
+     "12": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.045,
+     "1": 0.004,
+     "2": 0.897,
+     "5": 0.019,
+     "6": 0.008,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.002,
+     "10": 0.001,
+     "11": 0.001,
+     "12": 0.001,
+     "scroll": 0.024
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.066,
+     "1": 0.005,
+     "2": 0.806,
+     "5": 0.015,
+     "6": 0.005,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.001,
+     "10": 0.001,
+     "11": 0.002,
+     "12": 0.001,
+     "none": 0.096
+    },
+    "words": "Notes"
+   },
+   {
+    "labels": {
+     "0": "button 'Open settings' (in: Dialogs)",
+     "1": "button 'Show notice' (in: Dialogs)",
+     "2": "text field 'Notes' (in: Dialogs)",
+     "5": "button 'Export...' (in: Dialogs)",
+     "6": "tab 'Form' (in: Sections)",
+     "7": "tab 'List' (in: Sections)",
+     "8": "tab 'Composer' (in: Sections)",
+     "9": "tab 'Dialogs' (in: Sections) (selected)",
+     "10": "tab 'Login' (in: Sections)",
+     "11": "tab 'Counter' (in: Sections)",
+     "12": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.045,
+     "1": 0.004,
+     "2": 0.897,
+     "5": 0.019,
+     "6": 0.008,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.002,
+     "10": 0.001,
+     "11": 0.001,
+     "12": 0.001,
+     "scroll": 0.024
+    },
+    "done": 0.018,
+    "none": {
+     "0": 0.066,
+     "1": 0.005,
+     "2": 0.806,
+     "5": 0.015,
+     "6": 0.005,
+     "7": 0.0,
+     "8": 0.0,
+     "9": 0.001,
+     "10": 0.001,
+     "11": 0.002,
+     "12": 0.001,
+     "none": 0.096
+    },
+    "words": "Notes"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-settings-dialog",
+   "goal": "set the display name to Ana and press OK",
+   "want": [
+    "Display name"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "text field 'Display name' [dialog 'Settings']",
+     "1": "checkbox 'Dark mode' [dialog 'Settings'] (unchecked)",
+     "2": "button 'OK' [dialog 'Settings']",
+     "3": "button 'Cancel' [dialog 'Settings']"
+    },
+    "jev": {
+     "0": 0.689,
+     "1": 0.018,
+     "2": 0.287,
+     "3": 0.005
+    },
+    "done": 0.02,
+    "none": {
+     "0": 0.793,
+     "1": 0.009,
+     "2": 0.156,
+     "3": 0.002,
+     "none": 0.04
+    },
+    "words": "Display name"
+   },
+   {
+    "labels": {
+     "0": "text field 'Display name' [dialog 'Settings']",
+     "1": "checkbox 'Dark mode' [dialog 'Settings'] (unchecked)",
+     "2": "button 'OK' [dialog 'Settings']",
+     "3": "button 'Cancel' [dialog 'Settings']"
+    },
+    "jev": {
+     "0": 0.689,
+     "1": 0.018,
+     "2": 0.287,
+     "3": 0.005
+    },
+    "done": 0.02,
+    "none": {
+     "0": 0.793,
+     "1": 0.009,
+     "2": 0.156,
+     "3": 0.002,
+     "none": 0.04
+    },
+    "words": "Display name"
+   },
+   {
+    "labels": {
+     "0": "text field 'Display name' [dialog 'Settings']",
+     "1": "checkbox 'Dark mode' [dialog 'Settings'] (unchecked)",
+     "2": "button 'OK' [dialog 'Settings']",
+     "3": "button 'Cancel' [dialog 'Settings']"
+    },
+    "jev": {
+     "0": 0.689,
+     "1": 0.018,
+     "2": 0.287,
+     "3": 0.005
+    },
+    "done": 0.02,
+    "none": {
+     "0": 0.793,
+     "1": 0.009,
+     "2": 0.156,
+     "3": 0.002,
+     "none": 0.04
+    },
+    "words": "Display name"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-settings-dialog",
+   "goal": "turn dark mode on",
+   "want": [
+    "checkbox:Dark mode"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "text field 'Display name' [dialog 'Settings']",
+     "1": "checkbox 'Dark mode' [dialog 'Settings'] (unchecked)",
+     "2": "button 'OK' [dialog 'Settings']",
+     "3": "button 'Cancel' [dialog 'Settings']"
+    },
+    "jev": {
+     "0": 0.001,
+     "1": 0.997,
+     "2": 0.001,
+     "3": 0.0
+    },
+    "done": 0.033,
+    "none": {
+     "0": 0.001,
+     "1": 0.996,
+     "2": 0.001,
+     "3": 0.0,
+     "none": 0.002
+    },
+    "words": "Dark mode"
+   },
+   {
+    "labels": {
+     "0": "text field 'Display name' [dialog 'Settings']",
+     "1": "checkbox 'Dark mode' [dialog 'Settings'] (unchecked)",
+     "2": "button 'OK' [dialog 'Settings']",
+     "3": "button 'Cancel' [dialog 'Settings']"
+    },
+    "jev": {
+     "0": 0.001,
+     "1": 0.997,
+     "2": 0.001,
+     "3": 0.0
+    },
+    "done": 0.033,
+    "none": {
+     "0": 0.001,
+     "1": 0.996,
+     "2": 0.001,
+     "3": 0.0,
+     "none": 0.002
+    },
+    "words": "Dark mode"
+   },
+   {
+    "labels": {
+     "0": "text field 'Display name' [dialog 'Settings']",
+     "1": "checkbox 'Dark mode' [dialog 'Settings'] (unchecked)",
+     "2": "button 'OK' [dialog 'Settings']",
+     "3": "button 'Cancel' [dialog 'Settings']"
+    },
+    "jev": {
+     "0": 0.001,
+     "1": 0.997,
+     "2": 0.001,
+     "3": 0.0
+    },
+    "done": 0.033,
+    "none": {
+     "0": 0.001,
+     "1": 0.996,
+     "2": 0.001,
+     "3": 0.0,
+     "none": 0.002
+    },
+    "words": "Dark mode"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-settings-dialog",
+   "goal": "set the display name to Ana and press OK",
+   "want": [
+    "button:OK"
+   ],
+   "history": [
+    "typed into text field 'Display name'"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "text field 'Display name' [dialog 'Settings']",
+     "1": "checkbox 'Dark mode' [dialog 'Settings'] (unchecked)",
+     "2": "button 'OK' [dialog 'Settings']",
+     "3": "button 'Cancel' [dialog 'Settings']"
+    },
+    "jev": {
+     "0": 0.431,
+     "1": 0.013,
+     "2": 0.554,
+     "3": 0.002
+    },
+    "done": 0.026,
+    "none": {
+     "0": 0.566,
+     "1": 0.007,
+     "2": 0.389,
+     "3": 0.001,
+     "none": 0.036
+    },
+    "words": "Display name"
+   },
+   {
+    "labels": {
+     "0": "text field 'Display name' [dialog 'Settings']",
+     "1": "checkbox 'Dark mode' [dialog 'Settings'] (unchecked)",
+     "2": "button 'OK' [dialog 'Settings']",
+     "3": "button 'Cancel' [dialog 'Settings']"
+    },
+    "jev": {
+     "0": 0.431,
+     "1": 0.013,
+     "2": 0.554,
+     "3": 0.002
+    },
+    "done": 0.026,
+    "none": {
+     "0": 0.566,
+     "1": 0.007,
+     "2": 0.389,
+     "3": 0.001,
+     "none": 0.036
+    },
+    "words": "Display name"
+   },
+   {
+    "labels": {
+     "0": "text field 'Display name' [dialog 'Settings']",
+     "1": "checkbox 'Dark mode' [dialog 'Settings'] (unchecked)",
+     "2": "button 'OK' [dialog 'Settings']",
+     "3": "button 'Cancel' [dialog 'Settings']"
+    },
+    "jev": {
+     "0": 0.431,
+     "1": 0.013,
+     "2": 0.554,
+     "3": 0.002
+    },
+    "done": 0.026,
+    "none": {
+     "0": 0.566,
+     "1": 0.007,
+     "2": 0.389,
+     "3": 0.001,
+     "none": 0.036
+    },
+    "words": "Display name"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "pick",
+   "snap": "jevlab-counter",
+   "goal": "increase the counter",
+   "want": [
+    "button:Increment"
+   ]
+  },
+  "runs": [
+   {
+    "labels": {
+     "0": "button 'Increment' (in: Counter)",
+     "1": "tab 'Form' (in: Sections)",
+     "2": "tab 'List' (in: Sections)",
+     "3": "tab 'Composer' (in: Sections)",
+     "4": "tab 'Dialogs' (in: Sections)",
+     "5": "tab 'Login' (in: Sections)",
+     "6": "tab 'Counter' (in: Sections) (selected)",
+     "7": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.635,
+     "1": 0.041,
+     "2": 0.005,
+     "3": 0.003,
+     "4": 0.004,
+     "5": 0.006,
+     "6": 0.3,
+     "7": 0.005
+    },
+    "done": 0.053,
+    "none": {
+     "0": 0.653,
+     "1": 0.022,
+     "2": 0.002,
+     "3": 0.001,
+     "4": 0.001,
+     "5": 0.003,
+     "6": 0.187,
+     "7": 0.003,
+     "none": 0.129
+    },
+    "words": "Counter"
+   },
+   {
+    "labels": {
+     "0": "button 'Increment' (in: Counter)",
+     "1": "tab 'Form' (in: Sections)",
+     "2": "tab 'List' (in: Sections)",
+     "3": "tab 'Composer' (in: Sections)",
+     "4": "tab 'Dialogs' (in: Sections)",
+     "5": "tab 'Login' (in: Sections)",
+     "6": "tab 'Counter' (in: Sections) (selected)",
+     "7": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.635,
+     "1": 0.041,
+     "2": 0.005,
+     "3": 0.003,
+     "4": 0.004,
+     "5": 0.006,
+     "6": 0.3,
+     "7": 0.005
+    },
+    "done": 0.053,
+    "none": {
+     "0": 0.653,
+     "1": 0.022,
+     "2": 0.002,
+     "3": 0.001,
+     "4": 0.001,
+     "5": 0.003,
+     "6": 0.187,
+     "7": 0.003,
+     "none": 0.129
+    },
+    "words": "Counter"
+   },
+   {
+    "labels": {
+     "0": "button 'Increment' (in: Counter)",
+     "1": "tab 'Form' (in: Sections)",
+     "2": "tab 'List' (in: Sections)",
+     "3": "tab 'Composer' (in: Sections)",
+     "4": "tab 'Dialogs' (in: Sections)",
+     "5": "tab 'Login' (in: Sections)",
+     "6": "tab 'Counter' (in: Sections) (selected)",
+     "7": "menu item 'File'"
+    },
+    "jev": {
+     "0": 0.635,
+     "1": 0.041,
+     "2": 0.005,
+     "3": 0.003,
+     "4": 0.004,
+     "5": 0.006,
+     "6": 0.3,
+     "7": 0.005
+    },
+    "done": 0.053,
+    "none": {
+     "0": 0.653,
+     "1": 0.022,
+     "2": 0.002,
+     "3": 0.001,
+     "4": 0.001,
+     "5": 0.003,
+     "6": 0.187,
+     "7": 0.003,
+     "none": 0.129
+    },
+    "words": "Counter"
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "done",
+   "snap": "jevlab-composer",
+   "goal": "open the Composer tab",
+   "done": true
+  },
+  "runs": [
+   {
+    "done": 0.971
+   },
+   {
+    "done": 0.971
+   },
+   {
+    "done": 0.971
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "done",
+   "snap": "jevlab-form",
+   "goal": "open the Composer tab",
+   "done": false
+  },
+  "runs": [
+   {
+    "done": 0.018
+   },
+   {
+    "done": 0.018
+   },
+   {
+    "done": 0.018
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "done",
+   "snap": "jevlab-settings-dialog",
+   "goal": "open the settings dialog",
+   "done": true,
+   "history": [
+    "clicked button 'Open settings'"
+   ]
+  },
+  "runs": [
+   {
+    "done": 0.881
+   },
+   {
+    "done": 0.881
+   },
+   {
+    "done": 0.881
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "done",
+   "snap": "jevlab-dialogs",
+   "goal": "open the settings dialog",
+   "done": false
+  },
+  "runs": [
+   {
+    "done": 0.018
+   },
+   {
+    "done": 0.018
+   },
+   {
+    "done": 0.018
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "gate",
+   "snap": "jevlab-list",
+   "goal": "tidy up the list",
+   "element": "button:Delete all",
+   "irreversible": true,
+   "wanted": false
+  },
+  "runs": [
+   {
+    "irreversible": true,
+    "wanted": false,
+    "scores": {
+     "goal": "tidy up the list",
+     "element": "button 'Delete all' (in: List)",
+     "wanted": 0.321
+    }
+   },
+   {
+    "irreversible": true,
+    "wanted": false,
+    "scores": {
+     "goal": "tidy up the list",
+     "element": "button 'Delete all' (in: List)",
+     "wanted": 0.321
+    }
+   },
+   {
+    "irreversible": true,
+    "wanted": false,
+    "scores": {
+     "goal": "tidy up the list",
+     "element": "button 'Delete all' (in: List)",
+     "wanted": 0.321
+    }
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "gate",
+   "snap": "jevlab-list",
+   "goal": "remove Charlie from the list",
+   "element": "button:Remove selected",
+   "irreversible": false,
+   "wanted": true
+  },
+  "runs": [
+   {
+    "irreversible": false,
+    "wanted": true,
+    "scores": {
+     "goal": "remove Charlie from the list",
+     "element": "button 'Remove selected' (in: List)",
+     "wanted": 0.731
+    }
+   },
+   {
+    "irreversible": false,
+    "wanted": true,
+    "scores": {
+     "goal": "remove Charlie from the list",
+     "element": "button 'Remove selected' (in: List)",
+     "wanted": 0.731
+    }
+   },
+   {
+    "irreversible": false,
+    "wanted": true,
+    "scores": {
+     "goal": "remove Charlie from the list",
+     "element": "button 'Remove selected' (in: List)",
+     "wanted": 0.731
+    }
+   }
+  ]
+ },
+ {
+  "case": {
+   "k": "gate",
+   "snap": "jevlab-composer",
+   "goal": "type hello in the chat box",
+   "element": "button:Send",
+   "irreversible": true,
+   "wanted": false
+  },
+  "runs": [
+   {
+    "irreversible": true,
+    "wanted": true,
+    "scores": {
+     "goal": "type hello in the chat box",
+     "element": "button 'Send' (in: Composer)",
+     "wanted": 0.818,
+     "pending": 0.321
+    }
+   },
+   {
+    "irreversible": true,
+    "wanted": true,
+    "scores": {
+     "goal": "type hello in the chat box",
+     "element": "button 'Send' (in: Composer)",
+     "wanted": 0.818,
+     "pending": 0.321
+    }
+   },
+   {
+    "irreversible": true,
+    "wanted": true,
+    "scores": {
+     "goal": "type hello in the chat box",
+     "element": "button 'Send' (in: Composer)",
+     "wanted": 0.818,
+     "pending": 0.321
+    }
+   }
+  ]
+ }
+]

@@ -1,0 +1,44 @@
+{
+ "app": "JevLab",
+ "title": "JevLab - Alpha",
+ "layers": [
+  "dialog 'Settings'"
+ ],
+ "scrollable": false,
+ "text": "-- dialog 'Settings' --\nDisplay name",
+ "elements": [
+  {
+   "kind": "text field",
+   "label": "Display name",
+   "layer": "dialog 'Settings'",
+   "disabled": false,
+   "value": ""
+  },
+  {
+   "kind": "checkbox",
+   "label": "Dark mode",
+   "layer": "dialog 'Settings'",
+   "disabled": false,
+   "checked": false
+  },
+  {
+   "kind": "button",
+   "label": "OK",
+   "layer": "dialog 'Settings'",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Cancel",
+   "layer": "dialog 'Settings'",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Close",
+   "layer": "dialog 'Settings'",
+   "disabled": false,
+   "chrome": true
+  }
+ ]
+}

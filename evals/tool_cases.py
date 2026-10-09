@@ -6,6 +6,7 @@ costs capability; a needless one costs context (and is what we're trying to avoi
 
     python evals/tool_cases.py            # live, both phrasings, sweep
     python evals/tool_cases.py --offline  # re-sweep the cached raw answers
+    python evals/tool_cases.py --holdout  # the desktop tool's held-out requests (written after its description was fixed)
 """
 from __future__ import annotations
 
@@ -22,8 +23,9 @@ from jevh.decide import SystemOneClient, noul  # noqa: E402
 from jevh.tools import TOOLS  # noqa: E402
 
 RAW = Path(__file__).with_name("tool_cases_raw.json")
-W, B, P, C, N = "web", "browser", "project", "comfy", "nango"
-ALL = (W, B, P, C, N)
+RAW_HOLDOUT = Path(__file__).with_name("tool_cases_holdout_raw.json")
+W, B, P, C, N, D = "web", "browser", "project", "comfy", "nango", "desktop"
+ALL = (W, B, P, C, N, D)
 
 CASES = [  # (request, needed, either)
     ("What's the weather in Seattle this weekend?", {W}, {B}),
@@ -87,6 +89,44 @@ CASES = [  # (request, needed, either)
     ("My Gmail connection expired, reconnect it.", {N}, {B}),
     ("I'd like you to be able to read my Todoist tasks. How do I connect it?", {N}, {W, B}),
     ("Link my GitHub account so you can open issues for me.", {N}, {W, B}),
+    # the desktop tool: apps on the user's own computer (added 2026-10-08; "send /rc in JevLab" scored 0.18 on the first wording)
+    ("Open Notepad and write down my shopping list.", {D}, set()),
+    ("Start a new session in the Claude app.", {D}, set()),
+    ("Which apps do I have open on my computer right now?", {D}, set()),
+    ("Press Ctrl+N in the Claude app.", {D}, set()),
+    ("Type hello into the Telegram app and send it to the family group.", {D}, set()),
+    ("There's a pop-up dialog on my screen, close it.", {D}, set()),
+    ("In JevLab's Composer tab, send the message /rc.", {D}, set()),
+    ("Use the Windows Calculator to work out 17 times 23.", {D}, set()),
+    ("Open Settings and tell me which Windows version I have.", {D}, set()),
+    ("Is Spotify open? If so, pause the music.", {D}, set()),
+    ("Open File Explorer to my Downloads folder and tell me which file is the biggest.", {D}, {P}),
+    ("In the installer window that is open, click Next until the license page.", {D}, set()),
+    ("Open https://news.ycombinator.com and tell me the top story.", {B}, {W}),
+    ("Add a 12-pack of paper towels to my Walmart cart.", {B}, {W}),
+    ("Click the Buy button on the shop page and stop before paying.", {B}, set()),
+    ("Rename the class Parser to Lexer everywhere in my project.", {P}, set()),
+]
+# written after the desktop description was fixed; run once with --holdout
+HOLDOUT = [
+    ("Switch to the Brave window and tell me which tabs are open.", {D}, set()),
+    ("Rename draft.txt on my Desktop to final.txt using File Explorer.", {D}, {P}),
+    ("In the Docker Desktop window, which containers are running?", {D}, set()),
+    ("Change the volume to 30% in the Windows sound settings.", {D}, set()),
+    ("Hit Enter in the PowerShell window that is open.", {D}, set()),
+    ("Dismiss the update notification in the Claude app.", {D}, set()),
+    ("In Telegram, open the Saved Messages chat.", {D}, set()),
+    ("Maximize the LM Studio window.", {D}, set()),
+    ("What does the dialog box on my screen say?", {D}, set()),
+    ("Click through the setup wizard in the window that is open, but stop before it installs anything.", {D}, set()),
+    ("Find hotels in Denver for Friday on booking.com.", {B}, {W}),
+    ("What's the weather going to be like this weekend?", {W}, {B}),
+    ("Rename the function foo to bar in my project.", {P}, set()),
+    ("Summarize my unread emails.", {N}, set()),
+    ("Explain what a TCP handshake is.", set(), {W}),
+    ("Fix the failing test in the repo.", {P}, set()),
+    ("Scrape the first page of quotes.toscrape.com.", {W}, {B}),
+    ("Write a short poem about autumn.", set(), set()),
 ]
 
 PHRASINGS = {
@@ -95,26 +135,27 @@ PHRASINGS = {
 }
 
 
-def run_live() -> dict:
+def run_live(cases=None, out=None) -> dict:
+    cases, out = cases or CASES, out or RAW
     cfg = load_config()
     client = SystemOneClient(cfg.jev["url"], cfg.jev["backend"], timeout=300)
     raw: dict = {}
     for name, q in PHRASINGS.items():
         t = time.time()
         rows = []
-        for req, _, _ in CASES:
+        for req, _, _ in cases:
             r = client.ask({"latest_request": req}, {f"t_{n}": noul({"question": q, "tool": TOOLS[n].description})
                                                      for n in ALL})
             rows.append({n: r[f"t_{n}"].noul for n in ALL})
         raw[name] = rows
-        print(f"{name}: {(time.time() - t) / len(CASES):.2f}s per request")
-    RAW.write_text(json.dumps(raw, indent=1), encoding="utf-8")
+        print(f"{name}: {(time.time() - t) / len(cases):.2f}s per request")
+    out.write_text(json.dumps(raw, indent=1), encoding="utf-8")
     return raw
 
 
-def score(rows: list[dict], t: float) -> tuple[int, int, int]:
+def score(rows: list[dict], t: float, cases=None) -> tuple[int, int, int]:
     ok = missing = needless = 0
-    for (req, need, either), s in zip(CASES, rows):
+    for (req, need, either), s in zip(cases or CASES, rows):
         picked = {n for n, p in s.items() if p >= t}
         missing += len(need - picked)
         needless += len(picked - need - either)
@@ -125,18 +166,20 @@ def score(rows: list[dict], t: float) -> tuple[int, int, int]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
+    ap.add_argument("--holdout", action="store_true")
     args = ap.parse_args()
-    raw = json.loads(RAW.read_text(encoding="utf-8")) if args.offline else run_live()
+    cases, path = (HOLDOUT, RAW_HOLDOUT) if args.holdout else (CASES, RAW)
+    raw = json.loads(path.read_text(encoding="utf-8")) if args.offline else run_live(cases, path)
     for name, rows in raw.items():
         print(f"\n== {name}: {PHRASINGS[name]}")
         for t in (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9):
-            ok, miss, extra = score(rows, t)
-            print(f"  t={t:.1f}  {ok}/{len(CASES)} right  missing {miss}  needless {extra}")
+            ok, miss, extra = score(rows, t, cases)
+            print(f"  t={t:.1f}  {ok}/{len(cases)} right  missing {miss}  needless {extra}")
     best = max(((n, t) for n in raw for t in (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)),
-               key=lambda nt: (score(raw[nt[0]], nt[1])[0], -score(raw[nt[0]], nt[1])[2]))
+               key=lambda nt: (score(raw[nt[0]], nt[1], cases)[0], -score(raw[nt[0]], nt[1], cases)[2]))
     n, t = best
     print(f"\nbest: {n} at {t}. Misses:")
-    for (req, need, either), s in zip(CASES, raw[n]):
+    for (req, need, either), s in zip(cases, raw[n]):
         picked = {k for k, p in s.items() if p >= t}
         if not need <= picked <= need | either:
             print(f"  {req[:70]:70} need={sorted(need)} got={sorted(picked)} "

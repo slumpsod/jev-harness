@@ -1,0 +1,156 @@
+{
+ "app": "JevLab",
+ "title": "JevLab - Alpha",
+ "layers": [],
+ "scrollable": false,
+ "text": "Full name\nEmail address\nCountry\nNot submitted",
+ "elements": [
+  {
+   "kind": "text field",
+   "label": "Full name",
+   "layer": "",
+   "disabled": false,
+   "value": "",
+   "context": "Form"
+  },
+  {
+   "kind": "text field",
+   "label": "Email address",
+   "layer": "",
+   "disabled": false,
+   "value": "",
+   "context": "Form"
+  },
+  {
+   "kind": "dropdown",
+   "label": "Country",
+   "layer": "",
+   "disabled": false,
+   "value": "",
+   "context": "Form"
+  },
+  {
+   "kind": "checkbox",
+   "label": "Subscribe to newsletter",
+   "layer": "",
+   "disabled": false,
+   "checked": false,
+   "context": "Form"
+  },
+  {
+   "kind": "radio",
+   "label": "Small",
+   "layer": "",
+   "disabled": false,
+   "checked": false,
+   "context": "Size"
+  },
+  {
+   "kind": "radio",
+   "label": "Medium",
+   "layer": "",
+   "disabled": false,
+   "checked": false,
+   "context": "Size"
+  },
+  {
+   "kind": "radio",
+   "label": "Large",
+   "layer": "",
+   "disabled": false,
+   "checked": false,
+   "context": "Size"
+  },
+  {
+   "kind": "button",
+   "label": "Submit",
+   "layer": "",
+   "disabled": false,
+   "context": "Form"
+  },
+  {
+   "kind": "button",
+   "label": "Reset form",
+   "layer": "",
+   "disabled": false,
+   "context": "Form"
+  },
+  {
+   "kind": "tab",
+   "label": "Form",
+   "layer": "",
+   "disabled": false,
+   "selected": true,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "List",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Composer",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Dialogs",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Login",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "tab",
+   "label": "Counter",
+   "layer": "",
+   "disabled": false,
+   "context": "Sections"
+  },
+  {
+   "kind": "menu item",
+   "label": "File",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "menu item",
+   "label": "System",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Minimize",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Maximize",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Close",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  }
+ ]
+}

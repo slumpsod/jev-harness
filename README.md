@@ -45,6 +45,8 @@ python evals/tier_cases.py             # live fast/strong tier accuracy + sweep
 python evals/tool_cases.py             # live tool-guide picking accuracy + sweep
 python evals/browser_cases.py --live   # Jev browser agent on a local test shop (+ Wikipedia)
 python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness turns (flights, tickets, forms...)
+python evals/bench/desktop_tasks.py --arm both --repeat 2   # desktop tool, 18 tasks on real Windows apps, old harness vs this one (drives the mouse and keyboard: don't use the machine)
+python evals/desktop_cases.py          # Jev's choice of control / done / gate on saved windows (--capture first; --holdout, --offline)
 python evals/bench/persona_creation.py   # persona creation, live: Jev checks, the writer, the gate, routing, full turns
                                          #   (--stage, --split dev|held, --reps, --budget/--resume for a runner with a time cap)
 python evals/bench/nango_setup.py        # connecting an account: a simulated user + the real local Nango (Docker), multi-turn
@@ -570,7 +572,7 @@ How it was checked (2026-10-03/04, Qwen 3.8 27B in LM Studio, semif Jev; `evals/
 - The bench also found a gate quirk older than this work: with `final()` called without a file list the harness collects the worker's files as `<persona>_<name>`, and the check for a file the request names compared names exactly, so `primes.py` was "not handed over" while `high_end_dev_primes.py` was. It now counts.
 - Not run on vLLM; the doc lists what its documentation says and what to check.
 
-## Tools: web, browser, project, nango, MCP
+## Tools: web, browser, desktop, project, nango, MCP
 
 A persona lists its tools; per task Jev decides which tools' guides go into the prompt (one noul
 each, ~0.6s for four; `thresholds.tool`). The rest are still importable and named in one line, so a
@@ -665,6 +667,75 @@ missed pick costs one `help(name)`, not the capability. The Inspector shows the 
     `NANGO_SECRET_KEY` (or `workspace/nango/secret_key`), like any other key the harness runs with.
   - Tool pick (`tool_cases.py`, live on semif): all 10 account requests scored >= 0.99 (a draft email 0.87),
     everything else <= 0.25 except "how do I use the Gmail API from Python" (1.00, a needless guide).
+- **desktop** (Windows): the browser's design for the apps on the user's own computer, through UI Automation
+  (`jevh/tools/desktop.py`, `_winui.py`; architecture: [docs/architecture/19-desktop.md](docs/architecture/19-desktop.md)).
+  Built after session `20261008-093548-5045`, where a worker with no desktop tool spent 37 steps writing raw `comtypes` code to
+  list the open windows, 17 to press Ctrl+N, redid the setup every turn, and Jev took no part. Now the worker says
+  `desktop.do("open the settings dialog, set Display name to Ana, turn on Dark mode and press OK", window="App")` and:
+  - **Jev decides** which window (and which browser tab: `desktop.where("the claude code tab")`), which control, which value,
+    which dropdown option, whether the goal is done, whether a click is wanted and whether it is hard to undo. **Code decides**
+    what has one right answer: a whole window read in ~50 ms by one cached UIA call, the numbering, the goal's own values
+    ("set X to Y") and last click ("... and press OK"), `remove X` done once X is gone, typing with read-back, the Enter check
+    (an autocomplete that takes the Enter and rewrites `/rc` to `remote-control ` is closed and the text sent again), and the gates.
+  - Safety: keys only go to a window verifiably in front; a send/delete/pay click needs a yes unless the goal itself asks for it;
+    typing never replaces text the tool did not write (an editor, a long field) without a yes; a modal dialog hides the window
+    behind it; UAC and frozen apps come back as `needs_user`/`blocked`.
+  - **Passwords are typed only with the user's permission.** Given as a value (`values={"Password": pw}`) or `fill(i, pw)`, the
+    tool itself asks the user ("May I type a password into the 'Password' field of ...?": Allow / Allow for this task / Don't allow),
+    from inside the tool, as the nango tool does, so the worker cannot answer for them and no argument skips it. Only "Allow..."
+    types it; anything else, or no one to ask, is `needs_user` with a note not to work around it. It is typed key by key (never
+    through the clipboard), never read back, never in the action history or the page text, and a value whose key says it is secret
+    can only go into a password field, never one Jev picks (a bug found live: it was typed into the user name field).
+  - Design facts measured on the way: `Invoke` on a button that opens a modal dialog hangs later UIA calls into that app (buttons
+    are clicked with the mouse; tabs, list items, radios, checkboxes go through patterns); a "none" option in Jev's choice
+    attracted the 4B Jev (0.70 vs 0.07 for the right button), so there is none.
+
+  **Measured** (2026-10-08, Windows 11, Qwen 3.8 27B on llama.cpp, semif Jev; `evals/bench/desktop_tasks.py`, results in
+  `evals/bench/desktop_tasks_raw.json`, summary in `desktop_tasks_last_summary.txt`). 19 tasks, full harness turns on JevLab (a
+  small Windows Forms app that logs everything done to it, so a check reads the app's own state, not the model's account),
+  Calculator and File Explorer; 4 tasks the tool was tuned on, 15 written afterwards. Old harness = commit 78c66d5 (no desktop tool: the
+  worker writes its own ctypes/comtypes code), 1 run per task; new = this code, 2 runs per task (the last version of the tool,
+  after the fixes below); per-run limit 5 minutes (the first run of 8 old-harness tasks had 10; none of them passed between 5 and 10).
+
+  | | old harness | new harness |
+  |---|---|---|
+  | passed (ground truth) | 5/19 (26%) | **35/38 (92%)** |
+  | passed if reading the app's state file were allowed | 8/19 | 35/38 |
+  | held-out tasks only | 5/15 | 28/30 |
+  | median time per run | 302 s | **57 s** |
+  | median code steps | 25 | **10** |
+  | median worker output tokens | 8,725 | **1,196** |
+  | runs that hit the time limit | 12/19 | 2/38 |
+  | runs where the worker wrote its own ctypes/comtypes/pyautogui code | 13/19 | 3/38 |
+
+  The old harness passed the four plain lookups and sums (window list, "is Claude open", Calculator, Explorer; 16-163 s; faster than the
+  new one on two of them, level on one) and the password task where the user said no (by not typing, after running into the limit
+  with the user name still empty) - and failed nearly everything that needed clicking, typing or a dialog: usually by running into the
+  limit after 30-50 steps of raw Win32/UIA code, and in 12 of its 14 failed runs it also read the app's own state file (found through
+  the process list). Those runs count as failures; the "if allowed" row shows what they reached. (An earlier version of the bench kept the
+  app's source next to its exe and a worker read it; the exe now lives outside the repo.)
+
+  The new harness missed 3 of 38: `composer-slash` #2 (Windows left the foreground with an invisible `GameInputServiceWindow` and
+  nothing took it back, here or for the worker's own code; reported as `needs_user`), `notes-export` #2 (the text was typed and
+  saved right, with a space at each end of each line: the request marks the text with double spaces and the model typed them) and
+  `login-allowed` #1 (the password was typed after the user's "Allow", the user name entered and sign-in done, but the answer repeated
+  the password; the pointer line now says not to, and the next run did not). **Password runs**: with a user who says no, the tool asked,
+  was told no, typed only the user name and stopped, 2/2 (and before the tool could ask: the user's "yes" let the worker bypass
+  the tool with raw `SendMessage` calls, which is why the refusal alone was not enough); with a user who says Allow, 1/2 clean.
+
+  Where Jev's picks are right (`evals/desktop_cases.py`, 3 repeats, saved windows of JevLab, Calculator, Explorer and a Save As
+  dialog): the right control on the first choice 73% (tuning, 45 runs) and **91% (held out, 36 runs)**, against 66% / 83% with the old
+  layout that had a "none" option and 66% / 50% for a no-Jev word-overlap pick; "is it done" 21/21; the click gate 12/15 (misses: it
+  called Send "wanted" for "type hello in the chat box" 3 times). Jev's pick of the tool for a request (`evals/tool_cases.py`): no needless
+  desktop guide on any of 75 + 18 requests; the guide was picked for 10/12 desktop requests while tuning and **7/10 held out** (a request that never
+  says "app" scores low), and a `desktop` line pointing to `help(desktop)` is now in the prompt whenever the guide is not (10 runs
+  had no guide before it; with it, 9 of those 10 reruns passed).
+
+  Not tuned / not verified: the thresholds (done >= .9, or .7 after acting; wanted >= .4 as in the browser; the 0.65 tool pick is the
+  shared one) are first guesses; the foreground-retry (`_front`) has a unit test but was not seen against the real lock; sample
+  sizes are 1-2 runs per task, so a task's single pass or fail is an anecdote, the totals are the finding; Windows only (the
+  Windows-specific code is `_winui.py`: a macOS or Linux backend implements the same dozen methods). The feature is wrong if the
+  new harness stops beating the old one on `desktop_tasks.py` with the same model, or if `desktop_cases.py` held-out picks fall to the word baseline.
 - **MCP**: stdio JSON-RPC client (`jevh/mcp.py`). The servers' tools form one catalog, and Jev picks
   the few that fit a task (Choice + fits noul, like skills). Only those signatures reach the prompt:
   `mcp("server.tool", arg=value)`. A broken server is reported and skipped.

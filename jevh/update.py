@@ -42,8 +42,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MAX_COMMITS = 30
 DEPS_FILES = ("pyproject.toml",)
-REINSTALL = 'pip install -e ".[web,browser,dev]"'
-EXTRAS = {"web": "fastapi", "browser": "playwright", "dev": "pytest", "claude": "anthropic"}  # extra -> a module it installs
+REINSTALL = 'pip install -e ".[web,browser,desktop,dev]"'
+EXTRAS = {"web": "fastapi", "browser": "playwright", "desktop": "PIL", "dev": "pytest", "claude": "anthropic"}  # extra -> a module it installs
 SMOKE = ["jevh.cli", "jevh.orchestrator", "jevh.update"]   # must import after an update (+ the dashboard if installed)
 BACKUP_REF, LANDED_REF, EDITS_REF = "refs/jevh/pre-update", "refs/jevh/post-update", "refs/jevh/pre-update-edits"
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)

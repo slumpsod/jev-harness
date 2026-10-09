@@ -461,6 +461,9 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
         rest = [t for t in persona.tools if t not in picked]
         if rest:
             parts.append("Also importable in your REPL (help(name) shows how): " + ", ".join(rest))
+            pointers = [TOOLS[t].pointer for t in rest if t in TOOLS and TOOLS[t].pointer]
+            if pointers:   # (Jev's pick misses some requests: a tool the worker has must not be a tool it cannot find)
+                parts[-1] += "\n" + " ".join(pointers)
         if mcp_tools:
             parts.append("## MCP tools (call from the REPL; returns text)\n" + "\n".join(
                 f"- {t.signature()}: {t.description[:300]}" for t in mcp_tools))
