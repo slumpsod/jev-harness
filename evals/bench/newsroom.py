@@ -1,6 +1,8 @@
 """Live bench for the Newsroom (jevh/newsroom.py, docs/newsroom.md): real sources, a real Jev, a real worker model, real turns.
 
-NOT RUN YET: this was written in a cloud session that could reach no news site and no model. The offline tests
+First run 2026-10-09 (Qwen3.8 27B on llama.cpp, semif; results in docs/newsroom.md's status note; the saved summaries are
+newsroom_last_summary.txt (turns + dashboard), newsroom_sources_summary.txt and newsroom_recheck_last_summary.txt). It was written
+in a cloud session that could reach no news site and no model. The offline tests
 (tests/test_newsroom*.py) use a feed served from localhost, a fake Jev and scripted models: they show the code runs. This
 shows whether it WORKS: does a plain request in the chat put the right widget on the board, does a lookalike request
 (a one-off "what's the news on X?", "follow up with Sam") leave the board alone, do real feeds parse and stay quiet on the

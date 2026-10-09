@@ -1,0 +1,31 @@
+newsroom decisions on Jev backend semif, 3 run(s) per case, 2026-10-09 08:54  [holdout]  NOT TUNED: thresholds.tool is the harness's own, newsroom_about is a guess
+
+== tool: is the newsroom guide in the prompt?  (threshold 0.65, thresholds.tool; holdout requests)
+  holdout: fires on 50% of 12 should-fire requests (target >= 90%); fires on 0% of 12 lookalikes (target <= 5%, 0 wrong picks)
+  sweep:  0.20: 75%/0%  0.30: 75%/0%  0.40: 75%/0%  0.50: 67%/0%  0.60: 50%/0%  0.65: 50%/0%  0.70: 50%/0%  0.80: 42%/0%  0.90: 42%/0%   (fires when it should / fires when it should not)
+    MISS (should fire): Follow the Python release feed https://www.python.org/dev/peps/peps.rss and tell me   newsroom=0.59  web=1.00 browser=0.92 desktop=0.02 nango=0.01
+    MISS (should fire): Give me a live board of headlines on climate policy.  newsroom=0.44  web=1.00 browser=0.65 desktop=0.01 nango=0.01
+    MISS (should fire): Take the Bitcoin widget off my dashboard.  newsroom=0.02  web=0.00 browser=0.02 desktop=0.15 nango=0.03
+    MISS (should fire): Which of my newsroom widgets have notifications turned on?  newsroom=0.12  web=0.05 browser=0.07 desktop=0.25 nango=0.35
+    MISS (should fire): I want a feed of new LocalLLaMA posts, no alerts, just show them.  newsroom=0.05  web=0.02 browser=0.03 desktop=0.03 nango=0.05
+    MISS (should fire): Let me know whenever the Rust blog publishes something.  newsroom=0.56  web=0.97 browser=0.47 desktop=0.03 nango=0.03
+  regression (93 requests from tool_cases.py, none wants it): picked on 0 (target 0)
+  the other tools' scores with and without the newsroom among the options: largest difference 0.000 (target < 0.05)
+
+== route: does the new daily_assistant description keep the routing right?  (old vs new, same requests)
+  newsroom  old: 67% of 12 requests reach daily_assistant
+  newsroom  new: 83% of 12 requests reach daily_assistant   (target >= 90%)
+  existing  old: 97% of 37 requests reach the expected persona
+  existing  new: 97% of 37 requests reach the expected persona
+    changed: I want a feed of new LocalLLaMA posts, no alerts, just show them.  high_end_dev -> daily_assistant  (want daily_assistant)
+    changed: Let me know whenever the Rust blog publishes something.  high_end_dev -> daily_assistant  (want daily_assistant)
+    WRONG (new): Follow the Python release feed https://www.python.org/dev/peps/peps.rss and tell  -> high_end_dev  (want daily_assistant)
+    WRONG (new): Take the Bitcoin widget off my dashboard.  -> front_end_designer  (want daily_assistant)
+    WRONG (new): Build me a web dashboard that charts my lifts and bodyweight.  -> high_end_dev  (want fitness_coach)
+
+== about: Jev's `about` alert on 16 labelled headlines, holdout  (threshold 0.7, thresholds.newsroom_about; authored, not from real runs)
+  keywords only      precision 100%  recall 0%  (found 0, wrong 0, missed 24)
+  about only         precision 100%  recall 100%  (found 24, wrong 0, missed 0)
+  keywords or about  precision 100%  recall 100%  (found 24, wrong 0, missed 0)
+  of the 8 headlines the keywords miss, `about` finds 100% (target >= 70%)
+  sweep (threshold: about precision / recall):  0.30: 100%/100%  0.50: 100%/100%  0.60: 100%/100%  0.70: 100%/100%  0.80: 100%/100%  0.90: 100%/100%  0.95: 100%/100%

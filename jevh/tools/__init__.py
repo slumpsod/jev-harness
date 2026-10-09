@@ -153,7 +153,8 @@ on a timer, so you only set them up). Use it to follow something over time; for 
   never notify. Ask the user what should notify them if they didn't say: a topic with no alert words is only a feed.
   about="anything about their quarterly results" adds a sentence Jev judges each new item against (for what no
   keyword names); use it with, not instead of, keywords the user named.
-- newsroom.company("Nvidia", x="nvidia", alert="earnings") -> its news tile and its X tile in one call.
+- newsroom.company("Nvidia", alert="earnings") -> the company's news tile. Add x="handle" only when the user asked for its
+  X account too: it adds a second tile, an X one. A request for a company's news is one news tile, nothing more.
 - newsroom.widgets(); newsroom.items(widget, n); newsroom.edit(widget, alert=..., every=..., title=..., paused=...,
   size="s"|"m"|"l", topic=... to follow something else); newsroom.remove(widget); newsroom.refresh(widget=None);
   `widget` is an id or part of its title. newsroom.notify(title, body, url) sends the user a notification of your own.

@@ -1,9 +1,9 @@
 # 20. The Newsroom: widgets that follow things and notify the user
 
 Status: built and tested offline (`tests/test_newsroom.py`, `test_newsroom_ui.py`, `test_newsroom_evals.py`; the page was driven in
-Chromium against feeds served from localhost). **Not run** against real sources, a live Jev or a worker model: `evals/newsroom_cases.py`
-and `evals/bench/newsroom.py` are the benches for that, and no number in this page comes from a measurement. User guide:
-[docs/newsroom.md](../newsroom.md).
+Chromium against feeds served from localhost), and **partly verified live** on 2026-10-09 with `evals/newsroom_cases.py` and
+`evals/bench/newsroom.py`: what held, what fell below its target and what could not be checked is in the status note of
+[docs/newsroom.md](../newsroom.md), which is the user guide. No number in this page comes from a measurement.
 
 ## What it is
 

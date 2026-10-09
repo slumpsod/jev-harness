@@ -1,0 +1,9 @@
+NEWSROOM BENCH  20261009-165259  model=llamacpp:qwen3.8-27b  reps=3  NOT TUNED: every target is a first guess
+
+turns (full harness turns on a fresh board each; checks read the board, not the answer)
+
+[track]  target: right widget on >= 80% of reps
+  ok   new nvidia_earnings: 3/3  (median 22.1s, 2 steps, 7 model calls)
+  ok   new llama_cpp_releases: 3/3  (median 40.1s, 6 steps, 12 model calls)
+  track new overall: 6/6 reps pass; per rep median 25.7s, 8.5 model calls, 19677.5 tokens in, 2.5 steps; questions asked of the user 0; routed to daily_assistant 6/6; gate bounces 0
+

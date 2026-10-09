@@ -1,0 +1,61 @@
+NEWSROOM BENCH  20261009-154602  model=llamacpp:qwen3.8-27b  reps=1  NOT TUNED: every target is a first guess
+
+turns (full harness turns on a fresh board each; checks read the board, not the answer)
+
+[track]  target: right widget on >= 80% of reps
+  MISS new nvidia_earnings: 0/1  (median 45.9s, 2 steps, 8 model calls)
+        - one_news_widget_on_nvidia: 0/1
+  ok   new openai_on_x: 1/1  (median 48.7s, 3 steps, 11 model calls)
+  ok   new own_feed: 1/1  (median 25.0s, 2 steps, 9 model calls)
+  ok   new two_topics: 1/1  (median 54.4s, 5 steps, 11 model calls)
+  MISS new llama_cpp_releases: 0/1  (median 132.6s, 11 steps, 18 model calls)
+        - github_widget: 0/1
+  ok   new fed_rates: 1/1  (median 131.5s, 9 steps, 15 model calls)
+  ok   new same_twice: 1/1  (median 53.8s, 6 steps, 12 model calls)
+  ok   new vague: 1/1  (median 44.6s, 3 steps, 11 model calls)
+  track new overall: 6/8 reps pass; per rep median 51.2s, 11.0 model calls, 26729.5 tokens in, 4.0 steps; questions asked of the user 3; routed to daily_assistant 7/8; gate bounces 1
+
+[manage]  target: right change on >= 90%
+  ok   new remove_bitcoin: 1/1  (median 150.0s, 13 steps, 20 model calls)
+  ok   new tighten_nvidia: 1/1  (median 34.0s, 4 steps, 11 model calls)
+  ok   new pause_tesla: 1/1  (median 16.6s, 4 steps, 11 model calls)
+  ok   new list_board: 1/1  (median 23.2s, 2 steps, 9 model calls)
+  ok   new alerts_off: 1/1  (median 14.4s, 3 steps, 10 model calls)
+  manage new overall: 5/5 reps pass; per rep median 23.2s, 11 model calls, 16996 tokens in, 4 steps; questions asked of the user 0; routed to daily_assistant 4/5; gate bounces 0
+
+[lookalike]  target: board untouched on 100% (a widget for a one-off question is the failure)
+  ok   old latest_nvidia: 1/1  (median 59.6s, 7 steps, 18 model calls)
+  ok   new latest_nvidia: 1/1  (median 88.4s, 10 steps, 20 model calls)
+  ok   old top_headlines: 1/1  (median 72.0s, 8 steps, 14 model calls)
+  ok   new top_headlines: 1/1  (median 103.0s, 9 steps, 16 model calls)
+  ok   old follow_up: 1/1  (median 42.4s, 4 steps, 10 model calls)
+  ok   new follow_up: 1/1  (median 88.5s, 8 steps, 14 model calls)
+  ok   old one_off_post: 1/1  (median 275.4s, 22 steps, 43 model calls)
+  ok   new one_off_post: 1/1  (median 80.9s, 10 steps, 20 model calls)
+  ok   old research_report: 1/1  (median 159.1s, 14 steps, 20 model calls)
+  ok   new research_report: 1/1  (median 62.2s, 7 steps, 22 model calls)
+  ok   old server_cpu: 1/1  (median 324.4s, 14 steps, 21 model calls)
+  ok   new server_cpu: 1/1  (median 290.4s, 13 steps, 20 model calls)
+  lookalike old overall: 6/6 reps pass; per rep median 115.5s, 19.0 model calls, 73830.5 tokens in, 11.0 steps; questions asked of the user 0; routed to daily_assistant 5/6; gate bounces 1
+  lookalike new overall: 6/6 reps pass; per rep median 88.5s, 20.0 model calls, 50038.0 tokens in, 9.5 steps; questions asked of the user 2; routed to daily_assistant 5/6; gate bounces 1
+
+[ordinary]  target: 100% as before, cost within 15% of old
+  ok   old percent: 1/1  (median 7.5s, 0 steps, 7 model calls)
+  ok   new percent: 1/1  (median 8.9s, 0 steps, 7 model calls)
+  ok   old plan_day: 1/1  (median 12.5s, 0 steps, 7 model calls)
+  ok   new plan_day: 1/1  (median 15.4s, 0 steps, 7 model calls)
+  ok   old draft_email: 1/1  (median 10.0s, 0 steps, 7 model calls)
+  ok   new draft_email: 1/1  (median 20.7s, 0 steps, 7 model calls)
+  ordinary old overall: 3/3 reps pass; per rep median 10.0s, 7 model calls, 5695 tokens in, 0 steps; questions asked of the user 0; routed to daily_assistant 3/3; gate bounces 0
+  ordinary new overall: 3/3 reps pass; per rep median 15.4s, 7 model calls, 6286 tokens in, 0 steps; questions asked of the user 0; routed to daily_assistant 3/3; gate bounces 0
+
+dashboard (the whole path, 46.4s)
+  ok   turn_finished
+  ok   widget_on_the_board
+  ok   notifies_on_outage
+  ok   first_look_done_with_items
+  ok   no_notification_for_what_was_already_there
+  ok   one_notification_for_the_outage_story
+  ok   the_page_got_the_alert_event
+  ok   nothing_repeats_on_the_next_look
+  ok   remove_in_the_chat_removes_it

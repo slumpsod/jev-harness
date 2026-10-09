@@ -1,0 +1,18 @@
+NEWSROOM BENCH, sources stage (real feeds)   2026-10-09 (the run after the GitHub fix; target: >= 1 item with a link, second look finds 0 new)
+Captured from the bench's output by hand: this stage was run on its own, and the full run's summary file (newsroom_last_summary.txt) covers the turns and
+the dashboard. Titles shortened.
+
+  ok   news {"topic": "Nvidia"}: 50 items, 50 linked, 50 dated, 0.5s, second look new=0
+  MISS news {"topic": "\"solid-state battery\"", "site": "reuters.com", "days": 30}: 0 items, 0 linked, 0 dated, 0.4s, second look new=0   (not looked into)
+  ok   rss {"url": "https://feeds.bbci.co.uk/news/technology/rss.xml"}: 21 items, 21 linked, 21 dated, 0.8s, second look new=0
+  FAIL hn {"query": "llama.cpp"}: could not reach hnrss.org: The read operation timed out   (an HTTP 502 on the earlier run: the service, not the code)
+  ok   github {"repo": "ggml-org/llama.cpp"}: 10 items, 10 linked, 10 dated, 1.2s, second look new=0
+  MISS reddit {"subreddit": "LocalLLaMA"}: 25 items, 25 linked, 25 dated, 0.7s, second look new=0, www.reddit.com answered HTTP 429 (rate limited)
+  ok   arxiv {"query": "speculative decoding"}: 25 items, 25 linked, 25 dated, 0.7s, second look new=0
+  MISS web {"query": "llama.cpp release notes"}: 0 items   (DuckDuckGo answered with its CAPTCHA page from this machine: not a measurement of the widget)
+  skip x {"user": "OpenAI"}: X can't be read until one of these is set up (a Nango connection, X_BEARER_TOKEN, or a feed bridge)
+
+Before the fixes of 2026-10-09 (first run of this stage):
+  FAIL github {"repo": "ggml-org/llama.cpp"}: github.com answered HTTP 404   (the project's "/" was URL-encoded: fixed)
+  MISS web {"query": "llama.cpp release notes"}: 10 items, 0 dated, second look new=2   (DuckDuckGo's results shuffle between identical searches: fixed by
+        requiring a page to be in the results on two looks in a row; verified offline only, DuckDuckGo blocked this machine right after)

@@ -15,12 +15,27 @@ You don't build it by hand. **Ask in the chat:**
 The assistant puts the widget on the board, takes a first look, and tells you what it found and what will notify you.
 (The tab opens by itself when a turn adds a widget; switch that off with *Open the panel for you* in Appearance.)
 
-> **Status: unverified.** This was built in a cloud session that could reach no news site, no Jev and no model. The offline
-> tests pass (`python -m pytest -q tests/test_newsroom*.py`), and the page was driven in Chromium against feeds served from
-> localhost. Nothing here has been seen working against real sources or with live models until someone runs the test bench
-> ([below](#testing-it-against-the-real-thing)). Untuned guesses: `thresholds.newsroom_about` (0.70) and the three
-> description-dependent behaviours the bench measures (Jev offering the tool for the right requests, routing, the `about`
-> alert). X is the least certain source: see [Reading X](#reading-x).
+> **Status: partly verified.** Built in a cloud session, then run on 2026-10-09 against the real thing: Jev = semif, worker =
+> Qwen3.8 27B (Q5_K_M, llama.cpp), Windows; the offline tests pass (`python -m pytest -q tests/test_newsroom*.py`).
+>
+> - **Works:** a request in the chat puts the right widget on the board (set-up requests 6/8 in the full run, the two misses
+>   below, and 6/6 on a recheck of those two with the fixes and `daily_assistant` pinned; board edits 5/5); one-off lookalike
+>   requests leave the board alone (6/6) and ordinary ones are unchanged (3/3,
+>   input tokens +10%); the dashboard path (chat, widget, one notification, no repeat, remove) passed all 9 checks; the tool
+>   is picked for none of 93 regression requests and moves no other tool's score; the `about` alert finds 91-100% of what
+>   keywords miss, at 93-100% precision.
+> - **Below its (first-guess) targets:** Jev offers the newsroom guide for 65% (dev, 23 requests) and 50% (held-out, 12) of
+>   the requests that need it, against 90%; most misses are requests that change or remove a widget, or don't say "track"
+>   (the full turns passed those anyway). 83% of the newsroom requests reach `daily_assistant` (90%): one set-up request went
+>   to `high_end_dev`, which wrote a polling job of its own. Routing of existing requests did not change (97% before and after).
+> - **Found and fixed after the run:** GitHub feeds answered 404 (the project's `/` was encoded); `web` widgets counted
+>   DuckDuckGo's shuffled results as new (a page must now be in the results on two looks in a row); the worker added an
+>   unrequested X widget (the guide's example did; 3/3 with one widget after); and `web.search` returned an empty list when
+>   DuckDuckGo showed its CAPTCHA (it now raises `SearchBlocked`).
+> - **Not verified:** reading X (nothing is set up here); the `web` widget live (DuckDuckGo's CAPTCHA blocked this machine);
+>   Reddit answered 429 and hnrss.org timed out (the services); `news` with `site:reuters.com` found 0 items (not looked into).
+>   One rep per task in the turns stage, 3 runs per case in the Jev evals. Untuned: `thresholds.newsroom_about` (0.70) and
+>   every target. Results: `evals/newsroom_cases*_raw.json`, `evals/bench/newsroom_raw.json` and the summaries beside them.
 
 ## What it can follow (kinds)
 
@@ -127,7 +142,7 @@ python evals/bench/newsroom.py --model lmstudio:qwen3.8-27b@q6_k --reps 3     # 
 
 | Eval | Measures | Writes |
 |---|---|---|
-| `evals/newsroom_cases.py` `--stage tool` | is the newsroom guide offered for "keep an eye on / alert me" requests and **not** for a one-off "what's the news on X?", "follow up with Sam", "monitor my server"; also that the other tools' picks don't move | `newsroom_cases_raw.json`, `newsroom_cases_last_summary.txt` |
+| `evals/newsroom_cases.py` `--stage tool` | is the newsroom guide offered for "keep an eye on / alert me" requests and **not** for a one-off "what's the news on X?", "follow up with Sam", "monitor my server"; also that the other tools' picks don't move | `newsroom_cases_raw.json`, `newsroom_cases_last_summary.txt` (`newsroom_cases_holdout_*` for `--holdout`) |
 | ... `--stage route` | the changed `daily_assistant` description, old vs new, on the newsroom requests and on every request in `routing_cases.py` | same |
 | ... `--stage about` | `about` against keywords on labelled headlines (including ones with no keyword and ones with the right company but the wrong subject); a threshold sweep. `--export items.jsonl` writes the real items on your board for you to label, `--labelled items.jsonl` scores them | same |
 | `evals/bench/newsroom.py --stage sources` | real feeds parse; a second look finds 0 new | `evals/bench/newsroom_raw.json`, `newsroom_last_summary.txt` |
@@ -141,4 +156,8 @@ a second look that finds new items on a real feed (it would notify on every refr
 worker stops at "X isn't set up", the new description pulling requests from other personas, `about` notifying on every
 story about the company.
 
-Mark the feature verified in this page's status note once those have been run and read.
+The first run's numbers are in the status note above. Run these again after a change to the tool's description or guide, to the
+router's description of `daily_assistant`, or to a kind, and read them against it. The bench's workers have no desktop tool
+(each rep's copy of the personas drops it: it would drive your real windows), and its auto-answerer picks a "skip" option
+rather than saying yes for you; run it with Nango off (`NANGO_SECRET_KEY` unset, `JEVH_NANGO_WRITES=deny`) and the old arm
+only on the lookalike and ordinary tasks (`--arm auto`, the default: the old harness has no tool to set widgets up with).

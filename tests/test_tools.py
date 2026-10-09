@@ -8,7 +8,7 @@ from jevh.jev import Jev
 from jevh.mcp import McpError, McpHub
 from jevh.orchestrator import Harness
 from jevh.repl.client import Repl
-from jevh.tools import _pick, web
+from jevh.tools import TOOLS, _pick, web
 
 from conftest import FakeSystemOne, ScriptedLLM, choice_ans, noul_ans, py
 
@@ -26,6 +26,51 @@ def test_choose_runs_rounds_over_the_cap():
     assert all(len(q["_pick" if "_pick" in q else next(iter(q))]["criteria"]) <= 16
                for _, q in fake.calls for q in [q])
     assert len(fake.calls) == 2  # all rounds in one request, then the final
+
+
+class _Reply:
+    def __init__(self, text):
+        self.text = text
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return self.text.encode("utf-8")
+
+
+CHALLENGE_PAGE = ("<html><head><title>DuckDuckGo</title></head><body><div class='anomaly-modal__title'>Unfortunately, bots use "
+                  "DuckDuckGo too.</div>Please complete the following challenge to confirm this search was made by a human. "
+                  "Select all squares containing a duck.</body></html>")
+RESULT_PAGE = ('<div class="result results_links results_links_deep"><a class="result__a" href="https://ex.test/a">First</a>'
+               '<a class="result__snippet">a snippet</a></div>')
+
+
+def test_a_search_engine_asking_for_a_human_is_an_error_not_an_empty_search(monkeypatch):
+    """DuckDuckGo answered this machine with a CAPTCHA page for hours: it was read as a search with no results, so every
+    worker's web search came back empty and nothing said why. A search that really has no results is still empty."""
+    page = {"html": CHALLENGE_PAGE}
+    monkeypatch.setattr(web.urllib.request, "urlopen", lambda *a, **k: _Reply(page["html"]))
+    with pytest.raises(web.SearchBlocked, match="human check"):
+        web.search("llama.cpp release notes")
+    out = web.ask("what is new in llama.cpp?")                   # keeps its shape, and says why it is empty
+    assert out["passages"] == [] and out["results"] == [] and "human check" in out["note"]
+    page["html"] = "<html><body>No  results.</body></html>"
+    assert web.search("zzzzqqqq nothing") == []
+    assert web.ask("zzzzqqqq nothing")["note"] == "no search results"
+    page["html"] = RESULT_PAGE
+    assert web.search("anything") == [{"title": "First", "url": "https://ex.test/a", "snippet": "a snippet"}]
+
+
+def test_the_newsroom_guide_adds_an_x_tile_only_when_asked():
+    """The guide's example added a company's X tile every time: asked to keep an eye on Nvidia news, the worker also made an
+    X tile (the bench's one miss in nvidia_earnings), and told the user so."""
+    guide = TOOLS["newsroom"].guide
+    assert 'newsroom.company("Nvidia", alert="earnings")' in guide and "only when the user asked" in guide
+    assert 'company("Nvidia", x="nvidia"' not in guide
 
 
 def test_web_html_to_text_skips_chrome():

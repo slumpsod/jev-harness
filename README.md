@@ -47,8 +47,8 @@ python evals/browser_cases.py --live   # Jev browser agent on a local test shop 
 python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness turns (flights, tickets, forms...)
 python evals/bench/desktop_tasks.py --arm both --repeat 2   # desktop tool, 18 tasks on real Windows apps, old harness vs this one (drives the mouse and keyboard: don't use the machine)
 python evals/desktop_cases.py          # Jev's choice of control / done / gate on saved windows (--capture first; --holdout, --offline)
-python evals/newsroom_cases.py         # Newsroom (NOT RUN YET): Jev offers the tool for "keep an eye on..." and not for one-off lookups; routing old vs new; the `about` alert (--holdout, --offline, --runs, --export/--labelled)
-python evals/bench/newsroom.py         # Newsroom end to end (NOT RUN YET): real feeds, full turns old vs new, the dashboard path (--stage sources|turns|dashboard, --arm both, --reps)
+python evals/newsroom_cases.py         # Newsroom (run 2026-10-09, below target on the tool pick and routing): Jev offers the tool for "keep an eye on..." and not for one-off lookups; routing old vs new; the `about` alert (--holdout, --offline, --runs, --export/--labelled)
+python evals/bench/newsroom.py         # Newsroom end to end (run 2026-10-09): real feeds, full turns old vs new, the dashboard path (--stage sources|turns|dashboard, --arm auto|both, --reps; no desktop tool in its workers; run with Nango off)
 python evals/bench/persona_creation.py   # persona creation, live: Jev checks, the writer, the gate, routing, full turns
                                          #   (--stage, --split dev|held, --reps, --budget/--resume for a runner with a time cap)
 python evals/bench/nango_setup.py        # connecting an account: a simulated user + the real local Nango (Docker), multi-turn
@@ -319,8 +319,10 @@ topic or a company, an RSS feed, a subreddit, a project's releases. **Ask in the
 me when they mention earnings"): the assistant adds the widget, looks once and says what will notify you. Widgets look again
 on their own timer while the dashboard runs; a new item that matches your keywords, or that Jev judges to be about what you
 asked, becomes a notification (the bell list, a toast, optionally a desktop notification). You can also add, edit, reorder and
-remove widgets by hand in the tab. **Unverified**: built without access to real sources or models, with a live test bench
-for you to run. See [docs/newsroom.md](docs/newsroom.md) (what it follows, how alerts work, reading X, adding a source) and
+remove widgets by hand in the tab. **Partly verified** (live run 2026-10-09: the chat-to-widget-to-notification path works and
+lookalike requests leave the board alone; Jev offers the tool for only 50-65% of the requests that need it and routing sends
+about one in six elsewhere; reading X and the web widget were not checked). See [docs/newsroom.md](docs/newsroom.md) (the
+numbers, what it follows, how alerts work, reading X, adding a source) and
 [docs/architecture/20-newsroom.md](docs/architecture/20-newsroom.md).
 
 ### Notebook

@@ -1,0 +1,1192 @@
+{
+ "stamp": "20261009-154602",
+ "model": "llamacpp:qwen3.8-27b",
+ "reps": 1,
+ "dry": false,
+ "turns": [
+  {
+   "task": "nvidia_earnings",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "Added a \"News: Nvidia\" tile (checked every 30 min) that will notify you whenever a new item mentions earnings \u2014 baseline items won't ping. Latest headlines: \"Two massive trades just happened in Micron and Nvidia\" (CNBC, 2h), \"Jensen Huang And Lisa Su Agree On One Thing\" (Seeking Alpha, 11h), \"GTC\" (NVIDIA, 11h). I also added an X: @nvidia tile with the same alert, but X reading isn't set up yet \u2014 it needs either a Nango X connection, an X_BEARER_TOKEN, or an RSS bridge configured; the tile will start working once that's done.",
+   "seconds": 45.9,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 8,
+   "tokens_in": 13034,
+   "tokens_out": 1364,
+   "steps": 2,
+   "bounces": 0,
+   "checks": {
+    "one_news_widget_on_nvidia": false,
+    "notifies_on_earnings": true,
+    "answer_says_what_notifies": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "x",
+     "title": "X: @nvidia",
+     "params": {
+      "user": "nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "openai_on_x",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "I added the **X: @openai** tile \u2014 it'll check every 30 minutes and notify you about every new post (whatever's there when it first loads is the silent baseline, so you'll only be pinged about new ones).\n\nOne catch: X can't be read yet. To get it going, pick one:\n1. **Connect your X account via Nango** \u2014 I can walk through the setup (it needs Docker running, or your Nango Cloud secret key).\n2. **X API token** \u2014 set `X_BEARER_TOKEN` to a token that can read posts (you'd add it yourself in the environment; no pasting it to me in chat).\n3. **RSS bridge** \u2014 point `newsroom.x_feed` in the config at an RSSHub/Nitter URL like `https://rsshub.example/twitter/user/openai`.\n\nThe tile is kept as-is and ",
+   "seconds": 48.7,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 11,
+   "tokens_in": 20309,
+   "tokens_out": 1063,
+   "steps": 3,
+   "bounces": 0,
+   "checks": {
+    "x_widget_for_openai": true,
+    "alerts_on_every_post": true,
+    "says_what_x_needs_when_not_set_up": true
+   },
+   "board": [
+    {
+     "kind": "x",
+     "title": "X: @openai",
+     "params": {
+      "user": "openai"
+     },
+     "alert": {
+      "all": true,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "own_feed",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "Added \"Feed: Acme Newsroom\" (http://127.0.0.1:61445/feed.xml) to your newsroom. It refreshes every 30 minutes and will notify you about any new item that mentions \"outage\". First look found 4 items; latest: \"Acme data center outage disrupts payments for hours\".",
+   "seconds": 25.0,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 9,
+   "tokens_in": 10695,
+   "tokens_out": 566,
+   "steps": 2,
+   "bounces": 0,
+   "checks": {
+    "rss_widget_for_the_feed": true,
+    "notifies_on_outage": true,
+    "first_look_done": true,
+    "no_alert_for_what_was_already_there": true
+   },
+   "board": [
+    {
+     "kind": "rss",
+     "title": "Feed: Acme Newsroom",
+     "params": {
+      "url": "http://127.0.0.1:61445/feed.xml"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "outage"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "two_topics",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "Added two Newsroom tiles: \"News: solid-state batteries\" (alerts: commercialization, production, breakthrough) and \"News: Tesla\" (alerts: earnings, robotaxi, recall), both refreshing every 30 minutes with 50 baseline items captured.",
+   "seconds": 54.4,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 11,
+   "tokens_in": 29104,
+   "tokens_out": 1314,
+   "steps": 5,
+   "bounces": 0,
+   "checks": {
+    "two_widgets": true,
+    "one_on_batteries": true,
+    "one_on_tesla": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: solid-state batteries",
+     "params": {
+      "topic": "solid-state batteries"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "commercialization",
+       "production",
+       "breakthrough"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Tesla",
+     "params": {
+      "topic": "Tesla"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings",
+       "robotaxi",
+       "recall"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 1,
+   "questions_text": [
+    "What should trigger notifications?"
+   ]
+  },
+  {
+   "task": "llama_cpp_releases",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "Watching llama.cpp (ggml-org/llama.cpp) releases now.\n\n- Latest release: b11538, published 2026-10-09T20:11:03Z; recent before it: b11537, b11535, b11534, b11533.\n- A background watcher (job j1) polls the GitHub API every 5 minutes from a baseline of b11538. When a new release appears, it logs the tag, publish time and release notes to .jobs/j1.log and updates llama_watch/baseline.json, keeping up to 50 previously seen tags (cap verified in the script).\n- Watch files: llama_watch/watch.py and llama_watch/baseline.json (saved as artifacts).\n- Check anytime with job_status(\"j1\"); stop it the same way if you no longer want to watch.",
+   "seconds": 132.6,
+   "routed": "high_end_dev",
+   "cancelled": false,
+   "calls": 18,
+   "tokens_in": 69598,
+   "tokens_out": 3126,
+   "steps": 11,
+   "bounces": 1,
+   "checks": {
+    "github_widget": false
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "fed_rates",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "Set up Fed rate tracking: (1) News tile \"Federal Reserve interest rate decision FOMC\" checks every 30 min and will ping you only when the Fed actually hikes or cuts the federal funds rate target range (not forecasts or holds). Latest items include \"Fed Rate Decision October 2026: Hike or Hold on 28 Oct?\" (2) X tile for the Fed's official @Fed account with the same alert rule \u2014 it needs one-time X setup (connect X in Nango, set X_BEARER_TOKEN, or configure an RSS bridge); it's saved and will start once configured. (3) No official Fed RSS feed exists, so the news tile covers official statements.",
+   "seconds": 131.5,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 15,
+   "tokens_in": 55442,
+   "tokens_out": 3743,
+   "steps": 9,
+   "bounces": 0,
+   "checks": {
+    "a_news_widget_on_the_fed_or_rates": true,
+    "it_notifies_on_something": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Federal Reserve interest rate decision FOMC",
+     "params": {
+      "topic": "Federal Reserve interest rate decision FOMC"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": "An ACTUAL change to the federal funds rate target range decided or announced by the Federal Reserve (a rate hike or a rate cut). Do not notify on previews, forecasts, analyst opinions, or meetings whe"
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "x",
+     "title": "X: @Fed",
+     "params": {
+      "user": "Fed"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": "An ACTUAL change to the federal funds rate target range decided or announced by the Federal Reserve (a rate hike or a rate cut). Do not notify on previews, forecasts, analyst opinions, or meetings whe"
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "same_twice",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "Nvidia news is tracked: the \"News: Nvidia\" tile checks every 30 minutes and now notifies you on every new item (it existed before but had alerts off \u2014 I turned them on). Latest headlines it picked up: CNBC on big Micron/Nvidia trades, Seeking Alpha on Jensen Huang & Lisa Su, WSJ on a scrapped IPO of an Nvidia-backed company, and Bloomberg on the Firmus IPO collapse.",
+   "seconds": 53.8,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 12,
+   "tokens_in": 32963,
+   "tokens_out": 1283,
+   "steps": 6,
+   "bounces": 0,
+   "checks": {
+    "not_doubled": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": true,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 1,
+   "questions_text": [
+    "What should notify you about Nvidia news?"
+   ]
+  },
+  {
+   "task": "vague",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "All set \u2014 your AI tile will:\n- Check for new AI headlines **every 30 minutes**\n- **Ping you** on big model/product launches (catches \"launch, release, unveil, debut\", plus a judgment that it's a major launch, not every tiny one)\n- Everything else just shows on the dashboard\n\nWant me to also follow a specific source \u2014 say an X account or a particular company's news?",
+   "seconds": 44.6,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 11,
+   "tokens_in": 24355,
+   "tokens_out": 1041,
+   "steps": 3,
+   "bounces": 0,
+   "checks": {
+    "made_something_sensible_or_asked": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: artificial intelligence",
+     "params": {
+      "topic": "artificial intelligence"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "launch",
+       "release",
+       "unveil",
+       "debut"
+      ],
+      "exclude": [],
+      "about": "major AI model or product launches from big companies or research labs"
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 1,
+   "questions_text": [
+    "What should notify you about AI?"
+   ]
+  },
+  {
+   "task": "remove_bitcoin",
+   "arm": "new",
+   "group": "manage",
+   "n": 1,
+   "answer": "Removed the bitcoin widget from your newsroom. The board now has: News: Nvidia, Reddit: r/LocalLLaMA, News: Tesla.",
+   "seconds": 150.0,
+   "routed": "high_end_dev",
+   "cancelled": false,
+   "calls": 20,
+   "tokens_in": 85822,
+   "tokens_out": 3605,
+   "steps": 13,
+   "bounces": 0,
+   "checks": {
+    "bitcoin_gone": true,
+    "the_other_three_stay": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "reddit",
+     "title": "Reddit: r/LocalLLaMA",
+     "params": {
+      "subreddit": "LocalLLaMA"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Tesla",
+     "params": {
+      "topic": "Tesla"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "tighten_nvidia",
+   "arm": "new",
+   "group": "manage",
+   "n": 1,
+   "answer": "Done: the \"News: Nvidia\" widget now checks every 10 minutes and alerts on new items about earnings or guidance.",
+   "seconds": 34.0,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 11,
+   "tokens_in": 18693,
+   "tokens_out": 722,
+   "steps": 4,
+   "bounces": 0,
+   "checks": {
+    "every_10_minutes": true,
+    "guidance_added": true,
+    "earnings_kept": true,
+    "no_other_change": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings",
+       "guidance"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 10,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Bitcoin",
+     "params": {
+      "topic": "Bitcoin"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "reddit",
+     "title": "Reddit: r/LocalLLaMA",
+     "params": {
+      "subreddit": "LocalLLaMA"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Tesla",
+     "params": {
+      "topic": "Tesla"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "pause_tesla",
+   "arm": "new",
+   "group": "manage",
+   "n": 1,
+   "answer": "Done \u2014 the Tesla news tile is paused. It'll sit on the dashboard without looking for new stories until you unpause it.",
+   "seconds": 16.6,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 11,
+   "tokens_in": 16996,
+   "tokens_out": 256,
+   "steps": 4,
+   "bounces": 0,
+   "checks": {
+    "tesla_paused": true,
+    "others_running": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Bitcoin",
+     "params": {
+      "topic": "Bitcoin"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "reddit",
+     "title": "Reddit: r/LocalLLaMA",
+     "params": {
+      "subreddit": "LocalLLaMA"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Tesla",
+     "params": {
+      "topic": "Tesla"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": true
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "list_board",
+   "arm": "new",
+   "group": "manage",
+   "n": 1,
+   "answer": "Your newsroom has 4 tiles (all every 30 min, none paused, no unread): 1) News: Nvidia \u2014 alerts on \"earnings\"; 2) News: Bitcoin \u2014 feed only; 3) Reddit: r/LocalLLaMA \u2014 feed only; 4) News: Tesla \u2014 feed only.",
+   "seconds": 23.2,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 9,
+   "tokens_in": 10869,
+   "tokens_out": 408,
+   "steps": 2,
+   "bounces": 0,
+   "checks": {
+    "board_untouched": true,
+    "names_all_four": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Bitcoin",
+     "params": {
+      "topic": "Bitcoin"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "reddit",
+     "title": "Reddit: r/LocalLLaMA",
+     "params": {
+      "subreddit": "LocalLLaMA"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Tesla",
+     "params": {
+      "topic": "Tesla"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "alerts_off",
+   "arm": "new",
+   "group": "manage",
+   "n": 1,
+   "answer": "Done \u2014 I removed the \"earnings\" alert from your Nvidia news tile. It still refreshes every 30 minutes and shows new stories, it just won't notify you anymore.",
+   "seconds": 14.4,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 10,
+   "tokens_in": 13006,
+   "tokens_out": 196,
+   "steps": 3,
+   "bounces": 0,
+   "checks": {
+    "nvidia_still_there": true,
+    "no_alert_left": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Bitcoin",
+     "params": {
+      "topic": "Bitcoin"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "reddit",
+     "title": "Reddit: r/LocalLLaMA",
+     "params": {
+      "subreddit": "LocalLLaMA"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    },
+    {
+     "kind": "news",
+     "title": "News: Tesla",
+     "params": {
+      "topic": "Tesla"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "latest_nvidia",
+   "arm": "old",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "Nvidia (NVDA) closed today at $229.28, -0.52%, market cap ~$5.53T; analysts overwhelmingly rate it Buy/Strong Buy. This week: Oct 8 - Nvidia committed $1B over 5 years to US science (quantum, healthcare, energy); Oct 7 - Nvidia and Microsoft announced RTX Spark and AI agents for Windows PCs; plus new Omniverse AI-simulation dev content and Gears of War: E-Day launching on GeForce NOW.",
+   "seconds": 59.6,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 18,
+   "tokens_in": 40605,
+   "tokens_out": 1528,
+   "steps": 7,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "latest_nvidia",
+   "arm": "new",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "Latest on Nvidia (as of Fri, Oct 9, 2026):\n\n1. $1B for US science (Oct 8) \u2013 Nvidia committed $1B over five years to US \"super intelligence\" R&D in quantum computing, healthcare and energy security.\n2. RTX Spark + AI agents for Windows PCs (Oct 7) \u2013 At a Microsoft event in San Francisco, Jensen Huang and Satya Nadella unveiled co-engineered hardware/software for running AI agents on Windows PCs.\n3. DGX Spark 64GB (Oct 2) \u2013 A new 64GB DGX Spark for local AI, launching this month, aimed at developers scaling on-device AI.\n4. OpenAI's GPT-6 Astra Ultrafast (Oct 1) \u2013 Now available in the OpenAI API, running on Nvidia Blackwell GPUs with new inference optimizations.\n5. Omniverse + frontier AI agen",
+   "seconds": 88.4,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 20,
+   "tokens_in": 54145,
+   "tokens_out": 2652,
+   "steps": 10,
+   "bounces": 1,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "top_headlines",
+   "arm": "old",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "Here's your tech briefing for Friday, Oct 9, 2026 (from TechCrunch, The Verge, and Hacker News):\n\n**Big stories**\n- **Cloudflare acquired Deno** \u2014 the day's biggest tech story, dominating Hacker News (960+ points).\n- **Typesafe AI raised $870M at a $7.5B valuation**, just weeks after launching its non-text AI model \"Jev.\"\n- **Oxide Computer closed a $445M Series D** for its cloud computer/infrastructure push.\n- **OpenAI fallout:** fired safety researchers are publicly disputing the misconduct claims behind their termination and warning of a \"chilling effect\" on AI safety work.\n- **Anthropic AI model sent a false homicide tip to Philadelphia police** \u2014 a notable AI-reliability incident.\n- **F",
+   "seconds": 72.0,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 14,
+   "tokens_in": 36230,
+   "tokens_out": 2129,
+   "steps": 8,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "top_headlines",
+   "arm": "new",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "Top tech headlines for Fri, Oct 9, 2026: (1) PC shipments fell 20.1%, steepest drop since Q1 2023 (Ars Technica). (2) RAM shortage brings DDR4 back \u2014 new Intel/AMD CPUs support older DDR4 memory (The Verge). (3) US bars Microsoft, Adobe and major IT firms from the green card program for skilled foreign workers (TechCrunch). (4) Tesla renames \"Full Self-Driving\" to \"Tesla Assisted Driving\" in Europe (TechCrunch). (5) An Anthropic AI model sent a false homicide tip to Philadelphia police; a federal judge called Flock drone tracking \"indiscriminate mass surveillance\" (TechCrunch). (6) An OpenAI safety employee resigned, claiming the company's \"culture is broken\" (TechCrunch). (7) Jev, maker of ",
+   "seconds": 103.0,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 16,
+   "tokens_in": 36596,
+   "tokens_out": 3207,
+   "steps": 9,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "follow_up",
+   "arm": "old",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "Reminded: follow up with Sam about the quote \u2014 Saturday, Oct 10 at 3:00 PM (your local time). Since no calendar account is connected, I've saved it as an .ics file (attached) \u2014 just open/import it into your calendar and it'll pop up with an alarm. If you'd like, I can hook up your Google Calendar next time so I can add reminders directly.",
+   "seconds": 42.4,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 10,
+   "tokens_in": 17107,
+   "tokens_out": 1322,
+   "steps": 4,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "follow_up",
+   "arm": "new",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "Done \u2014 reminder set for Saturday, October 10, 2026 at 3:00 PM: \"Follow up with Sam about the quote.\" I'll ping you at 3pm via a Newsroom notification (bell/toast, plus desktop if you've allowed it). One caveat: your machine needs to be on and the Newsroom tab running at 3pm for it to fire on time.",
+   "seconds": 88.5,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 14,
+   "tokens_in": 40816,
+   "tokens_out": 2785,
+   "steps": 8,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "one_off_post",
+   "arm": "old",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "OpenAI didn't post on X yesterday (Thu Oct 8). Their most recent posts are from Wed Oct 7: (1) a pinned post announcing \"GPT-6 and Intelligent UI, now rolling out in ChatGPT for everyone\" (interactive, visual answers and on-the-spot tools), and (2) a progress update on ChatGPT for Teens, with a preview of College Planner, new study tools, and support for college advisers and teen voices. Before that: Oct 6 \u2014 new mathematical results from an internal frontier model; Oct 5 \u2014 text content provenance expansion for EU requirements.",
+   "seconds": 275.4,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 43,
+   "tokens_in": 157623,
+   "tokens_out": 6794,
+   "steps": 22,
+   "bounces": 1,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "one_off_post",
+   "arm": "new",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "OpenAI posted nothing on X yesterday (Oct 8, 2026). Their most recent posts are from Oct 7: GPT-6 + Intelligent UI rolling out in ChatGPT (pinned), and a ChatGPT for Teens update with a College Planner preview.",
+   "seconds": 80.9,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 20,
+   "tokens_in": 49926,
+   "tokens_out": 2180,
+   "steps": 10,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "research_report",
+   "arm": "old",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "A solid-state battery replaces the liquid or gel-polymer electrolyte of a conventional lithium-ion cell with a solid electrolyte \u2014 typically a ceramic (oxide, sulfide or phosphate) or a solid polymer \u2014 that conducts lithium ions between the electrodes while also acting as an internal separator. This design enables high-capacity lithium-metal anodes and high-voltage cathode chemistries, pushing cell energy density to 350 Wh/kg or more (versus under ~300 Wh/kg for today's best lithium-ion), and, because the solid electrolyte is nonflammable, sharply cuts the risk of thermal runaway and fire (heat generation in a runaway event is roughly 20\u201330% of that in liquid cells) while enabling faster cha",
+   "seconds": 159.1,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 20,
+   "tokens_in": 107056,
+   "tokens_out": 5008,
+   "steps": 14,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "research_report",
+   "arm": "new",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "Solid-state batteries replace the flammable liquid electrolyte of conventional lithium-ion cells with a solid one, opening the door to lithium-metal anodes and meaningfully higher energy density \u2014 above ~350 Wh/kg at the cell level versus under 300 Wh/kg for lithium-ion, with thin-film designs claiming up to 900 Wh/kg \u2014 plus better safety, thermal stability, low self-discharge and very long cycle life. The main electrolyte routes each have tradeoffs: sulfides conduct ions well but are moisture-sensitive and oxidation-unstable, oxide garnets (e.g. LLZO) are stable but rigid and hard to densify, polymers are easy to process but conduct poorly, and newer chloride conductors look promising as a ",
+   "seconds": 62.2,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 22,
+   "tokens_in": 50150,
+   "tokens_out": 1623,
+   "steps": 7,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "server_cpu",
+   "arm": "old",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "Built and verified a complete CPU monitor that alerts above 90%. Four files (plus a systemd unit + README):\n\n\u2022 cpu_monitor.py \u2014 portable CPU sampler: Windows via GetSystemTimes (ctypes), Linux via psutil or /proc/stat. No deps.\n\u2022 cpu_monitor_loop.py \u2014 monitoring loop: samples every 5s (default), appends to cpu_history.csv, alerts when CPU \u2265 threshold for 3 consecutive samples (15s sustained, so one-spike blips don't page you), re-alerts at most every 5 min. CLI: --interval --threshold --consecutive --cooldown --log-file --webhook.\n\u2022 alert.py \u2014 delivery: console + alerts.log always; optional webhook (Slack/Discord via JSON, ntfy via plain text) via --webhook or CPU_ALERT_WEBHOOK env var.\n\u2022 cp",
+   "seconds": 324.4,
+   "routed": "high_end_dev",
+   "cancelled": false,
+   "calls": 21,
+   "tokens_in": 120184,
+   "tokens_out": 10454,
+   "steps": 14,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "server_cpu",
+   "arm": "new",
+   "group": "lookalike",
+   "n": 1,
+   "answer": "Done \u2014 cpu_monitor.py is a self-contained CPU monitor that alerts you when CPU stays above 90%.\n\nHow it works:\n- Reads CPU% via psutil if installed; otherwise falls back to /proc/stat (Linux) or GetSystemTimes (Windows) \u2014 zero dependencies on a bare server.\n- Polls every 10s and logs each reading to cpu_monitor.log.\n- Alerts only when CPU > 90% for 3 consecutive checks (ignores one-off spikes), sends a recovery notice when it drops, and never re-spams while it stays high.\n- On alert it POSTs to your webhook: set CPU_WEBHOOK_URL and it auto-detects the payload format (Slack {\"text\"}, Discord {\"content\"}, generic {\"message\"}). A failed webhook is logged but never crashes the monitor.\n\nRun it o",
+   "seconds": 290.4,
+   "routed": "high_end_dev",
+   "cancelled": false,
+   "calls": 20,
+   "tokens_in": 113003,
+   "tokens_out": 9500,
+   "steps": 13,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 2,
+   "questions_text": [
+    "The monitor now logs alerts to cpu_monitor.log and prints them. How should it actually reach you when CPU >90%? (Next step: I'll wire that into the notify() hoo",
+    "Paste your webhook URL (Slack / Discord / Teams / any JSON endpoint). If you'd rather not paste it here, say 'skip' and I'll leave the CPU_WEBHOOK_URL env var f"
+   ]
+  },
+  {
+   "task": "percent",
+   "arm": "old",
+   "group": "ordinary",
+   "n": 1,
+   "answer": "397.80\n\n(2,340 \u00d7 0.17 = 397.8)",
+   "seconds": 7.5,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 7,
+   "tokens_in": 5695,
+   "tokens_out": 142,
+   "steps": 0,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "right": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "percent",
+   "arm": "new",
+   "group": "ordinary",
+   "n": 1,
+   "answer": "17% of 2,340 is **397.8**.",
+   "seconds": 8.9,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 7,
+   "tokens_in": 6286,
+   "tokens_out": 174,
+   "steps": 0,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "right": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "plan_day",
+   "arm": "old",
+   "group": "ordinary",
+   "n": 1,
+   "answer": "Here's a clean way to structure Friday, October 9:\n\n- **8:00\u20139:00** \u2014 Triage: emails, quick messages, check the day's to-dos\n- **9:00\u201310:00** \u2014 One-hour focused work block (phone off, door closed)\n- **10:00\u201311:00** \u2014 Meetings / calls / lighter tasks\n- **11:00\u201312:00** \u2014 Wrap-up tasks, prep for the afternoon, note anything due Monday\n- **12:00\u201312:45** \u2014 Lunch\n- **1:15\u20131:30** \u2014 Leave work with buffer to reach the dentist (aim to arrive by 1:55)\n- **2:00** \u2014 Dentist appointment\n- **3:30\u20135:00** \u2014 Wind-down: easy email, light admin, head home if the appointment runs long\n\nWant me to tweak the blocks (e.g., earlier focus work, or a longer buffer before the appointment)?",
+   "seconds": 12.5,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 7,
+   "tokens_in": 5653,
+   "tokens_out": 289,
+   "steps": 0,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "plan_day",
+   "arm": "new",
+   "group": "ordinary",
+   "n": 1,
+   "answer": "Here's a plan for Friday:\n\n- **9:00\u201310:00 AM** \u2013 Focused work (deep work first, before the day gets noisy)\n- **10:00 AM\u201312:00 PM** \u2013 Regular tasks: email, meetings, admin\n- **12:00\u20131:00 PM** \u2013 Lunch\n- **1:30 PM** \u2013 Leave for the 2:00 PM dentist; appointment done ~2:45\n- **3:15\u20135:00 PM** \u2013 Wind-down tasks: follow-ups, planning next week\n\nWant me to add these as calendar reminders or set a notification for 1:30 PM?",
+   "seconds": 15.4,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 7,
+   "tokens_in": 6146,
+   "tokens_out": 321,
+   "steps": 0,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "draft_email",
+   "arm": "old",
+   "group": "ordinary",
+   "n": 1,
+   "answer": "Here's a two-sentence draft:\n\nHi [Client name], I'm writing to let you know your quote will arrive one day later than originally planned. I apologize for the inconvenience \u2014 I'll send it over as soon as it's ready.",
+   "seconds": 10.0,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 7,
+   "tokens_in": 5891,
+   "tokens_out": 235,
+   "steps": 0,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "draft_email",
+   "arm": "new",
+   "group": "ordinary",
+   "n": 1,
+   "answer": "Hi [Client name],\n\nI wanted to give you a heads-up that the quote will come through a day later than expected \u2014 you'll have it by tomorrow. I apologize for the short delay and appreciate your patience.\n\nBest,\nJed\n\nWant me to fill in the client's name, adjust the date (e.g. \"by Monday, October 12\"), or change the tone?",
+   "seconds": 20.7,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 7,
+   "tokens_in": 6804,
+   "tokens_out": 514,
+   "steps": 0,
+   "bounces": 0,
+   "checks": {
+    "no_widget": true,
+    "answered": true
+   },
+   "board": [],
+   "questions": 0,
+   "questions_text": []
+  }
+ ],
+ "dashboard": {
+  "checks": {
+   "turn_finished": true,
+   "widget_on_the_board": true,
+   "notifies_on_outage": true,
+   "first_look_done_with_items": true,
+   "no_notification_for_what_was_already_there": true,
+   "one_notification_for_the_outage_story": true,
+   "the_page_got_the_alert_event": true,
+   "nothing_repeats_on_the_next_look": true,
+   "remove_in_the_chat_removes_it": true
+  },
+  "seconds": 46.4
+ }
+}

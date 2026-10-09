@@ -7,7 +7,8 @@ llama.cpp releases to my newsroom"); a one-off lookup is `web`, not a widget.
     newsroom.add("news", topic="Nvidia", alert="earnings, guidance")   # a widget; looks once and says what it found
     newsroom.add("x", user="OpenAI", alert=True)       # alert=True: every new post notifies
     newsroom.add("rss", url="https://example.com/feed.xml", every=60)
-    newsroom.company("Nvidia", x="nvidia", alert="earnings")           # its news + its X account, two widgets
+    newsroom.company("Nvidia", alert="earnings")                       # its news, one widget
+    newsroom.company("Nvidia", x="nvidia", alert="earnings")           # + its X account, only if asked: two widgets
     newsroom.widgets()                                 # what is on the board: id, title, new items, last look
     newsroom.edit("Nvidia", alert="earnings, lawsuit", every=15)       # a widget by id or part of its title
     newsroom.remove("Nvidia"); newsroom.refresh(); newsroom.items("Nvidia", 5)
