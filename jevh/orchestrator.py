@@ -37,6 +37,7 @@ from .mcp import McpHub
 from .memory import Memory
 from .personas import Persona, load_learned, load_personas
 from .notebook import Notebook
+from . import newsroom
 from .review import TASK_DIR, Reviewer
 from .skills import load_roster, parse_skill
 from .tools import TOOLS
@@ -239,6 +240,7 @@ class Harness:
             if self.cfg.tools.get(key):  # REPL children inherit these
                 os.environ.setdefault(env, str(self.cfg.tools[key]))
         os.environ["JEVH_NANGO_DIR"] = str(self.cfg.workspace / "nango")   # the key/URL nango.start() keeps
+        newsroom.export_env(self.cfg)   # where the Newsroom board lives, for worker REPLs (jevh/newsroom.py)
         os.environ.setdefault("JEVH_JEV_URL", str(self.cfg.jev.get("url", "http://127.0.0.1:33001")))
         os.environ.setdefault("JEVH_JEV_BACKEND", str(self.cfg.jev.get("backend", "semif")))
         self.verifier = Verifier(self.jev, self.cfg)

@@ -47,6 +47,8 @@ python evals/browser_cases.py --live   # Jev browser agent on a local test shop 
 python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness turns (flights, tickets, forms...)
 python evals/bench/desktop_tasks.py --arm both --repeat 2   # desktop tool, 18 tasks on real Windows apps, old harness vs this one (drives the mouse and keyboard: don't use the machine)
 python evals/desktop_cases.py          # Jev's choice of control / done / gate on saved windows (--capture first; --holdout, --offline)
+python evals/newsroom_cases.py         # Newsroom (NOT RUN YET): Jev offers the tool for "keep an eye on..." and not for one-off lookups; routing old vs new; the `about` alert (--holdout, --offline, --runs, --export/--labelled)
+python evals/bench/newsroom.py         # Newsroom end to end (NOT RUN YET): real feeds, full turns old vs new, the dashboard path (--stage sources|turns|dashboard, --arm both, --reps)
 python evals/bench/persona_creation.py   # persona creation, live: Jev checks, the writer, the gate, routing, full turns
                                          #   (--stage, --split dev|held, --reps, --budget/--resume for a runner with a time cap)
 python evals/bench/nango_setup.py        # connecting an account: a simulated user + the real local Nango (Docker), multi-turn
@@ -75,6 +77,7 @@ python evals/thinking_watch_cases.py   # when to pause a long think and test the
 # most evals take --holdout (the held-out cases) and/or --offline (re-sweep saved scores)
 jevh failures                          # logged failures; `export out.jsonl` to study them
 jevh review                            # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
+jevh newsroom                          # the Newsroom board (widgets that follow news and posts; ask in the chat to add one)
 jevh notebook                          # your notebook; `idea "..."`, `problem "..."`, `done <id>`, `-q words`
 ```
 
@@ -98,6 +101,7 @@ stops, `/steer <text>` always adds.
 | `jevh home` | where your own things are; `jevh home move` moves them out of the checkout |
 | `jevh failures`, `jevh review` | the failure log, flagged sessions |
 | `jevh notebook` | your notebook of ideas and problems |
+| `jevh newsroom` | the Newsroom board from a terminal: `kinds`, `add`, `refresh`, `notes`, `rm` (see [docs/newsroom.md](docs/newsroom.md)) |
 | `jevh context` | the context window each model is loaded with, and where the harness will condense its steps |
 
 `pip install -e .` inside the venv puts `jevh` on the PATH while that venv is active. To have it in every
@@ -307,6 +311,17 @@ failure verdict is written to the failure log as `review_failure` (source `revie
 work on it; overruling it with "not a failure" marks that row ignored. Flags and notes live in
 `workspace/reviews.db`; `jevh review` does the same from a terminal, for any session
 (`sessions` lists them).
+
+### Newsroom
+
+A tab of widgets that follow things for you and tell you when something new turns up: posts from an X account, news on a
+topic or a company, an RSS feed, a subreddit, a project's releases. **Ask in the chat** ("keep an eye on Nvidia news and tell
+me when they mention earnings"): the assistant adds the widget, looks once and says what will notify you. Widgets look again
+on their own timer while the dashboard runs; a new item that matches your keywords, or that Jev judges to be about what you
+asked, becomes a notification (the bell list, a toast, optionally a desktop notification). You can also add, edit, reorder and
+remove widgets by hand in the tab. **Unverified**: built without access to real sources or models, with a live test bench
+for you to run. See [docs/newsroom.md](docs/newsroom.md) (what it follows, how alerts work, reading X, adding a source) and
+[docs/architecture/20-newsroom.md](docs/architecture/20-newsroom.md).
 
 ### Notebook
 

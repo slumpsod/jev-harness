@@ -18,7 +18,7 @@ this browser (`localStorage`, key `jevh.ui`), not in `config.yaml`: they are abo
 | Layout | chat width Narrow, Medium or Wide; Cozy or Compact spacing; Sharp, Soft or Round corners (default: the theme's) |
 | Tool calls in the chat | **Compact** (one sentence, one click for steps), **Steps** (steps listed), **Verbatim** (every step opens with its code and output), **Hidden** (only a live status line) |
 | Open live thinking | show the model's reasoning, as plain text, while it streams, instead of a folded "Thinking" line with its last sentence |
-| Open the panel for you | open the side panel when the browser goes live or a turn makes a file |
+| Open the panel for you | open the side panel when the browser goes live, a turn makes a file or adds a Newsroom widget |
 | Visual effects | glass blur, glow and paper grain; off is flatter and lighter on a weak GPU |
 
 The panel's width is remembered when you drag its edge. The expand button next to the X makes it nearly full width.

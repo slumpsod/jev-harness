@@ -36,6 +36,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
 from .. import context as ctxwin
+from .. import newsroom as nr
 from .. import update as updater
 from ..bus import jsonable, task_json
 from ..config import Config, load_config
@@ -77,6 +78,13 @@ class Hub:
         self.updated: dict | None = None   # set once the code on disk was updated: a restart loads it
         # past sessions, categorized by Jev (jevh/history.py); asks the Hub's harness of the moment: a new session replaces it
         self.history = History(lambda: self.harness, self.publish)
+        # the Newsroom board (jevh/newsroom.py): its tiles are looked at on a timer by the runner, started with the app
+        self.newsroom_cfg = {**nr.settings(cfg.raw), "about_threshold": cfg.t("newsroom_about")}
+        nr.export_env(cfg)
+        self.newsroom = nr.Newsroom(cfg.workspace / "newsroom.db", self.newsroom_cfg, judge=self._judge_about)
+        self.newsroom_runner = nr.Runner(
+            self.newsroom, on_alerts=lambda notes: self.publish("newsroom_alert", {"notes": notes}),
+            on_change=lambda: self.publish("newsroom", {"rev": self.newsroom.rev()}))
 
     # events from worker threads -> history + every open SSE stream
     def publish(self, kind: str, data: dict | None = None) -> None:
@@ -93,6 +101,13 @@ class Hub:
         if self.loop:
             for q in subs:
                 self.loop.call_soon_threadsafe(q.put_nowait, evt)
+
+    def _judge_about(self, text: str, about: str) -> float:
+        """P(this new item is about what a widget's `about` says): Jev's answer, asked of the harness of the moment."""
+        from ..decide import noul
+        # (the client directly: a look made by the timer is no part of the turn Jev's trace and usage belong to)
+        r = self.harness.jev.client.ask({"item": text[:700], "interest": about}, {"match": noul(nr.ABOUT_Q)})
+        return r.answers["match"].noul
 
     def subscribe(self) -> asyncio.Queue:
         q: asyncio.Queue = asyncio.Queue()
@@ -358,7 +373,10 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         hub.loop = asyncio.get_running_loop()  # worker threads hand events to SSE via this loop
+        if hub.newsroom_cfg["enabled"]:
+            hub.newsroom_runner.start()
         yield
+        hub.newsroom_runner.stop()
         try:   # the dashboard is going away: so is the browser the session kept open
             from ..tools.browser import close_kept
             await asyncio.to_thread(close_kept, Path(hub.harness.session_dir))
@@ -646,6 +664,101 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         body = await request.json()
         e = entry_or_404(body.get("id"))
         hub.harness.notebook.delete(e["id"])
+        return {"ok": True}
+
+    # -- the Newsroom: tiles that follow news and posts, and the notifications they make (jevh/newsroom.py) ------
+    def board(items: int = 20) -> dict:
+        room = hub.newsroom
+        ws = room.widgets()
+        for w in ws:
+            w["items"] = room.items(w["id"], items)
+        return {"rev": room.rev(), "widgets": ws, "notes": room.notes(limit=40), "unread_notes": room.unread_notes(),
+                "kinds": nr.kinds(), "running": hub.newsroom_cfg["enabled"], "min_minutes": hub.newsroom_cfg["min_minutes"],
+                "default_minutes": hub.newsroom_cfg["default_minutes"]}
+
+    def newsroom_call(fn, *a, **kw):
+        try:
+            return fn(*a, **kw)
+        except nr.NewsroomError as e:
+            raise HTTPException(400, str(e)) from None
+
+    def num(body: dict, key: str, default: int = 0) -> int:
+        try:
+            return int(body.get(key, default))
+        except (TypeError, ValueError):
+            raise HTTPException(400, f"{key} must be a number") from None
+
+    @app.get("/api/newsroom")
+    def newsroom_board(rev: int = -1, items: int = 20) -> dict:
+        """The board. With `rev` equal to the current one, only says nothing changed (a page polls with it)."""
+        if rev == hub.newsroom.rev():
+            return {"rev": rev, "unchanged": True, "unread_notes": hub.newsroom.unread_notes()}
+        return board(max(1, min(items, 100)))
+
+    @app.post("/api/newsroom/add")
+    async def newsroom_add(request: Request) -> dict:
+        """Add a tile by hand (the Add widget form) and look at it once. The chat does the same through the worker's tool."""
+        body = await request.json()
+        room = hub.newsroom
+        w = newsroom_call(room.add_widget, str(body.get("kind") or ""), body.get("params") or {}, title=body.get("title") or None,
+                          every=body.get("every"), alert=body.get("alert"), size=str(body.get("size") or "m"),
+                          session=hub.harness.session)
+        if not w.get("existing"):
+            r = await asyncio.to_thread(room.refresh, w["id"])
+            if r["alerts"]:
+                hub.publish("newsroom_alert", {"notes": r["alerts"]})
+        return {"widget": room.widget(w["id"]), "existing": bool(w.get("existing"))}
+
+    @app.post("/api/newsroom/update")
+    async def newsroom_update(request: Request) -> dict:
+        body = await request.json()
+        change = {k: body[k] for k in ("title", "every", "alert", "paused", "size", "params") if k in body}
+        w = newsroom_call(hub.newsroom.update_widget, num(body, "id"), **change)
+        if "params" in change:   # follows something else: look at once
+            await asyncio.to_thread(hub.newsroom.refresh, w["id"])
+        return {"widget": hub.newsroom.widget(w["id"])}
+
+    @app.post("/api/newsroom/delete")
+    async def newsroom_delete(request: Request) -> dict:
+        body = await request.json()
+        if not hub.newsroom.delete_widget(num(body, "id")):
+            raise HTTPException(404, "no such widget")
+        return {"ok": True}
+
+    @app.post("/api/newsroom/move")
+    async def newsroom_move(request: Request) -> dict:
+        body = await request.json()
+        newsroom_call(hub.newsroom.move, num(body, "id"), num(body, "step"))
+        return {"ok": True}
+
+    @app.post("/api/newsroom/refresh")
+    async def newsroom_refresh(request: Request) -> dict:
+        """Look now: one tile (`id`) or every tile that isn't paused."""
+        body = await request.json() if await request.body() else {}
+        room = hub.newsroom
+        ids = [num(body, "id")] if body.get("id") else [w["id"] for w in room.widgets() if not w["paused"]]
+        results = await asyncio.to_thread(lambda: [newsroom_call(room.refresh, i) for i in ids])
+        notes = [n for r in results for n in r["alerts"]]
+        if notes:
+            hub.publish("newsroom_alert", {"notes": notes})
+        return {"results": [{k: v for k, v in r.items() if k != "alerts"} | {"alerts": len(r["alerts"])} for r in results]}
+
+    @app.post("/api/newsroom/read")
+    async def newsroom_read(request: Request) -> dict:
+        body = await request.json()
+        hub.newsroom.mark_read(item=num(body, "item") if body.get("item") else None,
+                               widget=num(body, "widget") if body.get("widget") else None)
+        return {"ok": True}
+
+    @app.post("/api/newsroom/notes/read")
+    async def newsroom_notes_read(request: Request) -> dict:
+        body = await request.json() if await request.body() else {}
+        hub.newsroom.read_notes(num(body, "id") if body.get("id") else None)
+        return {"ok": True}
+
+    @app.post("/api/newsroom/notes/clear")
+    async def newsroom_notes_clear() -> dict:
+        hub.newsroom.clear_notes()
         return {"ok": True}
 
     @app.get("/api/thinking")

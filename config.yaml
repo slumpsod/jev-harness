@@ -50,6 +50,8 @@ thresholds:
                          #   the reworded options). 209 of 214 labelled messages right at 0.4 (dev 68/68, held-out 39/40, fresh 48/48, explanation
                          #   questions 29/30 and 25/28); one correction (a plain statement of fact) was answered instead of added, no other
                          #   request or stop. Queueing and stopping are never guessed: /queue and /stop.
+  newsroom_about: 0.70   # Newsroom: "this new item is about <what the user asked to be told about>" noul at/above which a widget's
+                         #   `about` alert notifies. NOT TUNED, NOT RUN on a live Jev (a guess): evals/newsroom_cases.py --stage about
   interject_replace: 0.50  # a message whose "replace" score reaches this stands alone as the request ("check my calendar instead":
                          #   0.99, "make it primes instead" 0.92; ordinary refinements 0.16 or less), so the gate stops asking for the old deliverables
 
@@ -94,6 +96,21 @@ history:
                        # (evals/session_category_cases.py: 0.6 is the first value with no confidently wrong category in 101 sessions)
   also_at: 0.25        # another category at least this likely shows as a second tag
   max_requests: 6      # how many of a session's requests Jev reads: the first ones and the last two
+
+# The Newsroom (jevh/newsroom.py, docs/newsroom.md): dashboard tiles that follow news, posts and feeds and notify you.
+# You set them up by asking in the chat; the dashboard looks at each tile on its timer while it runs.
+# NOT VERIFIED against live sources yet: run `python evals/bench/newsroom.py` (see docs/newsroom.md).
+newsroom:
+  enabled: true
+  tick: 30               # seconds between checks for tiles that are due
+  min_minutes: 5         # the shortest time between two looks at one tile (a worker can't ask for less)
+  default_minutes: 30
+  keep_items: 100        # items kept per tile
+  max_widgets: 40
+  x_feed: ""             # reading X: an RSS bridge you run, e.g. https://rsshub.example/twitter/user/{user} ({user}, {query});
+                         # else the X_BEARER_TOKEN environment variable, else an X account connected in Nango
+  x_integration: ""      # the Nango integration for X, if its name isn't x / twitter
+  allow_local: false     # true: a tile may follow a feed on this machine or network (blocked by default)
 
 learning: true                  # remember facts and learn skills after successful turns (jevh/learn.py)
 

@@ -71,3 +71,15 @@ def test_the_page_is_made_for_phones():
 def test_the_panel_starts_closed():
     assert '<div class="app" id="app" data-panel="closed">' in PAGE
     assert "$(\"side\").inert = true" in PAGE
+
+
+def test_the_newsroom_tab_is_wired_and_its_icons_exist():
+    for part in ('data-tab="newsroom"', 'id="p-newsroom"', 'id="nrdlg"', 'id="toasts"', "/api/newsroom", 'e.kind === "newsroom_alert"'):
+        assert part in PAGE, part
+    icons = set(re.findall(r'<symbol id="i-([\w-]+)"', PAGE))
+    mapped = set(re.findall(r'(?:^|[{,])\s*(?:\w+): "(\w+)"', re.search(r"const NR_ICON = \{(.*?)\};", SCRIPT, re.S).group(1)))
+    assert mapped and mapped <= icons, f"newsroom kind icons with no symbol: {sorted(mapped - icons)}"
+    from jevh import newsroom
+    wanted = {k.icon for k in newsroom.KINDS.values()}
+    assert wanted <= set(re.findall(r"(\w+): \"\w+\"", re.search(r"const NR_ICON = \{(.*?)\};", SCRIPT, re.S).group(1))), \
+        "a kind uses an icon name the page has no mapping for"

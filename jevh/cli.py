@@ -5,6 +5,7 @@
     jevh update [--check]                          # update from GitHub (python -m jevh.update)
     jevh failures | jevh review                    # the failure log, flagged sessions
     jevh notebook                                  # your notebook of ideas and problems
+    jevh newsroom                                  # the Newsroom: widgets that follow news and posts (docs/newsroom.md)
     jevh home [move]                               # move your own things out of the checkout
 
 (`python -m jevh.cli` works the same as `jevh` without installing it.)
@@ -344,6 +345,8 @@ def subcommand(name: str):
         from .review import main
     elif name == "notebook":
         from .notebook import main
+    elif name == "newsroom":
+        from .newsroom import main
     elif name == "home":
         from .home import main
     elif name == "context":

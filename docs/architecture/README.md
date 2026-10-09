@@ -26,6 +26,7 @@ name.
 | [16 Interjection](16-interjection.md) | A message sent while a task runs: added to the task's prompt (cuts the model's reply in progress and steers the task), unless it is a question about progress (an instant line, then a quick reply by the task's own model); `/queue` and `/stop` are commands; how a reply is cut, what LM Studio and vLLM do with it (live bench: `evals/bench/interject.py`) |
 | [17 Context length](17-context-length.md) | The context window a model is loaded with, asked of LM Studio (or set in config), and the compaction limit made of it; `jevh context` (live check: `evals/bench/context_detect.py`) |
 | [19 The desktop tool](19-desktop.md) | `desktop`: the worker operates apps on the user's own Windows computer (UI Automation): windows, controls, typing, keys, dialogs; Jev picks the window, control, value and checks the result (benches: `evals/bench/desktop_tasks.py`, `evals/desktop_cases.py`, `evals/tool_cases.py`) |
+| [20 The Newsroom](20-newsroom.md) | Dashboard widgets that follow news, X posts and feeds and notify the user: asked for in the chat (the `newsroom` tool), refreshed by a timer in the dashboard, alerts by keyword or by Jev's judgement (unverified; benches: `evals/newsroom_cases.py`, `evals/bench/newsroom.py`) |
 | [18 Session history](18-session-history.md) | The dashboard's History tab: past sessions, each put by Jev in the category of the assistant whose field it is about (asked once per session in the background; live check: `evals/bench/history.py`, eval: `evals/session_category_cases.py`) |
 
 Keeping them current: [tools/](tools/README.md) re-anchors every `file:line` after the code moves, checks
@@ -218,6 +219,7 @@ usage row and model call is tagged from it (`_where`, `orchestrator.py:592`).
 | Docked browser ports | `workspace/sessions/<session>/browsers/<pid>.json` | browser `Session` (`tools/browser.py:440`) | dashboard BrowserDock |
 | Learned skills and lessons | `skills/learned/learned-*/SKILL.md`, `skills/_lessons/<name>.md` | Learner | `load_roster` (next turn) |
 | Failures | `workspace/failures.db` table `failures` | `FailureLog.record` (`failures.py:87`) | `/failures`, dashboard, `python -m jevh.failures`, refine |
+| Newsroom widgets, items, notifications | `workspace/newsroom.db` tables `widgets`, `items`, `notes`, `meta` | `Newsroom` (`newsroom.py`) from the worker's `newsroom` tool and the dashboard's runner | the Newsroom tab, `jevh newsroom` |
 | Flagged sessions, notes, verdicts | `workspace/reviews.db` tables `flags`, `notes` | `ReviewLog` (`review.py:51`) | `/flags`, dashboard, `python -m jevh.review` |
 | Refinement attempts | `workspace/refine/<id>/`: state, `cases.json`, `results.jsonl`, `try<k>.diff`, `report.md`; `rejections.jsonl` | `Refiner` (`refine/loop.py:117`) | `python -m jevh.refine status / report` |
 | Config | `config.yaml` + `config.local.yaml` | you | `load_config` (`config.py:73`) |

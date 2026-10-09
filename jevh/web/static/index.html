@@ -607,6 +607,62 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 .nbtext pre { background: var(--code); color: var(--codetext); padding: 8px 10px; border-radius: var(--r-sm); overflow-x: auto; font-size: 12px; }
 .nbtext code { font-family: var(--font-mono); font-size: 12px; }
 .nbsess { margin-top: 6px; overflow-wrap: anywhere; }
+/* newsroom */
+.nr { container-type: inline-size; }
+.nrbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.nrbar .grow { flex: 1; }
+.nrbar button { display: inline-flex; align-items: center; gap: 6px; }
+.nrbar button svg { width: 15px; height: 15px; }
+.nrbar .bellbtn.has { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.nrbar .bellbtn .n { font-style: normal; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--grad); color: var(--on-accent); }
+.nrnotes { margin-bottom: 14px; }
+.nrnote { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
+.nrnote:last-child { border-bottom: 0; }
+.nrnote .b { flex: 1; min-width: 0; } .nrnote.unread .t { font-weight: 650; }
+.nrnote.unread::before { content: ""; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+.nrnote .t { color: var(--muted); font-size: 12px; } .nrnote a { color: var(--text); }
+.nrgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 14px; align-items: start; }
+.nrw { margin: 0; padding: 12px 14px; min-width: 0; }
+.nrw.paused { opacity: .7; }
+@container (min-width: 640px) { .nrw[data-size="l"] { grid-column: span 2; } }
+.nrh { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.nrh .ic { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.nrh h3 { flex: 1; min-width: 0; margin: 0; font: 650 14px/1.3 var(--font-display); overflow-wrap: anywhere; }
+.nrh .iconbtn { width: 28px; height: 28px; flex: none; } .nrh .iconbtn svg { width: 15px; height: 15px; }
+.nrh .iconbtn.spin svg { animation: nrspin .9s linear infinite; } @keyframes nrspin { to { transform: rotate(360deg); } }
+.nrh .n { font-style: normal; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--grad); color: var(--on-accent); }
+.nrstat { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; overflow-wrap: anywhere; }
+.nrstat.err { color: var(--bad-ink); }
+.nrlist { list-style: none; margin: 0; padding: 0; }
+.nri { padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
+.nri a { color: var(--text); text-decoration: none; line-height: 1.35; } .nri a:hover { text-decoration: underline; }
+.nri.unread a { font-weight: 650; }
+.nri.unread::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 6px 1px 0; border-radius: 50%; background: var(--accent); }
+.nri .m { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+.nri .sum { font-size: 12px; color: var(--muted); margin: 3px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nrw[data-size="s"] .sum { display: none; }
+.nrmore { margin-top: 6px; font-size: 12px; }
+.nredit { display: grid; gap: 10px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.nredit label, .nrdlg.dlg label { display: grid; gap: 4px; margin: 0; font-size: 12.5px; color: var(--muted); }
+.nredit label.inl, .nrdlg.dlg label.inl { display: flex; align-items: center; gap: 8px; }
+.nredit input[type=text], .nredit input[type=number], .nredit select, .nrdlg input[type=text], .nrdlg input[type=number], .nrdlg select { width: 100%; }
+.nredit input[type=radio], .nredit input[type=checkbox], .nrdlg input[type=radio], .nrdlg input[type=checkbox] { flex: none; }
+.nredit fieldset, .nrdlg fieldset { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 10px; display: grid; gap: 8px; margin: 0; min-width: 0; }
+.nredit legend, .nrdlg legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
+.nrex { margin: 6px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.nrex button { text-align: left; border-radius: var(--pill); font-size: 12.5px; padding: 5px 12px; }
+.nrkinds { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.nrkinds button { padding: 4px 12px; border-radius: var(--pill); font-size: 12.5px; }
+.nrkinds button.on { background: var(--grad); color: var(--on-accent); border-color: transparent; font-weight: 650; }
+.nrneeds { font-size: 12px; color: var(--warn-ink); margin: 6px 0; overflow-wrap: anywhere; }
+.nrdlg.dlg { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow: auto; }
+.nrdlg form, #nrfields, .nrmoreset { display: grid; gap: 10px; }
+.nrmoreset { margin-top: 8px; }
+.toasts { position: fixed; right: 16px; bottom: 16px; z-index: 90; display: grid; gap: 8px; width: min(360px, calc(100vw - 32px)); pointer-events: none; }
+.toast { pointer-events: auto; cursor: pointer; padding: 10px 14px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line2); border-left: 3px solid var(--accent);
+         box-shadow: var(--shadow); font-size: 13px; overflow-wrap: anywhere; animation: pop .18s var(--ease); }
+.toast b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+@media (max-width: 900px) { .toasts { bottom: calc(var(--rail-h, 58px) + 12px); } }
 .rv textarea, .dlg textarea { width: 100%; min-height: 84px; padding: 10px 12px; resize: vertical; }
 .rverr { color: var(--bad-ink); font-size: 12.5px; margin-top: 8px; overflow-wrap: anywhere; }
 .live { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -871,6 +927,10 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
   <symbol id="i-type" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+  <symbol id="i-news" viewBox="0 0 24 24"><path d="M5 4h11a2 2 0 0 1 2 2v13.5a1.5 1.5 0 0 0 3 0V9h-3M5 4v13.5A2.5 2.5 0 0 0 7.5 20H18M8.5 8h6M8.5 11.5h6M8.5 15h3.5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.2L4 8.5M4 4v4.5h4.5M4 13a8 8 0 0 0 14.3 4.2l1.7-1.7M20 20v-4.5h-4.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15zM10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-at" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><path d="M15.6 8.6v5.2a2.4 2.4 0 0 0 4.8 0V12a8.4 8.4 0 1 0-3.3 6.7"/></symbol>
   <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 2.8A3 3 0 0 0 5 14a3 3 0 0 0 4 4 3 3 0 0 0 3-1V5a2.5 2.5 0 0 0-3-1zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 2.8A3 3 0 0 1 19 14a3 3 0 0 1-4 4 3 3 0 0 1-3-1"/></symbol>
 </defs></svg>
 
@@ -888,6 +948,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
       <button class="rbtn" data-tab="history" data-tip="History: past sessions, sorted by Jev into the field each was about" aria-label="History"><svg class="ic"><use href="#i-history"/></svg></button>
       <button class="rbtn" data-tab="review" data-tip="Review: flagged sessions, a model's verdict" aria-label="Review"><svg class="ic"><use href="#i-flag"/></svg><i class="count" id="revcount" hidden></i></button>
       <button class="rbtn" data-tab="notebook" data-tip="Notebook: ideas and problems to come back to" aria-label="Notebook"><svg class="ic"><use href="#i-book"/></svg><i class="count" id="nbcount" hidden></i></button>
+      <button class="rbtn" data-tab="newsroom" data-tip="Newsroom: tiles that follow news and posts and notify you. Ask in the chat to add one" aria-label="Newsroom"><svg class="ic"><use href="#i-news"/></svg><i class="count" id="nrcount" hidden></i></button>
       <button class="rbtn" data-tab="status" data-tip="Status and updates" aria-label="Status"><svg class="ic"><use href="#i-pulse"/></svg><i class="count" id="updcount" hidden></i></button>
     </div>
     <div class="grow"></div>
@@ -965,6 +1026,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
         <input class="nbsearch" id="nbsearch" type="search" placeholder="Search the notebook" aria-label="Search the notebook">
         <div id="nblist"></div>
       </div>
+      <div class="panel" id="p-newsroom"><div class="nr" id="nr"></div></div>
       <div class="panel" id="p-status"></div>
     </div>
   </aside>
@@ -981,6 +1043,17 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
     <div class="btnrow"><button type="button" id="flagcancel">Cancel</button><button class="primary" type="submit" id="flagok">Flag session</button></div>
   </form>
 </dialog>
+<dialog class="dlg nrdlg" id="nrdlg" aria-labelledby="nrdlgh">
+  <form id="nrform" autocomplete="off">
+    <h3 id="nrdlgh">Add a widget</h3>
+    <div class="kv">You can also just ask in the chat, e.g. &ldquo;keep an eye on Nvidia news and tell me when they mention earnings&rdquo;.</div>
+    <div class="nrkinds" id="nrkinds" role="radiogroup" aria-label="What to follow"></div>
+    <div id="nrfields"></div>
+    <div class="rverr" id="nrerr" hidden></div>
+    <div class="btnrow"><button type="button" id="nrcancel">Cancel</button><button class="primary" type="submit" id="nrok">Add widget</button></div>
+  </form>
+</dialog>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 <div class="pop" id="ctxpop" role="dialog" aria-label="Context breakdown" hidden></div>
 <div class="pop appear" id="apppop" role="dialog" aria-label="Appearance" hidden></div>
 
@@ -1069,6 +1142,7 @@ function handle(e) {
   const d = e.data || {};
   if (e.kind === "reset") { S.turns.clear(); S.order = []; S.selected = null; S.live = {}; S.ctx = null; $("sess").textContent = `session ${d.session}`; S.open.clear(); S.stick = true; resetChat(); refreshReviews(); if (d.loaded) refreshArtifacts(); if (S.tab === "history") { H.open = null; H.detail = null; refreshHistory(); } return; }
   if (e.kind.startsWith("review_")) { reviewEvent(e.kind, d); return; }
+  if (e.kind === "newsroom" || e.kind === "newsroom_alert") { newsroomEvent(e); return; }
   if (e.kind === "history") { if (S.tab === "history") refreshHistory(); return; }
   if (e.turn == null) return;
   const t = turn(e.turn);
@@ -1152,6 +1226,10 @@ function handle(e) {
 
 // a finished turn that made files opens them in the panel (only for turns that just happened, not for history replayed on load)
 async function afterTurn(t, e) {
+  const before = NR.data ? NR.data.widgets.length : null;
+  refreshNewsroom().then(() => {   // a turn that added a widget shows the board, with the new tile on it
+    if (PR.autopanel && before != null && NR.data.widgets.length > before && Date.now() / 1000 - (e.ts || 0) < 30 && S.tab !== "newsroom") openPanel("newsroom");
+  });
   await refreshArtifacts();
   const arts = t.artifacts || [];
   if (PR.autopanel && arts.length && Date.now() / 1000 - (e.ts || 0) < 30) {
@@ -2109,6 +2187,207 @@ $("p-notebook").addEventListener("keydown", (ev) => {
   if (ev.key === "Escape" && N.editing != null) { ev.stopPropagation(); N.editing = null; renderNotebook(); }
 });
 
+// ---- newsroom: tiles that follow news and posts, and notify you (jevh/newsroom.py) ----
+const NR = {data: null, rev: -1, editing: null, shown: {}, busy: new Set(), boot: Date.now(), notesOpen: false, notesTouched: false, kind: null, spin: false};
+const NR_ICON = {news: "news", globe: "globe", rss: "news", box: "box", file: "file", x: "at"};
+const NR_EXAMPLES = [
+  "Keep an eye on Nvidia news and tell me when they mention earnings",
+  "Follow @OpenAI on X and alert me to every new post",
+  "Track news about solid-state batteries, notify me about a breakthrough or a recall",
+  "Add the llama.cpp releases to my newsroom"];
+const agoOf = (ts) => { if (!ts) return ""; const d = Math.max(0, Date.now() / 1000 - ts);
+  for (const [n, u] of [[604800, "w"], [86400, "d"], [3600, "h"], [60, "m"]]) if (d >= n) return `${Math.floor(d / n)}${u} ago`; return "just now"; };
+const safeUrl = (u) => /^https?:\/\//i.test(u || "") ? u : "";
+const nrKind = (name) => ((NR.data || {}).kinds || []).find((k) => k.name === name);
+const nrPost = (path, body) => api(path, {method: "POST", body: JSON.stringify(body || {})});
+
+async function refreshNewsroom(force = false) {
+  let d;
+  try { d = await api(`/api/newsroom?rev=${force ? -1 : NR.rev}`); } catch { return; }
+  if (d.unchanged) { nrBadge(d.unread_notes); return; }
+  NR.data = d; NR.rev = d.rev; nrBadge(d.unread_notes);
+  if (S.tab === "newsroom" && !NR.editing) renderNewsroom();
+}
+function nrBadge(n) { $("nrcount").textContent = n; $("nrcount").hidden = !n; }
+
+function nrToast(note) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = `<b>${esc(note.title)}</b>${esc(note.body || note.why || "")}`;
+  t.addEventListener("click", () => { t.remove(); openPanel("newsroom"); });
+  $("toasts").appendChild(t);
+  setTimeout(() => t.remove(), 9000);
+  if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+    try { new Notification(note.title, {body: note.body || note.why || ""}); } catch { /* some browsers only allow it from a service worker */ }
+  }
+}
+function newsroomEvent(e) {   // alerts made before this page opened are in the bell, not toasts
+  if (e.kind === "newsroom_alert" && e.ts * 1000 > NR.boot - 1500) ((e.data || {}).notes || []).slice(0, 3).forEach(nrToast);
+  refreshNewsroom();
+}
+
+function nrItem(it) {
+  const u = safeUrl(it.url);
+  return `<li class="nri ${it.read ? "" : "unread"}" data-nritem="${it.id}">${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(it.title)}</a>` : esc(it.title)}
+    <div class="m">${esc([it.source, agoOf(it.published || it.first_seen)].filter(Boolean).join(" · "))}</div>${it.summary ? `<p class="sum">${esc(it.summary)}</p>` : ""}</li>`;
+}
+function nrAlertText(a) { return a.all ? "every new item" : [(a.keywords || []).join(", "), a.about ? `anything about ${a.about}` : ""].filter(Boolean).join(" or "); }
+function nrCard(w, i, count) {
+  const k = nrKind(w.kind) || {label: w.kind, icon: "news"};
+  const first = w.size === "s" ? 5 : w.size === "l" ? 10 : 6, shown = NR.shown[w.id] || first;
+  const alert = nrAlertText(w.alert);
+  const status = w.paused ? "paused"
+    : w.error ? `Could not look: ${w.error}`
+    : w.last_ok ? `looked ${agoOf(w.last_ok)} · every ${w.every} min` : "waiting for its first look";
+  const body = NR.editing === w.id ? nrEdit(w, k, i, count)
+    : `<div class="nrstat ${w.error ? "err" : ""}">${esc(status)}${alert ? ` · notifies on ${esc(alert)}` : ""}</div>
+      ${w.items.length ? `<ul class="nrlist">${w.items.slice(0, shown).map(nrItem).join("")}</ul>` : `<div class="kv">${w.error ? "" : "Nothing yet."}</div>`}
+      ${w.items.length > shown ? `<button type="button" class="nrmore" data-nract="more">Show more</button>` : ""}
+      ${w.unread ? `<button type="button" class="nrmore" data-nract="read">Mark all read</button>` : ""}`;
+  return `<section class="card nrw ${w.paused ? "paused" : ""}" data-size="${esc(w.size)}" data-nrw="${w.id}">
+    <div class="nrh"><svg class="ic"><use href="#i-${NR_ICON[k.icon] || "news"}"/></svg><h3>${esc(w.title)}</h3>${w.unread ? `<i class="n" title="new items">${w.unread}</i>` : ""}
+      <button type="button" class="iconbtn ${NR.busy.has(w.id) ? "spin" : ""}" data-nract="refresh" title="Look now" aria-label="Look now"><svg class="ic"><use href="#i-refresh"/></svg></button>
+      <button type="button" class="iconbtn" data-nract="edit" title="Settings" aria-label="Widget settings"><svg class="ic"><use href="#i-pencil"/></svg></button></div>${body}</section>`;
+}
+function nrParamField(p, value) {
+  if (typeof p.default === "boolean") return `<label class="inl"><input type="checkbox" name="p_${esc(p.name)}" ${value ? "checked" : ""}> ${esc(p.name)}: ${esc(p.help)}</label>`;
+  return `<label>${esc(p.name)}${p.required ? " *" : ""} <span class="kv">${esc(p.help)}</span>
+    <input type="text" name="p_${esc(p.name)}" value="${esc(value ?? "")}" placeholder="${esc(p.example || (p.default ?? ""))}"></label>`;
+}
+function nrParamFields(k, values) {   // what the kind asks for first, and the rest behind "More settings"
+  const row = (p) => nrParamField(p, values[p.name]), main = (k.params || []).filter((p) => p.required || p.main), rest = (k.params || []).filter((p) => !(p.required || p.main));
+  return main.map(row).join("") + (rest.length ? `<details><summary class="kv">More settings</summary><div class="nrmoreset">${rest.map(row).join("")}</div></details>` : "");
+}
+function nrAlertFields(a) {
+  const mode = a.all ? "all" : (a.keywords || []).length ? "keywords" : "off";
+  return `<fieldset><legend>Notify me about a new item that</legend>
+    <label class="inl"><input type="radio" name="mode" value="off" ${mode === "off" ? "checked" : ""}> never: just show them</label>
+    <label class="inl"><input type="radio" name="mode" value="keywords" ${mode === "keywords" ? "checked" : ""}> mentions <input type="text" name="keywords" value="${esc((a.keywords || []).join(", "))}" placeholder="earnings, guidance"></label>
+    <label class="inl"><input type="radio" name="mode" value="all" ${mode === "all" ? "checked" : ""}> is posted at all</label>
+    <label>...or is about (Jev judges each new item) <input type="text" name="about" value="${esc(a.about || "")}" placeholder="e.g. their quarterly results"></label>
+    <label>...unless it mentions <input type="text" name="exclude" value="${esc((a.exclude || []).join(", "))}" placeholder="optional"></label></fieldset>`;
+}
+function nrEdit(w, k, i, count) {
+  return `<form class="nredit" data-nrform="${w.id}" autocomplete="off">
+    <label>Name <input type="text" name="title" value="${esc(w.title)}"></label>
+    ${nrParamFields(k, w.params)}
+    <label>Look every (minutes) <input type="number" name="every" min="${(NR.data || {}).min_minutes || 5}" value="${w.every}"></label>
+    ${nrAlertFields(w.alert)}
+    <label>Size <select name="size">${[["s", "Small: headlines"], ["m", "Medium"], ["l", "Large: two columns when there is room"]].map(([v, l]) => `<option value="${v}" ${w.size === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+    <label class="inl"><input type="checkbox" name="paused" ${w.paused ? "checked" : ""}> Paused: don't look or notify</label>
+    <div class="rverr" data-nrerr hidden></div>
+    <div class="rvrow"><button type="button" data-nract="left" ${i === 0 ? "disabled" : ""} aria-label="Move earlier">&larr;</button>
+      <button type="button" data-nract="right" ${i === count - 1 ? "disabled" : ""} aria-label="Move later">&rarr;</button>
+      <button type="button" data-nract="delete">Delete</button><span class="grow"></span>
+      <button type="button" data-nract="cancel">Cancel</button><button type="submit" class="primary">Save</button></div></form>`;
+}
+function nrNotes(d) {
+  const n = d.notes || [];
+  return `<details class="card nrnotes" id="nrnotes" ${(NR.notesTouched ? NR.notesOpen : d.unread_notes) ? "open" : ""}><summary>Notifications${d.unread_notes ? ` <i class="n">${d.unread_notes} new</i>` : ""}</summary>
+    ${n.length ? n.map((x) => { const u = safeUrl(x.url); return `<div class="nrnote ${x.read ? "" : "unread"}" data-nrnote="${x.id}"><div class="b">
+      <div class="t">${esc(x.title)}${x.why ? ` · ${esc(x.why)}` : ""} · ${agoOf(x.ts)}</div>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(x.body || x.url)}</a>` : esc(x.body)}</div>
+      ${x.read ? "" : `<button type="button" class="iconbtn" data-nract="noteread" title="Mark read" aria-label="Mark read"><svg class="ic"><use href="#i-check"/></svg></button>`}</div>`; }).join("")
+      + `<div class="rvrow"><button type="button" data-nract="notesread">Mark all read</button><button type="button" data-nract="notesclear">Clear</button></div>`
+      : `<div class="kv">Nothing yet. A tile notifies you when a new item mentions the words you gave it.</div>`}</details>`;
+}
+function renderNewsroom() {
+  const d = NR.data; if (!d) { $("nr").innerHTML = '<div class="empty">Loading...</div>'; return; }
+  const can = "Notification" in window && Notification.permission === "default";
+  $("nr").innerHTML = `<div class="nrbar"><button type="button" class="primary" data-nract="add"><svg class="ic"><use href="#i-plus"/></svg>Add widget</button>
+      <button type="button" data-nract="refreshall" title="Look at every widget now"><svg class="ic"><use href="#i-refresh"/></svg>Refresh</button><span class="grow"></span>
+      ${can ? `<button type="button" data-nract="desktop" title="Also show alerts as desktop notifications while this tab is in the background">Desktop alerts</button>` : ""}</div>
+    ${d.running ? "" : '<p class="kv">Looking is switched off (newsroom.enabled in config.yaml): tiles show what they have.</p>'}
+    ${nrNotes(d)}
+    ${d.widgets.length ? `<div class="nrgrid">${d.widgets.map((w, i) => nrCard(w, i, d.widgets.length)).join("")}</div>`
+      : `<div class="empty" style="padding:24px 8px"><b>Your newsroom is empty.</b><br>Ask in the chat, and the assistant sets a widget up and tells you what it will notify you about:
+        <div class="nrex">${NR_EXAMPLES.map((x) => `<button type="button" data-nract="example">${esc(x)}</button>`).join("")}</div></div>`}`;
+}
+function nrAlertFrom(f) {
+  const mode = f.querySelector("[name=mode]:checked")?.value, split = (v) => v.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
+  const exclude = split(f.querySelector("[name=exclude]").value), about = f.querySelector("[name=about]").value.trim();
+  const keywords = mode === "keywords" ? split(f.querySelector("[name=keywords]").value) : [];
+  if (mode !== "all" && !keywords.length && !about) return null;
+  return {all: mode === "all", keywords, exclude, about};
+}
+function nrParamsFrom(f, k) {
+  const out = {};
+  for (const p of k.params || []) { const el = f.querySelector(`[name=p_${p.name}]`); if (el) out[p.name] = el.type === "checkbox" ? el.checked : el.value.trim(); }
+  return out;
+}
+$("p-newsroom").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("button[data-nract]");
+  if (!b) {
+    const a = ev.target.closest(".nri a"); if (a) { const id = Number(a.closest("[data-nritem]").dataset.nritem); nrPost("/api/newsroom/read", {item: id}).then(() => refreshNewsroom()); }
+    return;
+  }
+  const act = b.dataset.nract, card = b.closest("[data-nrw]"), id = card ? Number(card.dataset.nrw) : null;
+  const w = id ? NR.data.widgets.find((x) => x.id === id) : null;
+  try {
+    if (act === "add") return nrOpenAdd();
+    if (act === "example") { $("input").value = b.textContent; fit(); $("input").focus(); return; }
+    if (act === "desktop") { await Notification.requestPermission(); renderNewsroom(); return; }
+    if (act === "more") { NR.shown[id] = (NR.shown[id] || (w.size === "s" ? 5 : w.size === "l" ? 10 : 6)) + 10; renderNewsroom(); return; }
+    if (act === "edit") { NR.editing = NR.editing === id ? null : id; renderNewsroom(); return; }
+    if (act === "cancel") { NR.editing = null; renderNewsroom(); return; }
+    if (act === "refresh" || act === "refreshall") {
+      const ids = act === "refresh" ? [id] : NR.data.widgets.map((x) => x.id);
+      ids.forEach((x) => NR.busy.add(x)); renderNewsroom();
+      try { await nrPost("/api/newsroom/refresh", act === "refresh" ? {id} : {}); } finally { NR.busy.clear(); }
+      await refreshNewsroom(true); return;
+    }
+    if (act === "read") await nrPost("/api/newsroom/read", {widget: id});
+    else if (act === "left" || act === "right") await nrPost("/api/newsroom/move", {id, step: act === "left" ? -1 : 1});
+    else if (act === "delete") { if (!confirm(`Remove "${w.title}" and what it found?`)) return; await nrPost("/api/newsroom/delete", {id}); NR.editing = null; }
+    else if (act === "noteread") await nrPost("/api/newsroom/notes/read", {id: Number(b.closest("[data-nrnote]").dataset.nrnote)});
+    else if (act === "notesread") await nrPost("/api/newsroom/notes/read", {});
+    else if (act === "notesclear") await nrPost("/api/newsroom/notes/clear", {});
+  } catch (e) { alert(e.message); }
+  await refreshNewsroom(true);
+});
+$("p-newsroom").addEventListener("toggle", (ev) => { if (ev.target.id === "nrnotes" && ev.isTrusted) { NR.notesOpen = ev.target.open; NR.notesTouched = true; } }, true);
+$("p-newsroom").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const f = ev.target.closest("form[data-nrform]"); if (!f) return;
+  const id = Number(f.dataset.nrform), w = NR.data.widgets.find((x) => x.id === id), k = nrKind(w.kind) || {};
+  const err = f.querySelector("[data-nrerr]"); err.hidden = true;
+  try {
+    await nrPost("/api/newsroom/update", {id, title: f.title.value, every: Number(f.every.value), alert: nrAlertFrom(f), size: f.size.value,
+      paused: f.paused.checked, params: nrParamsFrom(f, k)});
+    NR.editing = null;
+  } catch (e) { err.textContent = e.message; err.hidden = false; return; }
+  await refreshNewsroom(true);
+});
+
+// adding a widget by hand: the form is made from the kind's settings, so a new kind in jevh/newsroom.py appears here by itself
+function nrOpenAdd() {
+  const ks = (NR.data || {}).kinds || []; if (!ks.length) return;
+  NR.kind = NR.kind && nrKind(NR.kind) ? NR.kind : ks[0].name;
+  nrPaintAdd(); $("nrerr").hidden = true; $("nrdlg").showModal();
+}
+function nrPaintAdd() {
+  const ks = NR.data.kinds, k = nrKind(NR.kind);
+  $("nrkinds").innerHTML = ks.map((x) => `<button type="button" role="radio" aria-checked="${x.name === NR.kind}" class="${x.name === NR.kind ? "on" : ""}" data-nrkind="${esc(x.name)}">${esc(x.label)}</button>`).join("");
+  $("nrfields").innerHTML = `<div class="kv">${esc(k.description)}</div>${k.needs ? `<div class="nrneeds">Not set up yet: ${esc(k.needs)} You can add it now; it starts working once it is.</div>` : ""}
+    ${nrParamFields(k, {})}
+    <label>Name (optional) <input type="text" name="title"></label>
+    <label>Look every (minutes) <input type="number" name="every" min="${NR.data.min_minutes}" value="${NR.data.default_minutes}"></label>${nrAlertFields({})}`;
+}
+$("nrkinds").addEventListener("click", (ev) => { const b = ev.target.closest("[data-nrkind]"); if (b) { NR.kind = b.dataset.nrkind; nrPaintAdd(); } });
+$("nrcancel").addEventListener("click", () => $("nrdlg").close());
+$("nrform").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const f = $("nrform"), k = nrKind(NR.kind); $("nrerr").hidden = true; $("nrok").disabled = true;
+  try {
+    const params = nrParamsFrom(f, k);
+    for (const p of k.params) if (params[p.name] === "" || params[p.name] === false) delete params[p.name];
+    const r = await nrPost("/api/newsroom/add", {kind: NR.kind, params, title: f.title.value.trim() || null, every: Number(f.every.value), alert: nrAlertFrom(f)});
+    $("nrdlg").close();
+    if (r.existing) alert("That widget is already on the board.");
+  } catch (e) { $("nrerr").textContent = e.message; $("nrerr").hidden = false; $("nrok").disabled = false; return; }
+  $("nrok").disabled = false;
+  await refreshNewsroom(true);
+});
+
 // ---- status ----
 function ring(frac, label, value, size = 104) {
   const r = 40, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, frac || 0));
@@ -2221,7 +2500,7 @@ $("p-status").addEventListener("click", async (ev) => {
 });
 
 // ---- the side panel: closed until you open a tab, the browser goes live, or an artifact is made ----
-const TITLES = {inspector: "Inspector", history: "History", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", status: "Status"};
+const TITLES = {inspector: "Inspector", history: "History", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", newsroom: "Newsroom", status: "Status"};
 $("side").inert = true;
 function openPanel(tab) {
   S.tab = tab;
@@ -2236,6 +2515,7 @@ function openPanel(tab) {
   if (tab === "browser") paintBrowser();
   if (tab === "review") { refreshReviews(); refreshSessions(); }
   if (tab === "notebook") { renderNotebook(); refreshNotebook(); }
+  if (tab === "newsroom") { renderNewsroom(); refreshNewsroom(true); }
   render();
 }
 function closePanel() {
@@ -2295,7 +2575,7 @@ function renderAppear() {
     <div class="asec"><div class="al">Layout</div>${segc("width")}<div style="height:8px"></div>${segc("density")}<div style="height:8px"></div>${segc("corners")}</div>
     <div class="asec"><div class="al">Tool calls in the chat</div>${segc("activity")}<div class="kv" style="margin-top:7px">${ACT_HINT[PR.activity]}</div></div>
     <div class="asec">${toggle("thinking", "Open live thinking", "Show the model's reasoning while it streams")}
-      ${toggle("autopanel", "Open the panel for you", "When the browser goes live or a file is made")}
+      ${toggle("autopanel", "Open the panel for you", "When the browser goes live, a file is made or a widget is added")}
       ${toggle("fx", "Visual effects", "Glass blur, glow and paper grain")}</div>
     <div class="afoot"><span>Saved in this browser</span><button type="button" data-areset>Reset</button></div>`;
   pop.scrollTop = keep;
@@ -2435,6 +2715,8 @@ async function refreshPersonas() {
   refreshVersion(); setInterval(() => refreshVersion(), 30 * 60 * 1000);
   paintBrowser(); browserTick();
   refreshReviews(); refreshNotebook();
+  refreshNewsroom(); setInterval(() => { if (!document.hidden) refreshNewsroom(); }, 20000);   // (the worker's tool writes the board from another process)
+  setInterval(() => { if (S.tab === "newsroom" && !NR.editing && NR.data) renderNewsroom(); }, 60000);   // ages tick on
   setInterval(() => { if (S.order.some((id) => S.turns.get(id).status === "running")) schedule(); }, 1000);
   setInterval(pollThinking, 2000);
   render();
