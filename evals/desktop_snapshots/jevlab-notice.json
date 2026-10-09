@@ -1,0 +1,24 @@
+{
+ "app": "JevLab",
+ "title": "JevLab - Alpha",
+ "layers": [
+  "dialog 'Notice'"
+ ],
+ "scrollable": false,
+ "text": "-- dialog 'Notice' --\nHeads up: this is a notice.",
+ "elements": [
+  {
+   "kind": "button",
+   "label": "OK",
+   "layer": "dialog 'Notice'",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Close",
+   "layer": "dialog 'Notice'",
+   "disabled": false,
+   "chrome": true
+  }
+ ]
+}

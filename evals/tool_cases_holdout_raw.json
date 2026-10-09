@@ -1,0 +1,294 @@
+{
+ "need": [
+  {
+   "web": 0.0293,
+   "browser": 0.9325,
+   "project": 0.0203,
+   "comfy": 0.0007,
+   "nango": 0.0331,
+   "desktop": 0.9241
+  },
+  {
+   "web": 0.0006,
+   "browser": 0.0041,
+   "project": 0.2689,
+   "comfy": 0.0002,
+   "nango": 0.2689,
+   "desktop": 0.9972
+  },
+  {
+   "web": 0.023,
+   "browser": 0.0141,
+   "project": 0.0421,
+   "comfy": 0.0003,
+   "nango": 0.0012,
+   "desktop": 0.148
+  },
+  {
+   "web": 0.011,
+   "browser": 0.023,
+   "project": 0.0421,
+   "comfy": 0.0002,
+   "nango": 0.0036,
+   "desktop": 0.9914
+  },
+  {
+   "web": 0.0141,
+   "browser": 0.023,
+   "project": 0.0534,
+   "comfy": 0.0086,
+   "nango": 0.0293,
+   "desktop": 0.1645
+  },
+  {
+   "web": 0.0076,
+   "browser": 0.0059,
+   "project": 0.0141,
+   "comfy": 0.0004,
+   "nango": 0.018,
+   "desktop": 0.7549
+  },
+  {
+   "web": 0.0041,
+   "browser": 0.018,
+   "project": 0.0046,
+   "comfy": 0.0025,
+   "nango": 0.026,
+   "desktop": 0.9149
+  },
+  {
+   "web": 0.0059,
+   "browser": 0.018,
+   "project": 0.0293,
+   "comfy": 0.0124,
+   "nango": 0.0059,
+   "desktop": 0.4073
+  },
+  {
+   "web": 0.0675,
+   "browser": 0.3208,
+   "project": 0.0601,
+   "comfy": 0.0022,
+   "nango": 0.0059,
+   "desktop": 0.5622
+  },
+  {
+   "web": 0.018,
+   "browser": 0.4378,
+   "project": 0.0759,
+   "comfy": 0.0086,
+   "nango": 0.1824,
+   "desktop": 0.9241
+  },
+  {
+   "web": 0.9876,
+   "browser": 0.989,
+   "project": 0.0059,
+   "comfy": 0.0002,
+   "nango": 0.0013,
+   "desktop": 0.0086
+  },
+  {
+   "web": 0.9948,
+   "browser": 0.1067,
+   "project": 0.001,
+   "comfy": 0.0004,
+   "nango": 0.0025,
+   "desktop": 0.0022
+  },
+  {
+   "web": 0.0025,
+   "browser": 0.0041,
+   "project": 0.9959,
+   "comfy": 0.0002,
+   "nango": 0.0067,
+   "desktop": 0.0373
+  },
+  {
+   "web": 0.018,
+   "browser": 0.0474,
+   "project": 0.0421,
+   "comfy": 0.0006,
+   "nango": 0.9941,
+   "desktop": 0.018
+  },
+  {
+   "web": 0.0124,
+   "browser": 0.0025,
+   "project": 0.0013,
+   "comfy": 0.0003,
+   "nango": 0.0009,
+   "desktop": 0.0015
+  },
+  {
+   "web": 0.0097,
+   "browser": 0.0953,
+   "project": 0.9975,
+   "comfy": 0.0019,
+   "nango": 0.0953,
+   "desktop": 0.011
+  },
+  {
+   "web": 0.9978,
+   "browser": 0.9954,
+   "project": 0.2451,
+   "comfy": 0.0012,
+   "nango": 0.0025,
+   "desktop": 0.0097
+  },
+  {
+   "web": 0.0015,
+   "browser": 0.0002,
+   "project": 0.0002,
+   "comfy": 0.0002,
+   "nango": 0.0001,
+   "desktop": 0.0006
+  }
+ ],
+ "help": [
+  {
+   "web": 0.0293,
+   "browser": 0.9669,
+   "project": 0.0601,
+   "comfy": 0.0004,
+   "nango": 0.2689,
+   "desktop": 0.977
+  },
+  {
+   "web": 0.0019,
+   "browser": 0.0059,
+   "project": 0.5,
+   "comfy": 0.0002,
+   "nango": 0.8808,
+   "desktop": 0.9983
+  },
+  {
+   "web": 0.0293,
+   "browser": 0.023,
+   "project": 0.0759,
+   "comfy": 0.0003,
+   "nango": 0.0059,
+   "desktop": 0.0953
+  },
+  {
+   "web": 0.0141,
+   "browser": 0.0203,
+   "project": 0.6792,
+   "comfy": 0.0003,
+   "nango": 0.0067,
+   "desktop": 0.9948
+  },
+  {
+   "web": 0.0141,
+   "browser": 0.0331,
+   "project": 0.6792,
+   "comfy": 0.0203,
+   "nango": 0.133,
+   "desktop": 0.7773
+  },
+  {
+   "web": 0.0052,
+   "browser": 0.0124,
+   "project": 0.0534,
+   "comfy": 0.0003,
+   "nango": 0.0851,
+   "desktop": 0.9526
+  },
+  {
+   "web": 0.018,
+   "browser": 0.1645,
+   "project": 0.0373,
+   "comfy": 0.0019,
+   "nango": 0.0203,
+   "desktop": 0.9941
+  },
+  {
+   "web": 0.0076,
+   "browser": 0.0534,
+   "project": 0.4688,
+   "comfy": 0.0052,
+   "nango": 0.011,
+   "desktop": 0.4378
+  },
+  {
+   "web": 0.3208,
+   "browser": 0.5622,
+   "project": 0.4378,
+   "comfy": 0.0141,
+   "nango": 0.2689,
+   "desktop": 0.977
+  },
+  {
+   "web": 0.0373,
+   "browser": 0.9325,
+   "project": 0.4378,
+   "comfy": 0.0293,
+   "nango": 0.4378,
+   "desktop": 0.9579
+  },
+  {
+   "web": 0.9994,
+   "browser": 0.9996,
+   "project": 0.0046,
+   "comfy": 0.0001,
+   "nango": 0.0036,
+   "desktop": 0.011
+  },
+  {
+   "web": 0.9981,
+   "browser": 0.852,
+   "project": 0.0032,
+   "comfy": 0.0012,
+   "nango": 0.148,
+   "desktop": 0.011
+  },
+  {
+   "web": 0.0032,
+   "browser": 0.0086,
+   "project": 0.9997,
+   "comfy": 0.0002,
+   "nango": 0.026,
+   "desktop": 0.5
+  },
+  {
+   "web": 0.133,
+   "browser": 0.3208,
+   "project": 0.1824,
+   "comfy": 0.0004,
+   "nango": 0.9978,
+   "desktop": 0.3775
+  },
+  {
+   "web": 0.8933,
+   "browser": 0.0759,
+   "project": 0.0601,
+   "comfy": 0.0007,
+   "nango": 0.0076,
+   "desktop": 0.0097
+  },
+  {
+   "web": 0.0601,
+   "browser": 0.4688,
+   "project": 0.9996,
+   "comfy": 0.0032,
+   "nango": 0.8808,
+   "desktop": 0.1067
+  },
+  {
+   "web": 0.9975,
+   "browser": 0.9994,
+   "project": 0.2451,
+   "comfy": 0.0003,
+   "nango": 0.0141,
+   "desktop": 0.0086
+  },
+  {
+   "web": 0.0474,
+   "browser": 0.0331,
+   "project": 0.0203,
+   "comfy": 0.0015,
+   "nango": 0.0059,
+   "desktop": 0.018
+  }
+ ]
+}

@@ -1,0 +1,58 @@
+DESKTOP BENCH  (pass = ground truth in the app's own state / files; n/a = nothing to grade against)
+
+all tasks
+  before 5/19 (26%), 8/19 if reading the app's state file were allowed  median 302s  25 steps  8725 out-tokens  1 Jev calls/run  hand-rolled UI code in 13/19 runs, desktop.* in 2/19
+  after  35/38 (92%), 35/38 if reading the app's state file were allowed  median 57s  10 steps  1196 out-tokens  6 Jev calls/run  hand-rolled UI code in 3/38 runs, desktop.* in 38/38
+
+dev tasks (tuned on)
+  before 0/4 (0%), 0/4 if reading the app's state file were allowed  median 485s  36 steps  17768 out-tokens  2 Jev calls/run  hand-rolled UI code in 4/4 runs, desktop.* in 1/4
+  after  7/8 (87%), 7/8 if reading the app's state file were allowed  median 56s  13 steps  1332 out-tokens  7 Jev calls/run  hand-rolled UI code in 1/8 runs, desktop.* in 8/8
+
+HELD-OUT tasks
+  before 5/15 (33%), 8/15 if reading the app's state file were allowed  median 302s  16 steps  7574 out-tokens  1 Jev calls/run  hand-rolled UI code in 9/15 runs, desktop.* in 1/15
+  after  28/30 (93%), 28/30 if reading the app's state file were allowed  median 58s  10 steps  1062 out-tokens  5 Jev calls/run  hand-rolled UI code in 2/30 runs, desktop.* in 30/30
+
+per task (pass/runs, (+n) = right end state but read the app's state file; median seconds)
+  task                         before             after   held
+  form-fill                 0/1  602s         2/2   72s   dev
+  list-remove               0/1  368s         2/2   37s   dev
+  composer-slash            0/1  602s         1/2  254s   dev
+  settings-dialog           0/1  302s         2/2   43s   dev
+  windows-list              1/1   19s         2/2   27s   held
+  find-app                  1/1   16s         2/2   14s   held
+  counter                   0/1  602s         2/2   33s   held
+  composer-two              0/1  602s         2/2  250s   held
+  notes-export              0/1  602s         1/2  104s   held
+  notice               0/1 (+1)  224s         2/2   43s   held
+  hotkey-newwindow          0/1  302s         2/2   79s   held
+  two-windows          0/1 (+1)  197s         2/2   57s   held
+  form-partial              0/1  302s         2/2  107s   held
+  list-guard           0/1 (+1)   95s         2/2  110s   held
+  delete-all                0/1  302s         2/2   42s   held
+  login-secret              1/1  302s         2/2  154s   held
+  calculator                1/1  163s         2/2   42s   held
+  explorer                  1/1   19s         2/2   33s   held
+  login-allowed             0/1  302s         1/2  152s   held
+
+failing runs
+  [before] form-fill #1: PEEKED at the app's state/source files (form={'name': '', 'email': '', 'country': '', 'subscribe': False, 'size': ''})
+  [before] list-remove #1: PEEKED at the app's state/source files (items=['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo'])
+  [before] composer-slash #1: PEEKED at the app's state/source files (sent=[])
+  [before] settings-dialog #1: PEEKED at the app's state/source files (settings={'display_name': '', 'dark': False, 'saved': False})
+  [before] counter #1: PEEKED at the app's state/source files (count=0, answer mentions 3: False)
+  [before] composer-two #1: PEEKED at the app's state/source files (sent=[])
+  [before] notes-export #1: PEEKED at the app's state/source files (no file at C:\Users\Jedidiah\Projects\jev-harness\evals\bench\runs\desktop\20261)
+  [before] notice #1: PEEKED at the app's state/source files (notice_shown=1, notice windows left=0)
+  [before] hotkey-newwindow #1: JevLab windows=['JevLab - Alpha', 'JevLab - Alpha-doc2', 'JevLab - Alpha-doc1']
+  [after] composer-slash #2: sent=[]
+  [after] notes-export #2: file=' Quote: "to be" \n café – 100% ✓ '
+  [before] two-windows #1: PEEKED at the app's state/source files (Alpha.count=0 Beta.count=2)
+  [before] form-partial #1: PEEKED at the app's state/source files (country='' large=False submitted=False)
+  [before] list-guard #1: PEEKED at the app's state/source files (items=['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo'] deleted_all=False answer ha)
+  [before] delete-all #1: deleted_all=False items=['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo']
+  [after] login-allowed #1: password_typed=True username='ana' signed_in=True password repeated in the answer: True
+  [before] login-allowed #1: PEEKED at the app's state/source files (password_typed=False username='' signed_in=False password repeated in the answer)
+
+after passes more often than before on: form-fill, list-remove, composer-slash, settings-dialog, counter, composer-two, notes-export, notice, hotkey-newwindow, two-windows, form-partial, list-guard, delete-all, login-allowed
+same pass rate: windows-list, find-app, login-secret, calculator, explorer
+after passes less often than before on: -

@@ -1,0 +1,445 @@
+{
+ "app": "explorer",
+ "title": "bench-folder - File Explorer",
+ "layers": [],
+ "scrollable": true,
+ "text": "3 items\n[Date modified] ‎10/‎8/‎2026 ‏‎3:10 PM\n[Type] Text Document\n[Size] 1 KB\n[Date modified] ‎10/‎8/‎2026 ‏‎3:10 PM\n[Type] MD File\n[Size] 1 KB\n[Date modified] ‎10/‎8/‎2026 ‏‎3:10 PM\n[Type] PNG File\n[Size] 1 KB\nbench-folder\nLocal\nTemp\ndesktop-cases-capture\nbench-folder\nSearch bench-folder",
+ "elements": [
+  {
+   "kind": "radio",
+   "label": "Details",
+   "layer": "",
+   "disabled": false,
+   "checked": true,
+   "context": "View Modes"
+  },
+  {
+   "kind": "radio",
+   "label": "Large Icons",
+   "layer": "",
+   "disabled": false,
+   "checked": false,
+   "context": "View Modes"
+  },
+  {
+   "kind": "button",
+   "label": "Line up",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host",
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Page up",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host",
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Page down",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host",
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Line down",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host",
+   "chrome": true
+  },
+  {
+   "kind": "tree item",
+   "label": "Downloads (pinned)",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Documents (pinned)",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Pictures (pinned)",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Music (pinned)",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Videos (pinned)",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Screenshots",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "output",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "End of Quick Access - Folder 1",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "iCloud Drive",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "iCloud Photos",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "This PC",
+   "layer": "",
+   "disabled": false,
+   "expanded": true,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Local Disk (C:)",
+   "layer": "",
+   "disabled": false,
+   "selected": true,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Network",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Linux",
+   "layer": "",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "button",
+   "label": "Name",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "button",
+   "label": "Filter dropdown",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View top-middle, 1 of 4"
+  },
+  {
+   "kind": "button",
+   "label": "Date modified",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "button",
+   "label": "Filter dropdown",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View top-middle, 2 of 4"
+  },
+  {
+   "kind": "button",
+   "label": "Type",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "button",
+   "label": "Filter dropdown",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View top-middle, 3 of 4"
+  },
+  {
+   "kind": "button",
+   "label": "Size",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "button",
+   "label": "Filter dropdown",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View top-right, 4 of 4"
+  },
+  {
+   "kind": "list item",
+   "label": "alpha-report",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "text field",
+   "label": "Name",
+   "layer": "",
+   "disabled": false,
+   "value": "alpha-report",
+   "context": "Shell Folder View top-left, 1 of 3"
+  },
+  {
+   "kind": "list item",
+   "label": "beta-notes.md",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "text field",
+   "label": "Name",
+   "layer": "",
+   "disabled": false,
+   "value": "beta-notes.md",
+   "context": "Shell Folder View top-left, 2 of 3"
+  },
+  {
+   "kind": "list item",
+   "label": "gamma-image",
+   "layer": "",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "text field",
+   "label": "Name",
+   "layer": "",
+   "disabled": false,
+   "value": "gamma-image",
+   "context": "Shell Folder View middle-left, 3 of 3"
+  },
+  {
+   "kind": "tab",
+   "label": "bench-folder",
+   "layer": "",
+   "disabled": false,
+   "selected": true
+  },
+  {
+   "kind": "button",
+   "label": "Close Tab",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Add New Tab",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Back",
+   "layer": "",
+   "disabled": true
+  },
+  {
+   "kind": "button",
+   "label": "Forward",
+   "layer": "",
+   "disabled": true
+  },
+  {
+   "kind": "button",
+   "label": "Up to \"desktop-cases-capture\" (Alt + Up Arrow)",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Refresh \"bench-folder\" (F5)",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "text field",
+   "label": "Address Bar",
+   "layer": "",
+   "disabled": false,
+   "value": ""
+  },
+  {
+   "kind": "button",
+   "label": "This PC",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "More",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Local",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Temp",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "desktop-cases-capture",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "bench-folder",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "search box",
+   "label": "Search bench-folder",
+   "layer": "",
+   "disabled": false,
+   "value": ""
+  },
+  {
+   "kind": "button",
+   "label": "New",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Cut",
+   "layer": "",
+   "disabled": true
+  },
+  {
+   "kind": "button",
+   "label": "Copy",
+   "layer": "",
+   "disabled": true
+  },
+  {
+   "kind": "button",
+   "label": "Paste",
+   "layer": "",
+   "disabled": true
+  },
+  {
+   "kind": "button",
+   "label": "Rename",
+   "layer": "",
+   "disabled": true
+  },
+  {
+   "kind": "button",
+   "label": "Share",
+   "layer": "",
+   "disabled": true
+  },
+  {
+   "kind": "button",
+   "label": "Delete",
+   "layer": "",
+   "disabled": true
+  },
+  {
+   "kind": "button",
+   "label": "Sort",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "View",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "More options",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Details",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "menu item",
+   "label": "System",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Minimize",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Maximize",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Close",
+   "layer": "",
+   "disabled": false,
+   "chrome": true
+  }
+ ]
+}

@@ -21,7 +21,7 @@ git clone <repo-url> jev-harness
 cd jev-harness
 python3 -m venv .venv
 source .venv/bin/activate          # do this in every new terminal before running the harness
-pip install -e ".[web,browser,dev]"
+pip install -e ".[web,browser,desktop,dev]"   # (desktop: the tool that operates Windows apps; comtypes + pillow)
 python -m playwright install chromium
 ```
 

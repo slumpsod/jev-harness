@@ -13,3 +13,4 @@ personas/learned/
 skills/_lessons/*
 !skills/_lessons/web-research-workflow.md
 .claude/*.lock
+evals/desktop_fixture/jevlab.exe

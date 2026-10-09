@@ -1,0 +1,257 @@
+{
+ "app": "Calculator",
+ "title": "Calculator",
+ "layers": [],
+ "scrollable": true,
+ "text": "Calculator\nDisplay is 0\nThere’s no history yet.\nStandard Calculator mode",
+ "elements": [
+  {
+   "kind": "button",
+   "label": "Minimize Calculator",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Maximize Calculator",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Close Calculator",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Open Navigation",
+   "layer": "",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Clear all memory",
+   "layer": "",
+   "disabled": true,
+   "context": "Memory controls"
+  },
+  {
+   "kind": "button",
+   "label": "Memory recall",
+   "layer": "",
+   "disabled": true,
+   "context": "Memory controls"
+  },
+  {
+   "kind": "button",
+   "label": "Memory add",
+   "layer": "",
+   "disabled": false,
+   "context": "Memory controls"
+  },
+  {
+   "kind": "button",
+   "label": "Memory subtract",
+   "layer": "",
+   "disabled": false,
+   "context": "Memory controls"
+  },
+  {
+   "kind": "button",
+   "label": "Memory store",
+   "layer": "",
+   "disabled": false,
+   "context": "Memory controls"
+  },
+  {
+   "kind": "button",
+   "label": "Percent",
+   "layer": "",
+   "disabled": false,
+   "context": "Display controls"
+  },
+  {
+   "kind": "button",
+   "label": "Clear entry",
+   "layer": "",
+   "disabled": false,
+   "context": "Display controls"
+  },
+  {
+   "kind": "button",
+   "label": "Clear",
+   "layer": "",
+   "disabled": false,
+   "context": "Display controls"
+  },
+  {
+   "kind": "button",
+   "label": "Backspace",
+   "layer": "",
+   "disabled": false,
+   "context": "Display controls"
+  },
+  {
+   "kind": "button",
+   "label": "Reciprocal",
+   "layer": "",
+   "disabled": false,
+   "context": "Standard functions"
+  },
+  {
+   "kind": "button",
+   "label": "Square",
+   "layer": "",
+   "disabled": false,
+   "context": "Standard functions"
+  },
+  {
+   "kind": "button",
+   "label": "Square root",
+   "layer": "",
+   "disabled": false,
+   "context": "Standard functions"
+  },
+  {
+   "kind": "button",
+   "label": "Divide by",
+   "layer": "",
+   "disabled": false,
+   "context": "Standard operators"
+  },
+  {
+   "kind": "button",
+   "label": "Multiply by",
+   "layer": "",
+   "disabled": false,
+   "context": "Standard operators"
+  },
+  {
+   "kind": "button",
+   "label": "Minus",
+   "layer": "",
+   "disabled": false,
+   "context": "Standard operators"
+  },
+  {
+   "kind": "button",
+   "label": "Plus",
+   "layer": "",
+   "disabled": false,
+   "context": "Standard operators"
+  },
+  {
+   "kind": "button",
+   "label": "Equals",
+   "layer": "",
+   "disabled": false,
+   "context": "Standard operators"
+  },
+  {
+   "kind": "button",
+   "label": "Zero",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "One",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Two",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Three",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Four",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Five",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Six",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Seven",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Eight",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Nine",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Decimal separator",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "button",
+   "label": "Positive negative",
+   "layer": "",
+   "disabled": false,
+   "context": "Number pad"
+  },
+  {
+   "kind": "tab",
+   "label": "There’s no history yet. History",
+   "layer": "",
+   "disabled": false,
+   "selected": true,
+   "context": "History and Memory lists"
+  },
+  {
+   "kind": "tab",
+   "label": "There’s nothing saved in memory. Memory",
+   "layer": "",
+   "disabled": false,
+   "context": "History and Memory lists"
+  },
+  {
+   "kind": "button",
+   "label": "Keep on top",
+   "layer": "",
+   "disabled": false
+  }
+ ]
+}

@@ -9,6 +9,7 @@ dependencies = ["pyyaml", "rich"]
 claude = ["anthropic"]
 web = ["fastapi", "uvicorn"]
 browser = ["playwright"]   # then: python -m playwright install chromium
+desktop = ["comtypes; sys_platform == 'win32'", "pillow"]   # the desktop tool (Windows UI Automation)
 dev = ["pytest", "httpx"]
 
 [project.scripts]

@@ -9,6 +9,7 @@ process. Several of them run their own Jev loops, talking straight to the adapte
 | Tool | Module | Talks to | Jev loop | Harness callbacks |
 |---|---|---|---|---|
 | `browser` | `tools/browser.py` | Chromium via Playwright (own thread) | `do()`: pick element / value / option, button checks, done-checks | `look` → the worker's model sees a screenshot |
+| `desktop` | `tools/desktop.py` + `tools/_winui.py` | Windows UI Automation: any app on the user's computer ([19](19-desktop.md)) | `do()`: pick window / control / value / dropdown option, button checks, done-checks; `where()`; `read()` passages | `look` → the worker's model sees a screenshot |
 | `web` | `tools/web.py` | DuckDuckGo HTML, any page | result ranking, passage picking | — |
 | `project` | `tools/project.py` + `tools/rules.py` | the user's project folder, shell | `find` / `find_files` ranking; rule enforcer on every edit | — |
 | `nango` | `tools/nango.py` + `tools/nango_setup.py` | Nango API proxy → the user's apps; Docker, the Nango on this machine, the providers' consoles | — | `ask_user` for every change, and for setup (the secret one is hidden) |

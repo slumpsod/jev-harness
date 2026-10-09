@@ -1,0 +1,338 @@
+{
+ "app": "JevLab",
+ "title": "JevLab - Alpha",
+ "layers": [
+  "dialog 'Save As'"
+ ],
+ "scrollable": true,
+ "text": "-- dialog 'Save As' --\nNo items match your search.\nFile name:\nSave as type:",
+ "elements": [
+  {
+   "kind": "button",
+   "label": "&Help",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Command Module"
+  },
+  {
+   "kind": "button",
+   "label": "Details",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Command Module"
+  },
+  {
+   "kind": "button",
+   "label": "View Slider",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Command Module"
+  },
+  {
+   "kind": "button",
+   "label": "Organize",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Command Module"
+  },
+  {
+   "kind": "button",
+   "label": "New folder",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Command Module"
+  },
+  {
+   "kind": "button",
+   "label": "Line up",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Page up",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Page down",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Line down",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "tree item",
+   "label": "Screenshots",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "output",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "End of Quick Access - Folder 1",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "iCloud Drive",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "iCloud Photos",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "This PC",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "expanded": true,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Local Disk (C:)",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "selected": true,
+   "context": "Control Host"
+  },
+  {
+   "kind": "tree item",
+   "label": "Network",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Control Host"
+  },
+  {
+   "kind": "button",
+   "label": "Name",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "button",
+   "label": "Filter dropdown",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Shell Folder View top-middle, 1 of 4"
+  },
+  {
+   "kind": "button",
+   "label": "Date modified",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "button",
+   "label": "Filter dropdown",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Shell Folder View top-middle, 2 of 4"
+  },
+  {
+   "kind": "button",
+   "label": "Type",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "button",
+   "label": "Filter dropdown",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Shell Folder View top-right, 3 of 4"
+  },
+  {
+   "kind": "button",
+   "label": "Size",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Shell Folder View"
+  },
+  {
+   "kind": "button",
+   "label": "Filter dropdown",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Shell Folder View top-right, 4 of 4"
+  },
+  {
+   "kind": "text field",
+   "label": "File name:",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "value": "notes"
+  },
+  {
+   "kind": "dropdown",
+   "label": "Save as type:",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "value": "Text files (*.txt)"
+  },
+  {
+   "kind": "button",
+   "label": "Hide Folders",
+   "layer": "dialog 'Save As'",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Save",
+   "layer": "dialog 'Save As'",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Cancel",
+   "layer": "dialog 'Save As'",
+   "disabled": false
+  },
+  {
+   "kind": "button",
+   "label": "Back (Alt + Left Arrow)",
+   "layer": "dialog 'Save As'",
+   "disabled": true,
+   "context": "Navigation buttons"
+  },
+  {
+   "kind": "button",
+   "label": "Forward (Alt + Right Arrow)",
+   "layer": "dialog 'Save As'",
+   "disabled": true,
+   "context": "Navigation buttons"
+  },
+  {
+   "kind": "button",
+   "label": "Recent locations",
+   "layer": "dialog 'Save As'",
+   "disabled": true,
+   "context": "Navigation buttons"
+  },
+  {
+   "kind": "button",
+   "label": "Up to \"Temp\" (Alt + Up Arrow)",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Up band"
+  },
+  {
+   "kind": "button",
+   "label": "All locations",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Address: C:\\Users\\user\\AppData\\Local"
+  },
+  {
+   "kind": "button",
+   "label": "‎Users",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Address: C:\\Users\\user\\AppData\\Local"
+  },
+  {
+   "kind": "button",
+   "label": "‎user",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Address: C:\\Users\\user\\AppData\\Local"
+  },
+  {
+   "kind": "button",
+   "label": "‎AppData",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Address: C:\\Users\\user\\AppData\\Local"
+  },
+  {
+   "kind": "button",
+   "label": "‎Local",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Address: C:\\Users\\user\\AppData\\Local"
+  },
+  {
+   "kind": "button",
+   "label": "‎Temp",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Address: C:\\Users\\user\\AppData\\Local"
+  },
+  {
+   "kind": "menu item",
+   "label": "‎desktop-cases-capture",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Address: C:\\Users\\user\\AppData\\Local"
+  },
+  {
+   "kind": "button",
+   "label": "Previous Locations",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Address band"
+  },
+  {
+   "kind": "button",
+   "label": "Refresh \"desktop-cases-capture\" (F5)",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "context": "Address band"
+  },
+  {
+   "kind": "search box",
+   "label": "Search Box",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "value": ""
+  },
+  {
+   "kind": "button",
+   "label": "Search",
+   "layer": "dialog 'Save As'",
+   "disabled": false
+  },
+  {
+   "kind": "menu item",
+   "label": "System",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "chrome": true
+  },
+  {
+   "kind": "button",
+   "label": "Close",
+   "layer": "dialog 'Save As'",
+   "disabled": false,
+   "chrome": true
+  }
+ ]
+}
