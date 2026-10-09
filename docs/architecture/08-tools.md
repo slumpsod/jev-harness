@@ -13,6 +13,7 @@ process. Several of them run their own Jev loops, talking straight to the adapte
 | `web` | `tools/web.py` | DuckDuckGo HTML, any page | result ranking, passage picking | — |
 | `project` | `tools/project.py` + `tools/rules.py` | the user's project folder, shell | `find` / `find_files` ranking; rule enforcer on every edit | — |
 | `nango` | `tools/nango.py` + `tools/nango_setup.py` | Nango API proxy → the user's apps; Docker, the Nango on this machine, the providers' consoles | — | `ask_user` for every change, and for setup (the secret one is hidden) |
+| `newsroom` | `tools/newsroom.py` over `newsroom.py` | `workspace/newsroom.db`; feeds, Google News, X (token / Nango / a bridge) when it takes a widget's first look ([20](20-newsroom.md)) | — (Jev's `about` judgement runs in the dashboard's timer, not here) | — |
 | `comfy` | `tools/comfy.py` | ComfyUI `:8188` | — | — |
 | MCP | `mcp.py` (in the harness) | stdio JSON-RPC servers | `mcp_rank` / `mcp_fits` at task setup | `mcp(key, **args)` callback |
 

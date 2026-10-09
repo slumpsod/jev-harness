@@ -1,0 +1,244 @@
+{
+ "stamp": "20261009-165259",
+ "model": "llamacpp:qwen3.8-27b",
+ "reps": 3,
+ "dry": false,
+ "turns": [
+  {
+   "task": "nvidia_earnings",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "Added a Nvidia news tile that checks every 30 minutes and will notify you when a new story mentions earnings. Current top headlines: CNBC on big Micron/Nvidia chip trades (4h ago), Seeking Alpha on Jensen Huang & Lisa Su (12h ago), and NVIDIA's GTC page.",
+   "seconds": 22.1,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 7,
+   "tokens_in": 11720,
+   "tokens_out": 359,
+   "steps": 2,
+   "bounces": 0,
+   "checks": {
+    "one_news_widget_on_nvidia": true,
+    "notifies_on_earnings": true,
+    "answer_says_what_notifies": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "nvidia_earnings",
+   "arm": "new",
+   "group": "track",
+   "n": 2,
+   "answer": "Done \u2014 \"News: Nvidia\" is now on your dashboard.\n\n- **What it tracks:** Nvidia news from across the web, refreshed every 30 minutes.\n- **What notifies you:** any new item mentioning **earnings** (existing items are the baseline, so no spam from old news).\n- **Latest headlines right now:**\n  - \"Two massive trades just happened in Micron and Nvidia. What they could mean for chips\" (CNBC, 4h ago)\n  - \"Nvidia: Jensen Huang And Lisa Su Agree On One Thing\" (Seeking Alpha, 12h ago)\n  - \"GTC - NVIDIA\" (nvidia.com, 12h ago)\n\nWant me to alert on other keywords too (e.g. \"guidance\", \"revenue\", \"data center\")?",
+   "seconds": 18.5,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 7,
+   "tokens_in": 12095,
+   "tokens_out": 436,
+   "steps": 1,
+   "bounces": 0,
+   "checks": {
+    "one_news_widget_on_nvidia": true,
+    "notifies_on_earnings": true,
+    "answer_says_what_notifies": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "nvidia_earnings",
+   "arm": "new",
+   "group": "track",
+   "n": 3,
+   "answer": "Added a \"Nvidia\" news tile to your Newsroom board. It refreshes every ~30 min and will notify you whenever a NEW article mentions earnings (existing items are the baseline). Latest headlines found: \"Two massive trades just happened in Micron and Nvidia\" (CNBC), \"Nvidia: Jensen Huang And Lisa Su Agree On One Thing\" (Seeking Alpha), \"GTC - NVIDIA\". You'll get a ping on the next fresh earnings-related item.",
+   "seconds": 25.7,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 7,
+   "tokens_in": 12420,
+   "tokens_out": 694,
+   "steps": 2,
+   "bounces": 0,
+   "checks": {
+    "one_news_widget_on_nvidia": true,
+    "notifies_on_earnings": true,
+    "answer_says_what_notifies": true
+   },
+   "board": [
+    {
+     "kind": "news",
+     "title": "News: Nvidia",
+     "params": {
+      "topic": "Nvidia"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "earnings"
+      ],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "llama_cpp_releases",
+   "arm": "new",
+   "group": "track",
+   "n": 1,
+   "answer": "Added a \"llama.cpp releases\" widget to your Newsroom. It watches new releases of ggml-org/llama.cpp on GitHub, looks every 30 minutes, and will notify you about every new release. Current baseline: 10 releases, latest b11539.",
+   "seconds": 40.1,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 12,
+   "tokens_in": 42094,
+   "tokens_out": 855,
+   "steps": 6,
+   "bounces": 0,
+   "checks": {
+    "github_widget": true
+   },
+   "board": [
+    {
+     "kind": "github",
+     "title": "llama.cpp releases",
+     "params": {
+      "repo": "ggml-org/llama.cpp"
+     },
+     "alert": {
+      "all": true,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "llama_cpp_releases",
+   "arm": "new",
+   "group": "track",
+   "n": 2,
+   "answer": "You're on the watch. I added a \"llama.cpp releases\" widget to your Newsroom dashboard:\n\n- Follows GitHub releases of ggml-org/llama.cpp, looked at every 30 minutes\n- Current latest is v0.6.0 (Oct 5) \u2014 already-known releases are the baseline and won't notify\n- It alerts on new official version releases (v0.x.y). llama.cpp also publishes build tags (b11xxx) several times a day, so I filtered those out to keep you from getting spammed \u2014 say the word if you'd rather be pinged on every release, or want a different check frequency.",
+   "seconds": 267.3,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 19,
+   "tokens_in": 130399,
+   "tokens_out": 7205,
+   "steps": 13,
+   "bounces": 0,
+   "checks": {
+    "github_widget": true
+   },
+   "board": [
+    {
+     "kind": "github",
+     "title": "llama.cpp releases",
+     "params": {
+      "repo": "ggml-org/llama.cpp"
+     },
+     "alert": {
+      "all": false,
+      "keywords": [
+       "v0"
+      ],
+      "exclude": [],
+      "about": "Official version releases of llama.cpp (tags like v0.6.0) - not the frequent build releases tagged b11xxx"
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  },
+  {
+   "task": "llama_cpp_releases",
+   "arm": "new",
+   "group": "track",
+   "n": 3,
+   "answer": "Done \u2014 added a \"llama.cpp releases\" widget to your Newsroom board watching ggml-org/llama.cpp on GitHub.\n\n- Checks every 30 minutes while the dashboard runs\n- Every new release will notify you\n- Current baseline (won't alert): b11539, b11538, b11537\n\nIf you'd rather get pinged only for tagged releases (e.g. v-bXXXX builds) or want a different check interval, just say the word.",
+   "seconds": 25.7,
+   "routed": "daily_assistant",
+   "cancelled": false,
+   "calls": 10,
+   "tokens_in": 26935,
+   "tokens_out": 448,
+   "steps": 3,
+   "bounces": 0,
+   "checks": {
+    "github_widget": true
+   },
+   "board": [
+    {
+     "kind": "github",
+     "title": "llama.cpp releases",
+     "params": {
+      "repo": "ggml-org/llama.cpp"
+     },
+     "alert": {
+      "all": true,
+      "keywords": [],
+      "exclude": [],
+      "about": ""
+     },
+     "every": 30,
+     "paused": false
+    }
+   ],
+   "questions": 0,
+   "questions_text": []
+  }
+ ]
+}

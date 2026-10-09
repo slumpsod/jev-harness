@@ -1,0 +1,39 @@
+newsroom decisions on Jev backend semif, 3 run(s) per case, 2026-10-09 08:50  [dev]  NOT TUNED: thresholds.tool is the harness's own, newsroom_about is a guess
+
+== tool: is the newsroom guide in the prompt?  (threshold 0.65, thresholds.tool; dev requests)
+  dev: fires on 65% of 23 should-fire requests (target >= 90%); fires on 5% of 21 lookalikes (target <= 5%, 3 wrong picks)
+  sweep:  0.20: 83%/5%  0.30: 78%/5%  0.40: 74%/5%  0.50: 65%/5%  0.60: 65%/5%  0.65: 65%/5%  0.70: 65%/5%  0.80: 61%/5%  0.90: 57%/5%   (fires when it should / fires when it should not)
+    MISS (should fire): Let me know if Apple announces anything about a foldable iPhone.  newsroom=0.41  web=0.99 browser=0.25 desktop=0.02 nango=0.00
+    MISS (should fire): Monitor arXiv for new papers on speculative decoding and tell me about them.  newsroom=0.09  web=1.00 browser=0.93 desktop=0.02 nango=0.00
+    MISS (should fire): Remove the Nvidia tile from my newsroom.  newsroom=0.13  web=0.02 browser=0.06 desktop=0.13 nango=0.32
+    MISS (should fire): Make the bitcoin widget check every 10 minutes.  newsroom=0.04  web=0.20 browser=0.10 desktop=0.20 nango=0.01
+    MISS (should fire): Pause the Tesla feed in my newsroom.  newsroom=0.47  web=0.01 browser=0.02 desktop=0.11 nango=0.16
+    MISS (should fire): Add a news widget for Microsoft and one for Google.  newsroom=0.27  web=1.00 browser=0.44 desktop=0.02 nango=0.07
+    MISS (should fire): Can you watch for new videos on the Fireship YouTube channel and alert me?  newsroom=0.38  web=0.97 browser=0.71 desktop=0.05 nango=0.05
+    MISS (should fire): Change the alert words on my Nvidia widget to 'guidance' and 'lawsuit'.  newsroom=0.10  web=0.03 browser=0.03 desktop=0.35 nango=0.01
+    MISS (should not fire): Email me a summary of the news every morning.  newsroom=0.90  web=0.84 browser=0.02 desktop=0.01 nango=0.99
+  regression (93 requests from tool_cases.py, none wants it): picked on 0 (target 0)
+  the other tools' scores with and without the newsroom among the options: largest difference 0.000 (target < 0.05)
+
+== route: does the new daily_assistant description keep the routing right?  (old vs new, same requests)
+  newsroom  old: 70% of 23 requests reach daily_assistant
+  newsroom  new: 83% of 23 requests reach daily_assistant   (target >= 90%)
+  existing  old: 97% of 37 requests reach the expected persona
+  existing  new: 97% of 37 requests reach the expected persona
+    changed: Add the llama.cpp releases to my newsroom.  high_end_dev -> daily_assistant  (want daily_assistant)
+    changed: Put the BBC tech feed on my dashboard: https://feeds.bbci.co.uk/news/technology/  high_end_dev -> daily_assistant  (want daily_assistant)
+    changed: I'd like a dashboard of news about the housing market that updates itself.  front_end_designer -> daily_assistant  (want daily_assistant)
+    WRONG (new): Watch r/LocalLLaMA and ping me when someone posts about a new quantization metho  -> high_end_dev  (want daily_assistant)
+    WRONG (new): Set up a widget that follows Hacker News for posts about Rust.  -> high_end_dev  (want daily_assistant)
+    WRONG (new): Monitor arXiv for new papers on speculative decoding and tell me about them.  -> high_end_dev  (want daily_assistant)
+    WRONG (new): Make the bitcoin widget check every 10 minutes.  -> high_end_dev  (want daily_assistant)
+    WRONG (new): Build me a web dashboard that charts my lifts and bodyweight.  -> high_end_dev  (want fitness_coach)
+
+== about: Jev's `about` alert on 28 labelled headlines, dev  (threshold 0.7, thresholds.newsroom_about; authored, not from real runs)
+  keywords only      precision 67%  recall 27%  (found 12, wrong 6, missed 33)
+  about only         precision 93%  recall 93%  (found 42, wrong 3, missed 3)
+  keywords or about  precision 88%  recall 93%  (found 42, wrong 6, missed 3)
+  of the 11 headlines the keywords miss, `about` finds 91% (target >= 70%)
+  sweep (threshold: about precision / recall):  0.30: 94%/100%  0.50: 94%/100%  0.60: 93%/93%  0.70: 93%/93%  0.80: 93%/93%  0.90: 100%/93%  0.95: 100%/87%
+    MISSED: [a product recall or safety problem] Federal regulators open a probe into Tesla's driver assistance crashes  score 0.59
+    FALSE ALARM: [a company being bought or merging] Analysts debate whether the acquisition of talent matters more than chips  score 0.82

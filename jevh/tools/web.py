@@ -38,13 +38,27 @@ def _strip(s: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", s or "")).strip()
 
 
+class SearchBlocked(RuntimeError):
+    """The search engine would not answer: it asked for proof of a human (a CAPTCHA). Nothing here gets past that; it
+    clears with time, or from another network. Before this was told apart, the harness took the challenge page for a
+    search with no results - every web search of every worker came back empty, silently, for hours (2026-10-09)."""
+
+
+CHALLENGE = re.compile(r"bots use DuckDuckGo|anomaly-modal|Select all squares", re.I)
+
+
 def search(query: str, n: int = 8) -> list[dict]:
     body = urllib.parse.urlencode({"q": query}).encode()
     req = urllib.request.Request("https://html.duckduckgo.com/html/", data=body, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=20) as r:
         page = r.read().decode("utf-8", "replace")
+    blocks = re.split(r'<div class="result results_links', page)[1:]
+    if not blocks and CHALLENGE.search(page):
+        raise SearchBlocked("DuckDuckGo is asking for a human check (a CAPTCHA) and is not returning results to this "
+                            "machine right now. Try another source (the browser on a specific site, a feed), or "
+                            "search again later.")
     out = []
-    for block in re.split(r'<div class="result results_links', page)[1:]:
+    for block in blocks:
         a = re.search(r'class="result__a" href="([^"]+)"[^>]*>(.*?)</a>', block, re.S)
         if not a:
             continue
@@ -139,7 +153,10 @@ def read(url: str, question: str | None = None, max_chars: int = 4000) -> str:
 def ask(question: str, pages: int = 2, results: int = 8) -> dict:
     """Search, let Jev pick the most promising results, read them in parallel, and return
     the passages that help answer `question` with their sources."""
-    hits = search(question, results)
+    try:
+        hits = search(question, results)
+    except SearchBlocked as e:   # (the answer has its usual shape, and says why it is empty)
+        return {"passages": [], "results": [], "note": str(e)}
     if not hits:
         return {"passages": [], "results": [], "note": "no search results"}
     jev, cap = _client()

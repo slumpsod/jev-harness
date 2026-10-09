@@ -37,6 +37,7 @@ from .mcp import McpHub
 from .memory import Memory
 from .personas import Persona, load_learned, load_personas
 from .notebook import Notebook
+from . import newsroom
 from .review import TASK_DIR, Reviewer
 from .skills import load_roster, parse_skill
 from .tools import TOOLS
@@ -290,6 +291,7 @@ class Harness:
             if name not in os.environ:
                 env[name] = str(value)
         env["JEVH_NANGO_DIR"] = str(self.cfg.workspace / "nango")   # the key/URL nango.start() keeps
+        env.update(newsroom.worker_env(self.cfg))   # where the Newsroom board lives (jevh/newsroom.py)
         return env
 
     def _nango_summary(self) -> str:
