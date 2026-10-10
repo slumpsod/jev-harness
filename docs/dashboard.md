@@ -23,6 +23,27 @@ this browser (`localStorage`, key `jevh.ui`), not in `config.yaml`: they are abo
 
 The panel's width is remembered when you drag its edge. The expand button next to the X makes it nearly full width.
 
+## Settings
+
+The sliders icon opens **Settings**: the few choices that are easy to get wrong in YAML. Appearance is about this screen and
+stays in your browser; these belong to the harness, so they are saved on this machine and apply to every browser, the phone
+page and the command line.
+
+| Setting | What it does |
+|---|---|
+| Model | The model every assistant runs on (`models.strong`). "Each assistant's own" leaves each one on the model in its persona file. The list is what your local servers say they serve (LM Studio's models, loaded or not; the model a llama.cpp server has loaded); "Other" takes any `provider:model`, such as `anthropic:claude-opus-5-5`. |
+| Quick model | Where Jev sends easy tasks (`models.fast`). Off: every task uses the main model. |
+| Web search | The engine behind `web.search` and `web.ask` (workers) and the Newsroom's web widgets. **DuckDuckGo** needs nothing (it reads a web page, which can ask for a human check). **SearXNG** takes your server's address; its `settings.yml` must allow the `json` format. **Brave Search** takes an API key (api.search.brave.com has a free plan). **Test search** runs one real search with what is on the page, before you save. |
+
+Save sends only what you changed, and refuses a choice that cannot work in plain words (an unknown provider, a missing address
+or key). It is refused while a turn is running: the turn keeps the model it has. What you save applies from your next message;
+the first one may wait while a model loads. **Reset** forgets everything saved here, so the config files decide again.
+
+They are saved in `workspace/settings.yaml`, which is read last: a choice made here wins over `config.yaml`,
+`~/.jevh/config.yaml` and `config.local.yaml`, and those files (and their comments) are never rewritten. Only `models` and
+`search` are read from it. It can hold a Brave key, so it is created readable by your user account only, and the page is never
+sent the key back (it says "saved"). A dashboard started with `--model` ignores the two model choices, and says so.
+
 ## How tool calls become a sentence
 
 The page never receives a "tool call" event: the worker's `code` event carries the Python it ran, and the

@@ -607,6 +607,19 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 .nbtext pre { background: var(--code); color: var(--codetext); padding: 8px 10px; border-radius: var(--r-sm); overflow-x: auto; font-size: 12px; }
 .nbtext code { font-family: var(--font-mono); font-size: 12px; }
 .nbsess { margin-top: 6px; overflow-wrap: anywhere; }
+/* settings */
+#p-settings .arow { padding: 7px 0; gap: 16px; }
+#p-settings .arow select { min-width: 13em; max-width: 62%; flex: 0 0 auto; }
+#p-settings .arow input { min-width: 15em; max-width: 62%; flex: 0 1 auto; }
+#p-settings .arow > span:first-child { flex: 1 1 7em; min-width: 0; }
+#p-settings .setbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 2px 0 10px; }
+.kv.bad { color: var(--bad-ink); }
+button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; font-size: inherit; }
+@media (max-width: 560px) {
+  #p-settings .arow { flex-wrap: wrap; }
+  #p-settings .arow select, #p-settings .arow input { max-width: 100%; width: 100%; }
+}
+
 /* newsroom */
 .nr { container-type: inline-size; }
 .nrbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
@@ -897,6 +910,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
   <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7.5h6"/></symbol>
   <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></symbol>
   <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.6-2.1-.5-1.3.4-2.4 1.8-2.4H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.6" cy="11" r="1"/><circle cx="10.2" cy="7.4" r="1"/><circle cx="14.6" cy="7.4" r="1"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
@@ -949,6 +963,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
       <button class="rbtn" data-tab="review" data-tip="Review: flagged sessions, a model's verdict" aria-label="Review"><svg class="ic"><use href="#i-flag"/></svg><i class="count" id="revcount" hidden></i></button>
       <button class="rbtn" data-tab="notebook" data-tip="Notebook: ideas and problems to come back to" aria-label="Notebook"><svg class="ic"><use href="#i-book"/></svg><i class="count" id="nbcount" hidden></i></button>
       <button class="rbtn" data-tab="newsroom" data-tip="Newsroom: tiles that follow news and posts and notify you. Ask in the chat to add one" aria-label="Newsroom"><svg class="ic"><use href="#i-news"/></svg><i class="count" id="nrcount" hidden></i></button>
+      <button class="rbtn" data-tab="settings" data-tip="Settings: model, quick model, web search" aria-label="Settings"><svg class="ic"><use href="#i-sliders"/></svg></button>
       <button class="rbtn" data-tab="status" data-tip="Status and updates" aria-label="Status"><svg class="ic"><use href="#i-pulse"/></svg><i class="count" id="updcount" hidden></i></button>
     </div>
     <div class="grow"></div>
@@ -1027,6 +1042,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
         <div id="nblist"></div>
       </div>
       <div class="panel" id="p-newsroom"><div class="nr" id="nr"></div></div>
+      <div class="panel" id="p-settings"></div>
       <div class="panel" id="p-status"></div>
     </div>
   </aside>
@@ -2499,8 +2515,105 @@ $("p-status").addEventListener("click", async (ev) => {
   refreshVersion(false);
 });
 
+// ---- settings: the model, the quick model and the web search engine (jevh/settings.py) ----
+// What is chosen here is saved in workspace/settings.yaml, which wins over the config files. Nothing is sent until Save.
+const ST = {data: null, draft: null, test: null, busy: false, msg: "", err: ""};
+const OTHER = "__other__";
+function settingsDraft(d) {
+  return {model: d.model, fast: d.fast, modelOther: "", fastOther: "", search: d.search.provider, url: d.search.searxng_url, key: ""};
+}
+async function refreshSettings(fresh = false) {
+  try { ST.data = await api(`/api/config${fresh ? "?fresh=1" : ""}`); ST.err = ""; } catch (e) { ST.err = e.message; }
+  if (ST.data && !ST.draft) ST.draft = settingsDraft(ST.data);
+  if (S.tab === "settings") renderSettings();
+}
+function modelSelect(which, value, noneLabel, d, locked) {
+  const known = new Set(d.options.models.map((m) => m.value));
+  const opt = (v, label) => `<option value="${esc(v)}" ${v === value ? "selected" : ""}>${esc(label)}</option>`;
+  // one flat list, the provider in each name: a closed select shows only the name, and two servers can serve alike-named models
+  return `<select data-set="${which}" ${locked ? "disabled" : ""}>${opt("", noneLabel)}
+    ${d.options.models.map((m) => opt(m.value, `${m.label} · ${m.group}${m.loaded ? " · loaded" : ""}`)).join("")}
+    ${value && value !== OTHER && !known.has(value) ? opt(value, `${value} (not listed)`) : ""}
+    ${opt(OTHER, "Other (type provider:model)...")}</select>`;
+}
+function renderSettings() {
+  const el = $("p-settings"), d = ST.data, dr = ST.draft;
+  if (!d) { el.innerHTML = `<div class="kv">${ST.err ? esc(ST.err) : "loading..."}</div>`; return; }
+  const lock = !!d.model_override, prov = d.providers.find((p) => p.id === dr.search) || d.providers[0];
+  const other = (which, text) => `<div class="arow"><span class="kv">Type it as provider:model</span><input type="text" data-set="${which}Other" value="${esc(text)}" placeholder="anthropic:claude-opus-5-5" size="30" autocomplete="off"></div>`;
+  const t = ST.test;
+  const testLine = !t ? "" : t.busy ? "Searching..." : t.ok
+    ? `<span class="badge done">works</span> ${t.count} results in ${t.seconds}s, the first: ${esc(t.first)}` : `<span class="badge failed">failed</span> ${esc(t.error)}`;
+  el.innerHTML = `<div class="card"><h3>Models</h3>
+      ${lock ? `<div class="kv" style="margin-bottom:6px">This dashboard was started with <code>--model ${esc(d.model_override)}</code>, which overrides both. Restart it without that flag to choose here.</div>` : ""}
+      <div class="arow"><span>Model<small>Every assistant runs on this one.</small></span>${modelSelect("model", dr.model, "Each assistant's own", d, lock)}</div>
+      ${dr.model === OTHER && !lock ? other("model", dr.modelOther) : ""}
+      <div class="arow"><span>Quick model<small>Easy tasks go here; hard ones keep the main model.</small></span>${modelSelect("fast", dr.fast, "Off", d, lock)}</div>
+      ${dr.fast === OTHER && !lock ? other("fast", dr.fastOther) : ""}
+    </div>
+    <div class="card"><h3>Web search</h3>
+      <div class="arow"><span>Engine<small>${esc(prov.help)}</small></span>
+        <select data-set="search">${d.providers.map((p) => `<option value="${p.id}" ${p.id === dr.search ? "selected" : ""}>${esc(p.label)}</option>`).join("")}</select></div>
+      ${prov.needs === "url" ? `<div class="arow"><span>Server address</span><input type="url" data-set="url" value="${esc(dr.url)}" placeholder="http://127.0.0.1:8888" size="30" autocomplete="off"></div>` : ""}
+      ${prov.needs === "key" ? `<div class="arow"><span>API key<small>${d.search.brave_key ? "One is saved. Type to replace it." : "None saved yet."}</small></span>
+        <input type="password" data-set="key" value="${esc(dr.key)}" placeholder="${d.search.brave_key ? "saved" : "paste it here"}" size="30" autocomplete="off"></div>` : ""}
+      ${d.search.brave_key && prov.needs !== "key" ? `<div class="kv">A Brave key is saved. <button data-set-act="clearkey" class="linkbtn">Remove it</button></div>` : ""}
+      <div class="arow"><span class="kv" id="set-test" role="status">${testLine}</span><button data-set-act="test" ${t && t.busy ? "disabled" : ""}>Test search</button></div>
+    </div>
+    <div class="setbar">
+      <button class="primary" data-set-act="save" ${ST.busy ? "disabled" : ""}>Save</button>
+      <button data-set-act="reset" ${d.saved && !ST.busy ? "" : "disabled"} title="Forget what was saved here, so the config files say what is used">Reset</button>
+      <span class="kv ${ST.err ? "bad" : ""}" role="status" id="set-msg">${esc(ST.err || ST.msg)}</span>
+    </div>
+    <div class="kv">Saved in <code>${esc(d.file)}</code>, which wins over config.yaml and config.local.yaml. It applies from your next message${anyRunning() ? " (a turn is running now: save when it is done)" : ""}.</div>`;
+}
+function settingsChange() {   // only what differs from what is in force now
+  const d = ST.data, dr = ST.draft, pick = (v, other) => (v === OTHER ? other.trim() : v), change = {};
+  const m = pick(dr.model, dr.modelOther), f = pick(dr.fast, dr.fastOther);
+  if (m !== d.model) change.model = m;
+  if (f !== d.fast) change.fast = f;
+  if (dr.search !== d.search.provider || dr.url.trim() !== d.search.searxng_url || dr.key) {
+    change.search = {provider: dr.search, searxng_url: dr.url.trim()};
+    if (dr.key) change.search.brave_api_key = dr.key.trim();
+  }
+  return change;
+}
+async function settingsPost(path, body, done) {
+  ST.busy = true; ST.err = ""; ST.msg = ""; renderSettings();
+  try { ST.data = await api(path, {method: "POST", body: JSON.stringify(body)}); ST.draft = settingsDraft(ST.data); ST.msg = done; ST.test = null; }
+  catch (e) { ST.err = e.message; }
+  ST.busy = false; renderSettings();
+}
+$("p-settings").addEventListener("change", (ev) => {
+  const k = ev.target.dataset && ev.target.dataset.set; if (!k || !ST.draft) return;
+  ST.draft[k] = ev.target.value; ST.test = null; ST.msg = "";
+  if (ev.target.tagName === "SELECT") renderSettings();   // another engine shows other fields; "Other..." shows a box
+});
+$("p-settings").addEventListener("input", (ev) => {   // typing keeps the draft current without redrawing (and losing the cursor)
+  const k = ev.target.dataset && ev.target.dataset.set; if (k && ST.draft && ev.target.tagName === "INPUT") ST.draft[k] = ev.target.value;
+});
+$("p-settings").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-set-act]"); if (!b || !ST.data) return;
+  const act = b.dataset.setAct, dr = ST.draft;
+  if (act === "save") {
+    const change = settingsChange();
+    if (!Object.keys(change).length) { ST.msg = "Nothing changed."; ST.err = ""; renderSettings(); return; }
+    await settingsPost("/api/config", change, "Saved." + (change.model !== undefined || change.fast !== undefined ? " The first message may take a moment while the model loads." : ""));
+  } else if (act === "reset") {
+    if (!confirm("Forget what was saved here? The config files decide again.")) return;
+    await settingsPost("/api/config/reset", {}, "Back to the config files.");
+  } else if (act === "clearkey") {
+    await settingsPost("/api/config", {search: {provider: ST.data.search.provider, brave_api_key: ""}}, "Key removed.");
+  } else if (act === "test") {
+    ST.test = {busy: true}; renderSettings();
+    const body = {provider: dr.search, searxng_url: dr.url.trim()}; if (dr.key) body.brave_api_key = dr.key.trim();
+    try { ST.test = await api("/api/config/test-search", {method: "POST", body: JSON.stringify(body)}); } catch (e) { ST.test = {ok: false, error: e.message}; }
+    renderSettings();
+  }
+});
+
 // ---- the side panel: closed until you open a tab, the browser goes live, or an artifact is made ----
-const TITLES = {inspector: "Inspector", history: "History", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", newsroom: "Newsroom", status: "Status"};
+const TITLES = {inspector: "Inspector", history: "History", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", newsroom: "Newsroom", settings: "Settings", status: "Status"};
 $("side").inert = true;
 function openPanel(tab) {
   S.tab = tab;
@@ -2510,6 +2623,7 @@ function openPanel(tab) {
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("on", p.id === `p-${tab}`));
   if (tab === "artifacts") refreshArtifacts();
   if (tab === "status") refreshStatus();
+  if (tab === "settings") refreshSettings(true);
   if (tab === "memory") refreshMemory();
   if (tab === "history") refreshHistory();
   if (tab === "browser") paintBrowser();

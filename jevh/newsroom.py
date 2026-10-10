@@ -303,7 +303,7 @@ def _web(p: dict) -> list[dict]:
 
 
 register(Kind(
-    "web", "Web search", "Pages from a web search (DuckDuckGo), for what news sites don't cover: blogs, forums, "
+    "web", "Web search", "Pages from a web search (the engine chosen in Settings), for what news sites don't cover: blogs, forums, "
                          "product or status pages. No dates; a page is new when it is in the results on two looks in a row "
                          "(a search engine's bottom places shuffle between identical searches), so a new page is "
                          "noticed one look late.",
@@ -545,8 +545,12 @@ def ago(ts: float | None, now: float | None = None) -> str:
 class Newsroom:
     """The widgets, what they found and the notifications, in SQLite (safe across threads and across processes)."""
 
-    def __init__(self, path: Path, cfg: dict | None = None, judge: Callable[[str, str], float] | None = None):
+    def __init__(self, path: Path, cfg: dict | None = None, judge: Callable[[str, str], float] | None = None,
+                 tool_env: Callable[[], dict[str, str]] | None = None):
         self.judge = judge   # (item text, what the user wants to hear about) -> P(it is): Jev's, given by the dashboard
+        # () -> the harness's tool settings (Harness.tool_env): a look made here, in the dashboard's own process, searches
+        # the web with the engine chosen in Settings, as a worker's REPL does through its environment
+        self.tool_env = tool_env
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.cfg = {**DEFAULTS, **(cfg or {})}
@@ -759,7 +763,8 @@ class Newsroom:
             raise NewsroomError(f"no widget {wid}")
         now = now or time.time()
         try:
-            raw = KINDS[w["kind"]].fetch(w["params"])
+            with self._looking():
+                raw = KINDS[w["kind"]].fetch(w["params"])
             found = [_clean_item(i) for i in raw][:50]
         except Exception as e:  # noqa: BLE001 - one source failing is a state of the widget, not a crash
             msg = str(e) if isinstance(e, NewsroomError) else f"{type(e).__name__}: {e}"
@@ -798,6 +803,13 @@ class Newsroom:
                 alerts.append(self.notify(w["title"], f"and {len(hits) - MAX_NOTES_PER_LOOK} more new items", "", wid,
                                           None, "more"))
         return {"widget": wid, "new": len(fresh) if not first else 0, "first": first, "alerts": alerts, "error": ""}
+
+    def _looking(self):
+        """The settings a look is made under: the harness's web search choice, when the dashboard gave a way to ask."""
+        from contextlib import nullcontext
+        from jevh.tools import web
+        env = self.tool_env() if self.tool_env else None
+        return web.using({k: v for k, v in env.items() if k.startswith(("JEVH_SEARCH", "JEVH_SEARXNG", "JEVH_BRAVE"))})             if env else nullcontext()
 
     def _settled(self, wid: int, found: list[dict], settle: int) -> list[dict]:
         """`found` without the items this widget has never held that have not yet been in the results `settle` looks in a

@@ -42,6 +42,7 @@ from .review import TASK_DIR, Reviewer
 from .skills import load_roster, parse_skill
 from .tools import TOOLS
 from .tools import nango
+from .tools import web as websearch
 from .usage import Metered, Usage
 from .verify import DELIVERABLE, Verifier, asks_for_secret
 from .worker import Worker, WorkerResult, build_system
@@ -292,7 +293,17 @@ class Harness:
                 env[name] = str(value)
         env["JEVH_NANGO_DIR"] = str(self.cfg.workspace / "nango")   # the key/URL nango.start() keeps
         env.update(newsroom.worker_env(self.cfg))   # where the Newsroom board lives (jevh/newsroom.py)
-        return env
+        env.update(websearch.search_env(self.cfg.raw.get("search")))   # the web search engine chosen in Settings (always set:
+        return env                                                      # a stale JEVH_SEARCH_PROVIDER must not outvote the tab)
+
+    def reload_settings(self) -> None:
+        """Start using what the Settings tab just saved (jevh/settings.py): the next model call builds its client from the new
+        models, and the next worker's REPL gets the new web search choice. Between turns: a worker already running keeps the
+        model client it has."""
+        with self._llm_lock:
+            self._llms.clear()      # (clients are built from cfg.models when first asked for)
+        self.tool_env = self._tool_env()
+        self._escalated = False
 
     def _nango_summary(self) -> str:
         with nango.using(self.tool_env):

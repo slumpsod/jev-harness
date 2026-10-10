@@ -32,7 +32,9 @@ The assistant puts the widget on the board, takes a first look, and tells you wh
 >   DuckDuckGo's shuffled results as new (a page must now be in the results on two looks in a row); the worker added an
 >   unrequested X widget (the guide's example did; 3/3 with one widget after); and `web.search` returned an empty list when
 >   DuckDuckGo showed its CAPTCHA (it now raises `SearchBlocked`).
-> - **Not verified:** reading X (nothing is set up here); the `web` widget live (DuckDuckGo's CAPTCHA blocked this machine);
+> - **Not verified:** reading X (nothing is set up here). The `web` widget could not be checked while DuckDuckGo's CAPTCHA blocked
+>   this machine; once it answered again (2026-10-09 evening) a real baseline stored 10 items and the look 15 s later found 0 new,
+>   with the one page that shuffled into the results held back;
 >   Reddit answered 429 and hnrss.org timed out (the services); `news` with `site:reuters.com` found 0 items (not looked into).
 >   One rep per task in the turns stage, 3 runs per case in the Jev evals. Untuned: `thresholds.newsroom_about` (0.70) and
 >   every target. Results: `evals/newsroom_cases*_raw.json`, `evals/bench/newsroom_raw.json` and the summaries beside them.

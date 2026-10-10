@@ -1,7 +1,7 @@
 """Web search and reading, pre-imported as `web`. Jev keeps pages out of your context:
 you get the passages that answer your question, not the whole page.
 
-    web.search("espresso machine inventor")          # [{title, url, snippet}, ...] (DuckDuckGo)
+    web.search("espresso machine inventor")          # [{title, url, snippet}, ...] (the engine set in Settings; DuckDuckGo by default)
     web.read(url, "who patented it and when?")       # only the relevant passages of that page
     web.read(url)                                    # the page as plain text (first 4000 chars)
     web.ask("who patented the first espresso machine?")
@@ -12,12 +12,16 @@ For pages that need clicking, forms or JavaScript, use the `browser` tool instea
 """
 from __future__ import annotations
 
+import contextvars
 import html
+import json
+import os
 import re
 import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from html.parser import HTMLParser
 
 from jevh.tools._pick import choose, client_from_env, pick_passages
@@ -38,7 +42,11 @@ def _strip(s: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", s or "")).strip()
 
 
-class SearchBlocked(RuntimeError):
+class SearchError(RuntimeError):
+    """A web search that could not be made, with what to do about it in its message (web.ask passes it on in `note`)."""
+
+
+class SearchBlocked(SearchError):
     """The search engine would not answer: it asked for proof of a human (a CAPTCHA). Nothing here gets past that; it
     clears with time, or from another network. Before this was told apart, the harness took the challenge page for a
     search with no results - every web search of every worker came back empty, silently, for hours (2026-10-09)."""
@@ -46,8 +54,122 @@ class SearchBlocked(RuntimeError):
 
 CHALLENGE = re.compile(r"bots use DuckDuckGo|anomaly-modal|Select all squares", re.I)
 
+# Which engine `search` asks is a setting (the dashboard's Settings tab; jevh/settings.py). It reaches a worker's REPL as
+# environment variables and the dashboard's own Newsroom as `using(...)`; DuckDuckGo when nothing is set.
+PROVIDERS = {
+    "duckduckgo": {"label": "DuckDuckGo", "needs": "",
+                   "help": "No account. It reads DuckDuckGo's web page, which can ask for a human check (a CAPTCHA)."},
+    "searxng": {"label": "SearXNG", "needs": "url",
+                "help": "Your own SearXNG server (or one you trust). Its settings.yml must allow the json format."},
+    "brave": {"label": "Brave Search", "needs": "key",
+              "help": "Brave's search API. Needs an API key (api.search.brave.com; there is a free plan)."},
+}
+BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
+_SETTINGS: contextvars.ContextVar[dict[str, str]] = contextvars.ContextVar("web_search_settings", default={})
+
+
+def _setting(name: str, default: str = "") -> str:
+    return _SETTINGS.get().get(name) or os.environ.get(name, default)
+
+
+@contextmanager
+def using(settings: dict[str, str]):
+    """Searches made inside use these settings (environment-variable names: JEVH_SEARCH_PROVIDER, JEVH_SEARXNG_URL,
+    JEVH_BRAVE_KEY) over the process environment."""
+    token = _SETTINGS.set({**_SETTINGS.get(), **settings})
+    try:
+        yield
+    finally:
+        _SETTINGS.reset(token)
+
+
+def search_env(cfg: dict | None) -> dict[str, str]:
+    """The `search:` block of the config as those environment variables (always names the provider)."""
+    c = cfg or {}
+    env = {"JEVH_SEARCH_PROVIDER": str(c.get("provider") or "duckduckgo")}
+    if c.get("searxng_url"):
+        env["JEVH_SEARXNG_URL"] = str(c["searxng_url"])
+    if c.get("brave_api_key"):
+        env["JEVH_BRAVE_KEY"] = str(c["brave_api_key"])
+    return env
+
+
+def search_with(settings: dict[str, str], query: str, n: int = 8) -> list[dict]:
+    """`search` under these settings (the Settings tab's Test button tries a choice before it is saved)."""
+    with using(settings):
+        return search(query, n)
+
 
 def search(query: str, n: int = 8) -> list[dict]:
+    """[{title, url, snippet}, ...] from the engine chosen in Settings (DuckDuckGo by default); SearchError when it cannot."""
+    provider = _setting("JEVH_SEARCH_PROVIDER", "duckduckgo").strip().lower() or "duckduckgo"
+    if provider == "duckduckgo":
+        return _search_ddg(query, n)
+    if provider == "searxng":
+        return _search_searxng(query, n)
+    if provider == "brave":
+        return _search_brave(query, n)
+    raise SearchError(f"unknown web search provider {provider!r}: choose one of {', '.join(PROVIDERS)} in Settings")
+
+
+def _get_json(req: urllib.request.Request, who: str, hints: dict[int, str]) -> dict:
+    """The JSON a search API answers with; any failure is a SearchError that says what to do (`hints`: by HTTP status)."""
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            data = json.loads(r.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        raise SearchError(f"{who} answered HTTP {e.code}. " + hints.get(e.code, "")) from None
+    except urllib.error.URLError as e:
+        raise SearchError(f"{who} is not reachable ({getattr(e, 'reason', e)}).") from None
+    except (TimeoutError, OSError) as e:
+        raise SearchError(f"{who} did not answer ({type(e).__name__}).") from None
+    except ValueError:
+        raise SearchError(f"{who} answered, but not with JSON: is the address right?") from None
+    if not isinstance(data, dict):
+        raise SearchError(f"{who} answered with something that is not a search result.")
+    return data
+
+
+def _search_searxng(query: str, n: int) -> list[dict]:
+    base = _setting("JEVH_SEARXNG_URL").strip().rstrip("/")
+    if not base.lower().startswith(("http://", "https://")):
+        raise SearchError("SearXNG is chosen but its address is not set: give the server's URL (http://...) in Settings.")
+    req = urllib.request.Request(f"{base}/search?" + urllib.parse.urlencode({"q": query, "format": "json"}),
+                                 headers={"User-Agent": UA, "Accept": "application/json"})
+    data = _get_json(req, f"SearXNG at {base}", {
+        403: "That server does not allow the json format: add it under `search: formats:` in its settings.yml.",
+        404: "Is the address right? It should be the server's own address, without /search."})
+    out = []
+    for r in data.get("results") or []:
+        if isinstance(r, dict) and r.get("url"):
+            out.append({"title": _strip(str(r.get("title") or "")), "url": str(r["url"]),
+                        "snippet": _strip(str(r.get("content") or ""))})
+        if len(out) >= n:
+            break
+    return out
+
+
+def _search_brave(query: str, n: int) -> list[dict]:
+    key = (_setting("JEVH_BRAVE_KEY") or os.environ.get("BRAVE_SEARCH_API_KEY", "")).strip()
+    if not key:
+        raise SearchError("Brave Search is chosen but there is no API key: paste it in Settings "
+                          "(or set BRAVE_SEARCH_API_KEY).")
+    req = urllib.request.Request(f"{BRAVE_URL}?" + urllib.parse.urlencode({"q": query, "count": max(1, min(int(n), 20))}),
+                                 headers={"User-Agent": UA, "Accept": "application/json", "X-Subscription-Token": key})
+    data = _get_json(req, "Brave Search", {
+        401: "The API key was refused: check it in Settings.", 403: "The API key was refused: check it in Settings.",
+        422: "Brave did not accept the search.", 429: "Brave's rate or monthly limit for this key is used up."})
+    out = []
+    for r in ((data.get("web") or {}).get("results") or []):
+        if isinstance(r, dict) and r.get("url"):
+            out.append({"title": _strip(str(r.get("title") or "")), "url": str(r["url"]),
+                        "snippet": _strip(str(r.get("description") or ""))})
+        if len(out) >= n:
+            break
+    return out
+
+
+def _search_ddg(query: str, n: int = 8) -> list[dict]:
     body = urllib.parse.urlencode({"q": query}).encode()
     req = urllib.request.Request("https://html.duckduckgo.com/html/", data=body, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=20) as r:
@@ -155,7 +277,7 @@ def ask(question: str, pages: int = 2, results: int = 8) -> dict:
     the passages that help answer `question` with their sources."""
     try:
         hits = search(question, results)
-    except SearchBlocked as e:   # (the answer has its usual shape, and says why it is empty)
+    except SearchError as e:   # (the answer has its usual shape, and says why it is empty: blocked, no key, server down)
         return {"passages": [], "results": [], "note": str(e)}
     if not hits:
         return {"passages": [], "results": [], "note": "no search results"}
