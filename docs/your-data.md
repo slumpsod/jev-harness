@@ -45,6 +45,9 @@ Settings are applied in this order, and the last one wins (`jevh/config.py`):
 1. `config.yaml` in the checkout. It ships with the harness and changes with updates.
 2. `~/.jevh/config.yaml`. Relative paths in it are relative to `~/.jevh`.
 3. `config.local.yaml` in the checkout, if you still have one. It is ignored by git.
+4. `workspace/settings.yaml`: what the dashboard's **Settings** tab saved (the models and the web search engine, nothing else is read
+   from it). It is your data, like the rest of `workspace/`, and it wins over every file above; delete it (or press Reset in the
+   tab) to go back to them. See [the dashboard guide](dashboard.md#settings).
 
 Personas are searched in `~/.jevh/personas` first, then the built-in `personas/`. Skills are searched
 in `~/.jevh/skills` first, then every folder in `skills_dirs`. In both cases the first one found with

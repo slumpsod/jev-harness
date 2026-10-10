@@ -27,6 +27,7 @@ name.
 | [17 Context length](17-context-length.md) | The context window a model is loaded with, asked of LM Studio (or set in config), and the compaction limit made of it; `jevh context` (live check: `evals/bench/context_detect.py`) |
 | [19 The desktop tool](19-desktop.md) | `desktop`: the worker operates apps on the user's own Windows computer (UI Automation): windows, controls, typing, keys, dialogs; Jev picks the window, control, value and checks the result (benches: `evals/bench/desktop_tasks.py`, `evals/desktop_cases.py`, `evals/tool_cases.py`) |
 | [20 The Newsroom](20-newsroom.md) | Dashboard widgets that follow news, X posts and feeds and notify the user: asked for in the chat (the `newsroom` tool), refreshed by a timer in the dashboard, alerts by keyword or by Jev's judgement (unverified; benches: `evals/newsroom_cases.py`, `evals/bench/newsroom.py`) |
+| [21 Settings](21-settings.md) | The dashboard's Settings tab: the model, the quick model and the web search engine, saved as one more config layer (`workspace/settings.yaml`) and applied to a running harness between turns |
 | [18 Session history](18-session-history.md) | The dashboard's History tab: past sessions, each put by Jev in the category of the assistant whose field it is about (asked once per session in the background; live check: `evals/bench/history.py`, eval: `evals/session_category_cases.py`) |
 
 Keeping them current: [tools/](tools/README.md) re-anchors every `file:line` after the code moves, checks

@@ -36,6 +36,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
 from .. import context as ctxwin
+from .. import settings as usersettings
 from .. import newsroom as nr
 from .. import update as updater
 from ..bus import jsonable, task_json
@@ -90,7 +91,8 @@ class Hub:
         # the Newsroom board (jevh/newsroom.py): its tiles are looked at on a timer by the runner, started with the app
         self.newsroom_cfg = {**nr.settings(cfg.raw), "about_threshold": cfg.t("newsroom_about")}
         nr.export_env(cfg)
-        self.newsroom = nr.Newsroom(cfg.workspace / "newsroom.db", self.newsroom_cfg, judge=self._judge_about)
+        self.newsroom = nr.Newsroom(cfg.workspace / "newsroom.db", self.newsroom_cfg, judge=self._judge_about,
+                                    tool_env=lambda: self.harness.tool_env)   # (its web looks use the engine chosen in Settings)
         self.newsroom_runner = nr.Runner(
             self.newsroom, on_alerts=lambda notes: self.publish("newsroom_alert", {"notes": notes}),
             on_change=lambda: self.publish("newsroom", {"rev": self.newsroom.rev()}))
@@ -791,6 +793,55 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     async def newsroom_notes_clear() -> dict:
         hub.newsroom.clear_notes()
         return {"ok": True}
+
+    # -- Settings tab: the model, the quick model and the web search engine (jevh/settings.py) ---------------------------
+    def settings_payload(fresh: bool = False) -> dict:
+        return {**usersettings.view(hub.cfg), "options": usersettings.model_options(hub.cfg, fresh=fresh),
+                "providers": usersettings.providers_view(), "model_override": hub.model_override,
+                "busy": hub.busy.locked()}
+
+    @app.get("/api/config")
+    def config_get(fresh: bool = False) -> dict:
+        return settings_payload(fresh)
+
+    @app.post("/api/config")
+    async def config_save(request: Request) -> dict:
+        """Save choices (any of model, fast, search) and use them from the next message. Refused while a turn runs: the
+        turn keeps the model it has, and a model that changes under a worker is not a thing to do to it."""
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise HTTPException(400, "send an object")
+        if hub.model_override and ("model" in body or "fast" in body):
+            raise HTTPException(409, f"This dashboard was started with --model {hub.model_override}, which overrides the "
+                                     "models. Restart it without that flag to choose here.")
+        if not hub.busy.acquire(blocking=False):   # (held: no turn can start meanwhile)
+            raise HTTPException(409, "Wait for the running turn to finish, then save again.")
+        try:
+            try:
+                await asyncio.to_thread(usersettings.save, hub.cfg, body)
+            except usersettings.SettingsError as e:
+                raise HTTPException(400, str(e)) from None
+            hub.harness.reload_settings()
+        finally:
+            hub.busy.release()
+        return await asyncio.to_thread(settings_payload, True)
+
+    @app.post("/api/config/reset")
+    async def config_reset() -> dict:
+        if not hub.busy.acquire(blocking=False):
+            raise HTTPException(409, "Wait for the running turn to finish, then reset.")
+        try:
+            await asyncio.to_thread(usersettings.reset, hub.cfg)
+            hub.harness.reload_settings()
+        finally:
+            hub.busy.release()
+        return await asyncio.to_thread(settings_payload, True)
+
+    @app.post("/api/config/test-search")
+    async def config_test_search(request: Request) -> dict:
+        """One real search with the choice as it is on the page (nothing is saved)."""
+        body = await request.json()
+        return await asyncio.to_thread(usersettings.test_search, hub.cfg, body if isinstance(body, dict) else {})
 
     @app.get("/api/thinking")
     def thinking() -> dict:

@@ -28,7 +28,8 @@ crosses between them, with Mermaid diagrams and `file:line` references.
 ## Run
 
 On a Mac, Linux, or with the hosted Jev instead of a local one: see [SETUP.md](SETUP.md). A machine's own
-settings (models, Jev, paths) go in `config.local.yaml`, laid over `config.yaml` and ignored by git.
+settings (models, Jev, paths) go in `config.local.yaml`, laid over `config.yaml` and ignored by git. The model and the web search
+engine can also be changed from the dashboard's **Settings** tab (saved in `workspace/settings.yaml`, which wins over those files).
 
 The `jevh` command works from any folder once installed (see [the `jevh` command](#the-jevh-command)).
 
@@ -321,9 +322,17 @@ on their own timer while the dashboard runs; a new item that matches your keywor
 asked, becomes a notification (the bell list, a toast, optionally a desktop notification). You can also add, edit, reorder and
 remove widgets by hand in the tab. **Partly verified** (live run 2026-10-09: the chat-to-widget-to-notification path works and
 lookalike requests leave the board alone; Jev offers the tool for only 50-65% of the requests that need it and routing sends
-about one in six elsewhere; reading X and the web widget were not checked). See [docs/newsroom.md](docs/newsroom.md) (the
+about one in six elsewhere; reading X was not checked, and the web widget only on 2026-10-09 evening). See [docs/newsroom.md](docs/newsroom.md) (the
 numbers, what it follows, how alerts work, reading X, adding a source) and
 [docs/architecture/20-newsroom.md](docs/architecture/20-newsroom.md).
+
+### Settings
+
+A short tab for the choices people actually change: the **model** every assistant runs on, the **quick model** easy tasks go to,
+and the **web search engine** (DuckDuckGo, your own SearXNG server, or Brave Search with a key; **Test search** tries it first).
+The model lists come from your local servers. A choice is saved in `workspace/settings.yaml`, applies from your next message, and
+wins over the config files, which are never rewritten; **Reset** goes back to them. See [docs/dashboard.md](docs/dashboard.md#settings)
+and [docs/architecture/21-settings.md](docs/architecture/21-settings.md).
 
 ### Notebook
 

@@ -213,6 +213,12 @@ workspace: workspace
 models:
   fast: {provider: lmstudio, model: ornith-1.5-35b-a3b}
 
+# The web search engine for web.search / web.ask and the Newsroom's web widgets. Normally chosen in the dashboard's Settings tab
+# (saved in workspace/settings.yaml, which wins over this file); set it here to fix it for everyone.
+#   search: {provider: duckduckgo}                                  # the default: no account, can ask for a human check
+#   search: {provider: searxng, searxng_url: http://127.0.0.1:8888} # its settings.yml must allow the json format
+#   search: {provider: brave, brave_api_key: ...}                   # or set BRAVE_SEARCH_API_KEY; keep the key out of git
+
 # Model providers. type: openai = any OpenAI-compatible server; anthropic = Claude API (SDK).
 providers:
   lmstudio:

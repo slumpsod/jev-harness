@@ -5,6 +5,7 @@ Settings are laid on top of each other, last wins:
   <home>/config.yaml (your own folder outside the checkout: JEVH_HOME, default ~/.jevh, if it exists;
                       its relative paths are relative to that folder)
   config.local.yaml (next to config.yaml, ignored by git)
+  <workspace>/settings.yaml (what the dashboard's Settings tab saved: models and web search only; see jevh/settings.py)
 With a home folder, <home>/personas and <home>/skills are searched before the built-in ones, so a
 persona or skill of yours with the same name replaces the built-in one; learned skills go to
 <home>/skills. See docs/your-data.md.
@@ -39,6 +40,7 @@ class Config:
     workspace: Path = ROOT / "workspace"
     personas_dirs: list[Path] = field(default_factory=list)       # searched in order; first wins on a name
     home: Path | None = None                                       # your folder outside the checkout
+    source: Path | None = None                                     # the config.yaml this was loaded from (settings.reload)
 
     def t(self, name: str) -> float:
         return float(self.thresholds[name] if name in self.thresholds else DEFAULT_THRESHOLDS[name])
@@ -98,7 +100,25 @@ def _expand(p: str, base: Path) -> str:
     return str(q if q.is_absolute() else base / q)
 
 
-def load_config(path: str | os.PathLike | None = None) -> Config:
+SETTINGS_FILE = "settings.yaml"          # in the workspace: what the dashboard's Settings tab saved
+SETTINGS_KEYS = ("models", "search")      # the only sections that file may set; anything else in it is ignored
+
+
+def read_settings(workspace: Path) -> dict[str, Any]:
+    """The Settings tab's saved choices (only SETTINGS_KEYS), or {} when there are none or the file cannot be read: a
+    hand-edited, half-written or locked settings file must never stop the harness from starting."""
+    try:
+        data = yaml.safe_load((Path(workspace) / SETTINGS_FILE).read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError, UnicodeDecodeError) as e:
+        if not isinstance(e, FileNotFoundError):
+            print(f"jevh: ignoring {Path(workspace) / SETTINGS_FILE}: {type(e).__name__}", file=sys.stderr)
+        return {}
+    return {k: v for k, v in data.items() if k in SETTINGS_KEYS} if isinstance(data, dict) else {}
+
+
+def load_config(path: str | os.PathLike | None = None, settings_dir: str | os.PathLike | None = None) -> Config:
+    """`settings_dir`: where to read the Settings tab's saved file from, when that is not the configured workspace (a config
+    whose `workspace` was changed after loading: the settings are saved where the config now says, so they are read there)."""
     path = Path(path or os.environ.get("JEVH_CONFIG") or ROOT / "config.yaml")
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     base = path.resolve().parent
@@ -123,6 +143,10 @@ def load_config(path: str | os.PathLike | None = None) -> Config:
         q = Path(os.path.expandvars(os.path.expanduser(p)))
         return q if q.is_absolute() else base / q
 
+    # what the dashboard's Settings tab saved (jevh/settings.py): last, so a choice made there wins over every file above
+    if not os.environ.get("JEVH_NO_LOCAL_CONFIG"):
+        raw = merged(raw, read_settings(Path(settings_dir) if settings_dir else rel(raw.get("workspace", "workspace"))))
+
     def dirs(own: Path | None, listed: list[Path]) -> list[Path]:
         out: list[Path] = []
         for d in ([own] if own else []) + listed:
@@ -139,7 +163,7 @@ def load_config(path: str | os.PathLike | None = None) -> Config:
         limits=raw.get("limits", {}),
         providers=raw.get("providers", {}),
         tools=raw.get("tools", {}),
-        models=raw.get("models") or {},
+        models={k: v for k, v in (raw.get("models") or {}).items() if v},   # (a null tier is "not set")
         mcp_servers=raw.get("mcp_servers") or {},
         default_persona=raw.get("default_persona", "daily_assistant"),
         personas_dir=personas_dir,
@@ -148,4 +172,5 @@ def load_config(path: str | os.PathLike | None = None) -> Config:
         personas_dirs=dirs(home / "personas" if home else None,
                            [rel(p) for p in raw.get("personas_dirs", [])] + [personas_dir]),
         home=home,
+        source=path,
     )
