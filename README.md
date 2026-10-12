@@ -301,7 +301,7 @@ message shows in the turn with what became of it. On a phone the same box and th
 **Your other computers, and signing in:** a computer that runs `jevh app` (or `jevh device run`) and is paired in the
 **Devices** panel becomes one the assistant can use: its files, a shell, its screen, its browser and its apps ("what's in
 the Downloads folder on my laptop?"). Making an account there replaces the per-launch link below with a sign-in that lasts.
-Partly verified; see [docs/devices.md](docs/devices.md).
+Verified live on one computer, not yet across two; see [docs/devices.md](docs/devices.md).
 
 **From your phone (Tailscale):** the dashboard stays bound to 127.0.0.1; `tailscale serve` is the way in, and it is
 tailnet-only (never `funnel`). Run `tailscale serve --bg --https=10000 http://127.0.0.1:8740`, then
@@ -682,7 +682,11 @@ missed pick costs one `help(name)`, not the capability. The Inspector shows the 
     against, recall 45/45 and no lookalike picked (0/30). **On the held-out cases, recall 9/18 and 3/15 false picks** (all on
     "how do I share a folder between my Mac and my PC?"). On the 75 requests of `tool_cases.py`, 3/225 false picks (on "which
     apps do I have open on my computer?"), and no other tool's pick changed. Jev misses about half of unfamiliar wordings, so
-    the prompt line that names the connected computers does the rest. End-to-end numbers: `evals/bench/devices_last_summary.txt`.
+    the prompt line that names the connected computers does the rest.
+  - End to end (`evals/bench/devices.py`, live, 3 repeats, the device on the hub machine connected like a remote one):
+    device tasks **27/27 with the tool against 1/27 without**, held out 6/6 against 0/6, lookalikes 12/12 in both with no device
+    touched, and the "delete it / user says No" gate 2/3 (the miss: a model-server stall, nothing deleted). Not yet run
+    across two real computers: see [docs/devices.md](docs/devices.md#what-has-been-checked).
 - **project**: the user's folder (dashboard "Project" field, `--project`, `/project`).
   - `tree`, `grep` and `read` (numbered lines).
   - `find(question)`: Jev ranks the files by path and first line.

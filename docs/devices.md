@@ -11,9 +11,9 @@ apps. You chat from any of them, or from your phone.
                                        Jev, models)
 ```
 
-Status: **partly verified**. The offline tests cover sign-in, pairing, the connection, files, the shell, asking back,
-pausing, cancelling and revoking. What was run live on the hub machine itself, and what was not, is in
-[What has been checked](#what-has-been-checked).
+Status: **verified on one computer, not yet across two.** The offline tests cover sign-in, pairing, the connection, files,
+the shell, asking back, pausing, cancelling and revoking. The live runs used a device on the hub machine itself, connected
+the way a remote one is. See [What has been checked](#what-has-been-checked).
 
 ## Set up the hub
 
@@ -114,8 +114,26 @@ It is a Python app (pywebview with WebView2, and pystray), started from your che
 
 ## What has been checked
 
-See the README's eval list and `evals/devices_cases_summary.txt` / `evals/bench/devices_last_summary.txt` for the numbers
-of the last run. Not checked live yet:
+Live, 2026-10-11, Qwen3.8-27B workers with the semif Jev, on the hub machine. The device was a separate
+`jevh device run` process, paired and connected through the hub like any other.
+
+| | without devices | with devices |
+|---|---|---|
+| device tasks: list, read, find, fetch and sum a CSV, write, a shell command, delete, the browser, a device that is not there (9 tasks x 3) | 1/27 | **27/27** |
+| held-out device tasks (2 x 3) | 0/6 | **6/6** |
+| "delete this folder" with the user answering No (x3) | 1/3 (twice it deleted the folder on the hub without asking) | 2/3 (the miss: the model server stalled mid-turn; nothing was deleted) |
+| lookalikes that must not touch a device (4 x 3, one held out) | 12/12 | **12/12**, no device touched |
+| lookalike cost (median) | 9.0 s, 1,897 input tokens | 8.4 s, 1,977 input tokens |
+
+Median times with devices: 10-33 s a task (the shell task: 9.5 s, against the 8-minute limit 3/3 times without).
+Results: `evals/bench/devices_last_summary.txt`, `devices_raw.json`, `devices_holdout_raw.json`.
+
+Jev's choice to give the worker the tool (`evals/devices_cases.py`, 3 repeats): recall 45/45 on the cases its
+description was written against, **9/18 on held-out cases**; no lookalike on the cases, 3/15 held out and 3/225 on
+`tool_cases.py` got it needlessly. When Jev misses, the worker still has the tool, and its prompt names the connected
+computers. The end-to-end tasks passed either way.
+
+Not checked live yet:
 
 - a real second computer over Tailscale (the live runs used a device on the hub machine itself, connected the same way);
 - the desktop tool on a device (the bench avoids typing into real windows);
