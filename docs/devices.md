@@ -95,9 +95,9 @@ Measured (`evals/bench/devices.py --origin`, 2026-10-12, 3 repeats, a device on 
 one): requests about "this computer" or "my home folder" written on the device, 0/9 without telling the harness where and
 **9/9** told; held out 0/6 against **6/6**. Requests that must not reach the device ("this computer" written on the hub,
 "on the hub, ..." written on the device, a sum) stayed 9/9 and 3/3 held out. Cost: a question from a device that needs no
-computer at all carries the devices guide (median 4.8 s became 8.4 s on "what's 17% of 2,340?"). Not yet run with bilbo
-itself as the device, nor with the address taken from a real browser on bilbo (the bench sets the origin directly; the
-address matching is covered by the offline tests).
+computer at all carries the devices guide (median 4.8 s became 8.4 s on "what's 17% of 2,340?"). Then tried by hand on
+bilbo itself (2026-10-12), in `jevh app` there: the messages showed "from Bilbo", "what's in my Downloads folder?" and
+"what's this computer's name?" were answered from bilbo, and "on the hub, ..." from the hub.
 
 ## What stays guarded
 
