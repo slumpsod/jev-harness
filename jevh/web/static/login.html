@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · jev-harness</title>
+<style>
+  :root { --bg: #f4f5f8; --card: #ffffff; --text: #16181d; --muted: #646a76; --line: #dde0e6; --accent: #4b5bd6;
+          --on-accent: #fff; --bad: #b3261e; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111318; --card: #1a1d24; --text: #e8eaef; --muted: #9aa0ad; --line: #2b2f39; --accent: #8c98ff;
+            --on-accent: #0b0d12; --bad: #ff8a80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg);
+         color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { width: 100%; max-width: 360px; background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+         padding: 28px 24px 22px; box-shadow: 0 10px 40px rgba(0,0,0,.08); }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input { width: 100%; font: inherit; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line);
+          background: transparent; color: inherit; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { width: 100%; margin-top: 18px; font: inherit; font-weight: 600; padding: 10px; border: 0; border-radius: 9px;
+           background: var(--accent); color: var(--on-accent); cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  #msg { min-height: 1.4em; margin-top: 12px; font-size: 13px; color: var(--bad); }
+  code { font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sign in</h1>
+  <p id="lead">To your assistant on this hub.</p>
+  <form id="f" autocomplete="on">
+    <label for="name">Name</label>
+    <input id="name" name="username" autocomplete="username" required autofocus>
+    <label for="pw">Password</label>
+    <input id="pw" name="password" type="password" autocomplete="current-password" required>
+    <button id="go" type="submit">Sign in</button>
+    <div id="msg" role="alert"></div>
+  </form>
+</main>
+<script>
+const NO_ACCOUNTS = "__JEVH_NO_ACCOUNTS__" === "1";
+if (NO_ACCOUNTS) {
+  document.getElementById("lead").innerHTML = "This hub has no accounts yet. Make one on the hub computer: open the dashboard there " +
+    "(Devices panel), or run <code>jevh users add NAME</code>.";
+}
+document.getElementById("f").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const go = document.getElementById("go"), msg = document.getElementById("msg");
+  go.disabled = true; msg.textContent = "";
+  try {
+    const r = await fetch("/auth/login", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({name: document.getElementById("name").value, password: document.getElementById("pw").value})});
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    location.replace("/");
+  } catch (e) { msg.textContent = e.message; go.disabled = false; }
+});
+</script>
+</body>
+</html>

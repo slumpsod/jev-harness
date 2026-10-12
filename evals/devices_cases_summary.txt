@@ -1,0 +1,37 @@
+devices tool pick (cases); config threshold 0.65; 618 Jev calls, 234.4 s
+
+== cases at threshold 0.65 (28 requests x 3 repeats)
+  old: 54/84 right (64%)
+  new: 54/84 right (64%)
+    new, borderline: 3/12 (25%)
+    new, fire: 24/42 (57%)
+    new, lookalike: 27/30 (90%)
+  devices picked where it was not wanted: 0; other tools' picks changed by adding devices: 0
+  not always right (new):
+    0% right  What's in the Downloads folder on bilbo?                         need=['devices'] either=[] {'web': 0.06, 'browser': 0.62, 'desktop': 0.99, 'devices': 1.0, 'nango': 0.98, 'newsroom': 0.0}
+    0% right  Copy report.pdf from my laptop's Documents to this PC.           need=['devices'] either=[] {'web': 0.01, 'browser': 0.03, 'desktop': 0.71, 'devices': 1.0, 'nango': 0.95, 'newsroom': 0.0}
+    0% right  Find the tax PDF I saved on my other computer last week.         need=['devices'] either=[] {'web': 0.01, 'browser': 0.1, 'desktop': 0.56, 'devices': 0.99, 'nango': 0.99, 'newsroom': 0.0}
+    0% right  Send the zip in bilbo's Downloads to studio-pc's Desktop.        need=['devices'] either=[] {'web': 0.0, 'browser': 0.01, 'desktop': 0.82, 'devices': 1.0, 'nango': 0.97, 'newsroom': 0.0}
+    0% right  Restart the dev server running in a terminal on studio-pc.       need=['devices'] either=[] {'web': 0.0, 'browser': 0.02, 'desktop': 0.91, 'devices': 0.99, 'nango': 0.01, 'newsroom': 0.0}
+    0% right  Read the notes.txt on bilbo's desktop to me.                     need=['devices'] either=[] {'web': 0.01, 'browser': 0.16, 'desktop': 0.96, 'devices': 1.0, 'nango': 0.97, 'newsroom': 0.0}
+    0% right  What's in my Downloads folder?                                   need=['desktop'] either=['devices'] {'web': 0.04, 'browser': 0.05, 'desktop': 0.99, 'devices': 0.08, 'nango': 0.94, 'newsroom': 0.0}
+    0% right  Keep an eye on news about the new Surface laptops and tell me wh need=['newsroom'] either=['web'] {'web': 1.0, 'browser': 0.82, 'desktop': 0.01, 'devices': 0.0, 'nango': 0.01, 'newsroom': 0.96}
+    0% right  Open the file I was working on yesterday.                        need=[] either=['desktop', 'devices'] {'web': 0.01, 'browser': 0.01, 'desktop': 0.59, 'devices': 0.16, 'nango': 0.99, 'newsroom': 0.0}
+    0% right  Back up my photos to the other machine.                          need=['devices'] either=[] {'web': 0.0, 'browser': 0.02, 'desktop': 0.71, 'devices': 1.0, 'nango': 0.95, 'newsroom': 0.0}
+
+== regression at threshold 0.65 (75 requests x 3 repeats)
+  old: 204/225 right (91%)
+  new: 201/225 right (89%)
+    new, regression: 201/225 (89%)
+  devices picked where it was not wanted: 3; other tools' picks changed by adding devices: 0
+  not always right (new):
+    0% right  Find the Q3 budget doc in my Google Drive and summarize it.      need=['nango'] either=[] {'web': 0.05, 'browser': 0.8, 'desktop': 0.18, 'devices': 0.04, 'nango': 1.0, 'newsroom': 0.0}
+    0% right  How do I use the Gmail API to send an email from Python?         need=[] either=['web'] {'web': 0.29, 'browser': 0.07, 'desktop': 0.01, 'devices': 0.0, 'nango': 1.0, 'newsroom': 0.0}
+    0% right  Start a new session in the Claude app.                           need=['desktop'] either=[] {'web': 0.02, 'browser': 0.02, 'desktop': 0.59, 'devices': 0.01, 'nango': 0.03, 'newsroom': 0.01}
+    0% right  Which apps do I have open on my computer right now?              need=['desktop'] either=[] {'web': 0.01, 'browser': 0.02, 'desktop': 1.0, 'devices': 0.78, 'nango': 0.29, 'newsroom': 0.0}
+    0% right  In JevLab's Composer tab, send the message /rc.                  need=['desktop'] either=[] {'web': 0.01, 'browser': 0.03, 'desktop': 0.38, 'devices': 0.03, 'nango': 0.27, 'newsroom': 0.01}
+    0% right  Is Spotify open? If so, pause the music.                         need=['desktop'] either=[] {'web': 0.91, 'browser': 0.16, 'desktop': 0.99, 'devices': 0.01, 'nango': 0.01, 'newsroom': 0.02}
+    0% right  Open File Explorer to my Downloads folder and tell me which file need=['desktop'] either=[] {'web': 0.01, 'browser': 0.01, 'desktop': 1.0, 'devices': 0.44, 'nango': 0.68, 'newsroom': 0.01}
+    0% right  Add a 12-pack of paper towels to my Walmart cart.                need=['browser'] either=['web'] {'web': 0.12, 'browser': 0.56, 'desktop': 0.0, 'devices': 0.0, 'nango': 0.0, 'newsroom': 0.0}
+
+threshold sweep (new roster, cases): 0.2: 24/84, 0.3: 30/84, 0.4: 33/84, 0.5: 36/84, 0.6: 51/84, 0.7: 54/84, 0.8: 51/84, 0.9: 51/84

@@ -7,6 +7,9 @@
     jevh notebook                                  # your notebook of ideas and problems
     jevh newsroom                                  # the Newsroom: widgets that follow news and posts (docs/newsroom.md)
     jevh home [move]                               # move your own things out of the checkout
+    jevh app                                       # the desktop app: the dashboard in a window, a tray icon (docs/devices.md)
+    jevh users add|list|password|remove            # accounts that sign in to the dashboard from other devices
+    jevh device pair|run|status|pause|resume       # let a hub's assistant use this computer (docs/devices.md)
 
 (`python -m jevh.cli` works the same as `jevh` without installing it.)
 
@@ -351,6 +354,12 @@ def subcommand(name: str):
         from .home import main
     elif name == "context":
         from .context import main
+    elif name == "users":
+        from .accounts import main
+    elif name == "device":
+        from .devices.agent import main
+    elif name == "app":
+        from .app import main
     else:
         return None
     return main
@@ -360,7 +369,7 @@ def main(argv: list[str] | None = None) -> int | None:
     argv = sys.argv[1:] if argv is None else argv
     if argv and (sub := subcommand(argv[0])):
         return sub(argv[1:])
-    ap = argparse.ArgumentParser(prog="jevh", epilog="other commands: jevh dashboard | update | home | failures | review | context "
+    ap = argparse.ArgumentParser(prog="jevh", epilog="other commands: jevh dashboard | app | users | device | update | home | failures | review | context "
                                                       "(each takes --help)")
     ap.add_argument("--config")
     ap.add_argument("--as", dest="pin", help="pin a persona (skip routing)")

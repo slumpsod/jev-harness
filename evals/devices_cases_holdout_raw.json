@@ -1,0 +1,704 @@
+{
+ "threshold": 0.65,
+ "connected": [
+  "bilbo",
+  "studio-pc"
+ ],
+ "cases": [
+  {
+   "request": "Grab the latest invoice from bilbo and summarize it.",
+   "need": [
+    "devices"
+   ],
+   "either": [],
+   "kind": "fire",
+   "old": [
+    {
+     "web": 0.1824,
+     "browser": 0.0953,
+     "desktop": 0.0851,
+     "nango": 0.7311,
+     "newsroom": 0.0046
+    },
+    {
+     "web": 0.1824,
+     "browser": 0.0953,
+     "desktop": 0.0851,
+     "nango": 0.7311,
+     "newsroom": 0.0046
+    },
+    {
+     "web": 0.1824,
+     "browser": 0.0953,
+     "desktop": 0.0851,
+     "nango": 0.7311,
+     "newsroom": 0.0046
+    }
+   ],
+   "new": [
+    {
+     "web": 0.1824,
+     "browser": 0.0953,
+     "desktop": 0.0851,
+     "devices": 0.5,
+     "nango": 0.7311,
+     "newsroom": 0.0046
+    },
+    {
+     "web": 0.1824,
+     "browser": 0.0953,
+     "desktop": 0.0851,
+     "devices": 0.5,
+     "nango": 0.7311,
+     "newsroom": 0.0046
+    },
+    {
+     "web": 0.1824,
+     "browser": 0.0953,
+     "desktop": 0.0851,
+     "devices": 0.5,
+     "nango": 0.7311,
+     "newsroom": 0.0046
+    }
+   ]
+  },
+  {
+   "request": "On my other PC, what Windows version is installed?",
+   "need": [
+    "devices"
+   ],
+   "either": [],
+   "kind": "fire",
+   "old": [
+    {
+     "web": 0.3486,
+     "browser": 0.0759,
+     "desktop": 0.4073,
+     "nango": 0.0059,
+     "newsroom": 0.0028
+    },
+    {
+     "web": 0.3486,
+     "browser": 0.0759,
+     "desktop": 0.4073,
+     "nango": 0.0059,
+     "newsroom": 0.0028
+    },
+    {
+     "web": 0.3486,
+     "browser": 0.0759,
+     "desktop": 0.4073,
+     "nango": 0.0059,
+     "newsroom": 0.0028
+    }
+   ],
+   "new": [
+    {
+     "web": 0.3486,
+     "browser": 0.0759,
+     "desktop": 0.4073,
+     "devices": 0.9325,
+     "nango": 0.0059,
+     "newsroom": 0.0028
+    },
+    {
+     "web": 0.3486,
+     "browser": 0.0759,
+     "desktop": 0.4073,
+     "devices": 0.9325,
+     "nango": 0.0059,
+     "newsroom": 0.0028
+    },
+    {
+     "web": 0.3486,
+     "browser": 0.0759,
+     "desktop": 0.4073,
+     "devices": 0.9325,
+     "nango": 0.0059,
+     "newsroom": 0.0028
+    }
+   ]
+  },
+  {
+   "request": "Delete the temp files in studio-pc's Downloads older than a month.",
+   "need": [
+    "devices"
+   ],
+   "either": [],
+   "kind": "fire",
+   "old": [
+    {
+     "web": 0.0022,
+     "browser": 0.0097,
+     "desktop": 0.9149,
+     "nango": 0.9669,
+     "newsroom": 0.0008
+    },
+    {
+     "web": 0.0022,
+     "browser": 0.0097,
+     "desktop": 0.9149,
+     "nango": 0.9669,
+     "newsroom": 0.0008
+    },
+    {
+     "web": 0.0022,
+     "browser": 0.0097,
+     "desktop": 0.9149,
+     "nango": 0.9669,
+     "newsroom": 0.0008
+    }
+   ],
+   "new": [
+    {
+     "web": 0.0022,
+     "browser": 0.0097,
+     "desktop": 0.9149,
+     "devices": 0.9797,
+     "nango": 0.9669,
+     "newsroom": 0.0008
+    },
+    {
+     "web": 0.0022,
+     "browser": 0.0097,
+     "desktop": 0.9149,
+     "devices": 0.9797,
+     "nango": 0.9669,
+     "newsroom": 0.0008
+    },
+    {
+     "web": 0.0022,
+     "browser": 0.0097,
+     "desktop": 0.9149,
+     "devices": 0.9797,
+     "nango": 0.9669,
+     "newsroom": 0.0008
+    }
+   ]
+  },
+  {
+   "request": "Is the build finished on my laptop? It was running in PowerShell.",
+   "need": [
+    "devices"
+   ],
+   "either": [
+    "desktop"
+   ],
+   "kind": "fire",
+   "old": [
+    {
+     "web": 0.0203,
+     "browser": 0.0421,
+     "desktop": 0.3208,
+     "nango": 0.0067,
+     "newsroom": 0.0059
+    },
+    {
+     "web": 0.0203,
+     "browser": 0.0421,
+     "desktop": 0.3208,
+     "nango": 0.0067,
+     "newsroom": 0.0059
+    },
+    {
+     "web": 0.0203,
+     "browser": 0.0421,
+     "desktop": 0.3208,
+     "nango": 0.0067,
+     "newsroom": 0.0059
+    }
+   ],
+   "new": [
+    {
+     "web": 0.0203,
+     "browser": 0.0421,
+     "desktop": 0.3208,
+     "devices": 0.4688,
+     "nango": 0.0067,
+     "newsroom": 0.0059
+    },
+    {
+     "web": 0.0203,
+     "browser": 0.0421,
+     "desktop": 0.3208,
+     "devices": 0.4688,
+     "nango": 0.0067,
+     "newsroom": 0.0059
+    },
+    {
+     "web": 0.0203,
+     "browser": 0.0421,
+     "desktop": 0.3208,
+     "devices": 0.4688,
+     "nango": 0.0067,
+     "newsroom": 0.0059
+    }
+   ]
+  },
+  {
+   "request": "Put this CSV on my laptop's desktop.",
+   "need": [
+    "devices"
+   ],
+   "either": [],
+   "kind": "fire",
+   "old": [
+    {
+     "web": 0.0036,
+     "browser": 0.0076,
+     "desktop": 0.4378,
+     "nango": 0.1645,
+     "newsroom": 0.0019
+    },
+    {
+     "web": 0.0036,
+     "browser": 0.0076,
+     "desktop": 0.4378,
+     "nango": 0.1645,
+     "newsroom": 0.0019
+    },
+    {
+     "web": 0.0036,
+     "browser": 0.0076,
+     "desktop": 0.4378,
+     "nango": 0.1645,
+     "newsroom": 0.0019
+    }
+   ],
+   "new": [
+    {
+     "web": 0.0036,
+     "browser": 0.0076,
+     "desktop": 0.4378,
+     "devices": 0.8808,
+     "nango": 0.1645,
+     "newsroom": 0.0019
+    },
+    {
+     "web": 0.0036,
+     "browser": 0.0076,
+     "desktop": 0.4378,
+     "devices": 0.8808,
+     "nango": 0.1645,
+     "newsroom": 0.0019
+    },
+    {
+     "web": 0.0036,
+     "browser": 0.0076,
+     "desktop": 0.4378,
+     "devices": 0.8808,
+     "nango": 0.1645,
+     "newsroom": 0.0019
+    }
+   ]
+  },
+  {
+   "request": "Pause the music playing on studio-pc.",
+   "need": [
+    "devices"
+   ],
+   "either": [
+    "desktop"
+   ],
+   "kind": "fire",
+   "old": [
+    {
+     "web": 0.0032,
+     "browser": 0.0046,
+     "desktop": 0.977,
+     "nango": 0.0046,
+     "newsroom": 0.001
+    },
+    {
+     "web": 0.0032,
+     "browser": 0.0046,
+     "desktop": 0.977,
+     "nango": 0.0046,
+     "newsroom": 0.001
+    },
+    {
+     "web": 0.0032,
+     "browser": 0.0046,
+     "desktop": 0.977,
+     "nango": 0.0046,
+     "newsroom": 0.001
+    }
+   ],
+   "new": [
+    {
+     "web": 0.0032,
+     "browser": 0.0046,
+     "desktop": 0.977,
+     "devices": 0.6225,
+     "nango": 0.0046,
+     "newsroom": 0.001
+    },
+    {
+     "web": 0.0032,
+     "browser": 0.0046,
+     "desktop": 0.977,
+     "devices": 0.6225,
+     "nango": 0.0046,
+     "newsroom": 0.001
+    },
+    {
+     "web": 0.0032,
+     "browser": 0.0046,
+     "desktop": 0.977,
+     "devices": 0.6225,
+     "nango": 0.0046,
+     "newsroom": 0.001
+    }
+   ]
+  },
+  {
+   "request": "Is a gaming laptop worth it for video editing?",
+   "need": [],
+   "either": [
+    "web"
+   ],
+   "kind": "lookalike",
+   "old": [
+    {
+     "web": 0.5,
+     "browser": 0.0076,
+     "desktop": 0.0124,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    },
+    {
+     "web": 0.5,
+     "browser": 0.0076,
+     "desktop": 0.0124,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    },
+    {
+     "web": 0.5,
+     "browser": 0.0076,
+     "desktop": 0.0124,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    }
+   ],
+   "new": [
+    {
+     "web": 0.5,
+     "browser": 0.0076,
+     "desktop": 0.0124,
+     "devices": 0.0022,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    },
+    {
+     "web": 0.5,
+     "browser": 0.0076,
+     "desktop": 0.0124,
+     "devices": 0.0022,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    },
+    {
+     "web": 0.5,
+     "browser": 0.0076,
+     "desktop": 0.0124,
+     "devices": 0.0022,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    }
+   ]
+  },
+  {
+   "request": "Rename draft.txt on my Desktop to final.txt.",
+   "need": [
+    "desktop"
+   ],
+   "either": [
+    "devices"
+   ],
+   "kind": "borderline",
+   "old": [
+    {
+     "web": 0.001,
+     "browser": 0.0032,
+     "desktop": 0.9399,
+     "nango": 0.6514,
+     "newsroom": 0.0006
+    },
+    {
+     "web": 0.001,
+     "browser": 0.0032,
+     "desktop": 0.9399,
+     "nango": 0.6514,
+     "newsroom": 0.0006
+    },
+    {
+     "web": 0.001,
+     "browser": 0.0032,
+     "desktop": 0.9399,
+     "nango": 0.6514,
+     "newsroom": 0.0006
+    }
+   ],
+   "new": [
+    {
+     "web": 0.001,
+     "browser": 0.0032,
+     "desktop": 0.9399,
+     "devices": 0.026,
+     "nango": 0.6514,
+     "newsroom": 0.0006
+    },
+    {
+     "web": 0.001,
+     "browser": 0.0032,
+     "desktop": 0.9399,
+     "devices": 0.026,
+     "nango": 0.6514,
+     "newsroom": 0.0006
+    },
+    {
+     "web": 0.001,
+     "browser": 0.0032,
+     "desktop": 0.9399,
+     "devices": 0.026,
+     "nango": 0.6514,
+     "newsroom": 0.0006
+    }
+   ]
+  },
+  {
+   "request": "Find hotels in Denver for Friday on booking.com.",
+   "need": [
+    "browser"
+   ],
+   "either": [
+    "web"
+   ],
+   "kind": "lookalike",
+   "old": [
+    {
+     "web": 0.9876,
+     "browser": 0.989,
+     "desktop": 0.0086,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    },
+    {
+     "web": 0.9876,
+     "browser": 0.989,
+     "desktop": 0.0086,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    },
+    {
+     "web": 0.9876,
+     "browser": 0.989,
+     "desktop": 0.0086,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    }
+   ],
+   "new": [
+    {
+     "web": 0.9876,
+     "browser": 0.989,
+     "desktop": 0.0086,
+     "devices": 0.001,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    },
+    {
+     "web": 0.9876,
+     "browser": 0.989,
+     "desktop": 0.0086,
+     "devices": 0.001,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    },
+    {
+     "web": 0.9876,
+     "browser": 0.989,
+     "desktop": 0.0086,
+     "devices": 0.001,
+     "nango": 0.0013,
+     "newsroom": 0.0012
+    }
+   ]
+  },
+  {
+   "request": "What's on my calendar tomorrow?",
+   "need": [
+    "nango"
+   ],
+   "either": [],
+   "kind": "lookalike",
+   "old": [
+    {
+     "web": 0.1067,
+     "browser": 0.0159,
+     "desktop": 0.0293,
+     "nango": 0.9968,
+     "newsroom": 0.0052
+    },
+    {
+     "web": 0.1067,
+     "browser": 0.0159,
+     "desktop": 0.0293,
+     "nango": 0.9968,
+     "newsroom": 0.0052
+    },
+    {
+     "web": 0.1067,
+     "browser": 0.0159,
+     "desktop": 0.0293,
+     "nango": 0.9968,
+     "newsroom": 0.0052
+    }
+   ],
+   "new": [
+    {
+     "web": 0.1067,
+     "browser": 0.0159,
+     "desktop": 0.0293,
+     "devices": 0.0009,
+     "nango": 0.9968,
+     "newsroom": 0.0052
+    },
+    {
+     "web": 0.1067,
+     "browser": 0.0159,
+     "desktop": 0.0293,
+     "devices": 0.0009,
+     "nango": 0.9968,
+     "newsroom": 0.0052
+    },
+    {
+     "web": 0.1067,
+     "browser": 0.0159,
+     "desktop": 0.0293,
+     "devices": 0.0009,
+     "nango": 0.9968,
+     "newsroom": 0.0052
+    }
+   ]
+  },
+  {
+   "request": "How do I share a folder between my Mac and my PC?",
+   "need": [],
+   "either": [
+    "web"
+   ],
+   "kind": "lookalike",
+   "old": [
+    {
+     "web": 0.3208,
+     "browser": 0.023,
+     "desktop": 0.1067,
+     "nango": 0.1192,
+     "newsroom": 0.0008
+    },
+    {
+     "web": 0.3208,
+     "browser": 0.023,
+     "desktop": 0.1067,
+     "nango": 0.1192,
+     "newsroom": 0.0008
+    },
+    {
+     "web": 0.3208,
+     "browser": 0.023,
+     "desktop": 0.1067,
+     "nango": 0.1192,
+     "newsroom": 0.0008
+    }
+   ],
+   "new": [
+    {
+     "web": 0.3208,
+     "browser": 0.023,
+     "desktop": 0.1067,
+     "devices": 0.9669,
+     "nango": 0.1192,
+     "newsroom": 0.0008
+    },
+    {
+     "web": 0.3208,
+     "browser": 0.023,
+     "desktop": 0.1067,
+     "devices": 0.9669,
+     "nango": 0.1192,
+     "newsroom": 0.0008
+    },
+    {
+     "web": 0.3208,
+     "browser": 0.023,
+     "desktop": 0.1067,
+     "devices": 0.9669,
+     "nango": 0.1192,
+     "newsroom": 0.0008
+    }
+   ]
+  },
+  {
+   "request": "Click Next in the installer window that's open.",
+   "need": [
+    "desktop"
+   ],
+   "either": [],
+   "kind": "lookalike",
+   "old": [
+    {
+     "web": 0.0067,
+     "browser": 0.0534,
+     "desktop": 0.9954,
+     "nango": 0.0159,
+     "newsroom": 0.0032
+    },
+    {
+     "web": 0.0067,
+     "browser": 0.0534,
+     "desktop": 0.9954,
+     "nango": 0.0159,
+     "newsroom": 0.0032
+    },
+    {
+     "web": 0.0067,
+     "browser": 0.0534,
+     "desktop": 0.9954,
+     "nango": 0.0159,
+     "newsroom": 0.0032
+    }
+   ],
+   "new": [
+    {
+     "web": 0.0067,
+     "browser": 0.0534,
+     "desktop": 0.9954,
+     "devices": 0.0052,
+     "nango": 0.0159,
+     "newsroom": 0.0032
+    },
+    {
+     "web": 0.0067,
+     "browser": 0.0534,
+     "desktop": 0.9954,
+     "devices": 0.0052,
+     "nango": 0.0159,
+     "newsroom": 0.0032
+    },
+    {
+     "web": 0.0067,
+     "browser": 0.0534,
+     "desktop": 0.9954,
+     "devices": 0.0052,
+     "nango": 0.0159,
+     "newsroom": 0.0032
+    }
+   ]
+  }
+ ],
+ "regression": [],
+ "seconds": 27.7,
+ "jev_calls": 72
+}

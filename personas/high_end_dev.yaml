@@ -23,6 +23,6 @@ skills_allowed: [learned-*, nango-*, python-*, github-*, windows-system-admin, l
                  debugging-*, desktop-gui-automation, koe-no-hashi-voice-dashboard,
                  kanban-orchestrator, tailscale-funnel, webhook-subscriptions, touchdesigner-mcp,
                  cyberpunk-2077-modding, dlss5-game-injection, minecraft-modpack-server]
-tools: [project, web, browser, desktop, nango]
+tools: [project, web, browser, desktop, devices, nango]
 can_request: [front_end_designer, comfyui_manager]
 max_steps: 80

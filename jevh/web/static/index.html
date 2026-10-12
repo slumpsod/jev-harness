@@ -608,16 +608,22 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 .nbtext code { font-family: var(--font-mono); font-size: 12px; }
 .nbsess { margin-top: 6px; overflow-wrap: anywhere; }
 /* settings */
-#p-settings .arow { padding: 7px 0; gap: 16px; }
+#p-settings .arow, #p-devices .arow { padding: 7px 0; gap: 16px; }
 #p-settings .arow select { min-width: 13em; max-width: 62%; flex: 0 0 auto; }
-#p-settings .arow input { min-width: 15em; max-width: 62%; flex: 0 1 auto; }
-#p-settings .arow > span:first-child { flex: 1 1 7em; min-width: 0; }
+#p-settings .arow input, #p-devices .arow input { min-width: 15em; max-width: 62%; flex: 0 1 auto; }
+#p-settings .arow > span:first-child, #p-devices .arow > span:first-child { flex: 1 1 7em; min-width: 0; }
 #p-settings .setbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 2px 0 10px; }
+/* devices */
+#p-devices .setbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0 2px; }
+#p-devices .devdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+#p-devices .devdot.on { background: var(--good, #2e9d5b); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good, #2e9d5b) 22%, transparent); }
+#p-devices .devcode { font: 700 26px/1.2 var(--font-mono); letter-spacing: 2px; margin: 4px 0 8px; user-select: all; }
+#p-devices .dev { margin-bottom: 8px; }
 .kv.bad { color: var(--bad-ink); }
 button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; font-size: inherit; }
 @media (max-width: 560px) {
-  #p-settings .arow { flex-wrap: wrap; }
-  #p-settings .arow select, #p-settings .arow input { max-width: 100%; width: 100%; }
+  #p-settings .arow, #p-devices .arow { flex-wrap: wrap; }
+  #p-settings .arow select, #p-settings .arow input, #p-devices .arow input { max-width: 100%; width: 100%; }
 }
 
 /* newsroom */
@@ -852,8 +858,13 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
 @media (max-width: 900px) {
   :root { --rail-h: calc(58px + env(safe-area-inset-bottom, 0px)); }
   .rail { height: var(--rail-h); padding: 0 8px env(safe-area-inset-bottom, 0px); overflow: visible; }
-  #tabs { flex: 1; min-width: 0; justify-content: space-around; }
-  .rbtn { flex: 1 1 0; width: auto; min-width: 34px; max-width: 48px; height: 44px; }
+  /* the tabs spread out when they fit, and scroll sideways on their own when they don't (eleven tabs need ~400px):
+     shrunk below 34px they slid under the Appearance button */
+  #tabs { flex: 1; min-width: 0; justify-content: space-between; align-self: stretch; align-items: center;
+          overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  #tabs::-webkit-scrollbar { display: none; }
+  .rbtn { flex: 1 0 34px; width: auto; min-width: 34px; max-width: 48px; height: 44px; }
+  #tabs .rbtn.on::before { bottom: -6px; }
   #appearbtn { flex: none; width: 44px; max-width: none; }
   .app[data-panel="open"] .side { bottom: var(--rail-h); background: var(--bg); }   /* opaque: it covers the chat, which must not show through */
   .sidehead { padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
@@ -910,6 +921,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
   <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7.5h6"/></symbol>
   <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></symbol>
+  <symbol id="i-devices" viewBox="0 0 24 24"><rect x="2.5" y="4" width="14" height="10" rx="1.8"/><path d="M6 18h7M9.5 14v4"/><rect x="16.5" y="9" width="5" height="11" rx="1.4"/><path d="M19 17.5h.01"/></symbol>
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></symbol>
   <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.6-2.1-.5-1.3.4-2.4 1.8-2.4H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.6" cy="11" r="1"/><circle cx="10.2" cy="7.4" r="1"/><circle cx="14.6" cy="7.4" r="1"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -963,6 +975,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
       <button class="rbtn" data-tab="review" data-tip="Review: flagged sessions, a model's verdict" aria-label="Review"><svg class="ic"><use href="#i-flag"/></svg><i class="count" id="revcount" hidden></i></button>
       <button class="rbtn" data-tab="notebook" data-tip="Notebook: ideas and problems to come back to" aria-label="Notebook"><svg class="ic"><use href="#i-book"/></svg><i class="count" id="nbcount" hidden></i></button>
       <button class="rbtn" data-tab="newsroom" data-tip="Newsroom: tiles that follow news and posts and notify you. Ask in the chat to add one" aria-label="Newsroom"><svg class="ic"><use href="#i-news"/></svg><i class="count" id="nrcount" hidden></i></button>
+      <button class="rbtn" data-tab="devices" data-tip="Devices: your other computers the assistant can use, and signing in" aria-label="Devices"><svg class="ic"><use href="#i-devices"/></svg></button>
       <button class="rbtn" data-tab="settings" data-tip="Settings: model, quick model, web search" aria-label="Settings"><svg class="ic"><use href="#i-sliders"/></svg></button>
       <button class="rbtn" data-tab="status" data-tip="Status and updates" aria-label="Status"><svg class="ic"><use href="#i-pulse"/></svg><i class="count" id="updcount" hidden></i></button>
     </div>
@@ -1042,6 +1055,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
         <div id="nblist"></div>
       </div>
       <div class="panel" id="p-newsroom"><div class="nr" id="nr"></div></div>
+      <div class="panel" id="p-devices"></div>
       <div class="panel" id="p-settings"></div>
       <div class="panel" id="p-status"></div>
     </div>
@@ -1085,6 +1099,7 @@ const baseName = (p) => String(p).split(/[\\/]/).pop();
 
 async function api(path, opts = {}) {
   const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-Jevh-Token": TOKEN, ...(opts.headers || {})}});
+  if (r.status === 401) location.replace("/login");   // signed out (or the sign-in expired) on another device
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
   return r.json();
 }
@@ -1160,6 +1175,7 @@ function handle(e) {
   if (e.kind.startsWith("review_")) { reviewEvent(e.kind, d); return; }
   if (e.kind === "newsroom" || e.kind === "newsroom_alert") { newsroomEvent(e); return; }
   if (e.kind === "history") { if (S.tab === "history") refreshHistory(); return; }
+  if (e.kind === "devices") { refreshDevices(); return; }
   if (e.turn == null) return;
   const t = turn(e.turn);
   if (d.task) upsertTask(t, d.task);
@@ -1236,6 +1252,7 @@ function handle(e) {
     case "unwaited": t.activity.push({ts: e.ts, kind: "warn", text: `${d.task.to} never waited on a hand-off; kept its artifacts`}); break;
     case "failure": t.activity.push({ts: e.ts, kind: "warn", text: `Failure logged #${d.failure.id} (${d.failure.source}: ${d.failure.kind}): ${d.failure.summary}`}); break;
     case "hook_error": t.activity.push({ts: e.ts, kind: "warn", text: `Failure hook ${d.hook} broke on ${d.event}: ${d.error}`}); break;
+    case "device_call": if (d.error) t.activity.push({ts: e.ts, kind: "warn", text: `On ${d.device}: ${d.op} failed: ${d.error}`}); break;
   }
   schedule();
 }
@@ -1482,6 +1499,7 @@ const OPT = {   // call -> [category, past tense, present tense]
   "report_failure": ["mem", "Logged a problem", "Logging a problem"], "llm_query": ["jev", "Asked the model", "Asking the model"],
   "jev": ["jev", "Asked Jev", "Asking Jev"], "start_job": ["shell", "Started a job", "Starting a job"],
   "job_wait": ["shell", "Waited on a job", "Waiting on a job"], "job_status": ["shell", "Checked a job", "Checking a job"],
+  "devices.list": ["device", "Checked your devices", "Checking your devices"], "devices.copy": ["device", "Copied between computers", "Copying between computers"],
 };
 const CATS = {   // category -> how the summary sentence says it, given how many
   web: (n) => n > 1 ? `searched the web ${n} times` : "searched the web",
@@ -1495,8 +1513,24 @@ const CATS = {   // category -> how the summary sentence says it, given how many
   mem: () => "used its memory", ask: () => "asked you something",
   media: (n) => n > 1 ? `made ${n} images` : "made an image", link: () => "used an integration",
   jev: () => "checked with Jev", code: (n) => n > 1 ? `ran code ${n} times` : "ran some code",
+  device: (n) => n > 1 ? `used your other computers ${n} times` : "used another computer",
 };
-const CALL = /(?<![\w.])(?:(web|browser|project|nango|comfy)\.(\w+)|(request_async|request|mcp|save_artifact|final|ask_user|remember|recall|llm_query|jev|report_failure|start_job|job_wait|job_status|list_artifacts))\s*\(/g;
+// the devices tool (jevh/tools/devices.py): pc.files.read(...), pc.browser.do(...), pc.sh(...) on a device from devices.get()
+const DEVOPT = {files: {list: "Looked at files", find: "Looked for files", stat: "Looked at a file", read: "Read a file",
+  fetch: "Brought a file over", open: "Opened a file"}, browser: "Used the browser", desktop: "Used an app",
+  sh: "Ran a command", screenshot: "Looked at the screen", info: "Checked"};
+function devMeta(name) {   // "device.files.read" -> [category, past, present]
+  const [, group, fn] = name.split(".");
+  let past = group === "files" ? (DEVOPT.files[fn] || "Changed files") : DEVOPT[group] || "Used";
+  past += " on another computer";
+  const [verb, ...rest] = past.split(" ");
+  return ["device", past, [DEVING[verb] || verb, ...rest].join(" ")];
+}
+const DEVING = {Looked: "Looking", Read: "Reading", Brought: "Bringing", Opened: "Opening", Changed: "Changing", Used: "Using", Ran: "Running", Checked: "Checking"};
+const TOOLMODS = new Set(["web", "browser", "desktop", "project", "nango", "comfy", "devices", "newsroom"]);
+const DEVCALL = /(?<![\w.])(\w+)\.(files|browser|desktop)\.(\w+)\s*\(/g;
+const DEVONE = /(?<![\w.])(\w+)\.(sh|screenshot|info)\s*\(/g;
+const CALL = /(?<![\w.])(?:(web|browser|project|nango|comfy|devices)\.(\w+)|(request_async|request|mcp|save_artifact|final|ask_user|remember|recall|llm_query|jev|report_failure|start_job|job_wait|job_status|list_artifacts))\s*\(/g;
 const SHELL = /(?<![\w.])(?:subprocess\.\w+|os\.system|os\.popen)\s*\(/g;
 const WRITE = /(?<![\w.])open\s*\(\s*([^()\n]*?),\s*(['"])[wa]b?\+?\2/g;
 const LIT = /^\s*[rbfuRBFU]{0,2}(?:"""([\s\S]*?)"""|'''([\s\S]*?)'''|"((?:\\.|[^"\\\n])*)"|'((?:\\.|[^'\\\n])*)')/;
@@ -1511,6 +1545,10 @@ function opDetail(name, src, i) {
   if (/^(browser\.goto|web\.read|web\.fetch)$/.test(name)) return short(hostOf(a.s), 56);
   if (/^(web\.search|web\.ask|project\.grep|project\.find|project\.find_files|browser\.do|browser\.read|recall|remember|ask_user|llm_query)$/.test(name)) return `“${short(a.s, 56)}”`;
   if (/^request(_async)?$/.test(name)) return short(a.s, 40);
+  if (/^device\.files\./.test(name)) return pathTail(a.s);
+  if (name === "device.browser.goto") return short(hostOf(a.s), 56);
+  if (/^device\.(browser|desktop)\.(do|read|where|open)$/.test(name)) return `“${short(a.s, 56)}”`;
+  if (name === "device.sh") return short(a.s.trim().split(/\s+/).slice(0, 3).join(" "), 36);
   if (name === "project.sh" || name === "shell") return short(a.s.trim().replace(/^python3?\s+-m\s+/, "").split(/\s+/).filter((w) => !/^(-|&&|\|\||;|\|)/.test(w)).slice(0, 2).join(" "), 36);
   return short(a.s);
 }
@@ -1520,14 +1558,17 @@ function parseOps(code) {
   if (opsCache.has(code)) return opsCache.get(code);
   const src = code.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n"), found = [];
   let m;
-  for (CALL.lastIndex = 0; (m = CALL.exec(src));) found.push({at: m.index, name: m[1] ? `${m[1]}.${m[2]}` : m[3], i: CALL.lastIndex});
+  for (CALL.lastIndex = 0; (m = CALL.exec(src));) if (`${m[1]}.${m[2]}` !== "devices.get") found.push({at: m.index, name: m[1] ? `${m[1]}.${m[2]}` : m[3], i: CALL.lastIndex});
+  const devVars = new Set([...src.matchAll(/(\w+)\s*=\s*devices\.get\s*\(/g)].map((x) => x[1]));
+  for (DEVCALL.lastIndex = 0; (m = DEVCALL.exec(src));) if (!TOOLMODS.has(m[1])) found.push({at: m.index, name: `device.${m[2]}.${m[3]}`, i: DEVCALL.lastIndex});
+  for (DEVONE.lastIndex = 0; (m = DEVONE.exec(src));) if (devVars.has(m[1])) found.push({at: m.index, name: `device.${m[2]}`, i: DEVONE.lastIndex});
   for (SHELL.lastIndex = 0; (m = SHELL.exec(src));) found.push({at: m.index, name: "shell", i: SHELL.lastIndex});
   for (WRITE.lastIndex = 0; (m = WRITE.exec(src));) found.push({at: m.index, name: "write", i: m.index + m[0].indexOf("(") + 1});
   found.sort((a, b) => a.at - b.at);
   const ops = [];
   for (const f of found) {
     const tool = f.name.split(".")[0];
-    const meta = OPT[f.name] || (tool === "comfy" ? ["media", f.name, f.name] : tool === "nango" ? ["link", f.name, f.name]
+    const meta = OPT[f.name] || (tool === "device" ? devMeta(f.name) : tool === "comfy" ? ["media", f.name, f.name] : tool === "nango" ? ["link", f.name, f.name]
       : [{web: "web", browser: "browse", project: "files"}[tool] || "code", f.name, f.name]);
     const op = {cat: meta[0], past: meta[1], ing: meta[2], detail: opDetail(f.name, src, f.i), n: 1};
     const prev = ops[ops.length - 1];
@@ -2612,8 +2653,94 @@ $("p-settings").addEventListener("click", async (ev) => {
   }
 });
 
+// ---- devices: your other computers, and signing in (jevh/accounts.py, jevh/devices) ----
+// The hub is the computer running this dashboard. Other computers pair with a code and then hold a connection to it; the
+// assistant uses them through its `devices` tool. In the desktop app (jevh app) on another computer, window.pywebview.api
+// is that computer's own agent: the "This computer" card pairs it, pauses it and shows what it did.
+const DV = {me: null, data: null, code: null, app: null, err: "", msg: "", form: null, busy: false};
+const appApi = () => (window.pywebview && window.pywebview.api) || null;
+window.addEventListener("pywebviewready", () => { if (S.tab === "devices") refreshDevices(); });
+const ago = (ts) => { if (!ts) return "never"; const s = Date.now() / 1000 - ts;
+  return s < 90 ? "just now" : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; };
+async function refreshDevices() {
+  try { [DV.me, DV.data] = await Promise.all([api("/api/me"), api("/api/devices")]); DV.err = ""; } catch (e) { DV.err = e.message; }
+  DV.app = null;
+  if (appApi() && DV.me && !DV.me.local) { try { DV.app = await appApi().status(); } catch (e) { DV.app = {error: String(e)}; } }
+  if (S.tab === "devices") renderDevices();
+}
+function renderDevices() {
+  const el = $("p-devices"), me = DV.me, d = DV.data;
+  if (!me || !d) { el.innerHTML = `<div class="kv">${DV.err ? esc(DV.err) : "loading..."}</div>`; return; }
+  const f = DV.form, field = (k, label, type = "text", ac = "off") => `<div class="arow"><span>${label}</span><input type="${type}" data-dvf="${k}" autocomplete="${ac}" size="22"></div>`;
+  const acctForm = f === "add" || f === "first" ? `${field("name", "Name", "text", "username")}${field("password", "Password (8+ characters)", "password", "new-password")}
+      <div class="setbar"><button class="primary" data-dv="create" ${DV.busy ? "disabled" : ""}>Create account</button><button data-dv="cancel">Cancel</button></div>`
+    : f === "password" ? `${me.user ? field("old", "Current password", "password", "current-password") : field("name", "Account", "text", "username")}${field("password", "New password", "password", "new-password")}
+      <div class="setbar"><button class="primary" data-dv="setpw" ${DV.busy ? "disabled" : ""}>Change password</button><button data-dv="cancel">Cancel</button></div>` : "";
+  const signing = !me.accounts
+    ? `<div class="kv">No accounts yet: other devices get in with the link the dashboard prints when it starts, which changes every launch.
+        ${me.local ? "Make an account and they sign in instead (it lasts across restarts, and the link stops working)." : "Make an account on the hub computer."}</div>
+       ${me.local && !f ? `<div class="setbar"><button class="primary" data-dv="form" data-f="first">Make an account</button></div>` : ""}`
+    : `<div class="kv">${me.user ? `Signed in as <b>${esc(me.user)}</b>.` : "On the hub computer: no sign-in needed here."}
+        Accounts: ${me.users.map(esc).join(", ")}.</div>
+       ${!f ? `<div class="setbar">${me.user ? `<button data-dv="logout">Sign out</button>` : ""}<button data-dv="form" data-f="add">Add an account</button>
+         <button data-dv="form" data-f="password">Change a password</button></div>` : ""}`;
+  const devRow = (x) => {
+    const missing = Object.entries(x.tools || {}).filter(([, v]) => v !== "ok").map(([k, v]) => `${k}: ${v}`);
+    return `<div class="card dev"><h3><span class="devdot ${x.online ? "on" : ""}" title="${x.online ? "online" : "offline"}"></span>
+        ${esc(x.name)} ${x.paused ? `<span class="badge failed">paused</span>` : ""}${x.busy ? `<span class="badge">working</span>` : ""}</h3>
+      <div class="kv">${esc(x.platform || "")}${x.platform ? " · " : ""}${x.online ? `connected ${ago(x.connected_since)}` : `offline, last seen ${ago(x.last_seen)}`} · paired by ${esc(x.owner)}</div>
+      ${missing.length ? `<div class="kv">Not available there: ${missing.map(esc).join("; ")}</div>` : ""}
+      <div class="setbar"><button data-dv="rename" data-id="${esc(x.id)}" data-name="${esc(x.name)}">Rename</button>
+        <button data-dv="revoke" data-id="${esc(x.id)}" data-name="${esc(x.name)}">Remove</button></div></div>`;
+  };
+  const c = DV.code;
+  const pairing = c ? `<div class="card"><h3>Pair a computer</h3>
+      <div class="devcode">${esc(c.code)}</div>
+      <div class="kv">Works once, for ${Math.max(0, Math.round((c.expires - Date.now() / 1000) / 60))} minutes. On the other computer (with jev-harness installed, see docs/devices.md):</div>
+      <ol class="kv" style="margin:6px 0 0 18px;padding:0"><li>Open the app (<code>jevh app</code>), connect to <code>${esc(c.hubs[0])}</code>, sign in, then choose <b>Let the assistant use this computer</b> in this panel; or</li>
+      <li>in a terminal: <code>${esc(c.command)}</code> then <code>jevh device run</code>.</li></ol>
+      <div class="setbar"><button data-dv="copycmd">Copy the command</button><button data-dv="hidecode">Done</button></div></div>` : "";
+  const a = DV.app;
+  const thisPc = a ? `<div class="card"><h3>This computer</h3>${a.error ? `<div class="kv bad">${esc(a.error)}</div>` : a.paired
+      ? `<div class="kv">The assistant can use this computer as <b>${esc(a.name)}</b>: ${esc(a.state)}${a.paused ? ", <b>paused</b>" : ""}${a.last_error ? ` (${esc(a.last_error)})` : ""}.
+          What it does here is listed in the tray icon's Activity.</div>
+         <div class="setbar"><button data-dv="${a.paused ? "resume" : "pause"}">${a.paused ? "Resume" : "Pause"}</button>
+           <button data-dv="unpair">Stop letting it use this computer</button></div>`
+      : `<div class="kv">Let the assistant use this computer's files, browser and apps. It still asks before sending, deleting or paying, and you can pause it from the tray icon.</div>
+         <div class="setbar"><button class="primary" data-dv="pairhere" ${DV.busy ? "disabled" : ""}>Let the assistant use this computer</button></div>`}</div>` : "";
+  el.innerHTML = `${thisPc}<div class="card"><h3>Signing in</h3>${signing}${acctForm}</div>
+    <div class="card"><h3>Devices <button data-dv="paircode" ${d.hubs.length ? "" : "disabled"}>Add a device</button></h3>
+      <div class="kv">${esc(d.here)} is the hub: the assistant runs here. ${d.hubs.length ? "" : "Other computers reach it through <code>tailscale serve</code>: start the dashboard with <code>--allow-host</code> (see the README) to add one."}</div></div>
+    ${pairing}${d.devices.length ? d.devices.map(devRow).join("") : `<div class="kv">No other computers yet.</div>`}
+    <div class="kv ${DV.err ? "bad" : ""}" role="status" style="margin-top:8px">${esc(DV.err || DV.msg)}</div>`;
+}
+async function dvDo(fn, done) {
+  DV.busy = true; DV.err = ""; DV.msg = ""; renderDevices();
+  try { const r = await fn(); DV.msg = typeof done === "function" ? done(r) : done || ""; } catch (e) { DV.err = e.message || String(e); }
+  DV.busy = false; await refreshDevices();
+}
+$("p-devices").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-dv]"); if (!b) return;
+  const act = b.dataset.dv, val = (k) => { const x = $("p-devices").querySelector(`[data-dvf="${k}"]`); return x ? x.value : ""; };
+  const post = (path, body) => api(path, {method: "POST", body: JSON.stringify(body || {})});
+  if (act === "form") { DV.form = b.dataset.f; renderDevices(); }
+  else if (act === "cancel") { DV.form = null; renderDevices(); }
+  else if (act === "create") await dvDo(() => post("/api/accounts", {name: val("name"), password: val("password")}).then((r) => { DV.form = null; return r; }), (r) => `Made ${r.user}'s account. Other devices now sign in.`);
+  else if (act === "setpw") await dvDo(() => post("/api/accounts/password", {name: val("name"), old: val("old"), password: val("password")}).then((r) => { DV.form = null; return r; }), (r) => r.note);
+  else if (act === "logout") { await fetch("/auth/logout", {method: "POST"}); location.replace("/login"); }
+  else if (act === "paircode") await dvDo(async () => { DV.code = await post("/api/devices/pair-code"); });
+  else if (act === "hidecode") { DV.code = null; renderDevices(); }
+  else if (act === "copycmd" && DV.code) { try { await navigator.clipboard.writeText(DV.code.command); DV.msg = "Copied."; } catch { DV.msg = DV.code.command; } renderDevices(); }
+  else if (act === "rename") { const name = prompt(`New name for ${b.dataset.name}:`, b.dataset.name); if (name) await dvDo(() => post("/api/devices/rename", {id: b.dataset.id, name}), "Renamed."); }
+  else if (act === "revoke") { if (confirm(`Remove ${b.dataset.name}? The assistant can no longer use it; pairing it again needs a new code.`)) await dvDo(() => post("/api/devices/revoke", {id: b.dataset.id}), `${b.dataset.name} removed.`); }
+  else if (act === "pairhere") await dvDo(async () => { const c = await post("/api/devices/pair-code"); const r = await appApi().pair(c.code); if (r && r.error) throw new Error(r.error); }, "This computer is paired.");
+  else if (act === "pause" || act === "resume") await dvDo(() => appApi().pause(act === "pause"), act === "pause" ? "Paused." : "Resumed.");
+  else if (act === "unpair") { if (confirm("Stop letting the assistant use this computer? Its key is deleted here and it is removed from the hub.")) await dvDo(async () => {
+    const st = await appApi().status(); await appApi().forget(); if (st && st.id) await post("/api/devices/revoke", {id: st.id}); }, "This computer is no longer paired."); }
+});
+
 // ---- the side panel: closed until you open a tab, the browser goes live, or an artifact is made ----
-const TITLES = {inspector: "Inspector", history: "History", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", newsroom: "Newsroom", settings: "Settings", status: "Status"};
+const TITLES = {inspector: "Inspector", history: "History", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", newsroom: "Newsroom", devices: "Devices", settings: "Settings", status: "Status"};
 $("side").inert = true;
 function openPanel(tab) {
   S.tab = tab;
@@ -2624,6 +2751,7 @@ function openPanel(tab) {
   if (tab === "artifacts") refreshArtifacts();
   if (tab === "status") refreshStatus();
   if (tab === "settings") refreshSettings(true);
+  if (tab === "devices") refreshDevices();
   if (tab === "memory") refreshMemory();
   if (tab === "history") refreshHistory();
   if (tab === "browser") paintBrowser();

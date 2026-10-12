@@ -50,6 +50,8 @@ python evals/bench/desktop_tasks.py --arm both --repeat 2   # desktop tool, 18 t
 python evals/desktop_cases.py          # Jev's choice of control / done / gate on saved windows (--capture first; --holdout, --offline)
 python evals/newsroom_cases.py         # Newsroom (run 2026-10-09, below target on the tool pick and routing): Jev offers the tool for "keep an eye on..." and not for one-off lookups; routing old vs new; the `about` alert (--holdout, --offline, --runs, --export/--labelled)
 python evals/bench/newsroom.py         # Newsroom end to end (run 2026-10-09): real feeds, full turns old vs new, the dashboard path (--stage sources|turns|dashboard, --arm auto|both, --reps; no desktop tool in its workers; run with Nango off)
+python evals/devices_cases.py          # devices: does Jev give the worker the tool for "on my laptop" requests and not for lookalikes; old roster vs new (--regression adds tool_cases.py, --holdout, --offline, --repeat)
+python evals/bench/devices.py --repeat 3   # devices end to end: full turns on live models with a device connected (files, shell, fetch, browser, the confirmation gate, lookalikes), old (no devices) vs new; --remote NAME for a real other computer
 python evals/bench/persona_creation.py   # persona creation, live: Jev checks, the writer, the gate, routing, full turns
                                          #   (--stage, --split dev|held, --reps, --budget/--resume for a runner with a time cap)
 python evals/bench/nango_setup.py        # connecting an account: a simulated user + the real local Nango (Docker), multi-turn
@@ -104,6 +106,9 @@ stops, `/steer <text>` always adds.
 | `jevh notebook` | your notebook of ideas and problems |
 | `jevh newsroom` | the Newsroom board from a terminal: `kinds`, `add`, `refresh`, `notes`, `rm` (see [docs/newsroom.md](docs/newsroom.md)) |
 | `jevh context` | the context window each model is loaded with, and where the harness will condense its steps |
+| `jevh app` | the desktop app: the dashboard in a window, a tray icon; on another computer, it also lets the assistant use it (see [docs/devices.md](docs/devices.md)) |
+| `jevh users` | accounts that sign in to the dashboard from other devices: `add`, `list`, `password`, `remove` |
+| `jevh device` | let a hub's assistant use this computer: `pair <hub> <code>`, `run`, `status`, `pause`, `resume`, `activity`, `forget` |
 
 `pip install -e .` inside the venv puts `jevh` on the PATH while that venv is active. To have it in every
 terminal with no venv to activate, install it once with [pipx](https://pipx.pypa.io)
@@ -292,6 +297,11 @@ message shows in the turn with what became of it. On a phone the same box and th
 - Every API call needs a per-launch token embedded in the page.
 - It refuses POSTs from other origins, which blocks CSRF from websites you visit.
 - It serves files only from the workspace. HTML artifacts get a CSP sandbox, so a generated page can't reach the dashboard.
+
+**Your other computers, and signing in:** a computer that runs `jevh app` (or `jevh device run`) and is paired in the
+**Devices** panel becomes one the assistant can use: its files, a shell, its screen, its browser and its apps ("what's in
+the Downloads folder on my laptop?"). Making an account there replaces the per-launch link below with a sign-in that lasts.
+Partly verified; see [docs/devices.md](docs/devices.md).
 
 **From your phone (Tailscale):** the dashboard stays bound to 127.0.0.1; `tailscale serve` is the way in, and it is
 tailnet-only (never `funnel`). Run `tailscale serve --bg --https=10000 http://127.0.0.1:8740`, then

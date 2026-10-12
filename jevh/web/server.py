@@ -18,6 +18,7 @@ import asyncio
 import dataclasses
 import json
 import mimetypes
+import platform
 import re
 import secrets
 import shutil
@@ -32,8 +33,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 
 from .. import context as ctxwin
 from .. import settings as usersettings
@@ -45,6 +46,9 @@ from ..interject import KINDS
 from ..lmstudio import gate_for
 from ..orchestrator import Harness
 from ..history import History
+from ..accounts import SESSION_DAYS, AccountError, Accounts
+from ..devices import wire
+from ..devices.hub import DeviceHub
 from ..review import list_sessions, session_record
 from ..skills import load_roster
 
@@ -54,6 +58,8 @@ MAX_EVENTS = 5000
 # the connection stays up, nothing is read) stops getting more; when it is read again it ends, and the page reconnects
 # from the last event it saw, the rest coming from `events`. Unbounded, it held every event of the session in memory.
 SUB_QUEUE = 2000
+SESSION_COOKIE = "jevh_session"
+OPEN_PATHS = {"/login", "/auth/login", "/auth/logout", "/auth/pair"}   # reachable from another device before signing in
 
 
 class _Stream(asyncio.Queue):
@@ -72,8 +78,13 @@ class Hub:
         # factory(on_event) -> a Harness for a new session; factory(on_event, session=id) -> one that carries on session `id`
         self._factory = harness_factory or (lambda on_event, session=None: Harness(
             cfg, on_event=on_event, model_override=model_override, session=session))
+        # sign-in and the user's other computers (jevh/accounts.py, jevh/devices/hub.py); every harness the Hub makes uses them
+        self.accounts = Accounts(cfg.workspace / "accounts.db")
+        self.devices = DeviceHub(self.accounts, jev_url=lambda: self.harness.cfg.jev.get("url", "http://127.0.0.1:33001"),
+                                 env=self._device_env, publish=self.publish)
+        self.devices.here = platform.node()
         self.harness = self._factory(self.publish)
-        self.harness.browser_dock = True   # a watched browser shows in the Browser panel, not a window
+        self._adopt(self.harness)
         self.dock = BrowserDock(lambda: Path(self.harness.session_dir) / "browsers")
         self.events: list[dict] = []
         self.turns: list[dict] = []
@@ -96,6 +107,16 @@ class Hub:
         self.newsroom_runner = nr.Runner(
             self.newsroom, on_alerts=lambda notes: self.publish("newsroom_alert", {"notes": notes}),
             on_change=lambda: self.publish("newsroom", {"rev": self.newsroom.rev()}))
+
+    def _adopt(self, harness) -> None:
+        harness.browser_dock = True   # a watched browser shows in the Browser panel, not a window
+        harness.devices = self.devices
+
+    def _device_env(self) -> dict:
+        """What a device's browser and desktop tools need to know of this hub's settings (never a key: a device's Jev
+        questions come back here, see DeviceHub._answer_jev)."""
+        env = getattr(self.harness, "tool_env", {}) or {}
+        return {k: env[k] for k in ("JEVH_JEV_BACKEND",) if env.get(k)}
 
     # events from worker threads -> history + every open SSE stream
     def publish(self, kind: str, data: dict | None = None) -> None:
@@ -201,7 +222,7 @@ class Hub:
             mode, project, watch = self.harness.tier_mode, self.harness.project, self.harness.watch_browser
             self.harness = self._factory(self.publish)
             self.harness.tier_mode, self.harness.project, self.harness.watch_browser = mode, project, watch
-            self.harness.browser_dock = True
+            self._adopt(self.harness)
             self.turns.clear()
             self.publish("reset", {"session": self.harness.session})
         finally:
@@ -220,7 +241,7 @@ class Hub:
             mode, project, watch = self.harness.tier_mode, self.harness.project, self.harness.watch_browser
             self.harness = self._factory(self.publish, session=session)
             self.harness.tier_mode, self.harness.project, self.harness.watch_browser = mode, project, watch
-            self.harness.browser_dock = True
+            self._adopt(self.harness)
             self.turns.clear()
             self.publish("reset", {"session": session, "loaded": True})
             for t in rec["turns"]:   # (published one by one: an event carries the id of the newest turn)
@@ -406,6 +427,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         hub.loop = asyncio.get_running_loop()  # worker threads hand events to SSE via this loop
+        hub.devices.loop = hub.loop            # and calls to devices to their connections
         if hub.newsroom_cfg["enabled"]:
             hub.newsroom_runner.start()
         yield
@@ -420,9 +442,19 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                   lifespan=lifespan)
     app.state.hub, app.state.token, app.state.access_key = hub, token, access_key
 
+    accounts = hub.accounts
+    hub_urls = [f"https://{e.lower()}" for e in (allow_hosts or [])]   # how other devices reach this dashboard
+
     def is_access_key(value: str | None) -> bool:
         # bytes: compare_digest refuses a str with non-ASCII characters, which a ?key=%C3%A9 would be
         return bool(value) and secrets.compare_digest(value.encode(), access_key.encode())
+
+    def client_of(request) -> str:
+        """Who is asking, for throttling: `tailscale serve` connects from 127.0.0.1 and names the device it proxies for."""
+        ip = request.client.host if request.client else ""
+        if ip in ("127.0.0.1", "::1"):
+            ip = request.headers.get("x-forwarded-for", ip).split(",")[0].strip()
+        return ip
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
@@ -430,27 +462,165 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         if host not in allowed_hosts:
             return JSONResponse({"detail": "bad host"}, status_code=403)
         remote = host in remote_hosts
+        path = request.url.path
         key_sent = request.query_params.get("key")
-        if remote:   # not this machine: only a browser holding the access key gets in
-            # the link's ?key= counts beside the cookie: the key changes each launch, so a phone still holding
-            # the last launch's cookie must not be locked out of the new link by it
-            if not (is_access_key(key_sent) or is_access_key(request.cookies.get("jevh_key"))):
+        user = accounts.session_user(request.cookies.get(SESSION_COOKIE))
+        request.state.remote, request.state.user = remote, user
+        if remote and path not in OPEN_PATHS:
+            if accounts.has_users():   # accounts exist: signing in is the only way in from another device
+                if user is None:
+                    if path.startswith("/api/"):
+                        return JSONResponse({"detail": "sign in first"}, status_code=401)
+                    return RedirectResponse("/login", status_code=303)
+            # no accounts yet: only a browser holding this launch's access key gets in. The link's ?key= counts beside
+            # the cookie: the key changes each launch, so a phone still holding the last launch's cookie must not be
+            # locked out of the new link by it
+            elif not (is_access_key(key_sent) or is_access_key(request.cookies.get("jevh_key"))):
                 return JSONResponse({"detail": "missing or bad access key"}, status_code=403)
-        if request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        if request.method != "GET" and origin is not None and origin not in allowed_origins:
+            return JSONResponse({"detail": "foreign origin"}, status_code=403)
+        if path.startswith("/api/"):
             sent = request.headers.get("x-jevh-token") or request.query_params.get("token")
             if not sent or not secrets.compare_digest(sent, token):
                 return JSONResponse({"detail": "missing or bad token"}, status_code=403)
-            origin = request.headers.get("origin")
-            if request.method != "GET" and origin is not None and origin not in allowed_origins:
-                return JSONResponse({"detail": "foreign origin"}, status_code=403)
         response = await call_next(request)
-        if remote and is_access_key(key_sent):   # (this also replaces a stale cookie)
+        if remote and is_access_key(key_sent) and not accounts.has_users():   # (this also replaces a stale cookie)
             response.set_cookie("jevh_key", access_key, httponly=True, secure=True, samesite="strict")
         return response
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
         return (STATIC / "index.html").read_text(encoding="utf-8").replace("__JEVH_TOKEN__", token)
+
+    # ------------------------------------------------------------ signing in (jevh/accounts.py)
+    @app.get("/login", response_class=HTMLResponse)
+    def login_page(request: Request):
+        if request.state.user or (not request.state.remote and not accounts.has_users()):
+            return RedirectResponse("/", status_code=303)
+        return (STATIC / "login.html").read_text(encoding="utf-8").replace(
+            "__JEVH_NO_ACCOUNTS__", "" if accounts.has_users() else "1")
+
+    @app.post("/auth/login")
+    async def login(request: Request):
+        body = await request.json()
+        who = client_of(request)
+        if accounts.throttled(f"login:{who}"):
+            raise HTTPException(429, "Too many tries: wait a few minutes.")
+        name = await asyncio.to_thread(accounts.verify, str(body.get("name", "")), str(body.get("password", "")), who)
+        if name is None:
+            raise HTTPException(401, "That name and password don't match.")
+        resp = JSONResponse({"user": name})
+        resp.set_cookie(SESSION_COOKIE, accounts.start_session(name, request.headers.get("user-agent", "")),
+                        max_age=SESSION_DAYS * 86400, httponly=True, secure=request.state.remote, samesite="lax")
+        return resp
+
+    @app.post("/auth/logout")
+    def logout(request: Request):
+        accounts.end_session(request.cookies.get(SESSION_COOKIE))
+        resp = JSONResponse({"ok": True})
+        resp.delete_cookie(SESSION_COOKIE)
+        return resp
+
+    @app.post("/auth/pair")
+    async def pair(request: Request) -> dict:
+        """A device trades a pairing code for its key (jevh/devices/agent.py pair). No sign-in: the code is the proof."""
+        body = await request.json()
+        try:
+            dev, key = accounts.redeem(str(body.get("code", "")), str(body.get("name", "")), str(body.get("platform", "")),
+                                       who=client_of(request))
+        except AccountError as e:
+            raise HTTPException(400, str(e)) from None
+        hub.publish("devices", {"name": dev.name, "paired": True})
+        return {"device": {"id": dev.id, "name": dev.name}, "key": key, "hub": hub.devices.here}
+
+    @app.get("/api/me")
+    def me(request: Request) -> dict:
+        return {"user": request.state.user, "local": not request.state.remote, "accounts": accounts.has_users(),
+                "users": [u["name"] for u in accounts.users()] if (request.state.user or not request.state.remote) else [],
+                "here": hub.devices.here, "hubs": hub_urls}
+
+    @app.post("/api/accounts")
+    async def add_account(request: Request) -> dict:
+        """A new account: from this computer (the first one is made here), or by someone already signed in."""
+        if request.state.remote and not request.state.user:
+            raise HTTPException(403, "Sign in first.")
+        body = await request.json()
+        try:
+            name = await asyncio.to_thread(accounts.add_user, str(body.get("name", "")), str(body.get("password", "")))
+        except AccountError as e:
+            raise HTTPException(400, str(e)) from None
+        return {"user": name, "users": [u["name"] for u in accounts.users()]}
+
+    @app.post("/api/accounts/password")
+    async def change_password(request: Request) -> dict:
+        body = await request.json()
+        name = request.state.user or (str(body.get("name", "")) if not request.state.remote else "")
+        if not name:
+            raise HTTPException(403, "Sign in first.")
+        if request.state.user and not await asyncio.to_thread(accounts.verify, name, str(body.get("old", "")),
+                                                               client_of(request)):
+            raise HTTPException(401, "The current password is wrong.")
+        try:
+            await asyncio.to_thread(accounts.set_password, name, str(body.get("password", "")))
+        except AccountError as e:
+            raise HTTPException(400, str(e)) from None
+        return {"ok": True, "note": "Every browser signed in to this account was signed out."}
+
+    # ------------------------------------------------------------ devices (jevh/devices)
+    @app.get("/api/devices")
+    def devices_list() -> dict:
+        return {"devices": hub.devices.list(), "here": hub.devices.here, "hubs": hub_urls}
+
+    @app.post("/api/devices/pair-code")
+    def devices_pair_code(request: Request) -> dict:
+        if not hub_urls:
+            raise HTTPException(400, "Other computers reach this dashboard through `tailscale serve`: restart it with "
+                                     "--allow-host <this machine>.<tailnet>.ts.net:<port> first (see the README).")
+        code, expires = accounts.pair_code(request.state.user or "local")
+        return {"code": code, "expires": expires, "hubs": hub_urls,
+                "command": f"jevh device pair {hub_urls[0]} {code}"}
+
+    @app.post("/api/devices/rename")
+    async def devices_rename(request: Request) -> dict:
+        body = await request.json()
+        dev = accounts.device(str(body.get("id", "")))
+        if dev is None:
+            raise HTTPException(404, "No such device.")
+        try:
+            accounts.rename(dev.id, str(body.get("name", "")))
+        except AccountError as e:
+            raise HTTPException(400, str(e)) from None
+        return devices_list()   # (the device hears its new name when it next connects)
+
+    @app.post("/api/devices/revoke")
+    async def devices_revoke(request: Request) -> dict:
+        body = await request.json()
+        dev = accounts.device(str(body.get("id", "")))
+        if dev is None:
+            raise HTTPException(404, "No such device.")
+        accounts.revoke(dev.id)
+        await hub.devices.drop(dev.id)
+        hub.publish("devices", {"name": dev.name, "revoked": True})
+        return devices_list()
+
+    @app.websocket(wire.PATH)
+    async def device_socket(ws: WebSocket):
+        """A device's one connection (jevh/devices/agent.py). The http guard does not see WebSockets: the Host is checked
+        here, and the device's key (sent as a bearer token, which no web page can set on a WebSocket) is the sign-in."""
+        if ws.headers.get("host", "").lower() not in allowed_hosts:
+            await ws.close(code=1008)
+            return
+        auth = ws.headers.get("authorization", "")
+        dev = accounts.device_for_key(auth[7:].strip() if auth.lower().startswith("bearer ") else None)
+        await ws.accept()
+        if dev is None:
+            await ws.close(code=wire.CLOSE_REVOKED)
+            return
+        try:
+            await hub.devices.serve(ws, dev)
+        except WebSocketDisconnect:
+            pass
 
     @app.get("/api/state")
     def state() -> dict:

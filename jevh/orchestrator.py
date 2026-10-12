@@ -222,6 +222,7 @@ class Harness:
         # show the browser tool's window, with Jev's picks outlined (dashboard toggle, CLI /watch)
         self.watch_browser = bool(self.cfg.tools.get("browser_watch")) or os.environ.get("JEVH_BROWSER_HEADED") == "1"
         self.browser_dock = False   # the dashboard sets it: watched browsers run hidden and show in its Browser panel
+        self.devices = None         # the dashboard sets it: the user's other computers (jevh/devices/hub.py DeviceHub)
         # the factory gets the persona with its model block already resolved for the tier
         self._llm_factory = llm_factory or (lambda p: make_llm(p.model, self.cfg.providers))
         self._llms: dict[str, LLM] = {}
@@ -808,6 +809,9 @@ class Harness:
     # -- tasks -----------------------------------------------------------------------
     def run_task(self, task: Task, goal: str, allow_collab: bool, resume: dict | None = None) -> WorkerResult:
         persona = self.personas[task.to]
+        if "devices" in persona.tools and not self.devices_online():
+            # no other computer is connected: the tool, its guide and its pointer would be noise in every prompt
+            persona = replace(persona, tools=[t for t in persona.tools if t != "devices"])
         turn_no = getattr(self._tl, "turn", self.turn_no)
         self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = turn_no, persona.name, task.id, "llm"
         # one roster for the whole task: learning (another thread) swaps self.roster for a fresh one when it writes a
@@ -837,6 +841,10 @@ class Harness:
         catalog = self.mcp.catalog() if tools.mcp else {}
         picked = [roster[s] for s in skills.skills if s in roster]
         notes = {"nango": self._nango_summary()} if "nango" in tools.tools else {}
+        if "devices" in persona.tools:   # (said with the guide or, when Jev did not pick it, with its pointer line)
+            notes["devices"] = (f"Connected now: {', '.join(self.devices_online())}. Anything the user wants done ON one of "
+                                f"them goes through devices.get(name): browser, desktop, project and start_job act on this "
+                                f"computer (the hub) only.")
         system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
                               [catalog[k] for k in tools.mcp if k in catalog], tool_notes=notes)
         ctx = {"request": task.text, "memory": mem.kept, "inputs": task.inputs,
@@ -891,6 +899,9 @@ class Harness:
         }
         workdir = Path(resume["workdir"]) if resume and resume.get("workdir") else \
             self.session_dir / f"u{turn_no}t{task.id}-{persona.name}"   # task ids restart every turn
+        if "devices" in persona.tools:
+            handlers["device"] = lambda ref, op, args=None, kwargs=None: self._device_call(
+                task, handlers, workdir, ref, op, args, kwargs)
         task.checkpoint = workdir / "checkpoint.json"
         worker = Worker(persona, llm, workdir, self.artifacts,
                         handlers, {t: f"jevh.tools.{t}" for t in persona.tools},
@@ -1033,6 +1044,8 @@ class Harness:
             return ToolDecision([])
         own = {t: TOOLS[t].description for t in persona.tools
                if t in TOOLS and (t != "project" or self.project)}
+        if "devices" in own:   # Jev judges "on my laptop" knowing which computers are there
+            own["devices"] = own["devices"].replace("{connected}", ", ".join(self.devices_online()))
         if "nango" in own and (accounts := self._nango_summary()):   # Jev judges "my email" knowing Gmail is connected
             own["nango"] += f" ({accounts.rstrip('.')})"
         mcp = {}
@@ -1042,6 +1055,45 @@ class Harness:
             return ToolDecision([])
         fallback = ToolDecision(list(own))  # Jev down: all guides (capability beats a lean prompt)
         return self._safe("tools", lambda: self.jev.pick_tools(task.jev_text, own, mcp), fallback)
+
+    def devices_online(self) -> list[str]:
+        hub = self.devices
+        return hub.online() if hub is not None else []
+
+    def _device_call(self, task: Task, handlers: dict, workdir: Path, ref, op: str, args=None, kwargs=None):
+        """A worker's `devices` call (jevh/tools/devices.py): made on the device through the dashboard's DeviceHub, with
+        this turn's Stop. Files the device sends back land in the task's folder, from-devices/<device>/. While it runs,
+        the device's tools may ask back: its browser's or desktop's look() (the worker's own model) and a question to the
+        user (the desktop tool asking whether it may type a password), shown with the device's name."""
+        from .devices import wire
+        hub = self.devices
+        if hub is None:
+            raise RuntimeError("no devices here: the user's other computers connect to the dashboard (jevh dashboard / "
+                               "jevh app), not to the command line")
+        if op == "list":
+            return hub.list() + [{"name": hub.here or "this computer", "here": True, "online": True,
+                                  "note": "the hub itself: use the ordinary tools for it"}]
+        kwargs = dict(kwargs or {})
+        timeout = float(kwargs.pop("_timeout", 600))
+        incoming = workdir / "from-devices"
+
+        def on_host(name: str, *a, **k):
+            a = wire.unpack_files(list(a), incoming / "_asked")
+            if name == "ask_user" and a:
+                a[0] = f"[on {ref}] {a[0]}"
+            return handlers[name](*a, **k)
+        started = time.time()
+        error = None
+        try:
+            value = hub.call(str(ref), str(op), list(args or []), kwargs, timeout=timeout, cancel=self._cancel,
+                             on_host=on_host)
+        except Exception as e:
+            error = str(e)
+            raise
+        finally:
+            self.on_event("device_call", {"task": task, "device": str(ref), "op": str(op),
+                                          "seconds": round(time.time() - started, 1), "error": error})
+        return wire.unpack_files(value, incoming / wire.safe_name(str(ref)))
 
     def _progress_fn(self, task: Task):
         def circles(log: str) -> float:

@@ -1,0 +1,18 @@
+devices tool pick (held-out); config threshold 0.65; 72 Jev calls, 27.7 s
+
+== cases at threshold 0.65 (12 requests x 3 repeats)
+  old: 27/36 right (75%)
+  new: 18/36 right (50%)
+    new, borderline: 0/3 (0%)
+    new, fire: 6/18 (33%)
+    new, lookalike: 12/15 (80%)
+  devices picked where it was not wanted: 3; other tools' picks changed by adding devices: 0
+  not always right (new):
+    0% right  Grab the latest invoice from bilbo and summarize it.             need=['devices'] either=[] {'web': 0.18, 'browser': 0.1, 'desktop': 0.09, 'devices': 0.5, 'nango': 0.73, 'newsroom': 0.0}
+    0% right  Delete the temp files in studio-pc's Downloads older than a mont need=['devices'] either=[] {'web': 0.0, 'browser': 0.01, 'desktop': 0.91, 'devices': 0.98, 'nango': 0.97, 'newsroom': 0.0}
+    0% right  Is the build finished on my laptop? It was running in PowerShell need=['devices'] either=['desktop'] {'web': 0.02, 'browser': 0.04, 'desktop': 0.32, 'devices': 0.47, 'nango': 0.01, 'newsroom': 0.01}
+    0% right  Pause the music playing on studio-pc.                            need=['devices'] either=['desktop'] {'web': 0.0, 'browser': 0.0, 'desktop': 0.98, 'devices': 0.62, 'nango': 0.0, 'newsroom': 0.0}
+    0% right  Rename draft.txt on my Desktop to final.txt.                     need=['desktop'] either=['devices'] {'web': 0.0, 'browser': 0.0, 'desktop': 0.94, 'devices': 0.03, 'nango': 0.65, 'newsroom': 0.0}
+    0% right  How do I share a folder between my Mac and my PC?                need=[] either=['web'] {'web': 0.32, 'browser': 0.02, 'desktop': 0.11, 'devices': 0.97, 'nango': 0.12, 'newsroom': 0.0}
+
+threshold sweep (new roster, cases): 0.2: 18/36, 0.3: 18/36, 0.4: 18/36, 0.5: 21/36, 0.6: 21/36, 0.7: 21/36, 0.8: 21/36, 0.9: 18/36

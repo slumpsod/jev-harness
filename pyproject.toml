@@ -7,16 +7,18 @@ dependencies = ["pyyaml", "rich"]
 
 [project.optional-dependencies]
 claude = ["anthropic"]
-web = ["fastapi", "uvicorn"]
+web = ["fastapi", "uvicorn", "websockets"]   # (websockets: devices connect to the dashboard)
 browser = ["playwright"]   # then: python -m playwright install chromium
 desktop = ["comtypes; sys_platform == 'win32'", "pillow"]   # the desktop tool (Windows UI Automation)
+device = ["websockets", "pillow"]   # let a hub's assistant use this computer: jevh device (docs/devices.md)
+app = ["fastapi", "uvicorn", "websockets", "pywebview", "pystray", "pillow"]   # jevh app: the window and tray icon
 dev = ["pytest", "httpx"]
 
 [project.scripts]
 jevh = "jevh.cli:main"
 
 [tool.setuptools]
-packages = ["jevh", "jevh.repl", "jevh.tools", "jevh.web", "jevh.refine"]
+packages = ["jevh", "jevh.repl", "jevh.tools", "jevh.web", "jevh.refine", "jevh.devices"]
 
 [tool.setuptools.package-data]
 "jevh.web" = ["static/*"]
