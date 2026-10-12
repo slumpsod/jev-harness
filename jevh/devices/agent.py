@@ -62,10 +62,12 @@ def save_conf(conf: dict) -> None:
 
 
 def hub_base(url: str) -> str:
-    url = url.strip().rstrip("/")
+    """https://host:port of a hub, from what the user typed: a bare name, a URL, or the dashboard's key link (?key=...)."""
+    url = url.strip()
     if "://" not in url:
         url = "https://" + url
-    return url
+    scheme, _, rest = url.partition("://")
+    return f"{scheme}://{rest.split('/')[0].split('?')[0].split('#')[0]}"
 
 
 def ws_url(hub: str) -> str:

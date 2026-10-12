@@ -188,6 +188,26 @@ def test_accounts_replace_the_key_link_for_other_devices(cfg):
                   headers={**remote, "Origin": "https://evil.example"}).status_code == 403
 
 
+def test_the_key_link_can_make_the_first_account_from_another_device_and_only_the_first(cfg):
+    """The app on another computer opens the dashboard's key link; there it may make the first account (whoever holds the
+    link already has the whole assistant) and is signed in at once. A second account needs a signed-in user."""
+    from jevh.devices.agent import hub_base
+    c = TestClient(make_app(cfg), base_url="http://127.0.0.1:8740")
+    remote = {"Host": f"{REMOTE}:10000", "X-Jevh-Token": TOKEN}
+    assert c.post("/api/accounts", json={"name": "eve", "password": "12345678"}, headers=remote).status_code == 403
+    keyed = {**remote, "Cookie": "jevh_key=k3y"}
+    assert c.get("/api/me", headers=keyed).json()["keyed"] is True
+    r = c.post("/api/accounts", json={"name": "jed", "password": "correct horse"}, headers=keyed)
+    assert r.status_code == 200 and r.json()["signed_in"] is True
+    session = r.cookies["jevh_session"]
+    signed = {**remote, "Cookie": f"jevh_session={session}"}
+    assert c.get("/api/me", headers=signed).json()["user"] == "jed"
+    assert c.post("/api/accounts", json={"name": "eve", "password": "12345678"}, headers=keyed).status_code == 401
+    assert c.get("/api/me", headers=keyed).status_code == 401          # the key link no longer opens it
+    assert hub_base(f"https://{REMOTE}:10000/?key=k3y") == f"https://{REMOTE}:10000"
+    assert hub_base(f"{REMOTE}:10000") == f"https://{REMOTE}:10000" and hub_base("http://127.0.0.1:8740/") == "http://127.0.0.1:8740"
+
+
 def test_pairing_needs_a_way_in_for_other_devices(cfg):
     c = TestClient(make_app(cfg, allow=False), base_url="http://127.0.0.1:8740")
     r = c.post("/api/devices/pair-code", headers={"X-Jevh-Token": TOKEN})

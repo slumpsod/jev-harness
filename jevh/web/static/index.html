@@ -2678,8 +2678,8 @@ function renderDevices() {
       <div class="setbar"><button class="primary" data-dv="setpw" ${DV.busy ? "disabled" : ""}>Change password</button><button data-dv="cancel">Cancel</button></div>` : "";
   const signing = !me.accounts
     ? `<div class="kv">No accounts yet: other devices get in with the link the dashboard prints when it starts, which changes every launch.
-        ${me.local ? "Make an account and they sign in instead (it lasts across restarts, and the link stops working)." : "Make an account on the hub computer."}</div>
-       ${me.local && !f ? `<div class="setbar"><button class="primary" data-dv="form" data-f="first">Make an account</button></div>` : ""}`
+        ${me.local || me.keyed ? "Make an account and they sign in instead (it lasts across restarts, and the link stops working)." : "Make an account on the hub computer."}</div>
+       ${(me.local || me.keyed) && !f ? `<div class="setbar"><button class="primary" data-dv="form" data-f="first">Make an account</button></div>` : ""}`
     : `<div class="kv">${me.user ? `Signed in as <b>${esc(me.user)}</b>.` : "On the hub computer: no sign-in needed here."}
         Accounts: ${me.users.map(esc).join(", ")}.</div>
        ${!f ? `<div class="setbar">${me.user ? `<button data-dv="logout">Sign out</button>` : ""}<button data-dv="form" data-f="add">Add an account</button>
@@ -2725,7 +2725,7 @@ $("p-devices").addEventListener("click", async (ev) => {
   const post = (path, body) => api(path, {method: "POST", body: JSON.stringify(body || {})});
   if (act === "form") { DV.form = b.dataset.f; renderDevices(); }
   else if (act === "cancel") { DV.form = null; renderDevices(); }
-  else if (act === "create") await dvDo(() => post("/api/accounts", {name: val("name"), password: val("password")}).then((r) => { DV.form = null; return r; }), (r) => `Made ${r.user}'s account. Other devices now sign in.`);
+  else if (act === "create") await dvDo(() => post("/api/accounts", {name: val("name"), password: val("password")}).then((r) => { DV.form = null; return r; }), (r) => `Made ${r.user}'s account${r.signed_in ? " and signed you in here" : ""}. Other devices now sign in.`);
   else if (act === "setpw") await dvDo(() => post("/api/accounts/password", {name: val("name"), old: val("old"), password: val("password")}).then((r) => { DV.form = null; return r; }), (r) => r.note);
   else if (act === "logout") { await fetch("/auth/logout", {method: "POST"}); location.replace("/login"); }
   else if (act === "paircode") await dvDo(async () => { DV.code = await post("/api/devices/pair-code"); });

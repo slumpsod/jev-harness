@@ -466,6 +466,8 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         key_sent = request.query_params.get("key")
         user = accounts.session_user(request.cookies.get(SESSION_COOKIE))
         request.state.remote, request.state.user = remote, user
+        # (holds this launch's access key: on another device before any account exists, the only way in)
+        request.state.keyed = remote and (is_access_key(key_sent) or is_access_key(request.cookies.get("jevh_key")))
         if remote and path not in OPEN_PATHS:
             if accounts.has_users():   # accounts exist: signing in is the only way in from another device
                 if user is None:
@@ -537,20 +539,29 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @app.get("/api/me")
     def me(request: Request) -> dict:
         return {"user": request.state.user, "local": not request.state.remote, "accounts": accounts.has_users(),
+                "keyed": bool(request.state.keyed) and not accounts.has_users(),
                 "users": [u["name"] for u in accounts.users()] if (request.state.user or not request.state.remote) else [],
                 "here": hub.devices.here, "hubs": hub_urls}
 
     @app.post("/api/accounts")
-    async def add_account(request: Request) -> dict:
-        """A new account: from this computer (the first one is made here), or by someone already signed in."""
-        if request.state.remote and not request.state.user:
+    async def add_account(request: Request):
+        """A new account: from this computer, by someone already signed in, or - the first one only - from another device
+        that came in with this launch's key link (whoever holds that link already has the whole assistant, so letting them
+        make the first account gives them nothing more; it is how the app on another computer gets started). That first
+        account is signed in at once on the device that made it: from then on, the key link no longer opens the dashboard."""
+        first_by_key = request.state.remote and request.state.keyed and not accounts.has_users()
+        if request.state.remote and not request.state.user and not first_by_key:
             raise HTTPException(403, "Sign in first.")
         body = await request.json()
         try:
             name = await asyncio.to_thread(accounts.add_user, str(body.get("name", "")), str(body.get("password", "")))
         except AccountError as e:
             raise HTTPException(400, str(e)) from None
-        return {"user": name, "users": [u["name"] for u in accounts.users()]}
+        resp = JSONResponse({"user": name, "users": [u["name"] for u in accounts.users()], "signed_in": first_by_key})
+        if first_by_key:
+            resp.set_cookie(SESSION_COOKIE, accounts.start_session(name, request.headers.get("user-agent", "")),
+                            max_age=SESSION_DAYS * 86400, httponly=True, secure=True, samesite="lax")
+        return resp
 
     @app.post("/api/accounts/password")
     async def change_password(request: Request) -> dict:

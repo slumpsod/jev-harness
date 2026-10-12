@@ -186,6 +186,8 @@ class AppApi:
                 if not hub.strip():
                     return {"error": "Type the hub's address."}
                 conf["hub"] = device_agent.hub_base(hub)
+                if "key=" in hub:   # the dashboard's key link: opened once, so the first account can be made here
+                    conf["first_url"] = hub.strip()
             elif serve:
                 conf["allow_hosts"] = [tailscale_serve(int(port), 10000)]
         except Exception as e:  # noqa: BLE001
@@ -208,7 +210,7 @@ border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;margin-top:
 <label class="opt"><input type="radio" name="role" value="hub"> <b>This computer is the hub</b><span>The assistant and its models run here.</span>
 <div><label><input type="checkbox" id="serve"> Let my other devices reach it through Tailscale (<span id="ts">checking...</span>)</label></div></label>
 <label class="opt"><input type="radio" name="role" value="device"> <b>Connect to my hub</b><span>Sign in to the assistant on another computer, and let it use this one.</span>
-<input type="text" id="hub" placeholder="https://my-desktop.tailnet.ts.net:10000"></label>
+<input type="text" id="hub" placeholder="https://my-desktop.tailnet.ts.net:10000 (or the link the dashboard printed)"></label>
 <button id="go">Continue</button><div id="msg"></div></main><script>
 window.addEventListener("pywebviewready", async () => { const s = await pywebview.api.suggest();
   document.getElementById("ts").textContent = s.tailscale ? "https://" + s.tailscale + ":10000" : "Tailscale not found";
@@ -245,8 +247,11 @@ class App:
         else:
             self.home_url = device_agent.hub_base(conf["hub"]) + "/"
             self.start_agent()
+        first = conf.pop("first_url", None)
+        if first:   # (once: the key in it changes with every launch of the hub)
+            save_app_conf(conf)
         if self.window is not None:
-            self.window.load_url(self.home_url)
+            self.window.load_url(first or self.home_url)
         self.refresh_tray()
 
     def _serve(self, port: int, allow_hosts: list[str]) -> None:
@@ -461,6 +466,8 @@ def main(argv: list[str] | None = None) -> None:
     conf = load_app_conf()
     if a.hub:
         conf = {**conf, "role": "device", "hub": device_agent.hub_base(a.hub)}
+        if "key=" in a.hub:
+            conf["first_url"] = a.hub.strip()
     elif a.serve:
         conf = {**conf, "role": "hub"}
     if a.port:
