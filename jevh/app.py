@@ -25,6 +25,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -275,7 +276,7 @@ class App:
             save_app_conf(conf)
         if self.window is not None:
             self.window.load_url(first or self.home_url)
-        self.make_bubble()
+        self.make_bubble(first)
         self.refresh_tray()
 
     def _serve(self, port: int, allow_hosts: list[str]) -> None:
@@ -434,12 +435,16 @@ class App:
         except Exception:  # noqa: BLE001
             return True
 
-    def make_bubble(self) -> None:
+    def make_bubble(self, first_url: str | None = None) -> None:
         """(once the hub's address is known) The bubble window, hidden until the orb is clicked."""
         if self.bubble is not None or not self.home_url or os.name != "nt":
             return
         import webview
-        self.bubble = webview.create_window("jev-harness chat", url=self.home_url + "orb", js_api=OrbApi(self), width=380,
+        url = self.home_url + "orb"
+        query = urllib.parse.urlsplit(first_url or "").query
+        if "key=" in query:   # the main window may not have the key's cookie yet: the bubble loads at the same time
+            url += "?" + query
+        self.bubble = webview.create_window("jev-harness chat", url=url, js_api=OrbApi(self), width=380,
                                             height=540, frameless=True, easy_drag=False, on_top=True, hidden=True,
                                             resizable=False)
 
@@ -542,6 +547,7 @@ class App:
         self.window.events.closing += closing
         self.window.events.minimized += self.main_hidden
         self.window.events.restored += self.main_shown
+        self.window.events.maximized += self.main_shown   # (un-minimizing a maximized window fires this, not restored)
         self.icon = pystray.Icon("jev-harness", self._image(), "jev-harness", menu=self._menu())
         self.icon.run_detached()
         if not first:
