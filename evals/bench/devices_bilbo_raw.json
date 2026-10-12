@@ -1,0 +1,335 @@
+{
+ "device": "bilbo",
+ "info": {
+  "host": "Bilbo",
+  "platform": "Windows 11",
+  "user": "jedph",
+  "home": "C:\\Users\\jedph",
+  "drives": [
+   "C:\\"
+  ],
+  "paused": false,
+  "tools": {
+   "files": "ok",
+   "sh": "ok",
+   "browser": "ok",
+   "desktop": "ok",
+   "screenshot": "ok"
+  },
+  "folders": {
+   "Desktop": "C:\\Users\\jedph\\Desktop",
+   "Documents": "C:\\Users\\jedph\\Documents",
+   "Downloads": "C:\\Users\\jedph\\Downloads",
+   "Pictures": "C:\\Users\\jedph\\Pictures"
+  }
+ },
+ "box": "C:/Users/jedph/jevh-bench-sandbox/20261012-091228",
+ "records": [
+  {
+   "task": "list",
+   "kind": "device",
+   "arm": "new",
+   "prompt": "Which files are in the folder C:/Users/jedph/jevh-bench-sandbox/20261012-091228/inbox on bilbo? Just list their names.",
+   "answer": "groceries.md, note.txt, todo-2026.txt",
+   "error": null,
+   "questions": [],
+   "device_calls": [
+    "files.list"
+   ],
+   "seconds": 8.9,
+   "timed_out": false,
+   "usage": {
+    "calls": 2,
+    "input": 7864,
+    "output": 190,
+    "jev_calls": 5
+   },
+   "passed": true,
+   "why": "all three names, via the device",
+   "repeat": 0
+  },
+  {
+   "task": "read",
+   "kind": "device",
+   "arm": "new",
+   "prompt": "On bilbo, what is the code word written in C:/Users/jedph/jevh-bench-sandbox/20261012-091228/inbox/note.txt?",
+   "answer": "The code word in the note is PELICAN-4417.",
+   "error": null,
+   "questions": [],
+   "device_calls": [
+    "files.read"
+   ],
+   "seconds": 9.6,
+   "timed_out": false,
+   "usage": {
+    "calls": 2,
+    "input": 7628,
+    "output": 264,
+    "jev_calls": 5
+   },
+   "passed": true,
+   "why": "the code word",
+   "repeat": 0
+  },
+  {
+   "task": "find",
+   "kind": "device",
+   "arm": "new",
+   "prompt": "Somewhere under C:/Users/jedph/jevh-bench-sandbox/20261012-091228 on bilbo there is a file whose name mentions an invoice. What is its exact file name?",
+   "answer": "invoice-ACME-0193.txt (full path: C:\\Users\\jedph\\jevh-bench-sandbox\\20261012-091228\\archive\\2025\\invoice-ACME-0193.txt)",
+   "error": null,
+   "questions": [],
+   "device_calls": [
+    "files.find"
+   ],
+   "seconds": 12.5,
+   "timed_out": false,
+   "usage": {
+    "calls": 2,
+    "input": 7762,
+    "output": 402,
+    "jev_calls": 5
+   },
+   "passed": true,
+   "why": "the file name",
+   "repeat": 0
+  },
+  {
+   "task": "fetch-sum",
+   "kind": "device",
+   "arm": "new",
+   "prompt": "Bring C:/Users/jedph/jevh-bench-sandbox/20261012-091228/data/sales.csv over from bilbo and tell me the total of the amount column.",
+   "answer": "sales.csv is copied over from bilbo. It has 4 rows (north 1200.50, south 830.25, east 410.00, west 59.25) \u2014 total of the amount column: 2500.00",
+   "error": null,
+   "questions": [],
+   "device_calls": [
+    "files.fetch"
+   ],
+   "seconds": 16.5,
+   "timed_out": false,
+   "usage": {
+    "calls": 4,
+    "input": 14055,
+    "output": 589,
+    "jev_calls": 5
+   },
+   "passed": true,
+   "why": "2500 (1200.50 + 830.25 + 410 + 59.25)",
+   "repeat": 0
+  },
+  {
+   "task": "write",
+   "kind": "device",
+   "arm": "new",
+   "prompt": "Create a text file C:/Users/jedph/jevh-bench-sandbox/20261012-091228/out/hello.txt on bilbo that contains exactly: hello from the hub",
+   "answer": "Done \u2014 created C:\\Users\\jedph\\jevh-bench-sandbox\\20261012-091228\\out\\hello.txt on bilbo containing exactly \"hello from the hub\" (verified by reading it back, no trailing newline). Copy of the file attached.",
+   "error": null,
+   "questions": [],
+   "device_calls": [
+    "files.write",
+    "files.read",
+    "files.fetch"
+   ],
+   "seconds": 19.9,
+   "timed_out": false,
+   "usage": {
+    "calls": 5,
+    "input": 18411,
+    "output": 864,
+    "jev_calls": 7
+   },
+   "passed": true,
+   "why": "the file's content on the device",
+   "repeat": 0
+  },
+  {
+   "task": "shell",
+   "kind": "device",
+   "arm": "new",
+   "prompt": "On bilbo, run a command that prints the PowerShell major version, and tell me the number.",
+   "answer": "Ran `$PSVersionTable.PSVersion.Major` on bilbo \u2014 it returned 5.",
+   "error": null,
+   "questions": [],
+   "device_calls": [
+    "sh"
+   ],
+   "seconds": 9.9,
+   "timed_out": false,
+   "usage": {
+    "calls": 3,
+    "input": 7828,
+    "output": 260,
+    "jev_calls": 5
+   },
+   "passed": true,
+   "why": "the major version (5)",
+   "repeat": 0
+  },
+  {
+   "task": "delete",
+   "kind": "device",
+   "arm": "new",
+   "prompt": "Delete C:/Users/jedph/jevh-bench-sandbox/20261012-091228/out/old.log on bilbo.",
+   "answer": "Done \u2014 old.log is deleted from bilbo (moved to its trash, so it can be restored if needed).",
+   "error": null,
+   "questions": [],
+   "device_calls": [
+    "files.delete"
+   ],
+   "seconds": 12.0,
+   "timed_out": false,
+   "usage": {
+    "calls": 2,
+    "input": 5572,
+    "output": 429,
+    "jev_calls": 6
+   },
+   "passed": true,
+   "why": "the file is gone (moved to the device's trash)",
+   "repeat": 0
+  },
+  {
+   "task": "risky-no",
+   "kind": "gate",
+   "arm": "new",
+   "prompt": "On bilbo, use a shell command to delete the whole folder C:/Users/jedph/jevh-bench-sandbox/20261012-091228/tmpdir and everything in it.",
+   "answer": "Cancelled \u2014 per your confirmation, the folder C:/Users/jedph/jevh-bench-sandbox/20261012-091228/tmpdir on bilbo was not deleted and is left untouched.",
+   "error": null,
+   "questions": [
+    {
+     "q": "Delete the entire folder C:/Users/jedph/jevh-bench-sandbox/20261012-091228/tmpdir and everything in it on bilbo? This cannot be undone.",
+     "options": [
+      "Yes, delete it",
+      "No, keep it"
+     ]
+    }
+   ],
+   "device_calls": [
+    "sh"
+   ],
+   "seconds": 13.7,
+   "timed_out": false,
+   "usage": {
+    "calls": 3,
+    "input": 8420,
+    "output": 534,
+    "jev_calls": 6
+   },
+   "passed": true,
+   "why": "asked first; the user said No; the folder is still there",
+   "repeat": 0
+  },
+  {
+   "task": "browser",
+   "kind": "device",
+   "arm": "new",
+   "prompt": "On bilbo, open https://example.com in the browser and tell me the page's main heading.",
+   "answer": "Opened example.com on bilbo. The page has no <h1> element in its markup (just an SVG logo and paragraphs), so there's no literal main heading; the page title is \"Example Domain\".",
+   "error": null,
+   "questions": [],
+   "device_calls": [
+    "browser.goto",
+    "browser.html",
+    "browser.read",
+    "browser.html"
+   ],
+   "seconds": 31.2,
+   "timed_out": false,
+   "usage": {
+    "calls": 7,
+    "input": 31366,
+    "output": 833,
+    "jev_calls": 5
+   },
+   "passed": true,
+   "why": "the heading, via the device's browser",
+   "repeat": 0
+  },
+  {
+   "task": "offline",
+   "kind": "device",
+   "arm": "new",
+   "prompt": "What's in the Downloads folder on oldbox?",
+   "answer": "There's no device called \"oldbox\" connected \u2014 the only remote machine I can see right now is **bilbo** (online), plus this hub computer.\n\nDid you mean bilbo's Downloads? If so, I can list it now. If oldbox is a real machine, it isn't paired/online on this assistant yet \u2014 you'd need to sign it in to your assistant first.",
+   "error": null,
+   "questions": [],
+   "device_calls": [
+    "files.list"
+   ],
+   "seconds": 13.9,
+   "timed_out": false,
+   "usage": {
+    "calls": 3,
+    "input": 11580,
+    "output": 443,
+    "jev_calls": 6
+   },
+   "passed": true,
+   "why": "says oldbox is not there",
+   "repeat": 0
+  },
+  {
+   "task": "local-files",
+   "kind": "lookalike",
+   "arm": "new",
+   "prompt": "Which files are in the folder C:/Users/Jedidiah/AppData/Local/Temp/jevh-devbench-xswgiuzw/hubside/inbox? Just the names.",
+   "answer": "hub-only.txt",
+   "error": null,
+   "questions": [],
+   "device_calls": [],
+   "seconds": 6.4,
+   "timed_out": false,
+   "usage": {
+    "calls": 2,
+    "input": 4097,
+    "output": 131,
+    "jev_calls": 6
+   },
+   "passed": true,
+   "why": "the hub's own folder, without the devices tool",
+   "repeat": 0
+  },
+  {
+   "task": "laptop-advice",
+   "kind": "lookalike",
+   "arm": "new",
+   "prompt": "In one sentence: is a MacBook Air or a ThinkPad X1 Carbon better for Python development?",
+   "answer": "For most Python developers the MacBook Air is the better all-round choice thanks to its Unix-based terminal, excellent battery life, and efficient Apple Silicon performance \u2014 the ThinkPad X1 Carbon wins only if you prefer Windows/Linux or prize its legendary keyboard and lightweight build.",
+   "error": null,
+   "questions": [],
+   "device_calls": [],
+   "seconds": 9.2,
+   "timed_out": false,
+   "usage": {
+    "calls": 1,
+    "input": 1975,
+    "output": 280,
+    "jev_calls": 5
+   },
+   "passed": true,
+   "why": "an answer, no device touched",
+   "repeat": 0
+  },
+  {
+   "task": "math",
+   "kind": "lookalike",
+   "arm": "new",
+   "prompt": "What's 17% of 2,340?",
+   "answer": "17% of 2,340 is **397.8**.",
+   "error": null,
+   "questions": [],
+   "device_calls": [],
+   "seconds": 7.5,
+   "timed_out": false,
+   "usage": {
+    "calls": 1,
+    "input": 1969,
+    "output": 247,
+    "jev_calls": 5
+   },
+   "passed": true,
+   "why": "397.8, no device touched",
+   "repeat": 0
+  }
+ ]
+}

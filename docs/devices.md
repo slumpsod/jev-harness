@@ -11,9 +11,10 @@ apps. You chat from any of them, or from your phone.
                                        Jev, models)
 ```
 
-Status: **verified on one computer, not yet across two.** The offline tests cover sign-in, pairing, the connection, files,
-the shell, asking back, pausing, cancelling and revoking. The live runs used a device on the hub machine itself, connected
-the way a remote one is. See [What has been checked](#what-has-been-checked).
+Status: **verified across two computers** (the hub and a second Windows 11 PC over Tailscale, 2026-10-12: 13/13 tasks).
+The offline tests cover sign-in, pairing, the connection, files, the shell, asking back, pausing, cancelling and revoking.
+Not checked yet: the desktop tool on a device, and the app's window on a computer other than the hub. See
+[What has been checked](#what-has-been-checked).
 
 ## Set up the hub
 
@@ -133,9 +134,14 @@ description was written against, **9/18 on held-out cases**; no lookalike on the
 `tool_cases.py` got it needlessly. When Jev misses, the worker still has the tool, and its prompt names the connected
 computers. The end-to-end tasks passed either way.
 
+**Across two computers** (2026-10-12): the hub and bilbo, a second Windows 11 PC on the tailnet running `jevh device run`,
+with devices, once each: **13/13**. That covers the nine device tasks, the gate (it asked, the user said No, the folder
+stayed), and the three lookalikes with no device touched. Median 12 s a task; Chrome opened on bilbo for the browser task;
+its Jev questions went through the hub. Raw: `evals/bench/devices_bilbo_raw.json`. The run without devices was stopped
+after 2 tasks: on a real other computer it searched the hub until the 8-minute limit each time.
+
 Not checked live yet:
 
-- a real second computer over Tailscale (the live runs used a device on the hub machine itself, connected the same way);
 - the desktop tool on a device (the bench avoids typing into real windows);
 - the app's window and tray on a computer other than the hub.
 

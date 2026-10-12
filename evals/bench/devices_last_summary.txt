@@ -64,3 +64,27 @@ per task (passed/runs, median seconds, median worker output tokens, median model
   h-local        old: 3/3     9.0s  out     175  calls    2
   h-local        new: 3/3    14.1s  out     193  calls    2
 
+
+== across two computers, 2026-10-12: the hub (desktop-auidsm2) and bilbo (a second Windows 11 PC) over Tailscale,
+bilbo running `jevh device run` from the devices branch; with devices only (the old arm spent 8 minutes a task there,
+searching for a path that exists only on bilbo), 1 repeat. Raw: devices_bilbo_raw.json
+devices bench, 2026-10-12 09:16: 13 turns
+  device    new: 9/9 passed (100%)
+  gate      new: 1/1 passed (100%)
+  lookalike new: 3/3 passed (100%)
+  lookalike cost, new: median 7.5s, input 1975 tokens, Jev calls 5
+
+per task (passed/runs, median seconds, median worker output tokens, median model calls):
+  list           new: 1/1     8.9s  out     190  calls    2
+  read           new: 1/1     9.6s  out     264  calls    2
+  find           new: 1/1    12.5s  out     402  calls    2
+  fetch-sum      new: 1/1    16.5s  out     589  calls    4
+  write          new: 1/1    19.9s  out     864  calls    5
+  shell          new: 1/1     9.9s  out     260  calls    3
+  delete         new: 1/1    12.0s  out     429  calls    2
+  risky-no       new: 1/1    13.7s  out     534  calls    3
+  browser        new: 1/1    31.2s  out     833  calls    7
+  offline        new: 1/1    13.9s  out     443  calls    3
+  local-files    new: 1/1     6.4s  out     131  calls    2
+  laptop-advice  new: 1/1     9.2s  out     280  calls    1
+  math           new: 1/1     7.5s  out     247  calls    1
