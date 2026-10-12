@@ -670,6 +670,19 @@ missed pick costs one `help(name)`, not the capability. The Inspector shows the 
   model also filled and submitted the whole demoqa form and BlazeDemo's passenger details. Both miss
   play2048 (a canvas game) and Booking.com (its search button didn't take the chosen dates); every miss
   was reported as one, with where it stopped.
+- **devices**: the user's other computers, paired in the dashboard's Devices panel and connected to it (`jevh app` or
+  `jevh device run` on each; guide: [docs/devices.md](docs/devices.md), architecture:
+  [docs/architecture/22-devices.md](docs/architecture/22-devices.md)). `pc = devices.get("laptop")`, then `pc.files.*`
+  (list, find, read, write, move, copy, delete to the device's trash, `fetch` here, `send` there), `pc.sh(cmd)`,
+  `pc.screenshot()`, and `pc.browser.*` / `pc.desktop.*`: the browser and desktop tools running on that computer, with
+  their Jev questions answered by the hub's Jev. The worker has the tool only while a device is online. Its prompt then
+  names the computers, and says the other tools act on the hub only, whether or not Jev picked the guide. A destructive
+  shell command needs a yes; a device can be paused from its tray icon.
+  - Tool pick (`evals/devices_cases.py`, live on semif, 3 repeats, 2026-10-11): on the cases the description was written
+    against, recall 45/45 and no lookalike picked (0/30). **On the held-out cases, recall 9/18 and 3/15 false picks** (all on
+    "how do I share a folder between my Mac and my PC?"). On the 75 requests of `tool_cases.py`, 3/225 false picks (on "which
+    apps do I have open on my computer?"), and no other tool's pick changed. Jev misses about half of unfamiliar wordings, so
+    the prompt line that names the connected computers does the rest. End-to-end numbers: `evals/bench/devices_last_summary.txt`.
 - **project**: the user's folder (dashboard "Project" field, `--project`, `/project`).
   - `tree`, `grep` and `read` (numbered lines).
   - `find(question)`: Jev ranks the files by path and first line.

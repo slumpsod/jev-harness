@@ -49,6 +49,7 @@ RUNS = HERE / "runs" / "devices"
 SUMMARY = HERE / "devices_last_summary.txt"
 PERSONA = "daily_assistant"
 CODEWORD = "PELICAN-4417"
+LIMIT = 8   # minutes per turn (--limit); a turn past it is stopped and fails
 
 
 @dataclass
@@ -192,18 +193,25 @@ def run_turn(hub, task: Task, ctx: Ctx, arm: str) -> dict:
     h.on_event = watch
     prompt = task.prompt.format(dev=ctx.device, box=ctx.box, here=str(ctx.here).replace("\\", "/"))
     started = time.time()
+    # a turn past the limit is stopped as the Stop button does (live: an old-arm worker asked about "benchbox" walked the
+    # whole home folder reading every file, and one code step may run for repl_timeout = 30 minutes)
+    watchdog = threading.Timer(LIMIT * 60, h.cancel)
+    watchdog.daemon = True
+    watchdog.start()
     try:
         r = h.turn(prompt, force=PERSONA)
         answer, usage, err = r.answer, r.usage, None
     except Exception as e:  # noqa: BLE001
         answer, usage, err = "", {}, f"{type(e).__name__}: {e}"
     finally:
+        watchdog.cancel()
         h.on_event = orig
+    timed_out = time.time() - started >= LIMIT * 60 - 1
     kinds = (usage or {}).get("by_kind") or {}
     llm = kinds.get("llm") or {}
     jev_calls = sum((kinds.get(k) or {}).get("calls", 0) for k in kinds if k.startswith("jev") or k == "worker_jev")
     rec = {"task": task.name, "kind": task.kind, "arm": arm, "prompt": prompt, "answer": answer, "error": err,
-           "questions": questions, "device_calls": calls, "seconds": round(time.time() - started, 1),
+           "questions": questions, "device_calls": calls, "seconds": round(time.time() - started, 1), "timed_out": timed_out,
            "usage": {"calls": llm.get("calls", 0), "input": llm.get("input", 0), "output": llm.get("output", 0),
                      "jev_calls": jev_calls}}
     return rec
@@ -245,8 +253,10 @@ def summarize(records: list[dict]) -> str:
             if not rs:
                 continue
             med = lambda k: statistics.median([(r["usage"] or {}).get(k) or 0 for r in rs])  # noqa: E731
+            stopped = sum(bool(r.get("timed_out")) for r in rs)
             lines.append(f"  {name:14} {arm}: {sum(r['passed'] for r in rs)}/{len(rs)}  "
-                         f"{statistics.median(r['seconds'] for r in rs):6.1f}s  out {med('output'):7.0f}  calls {med('calls'):4.0f}")
+                         f"{statistics.median(r['seconds'] for r in rs):6.1f}s  out {med('output'):7.0f}  calls {med('calls'):4.0f}"
+                         + (f"  ({stopped} stopped at the {LIMIT:g}-minute limit)" if stopped else ""))
     bad = [r for r in records if not r["passed"] and not (r["arm"] == "old" and r["kind"] == "device")]
     if bad:
         lines.append("\nfailures (expected old-arm device failures left out):")
@@ -267,7 +277,9 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=0)
     ap.add_argument("--sandbox", default="~/jevh-bench-sandbox")
     ap.add_argument("--regrade", nargs="?", const="last", help="summarize a saved raw.json again, offline")
+    ap.add_argument("--limit", type=float, default=LIMIT, help="minutes per turn before it is stopped (default 8)")
     a = ap.parse_args()
+    globals()["LIMIT"] = a.limit
 
     if a.regrade:   # offline: the saved checks, with the through-the-device rule applied again (the sandbox is gone by now)
         path = (max(RUNS.glob("*/raw.json"), key=lambda p: p.stat().st_mtime) if a.regrade == "last" else Path(a.regrade))
