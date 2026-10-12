@@ -53,6 +53,20 @@ sequenceDiagram
 | What a device may ask the hub | code: `look` and `ask_user` only (`hub.HOST_NAMES`); Jev on `/v1/systemone` and `/health` only | `hub.DeviceHub._answer_host/_answer_jev` |
 | Who gets in from another device | code: a signed-in session (accounts exist) or the launch key (none yet) | `server.guard` |
 
+## "This computer": where a message was written
+
+`server.origin_of` names the computer each chat message came from. Not through `tailscale serve`: the hub (`"here"`).
+Through it: the last `X-Forwarded-For` entry (the one tailscale appended; an earlier one could be the client's own), which
+is the hub when it is one of `this_machine_ips()`, else the device whose WebSocket came from that address
+(`DeviceHub.device_at`; `Link.ip` is recorded the same way when it connects), else None (a phone). `Hub.start_turn` sets
+`Harness.origin`, and the turn record carries it for the page ("from bilbo").
+
+When the origin is a connected device, `run_task` adds the devices guide whatever Jev picked (Jev judges the words alone;
+"my Downloads" reads as a local request). Two lines then tell the worker where the user is: `_where_note` in the
+Environment section, and `_devices_note` after the guide. The first exists because, told only in the guide, a worker
+asked for "note.txt in my home folder" opened `~` with plain Python on the hub (live, 2026-10-12). From the hub the note
+says "this computer" is the hub; with no origin it says what it said before.
+
 ## Design facts
 
 - **The device connects out.** Nothing listens on a device but a proxy on 127.0.0.1, so it needs no firewall rule and no

@@ -433,7 +433,8 @@ def describe_ctx(ctx: dict[str, Any]) -> str:
 
 def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, str],
                  suggested: list[str], tools: list[str] | None = None,
-                 mcp_tools: list | None = None, native: bool = False, tool_notes: dict[str, str] | None = None) -> str:
+                 mcp_tools: list | None = None, native: bool = False, tool_notes: dict[str, str] | None = None,
+                 where: str | None = None) -> str:
     """`tools`: the tool guides Jev picked for this task; the persona's other tools are still
     importable and named in one line. `mcp_tools`: McpTool objects Jev picked. `tool_notes`: a line of
     live state after a picked tool's guide (nango: which accounts are connected)."""
@@ -450,7 +451,10 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
                      f"{platform.release()}. It starts in your private working folder, {WORKDIR_MARK}. Paths you "
                      f"are given are {'Windows' if os.name == 'nt' else 'POSIX'} paths you can open as-is."
                      + (f" Installed packages you can import: {', '.join(pkgs)} (and the standard library)."
-                        if pkgs else ""))
+                        if pkgs else "")
+                     # where the user is, when that is not the computer this REPL runs on (Harness.origin): said here,
+                     # beside "your REPL runs on", since that is what a worker reads before it opens a file
+                     + (f"\n{where}" if where else ""))
         # native: acting is a `python` tool call, as in Prime Agent; text: a fenced block
         guide = HOW_YOU_WORK.format(**(NATIVE_ACT if native else TEXT_ACT))
         if requestable:

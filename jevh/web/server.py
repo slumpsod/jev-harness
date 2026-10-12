@@ -59,7 +59,26 @@ MAX_EVENTS = 5000
 # from the last event it saw, the rest coming from `events`. Unbounded, it held every event of the session in memory.
 SUB_QUEUE = 2000
 SESSION_COOKIE = "jevh_session"
+HERE = "here"   # a message's origin when it was written on the hub itself
 OPEN_PATHS = {"/login", "/auth/login", "/auth/logout", "/auth/pair"}   # reachable from another device before signing in
+
+
+def forwarded_ip(header: str | None, peer: str) -> str:
+    """The client's address: `peer`, or behind a proxy on this machine (tailscale serve) the last X-Forwarded-For entry."""
+    if peer in ("127.0.0.1", "::1") and header:
+        return header.split(",")[-1].strip()
+    return peer
+
+
+def this_machine_ips() -> set[str]:
+    """This computer's own addresses (its tailnet one included): a request from one of them was written on the hub."""
+    import socket
+    ips = {"127.0.0.1", "::1"}
+    try:
+        ips |= {a[4][0] for a in socket.getaddrinfo(socket.gethostname(), None)}
+    except OSError:
+        pass
+    return ips
 
 
 class _Stream(asyncio.Queue):
@@ -172,7 +191,10 @@ class Hub:
     def _open_turn(self, message: str) -> dict:
         # (numbered as the harness numbers its turns, which go on from where a resumed session stopped)
         turn = {"id": max(len(self.turns), getattr(self.harness, "turn_no", 0)) + 1, "message": message, "status": "running", "started": time.time(),
-                "pin": self.pin, "tier_mode": self.harness.tier_mode}
+                "pin": self.pin, "tier_mode": self.harness.tier_mode,
+                # which computer it was written on, shown under the message - only while there are others to tell apart
+                "origin": (self.devices.here if self.harness.origin == HERE else self.harness.origin)
+                if self.devices.online() else None}
         self.turns.append(turn)
         self.publish("turn_start", {"turn": dict(turn)})
         return turn
@@ -188,9 +210,13 @@ class Hub:
             turn.update(status="error", answer=f"{type(e).__name__}: {e}", seconds=time.time() - turn["started"])
             self.publish("turn_error", {"turn": dict(turn)})
 
-    def start_turn(self, message: str, resume: str | None = None) -> dict:
+    def start_turn(self, message: str, resume: str | None = None, origin: str | None = None) -> dict:
+        """`origin`: the computer the message was written on (HERE, a device's name, or None): "this computer" in it means
+        that one. (Requests queued while a turn ran keep the origin of the turn they follow.)"""
         if not self.busy.acquire(blocking=False):
             raise HTTPException(409, "a turn is already running")
+        if not resume:
+            self.harness.origin = origin
         turn = self._open_turn(message)
 
         def run() -> None:
@@ -443,6 +469,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     app.state.hub, app.state.token, app.state.access_key = hub, token, access_key
 
     accounts = hub.accounts
+    local_ips = this_machine_ips()
     hub_urls = [f"https://{e.lower()}" for e in (allow_hosts or [])]   # how other devices reach this dashboard
 
     def is_access_key(value: str | None) -> bool:
@@ -450,11 +477,21 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         return bool(value) and secrets.compare_digest(value.encode(), access_key.encode())
 
     def client_of(request) -> str:
-        """Who is asking, for throttling: `tailscale serve` connects from 127.0.0.1 and names the device it proxies for."""
-        ip = request.client.host if request.client else ""
-        if ip in ("127.0.0.1", "::1"):
-            ip = request.headers.get("x-forwarded-for", ip).split(",")[0].strip()
-        return ip
+        """Who is asking (for throttling, and which computer a message comes from): `tailscale serve` connects from
+        127.0.0.1 and appends the tailnet address of the device it proxies for to X-Forwarded-For. The last entry is the
+        one it wrote; an earlier one could be the client's own (measured 2026-10-12: tailscale sends the client's
+        100.x address there)."""
+        return forwarded_ip(request.headers.get("x-forwarded-for"), request.client.host if request.client else "")
+
+    def origin_of(request) -> str | None:
+        """Which computer the user is writing from: HERE (this one, the hub), a connected device's name, or None (a
+        phone, or a browser on a computer that is not paired)."""
+        if not request.state.remote:
+            return HERE
+        ip = client_of(request)
+        if ip in local_ips:
+            return HERE
+        return hub.devices.device_at(ip)
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
@@ -629,7 +666,8 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             await ws.close(code=wire.CLOSE_REVOKED)
             return
         try:
-            await hub.devices.serve(ws, dev)
+            await hub.devices.serve(ws, dev, ip=forwarded_ip(ws.headers.get("x-forwarded-for"),
+                                                              ws.client.host if ws.client else ""))
         except WebSocketDisconnect:
             pass
 
@@ -664,7 +702,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                     hub.harness.enqueue(message)
                     return {"interjected": {"outcome": "queued", "kind": "separate", "text": message,
                                             "queue": hub.harness.queued()}}
-        return {"turn": hub.start_turn(message)}
+        return {"turn": hub.start_turn(message, origin=origin_of(request))}
 
     @app.get("/api/usage")
     def usage(range: str = "session") -> dict:

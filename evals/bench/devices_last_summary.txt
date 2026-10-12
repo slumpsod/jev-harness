@@ -33,3 +33,45 @@ per task (passed/runs, median seconds, median worker output tokens, median model
   d-login-no     new: 1/1   148.3s  out    4956  calls   21
   d-login-allowed new: 1/1    79.4s  out    3168  calls   18
   d-calculator   new: 1/1    78.8s  out    2146  calls   12
+
+== "this computer" (--origin), 2026-10-12, device on the hub machine connected like a remote one: the same requests
+written on the device or on the hub; old = the harness not told where, new = told (Harness.origin). Raw:
+devices_origin_raw.json, devices_origin_holdout_raw.json
+devices bench, 2026-10-12 12:27: 36 turns
+  device    old: 0/9 passed (0%)
+  device    new: 9/9 passed (100%)
+  lookalike old: 9/9 passed (100%)
+  lookalike new: 9/9 passed (100%)
+  lookalike cost, old: median 8.7s, input 6389 tokens, Jev calls 5
+  lookalike cost, new: median 9.5s, input 5678 tokens, Jev calls 5
+
+per task (passed/runs, median seconds, median worker output tokens, median model calls):
+  o-list         old: 0/3    10.9s  out     337  calls    2
+  o-list         new: 3/3     9.2s  out     193  calls    2
+  o-read         old: 0/3     8.6s  out     173  calls    2
+  o-read         new: 3/3     9.7s  out     192  calls    2
+  o-name         old: 0/3     7.4s  out     134  calls    2
+  o-name         new: 3/3    19.5s  out     846  calls    3
+  o-hub          old: 3/3     8.7s  out     232  calls    2
+  o-hub          new: 3/3     9.7s  out     268  calls    2
+  o-named-hub    old: 3/3    18.1s  out     785  calls    5
+  o-named-hub    new: 3/3    11.3s  out     405  calls    2
+  o-math         old: 3/3     4.8s  out      67  calls    1
+  o-math         new: 3/3     8.4s  out     230  calls    1
+
+-- held out
+devices bench, 2026-10-12 12:29: 18 turns
+  device    old: 0/6 passed (0%)
+  device    new: 6/6 passed (100%)
+  lookalike old: 3/3 passed (100%)
+  lookalike new: 3/3 passed (100%)
+  lookalike cost, old: median 6.1s, input 4003 tokens, Jev calls 6
+  lookalike cost, new: median 8.2s, input 1979 tokens, Jev calls 6
+
+per task (passed/runs, median seconds, median worker output tokens, median model calls):
+  oh-notepad     old: 0/3     8.6s  out     138  calls    2
+  oh-notepad     new: 3/3     9.8s  out     229  calls    2
+  oh-count       old: 0/3    10.2s  out     289  calls    2
+  oh-count       new: 3/3     9.0s  out     186  calls    2
+  oh-hub-name    old: 3/3     6.1s  out      93  calls    2
+  oh-hub-name    new: 3/3     8.2s  out     138  calls    1

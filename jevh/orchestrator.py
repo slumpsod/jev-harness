@@ -223,6 +223,7 @@ class Harness:
         self.watch_browser = bool(self.cfg.tools.get("browser_watch")) or os.environ.get("JEVH_BROWSER_HEADED") == "1"
         self.browser_dock = False   # the dashboard sets it: watched browsers run hidden and show in its Browser panel
         self.devices = None         # the dashboard sets it: the user's other computers (jevh/devices/hub.py DeviceHub)
+        self.origin: str | None = None   # the computer this turn's message was written on: "here", a device's name, None
         # the factory gets the persona with its model block already resolved for the tier
         self._llm_factory = llm_factory or (lambda p: make_llm(p.model, self.cfg.providers))
         self._llms: dict[str, LLM] = {}
@@ -837,16 +838,19 @@ class Harness:
         requestable = {n: p.description for n, p in self.personas.items()
                        if persona.may_request(n) or n in collab.suggested}
         tools = self._pick_tools(task, persona)
+        if self.origin_device() and "devices" in persona.tools and "devices" not in tools.tools:
+            # written on another computer: "my Downloads", "open Notepad" happen there, so the worker needs the guide
+            # whatever the words (Jev judges the request alone and would pick the desktop or project tool for them)
+            tools.tools.append("devices")
         self.on_event("tools", {"task": task, "decision": tools})
         catalog = self.mcp.catalog() if tools.mcp else {}
         picked = [roster[s] for s in skills.skills if s in roster]
         notes = {"nango": self._nango_summary()} if "nango" in tools.tools else {}
         if "devices" in persona.tools:   # (said with the guide or, when Jev did not pick it, with its pointer line)
-            notes["devices"] = (f"Connected now: {', '.join(self.devices_online())}. Anything the user wants done ON one of "
-                                f"them goes through devices.get(name): browser, desktop, project and start_job act on this "
-                                f"computer (the hub) only.")
+            notes["devices"] = self._devices_note()
+        where = self._where_note() if "devices" in persona.tools else None
         system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
-                              [catalog[k] for k in tools.mcp if k in catalog], tool_notes=notes)
+                              [catalog[k] for k in tools.mcp if k in catalog], tool_notes=notes, where=where)
         ctx = {"request": task.text, "memory": mem.kept, "inputs": task.inputs,
                "skills": {s.name: s.body for s in picked}}
         env = dict(self.tool_env)   # (the REPL gets these; the process environment is left alone)
@@ -879,7 +883,8 @@ class Harness:
         llm = self._llm(persona, tier.tier)
         if getattr(llm, "native_tools", False):   # acting is a `python` tool call, not a fenced block
             system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
-                                  [catalog[k] for k in tools.mcp if k in catalog], native=True, tool_notes=notes)
+                                  [catalog[k] for k in tools.mcp if k in catalog], native=True, tool_notes=notes,
+                                  where=where)
         handles = Handles(self._start_request, task, goal, requestable)
         handlers = {
             "llm_query": lambda prompt, data=None: llm.chat([{"role": "user", "content": (
@@ -1059,6 +1064,44 @@ class Harness:
     def devices_online(self) -> list[str]:
         hub = self.devices
         return hub.online() if hub is not None else []
+
+    def origin_device(self) -> str | None:
+        """The connected device this turn's message was written on, or None (the hub, a phone, unknown)."""
+        o = self.origin
+        if not o or o == "here":
+            return None
+        return next((n for n in self.devices_online() if n.lower() == str(o).lower()), None)
+
+    def _where_note(self) -> str | None:
+        """For the Environment section, when the user writes from another computer: that their things are there, and
+        that this REPL is not. (Live, 2026-10-12: told only in the devices guide, a worker asked for "note.txt in my home
+        folder" from a device opened ~/... on the hub with plain Python.)"""
+        o = self.origin_device()
+        if not o:
+            return None
+        hub_name = getattr(self.devices, "here", "") or "the hub"
+        return (f"The user is writing from {o}, another of their computers - not the one this REPL runs on. Their files, "
+                f"folders, apps and screen (\"my home folder\", \"my Downloads\", \"this computer\") are on {o}: reach them "
+                f"with devices.get({o!r}). Python's open() and os here, and the project, desktop and browser tools, see "
+                f"the hub ({hub_name}), not {o}; use the hub only when the user names it.")
+
+    def _devices_note(self) -> str:
+        """The line the worker's prompt carries while a device is online: which computers there are, and which one "this
+        computer" is - the one the user is writing on (Hub.start_turn's origin), when that is known."""
+        names = ", ".join(self.devices_online())
+        hub_name = getattr(self.devices, "here", "") or "the hub"
+        tools_here = "browser, desktop, project and start_job act on the hub"
+        o = self.origin_device()
+        if o:
+            return (f"Connected now: {names}. The user is writing from {o}: their files and folders, apps, screen and "
+                    f"\"this computer\" are {o}'s, so do it there with devices.get({o!r}) - unless they name another "
+                    f"computer. {tools_here} ({hub_name}) only.")
+        if self.origin == "here":
+            return (f"Connected now: {names}. The user is writing on the hub itself ({hub_name}): \"this computer\" is the "
+                    f"hub, where browser, desktop, project and start_job act; another computer only when they name it, "
+                    f"through devices.get(name).")
+        return (f"Connected now: {names}. Anything the user wants done ON one of them goes through devices.get(name): "
+                f"{tools_here} (this computer) only.")
 
     def _device_call(self, task: Task, handlers: dict, workdir: Path, ref, op: str, args=None, kwargs=None):
         """A worker's `devices` call (jevh/tools/devices.py): made on the device through the dashboard's DeviceHub, with

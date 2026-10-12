@@ -43,6 +43,7 @@ class Link:
     since: float = field(default_factory=time.time)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     calls: int = 0
+    ip: str = ""          # the device's address as the hub sees it (its tailnet one): a browser there is that device
 
 
 @dataclass
@@ -66,9 +67,10 @@ class DeviceHub:
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------ connections (event loop)
-    async def serve(self, ws, device: Device) -> None:
-        """One device's connection, from its hello until it goes."""
-        link = Link(device, ws)
+    async def serve(self, ws, device: Device, ip: str = "") -> None:
+        """One device's connection, from its hello until it goes. `ip`: where it connects from (tailscale serve's
+        X-Forwarded-For), so that a message written in a browser on that computer is known to come from it."""
+        link = Link(device, ws, ip=ip)
         old = self._links.get(device.id)
         self._links[device.id] = link
         if old is not None:   # the same device again (it lost its network and came back): the old socket is dead
@@ -189,6 +191,14 @@ class DeviceHub:
                         "connected_since": l.since if l else None, "last_seen": d.seen, "busy": l.calls if l else 0,
                         "paired": d.created})
         return out
+
+    def device_at(self, ip: str) -> str | None:
+        """The connected device a request from `ip` comes from: the one device connected from that address, else None
+        (127.0.0.1 is no device's: everything on the hub comes from there)."""
+        if not ip or ip in ("127.0.0.1", "::1"):
+            return None
+        hits = [l.device.name for l in self._links.values() if l.ip == ip]
+        return hits[0] if len(hits) == 1 else None
 
     def find(self, ref: str) -> Link:
         """A connected device by name (any case), id, or the start of one name."""

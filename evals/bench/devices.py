@@ -16,6 +16,7 @@ asks the user are answered by the task's script (a "Yes" or a "No"), and counted
     python evals/bench/devices.py --holdout                  # only the held-out tasks
     python evals/bench/devices.py --remote bilbo --allow-host desktop.tailnet.ts.net:10000 --port 8799
     python evals/bench/devices.py --remote bilbo ... --desktop  # the desktop tool on the device (JevLab, Calculator): drives its mouse
+    python evals/bench/devices.py --origin --repeat 3          # "this computer" = where the message is written, told vs not told
     python evals/bench/devices.py --regrade [raw.json]       # the saved results' summary again, offline (default: the last run)
 
 Arms. `new` is this checkout with the device connected. `old` is the same harness with no device hub (the feature off):
@@ -63,6 +64,7 @@ class Task:
     held: bool = False
     needs: str = ""                 # a device tool it needs ("browser")
     setup: Callable | None = None   # (ctx) before the turn, instead of the sandbox files (--desktop)
+    origin: str = ""                # --origin: where the message is written, "device" or "hub" (the new arm says so)
 
 
 # ---------------------------------------------------------------------- the sandbox, made through the device
@@ -238,6 +240,52 @@ DESKTOP_TASKS = [
 ]
 
 
+# ---------------------------------------------------------------------- --origin: "this computer" is where the user writes
+# The same requests, written on the device or on the hub. Old arm: the harness is not told where (as before); new arm: it
+# is (Harness.origin, which the dashboard sets from the address a message comes from). Paths are given relative to "my
+# home folder", so only knowing which computer that is can place them. With the default device on the hub machine both
+# homes are the same disk: the device calls tell them apart.
+def setup_origin(ctx) -> None:
+    setup(ctx)
+    hub_side = Path.home() / ctx.rel / "hubside"
+    hub_side.mkdir(parents=True, exist_ok=True)
+    (hub_side / "hub-only.txt").write_text("written on the hub\n", encoding="utf-8")
+
+
+def no_device(r) -> bool:
+    return not r["device_calls"]
+
+
+ORIGIN_TASKS = [
+    Task("o-list", "device", "Which files are in the folder {rel}/inbox in my home folder on this computer? Just the names.",
+         lambda c, a, r: (says(a, "note.txt", "groceries.md") and used_device(r), "the device's files, through the device"),
+         origin="device", setup=setup_origin),
+    Task("o-read", "device", "What's the code word in {rel}/inbox/note.txt in my home folder?",
+         lambda c, a, r: (CODEWORD in a and used_device(r), "the code word, read on the device"), origin="device",
+         setup=setup_origin),
+    Task("o-name", "device", "What is this computer's name? Run a command to find out.",
+         lambda c, a, r: (c.host.lower() in a.lower() and used_device(r), f"the device's name ({c.host}), asked of the device"),
+         origin="device", setup=setup_origin),
+    Task("o-hub", "lookalike", "Which files are in the folder {rel}/hubside in my home folder on this computer? Just the names.",
+         lambda c, a, r: (says(a, "hub-only.txt") and no_device(r), "the hub's folder, no device touched"), origin="hub",
+         setup=setup_origin),
+    Task("o-named-hub", "lookalike", "On {hubname} (the main computer), which files are in {rel}/hubside in my home folder?",
+         lambda c, a, r: (says(a, "hub-only.txt") and no_device(r), "the computer named wins: the hub, no device touched"),
+         origin="device", setup=setup_origin),
+    Task("o-math", "lookalike", "What's 17% of 2,340?",
+         lambda c, a, r: (says(a, "397.8") and no_device(r), "397.8, no device touched"), origin="device", setup=setup_origin),
+    # held out: written after the prompt line was fixed on o-read, and not tuned on (--origin --holdout)
+    Task("oh-notepad", "device", "Is Notepad open on this computer?",
+         lambda c, a, r: (used_device(r), "looked on the device"), origin="device", setup=setup_origin, held=True),
+    Task("oh-count", "device", "How many files are in the {rel}/data folder of my home folder?",
+         lambda c, a, r: (("1" in re.findall(r"\d+", a) or says(a, "one")) and used_device(r), "1, counted on the device"),
+         origin="device", setup=setup_origin, held=True),
+    Task("oh-hub-name", "lookalike", "What's this computer's name?",
+         lambda c, a, r: (c.hub_host.lower() in a.lower() and no_device(r), "the hub's name, no device touched"),
+         origin="hub", setup=setup_origin, held=True),
+]
+
+
 # ---------------------------------------------------------------------- running
 class Ctx:
     def __init__(self, hub, device: str, box: str, here: Path):
@@ -281,7 +329,11 @@ def start_hub(port: int, allow: list[str], workspace: Path):
 
 def run_turn(hub, task: Task, ctx: Ctx, arm: str) -> dict:
     h = hub.harness
-    h.devices = hub.devices if arm == "new" else None
+    if task.origin:   # --origin: a device is connected in both arms; only the new one is told where the message is written
+        h.devices = hub.devices
+        h.origin = (ctx.device if task.origin == "device" else "here") if arm == "new" else None
+    else:
+        h.devices = hub.devices if arm == "new" else None
     questions, calls = [], []
     replies = list(task.answers)
 
@@ -296,7 +348,8 @@ def run_turn(hub, task: Task, ctx: Ctx, arm: str) -> dict:
             calls.append(data.get("op"))
         orig(kind, data)
     h.on_event = watch
-    prompt = task.prompt.format(dev=ctx.device, box=ctx.box, here=str(ctx.here).replace("\\", "/"))
+    prompt = task.prompt.format(dev=ctx.device, box=ctx.box, here=str(ctx.here).replace("\\", "/"), rel=ctx.rel,
+                                hubname=hub.devices.here)
     started = time.time()
     # a turn past the limit is stopped as the Stop button does (live: an old-arm worker asked about "benchbox" walked the
     # whole home folder reading every file, and one code step may run for repl_timeout = 30 minutes)
@@ -323,7 +376,7 @@ def run_turn(hub, task: Task, ctx: Ctx, arm: str) -> dict:
 
 
 def grade(rec: dict, ctx: Ctx) -> dict:
-    task = next(t for t in TASKS + DESKTOP_TASKS if t.name == rec["task"])
+    task = next(t for t in TASKS + DESKTOP_TASKS + ORIGIN_TASKS if t.name == rec["task"])
     try:
         ok, why = task.check(ctx, rec["answer"] or "", rec)
     except Exception as e:  # noqa: BLE001
@@ -383,6 +436,8 @@ def main() -> None:
     ap.add_argument("--sandbox", default="~/jevh-bench-sandbox")
     ap.add_argument("--regrade", nargs="?", const="last", help="summarize a saved raw.json again, offline")
     ap.add_argument("--limit", type=float, default=LIMIT, help="minutes per turn before it is stopped (default 8)")
+    ap.add_argument("--origin", action="store_true", help="\"this computer\" is where the message is written: the same "
+                                                          "requests from the device and from the hub, told (new) or not (old)")
     ap.add_argument("--desktop", action="store_true", help="the desktop tool on the device (JevLab, Calculator); drives its "
                                                            "mouse and keyboard: nobody may use that computer meanwhile")
     a = ap.parse_args()
@@ -431,11 +486,15 @@ def main() -> None:
     info = hub.devices.call(name, "info", timeout=60)
     box = a.sandbox.replace("~", info["home"].replace("\\", "/"), 1).rstrip("/") + f"/{stamp}"
     ctx = Ctx(hub, name, box, tmp / "hubside")
+    ctx.rel = f"jevh-bench-sandbox/{stamp}"   # (the sandbox, relative to the device's home - and the hub's, for --origin)
+    ctx.host = info.get("host", name)
+    import platform as _platform
+    ctx.hub_host = _platform.node()
     ctx.ps_major = int(hub.devices.call(name, "sh", ["$PSVersionTable.PSVersion.Major"], timeout=60)["out"].strip() or 0) \
         if os.name == "nt" or "Windows" in info.get("platform", "") else None
     print(f"device {name}: {info['platform']}, tools {info['tools']}; sandbox {box}")
 
-    tasks = DESKTOP_TASKS if a.desktop else [t for t in TASKS if t.held == a.holdout]
+    tasks = DESKTOP_TASKS if a.desktop else [t for t in (ORIGIN_TASKS if a.origin else TASKS) if t.held == a.holdout]
     if a.desktop:
         if info["tools"].get("desktop") != "ok":
             sys.exit(f"the desktop tool is not available on {name}: {info['tools'].get('desktop')}")
@@ -466,6 +525,7 @@ def main() -> None:
     text = summarize(records)
     print("\n" + text)
     SUMMARY.write_text(text + f"\n\nraw: {out / 'raw.json'}\n", encoding="utf-8")
+    shutil.rmtree(Path.home() / ctx.rel / "hubside", ignore_errors=True)   # (--origin's folder on the hub)
     try:
         if a.desktop:
             kill_lab(ctx)

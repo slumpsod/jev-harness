@@ -74,6 +74,31 @@ Ask normally: *"what's in the Downloads folder on my laptop?"*, *"copy report.pd
 
 The worker only gets the tool while a device is online. Otherwise its prompt doesn't mention it.
 
+## Which computer is "this computer"
+
+The one you are writing on. The hub sees where each message comes from: `tailscale serve` passes the tailnet address of
+the computer the request comes from, and each device's connection comes from its own address. So a message typed in the
+app on bilbo, or in any browser there, is from bilbo. One typed on the hub itself is from the hub.
+
+- **From a device.** "This computer", "here", "my Downloads", "my home folder" and an app you mention all mean that
+  device, unless you name another computer. The worker always gets the devices guide then, and its Environment section
+  says that its own Python, and the project, desktop and browser tools, run on the hub, not where you are.
+- **From the hub.** "This computer" is the hub; another computer only when you name it.
+- **From anywhere else** (your phone, a browser on a computer that isn't paired): nothing is assumed, and the hub is the
+  default as before.
+- **Naming a computer always wins**: "on studio-pc, ..." from bilbo goes to studio-pc.
+
+The chat shows "from bilbo" under each message while other computers are connected. A request queued while a task runs
+keeps the computer of the turn it follows.
+
+Measured (`evals/bench/devices.py --origin`, 2026-10-12, 3 repeats, a device on the hub machine connected like a remote
+one): requests about "this computer" or "my home folder" written on the device, 0/9 without telling the harness where and
+**9/9** told; held out 0/6 against **6/6**. Requests that must not reach the device ("this computer" written on the hub,
+"on the hub, ..." written on the device, a sum) stayed 9/9 and 3/3 held out. Cost: a question from a device that needs no
+computer at all carries the devices guide (median 4.8 s became 8.4 s on "what's 17% of 2,340?"). Not yet run with bilbo
+itself as the device, nor with the address taken from a real browser on bilbo (the bench sets the origin directly; the
+address matching is covered by the offline tests).
+
 ## What stays guarded
 
 You chose "full access, keep the confirmations":

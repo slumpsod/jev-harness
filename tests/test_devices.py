@@ -415,9 +415,69 @@ def test_the_worker_gets_the_tool_only_while_a_device_is_online(cfg):
     assert "devices" in seen["system"]
     # picked or not, the prompt names the computers and says the other tools act on the hub (live: a worker given the browser
     # guide for "on benchbox, open example.com" opened it in the hub's own browser)
-    assert "Connected now: bilbo." in seen["system"] and "(the hub) only" in seen["system"]
+    assert "Connected now: bilbo." in seen["system"] and "act on the hub (this computer) only" in seen["system"]
     assert r.answer == "b'\\x89PNG' Allow hub-pc", r.answer       # the screenshot came back as a file here
     assert asked == ["[on bilbo] Type the password?"]             # the user is told which computer asks
     assert [c[1] for c in h.devices.calls] == ["screenshot", "desktop.do"]
     if "offered" in seen:
         assert "connected now: bilbo" in seen["offered"]
+
+
+# ---------------------------------------------------------------------- "this computer": where a message was written
+def test_the_client_address_is_the_one_tailscale_appended():
+    from jevh.web.server import forwarded_ip
+    assert forwarded_ip("100.70.62.19", "127.0.0.1") == "100.70.62.19"
+    assert forwarded_ip("6.6.6.6, 100.70.62.19", "127.0.0.1") == "100.70.62.19"   # a client's own header comes first
+    assert forwarded_ip("100.70.62.19", "100.1.2.3") == "100.1.2.3"               # not through the proxy: the peer
+    assert forwarded_ip(None, "127.0.0.1") == "127.0.0.1"
+
+
+def test_a_message_is_known_to_come_from_the_device_it_was_written_on(cfg):
+    from jevh.devices.hub import Link
+    app = make_app(cfg, replies=[py("final('ok')")] * 3)
+    hub = app.state.hub
+    c = TestClient(app, base_url="http://127.0.0.1:8740", client=("127.0.0.1", 50000))   # (tailscale serve's peer)
+    dev, _ = hub.accounts.redeem(hub.accounts.pair_code("jed")[0], "bilbo")
+    hub.devices._links[dev.id] = Link(dev, ws=None, ip="100.70.62.19")
+    assert hub.devices.device_at("100.70.62.19") == "bilbo" and hub.devices.device_at("100.9.9.9") is None
+    assert hub.devices.device_at("127.0.0.1") is None
+    hub.accounts.add_user("jed", "correct horse")
+    signed = {"Host": f"{REMOTE}:10000", "X-Jevh-Token": TOKEN,
+              "Cookie": "jevh_session=" + hub.accounts.start_session("jed")}
+
+    def send(headers):
+        turn = c.post("/api/chat", json={"message": "hi"}, headers=headers).json()["turn"]
+        for _ in range(200):
+            if not hub.busy.locked():
+                break
+            time.sleep(0.02)
+        return turn["origin"], hub.harness.origin
+
+    assert send({**signed, "X-Forwarded-For": "100.70.62.19"}) == ("bilbo", "bilbo")       # the app or a browser on bilbo
+    assert send({"X-Jevh-Token": TOKEN})[1] == "here"                                        # on the hub itself
+    assert send({**signed, "X-Forwarded-For": "100.90.56.24"}) == (None, None)               # the phone: not a computer
+
+
+def test_the_worker_is_told_which_computer_this_is(cfg):
+    seen = []
+
+    class Spy(ScriptedLLM):
+        def chat(self, messages):
+            seen.append(messages[0]["content"])
+            return super().chat(messages)
+
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: Spy([py("final('ok')")] * 3))
+    h.devices = FakeDeviceHub(["bilbo", "studio-pc"])
+    h.origin = "bilbo"
+    h.turn("what's in my Downloads folder?", force="daily_assistant")
+    assert "The user is writing from bilbo" in seen[-1] and "devices.get('bilbo')" in seen[-1]
+    env = seen[-1].split("## Environment", 1)[1].split("##", 1)[0]
+    assert "not the one this REPL runs on" in env and "open() and os here" in env   # beside "Your REPL runs ..."
+    assert "devices.list() ->" in seen[-1]                     # the guide itself, though the fake Jev picked no tool
+    h.origin = "here"
+    h.turn("what's in my Downloads folder?", force="daily_assistant")
+    assert "writing on the hub itself (hub-pc)" in seen[-1] and "devices.list() ->" not in seen[-1]
+    assert "not the one this REPL runs on" not in seen[-1]
+    h.origin = "oldbox"                                        # a computer that is not connected: no claim about it
+    h.turn("hello", force="daily_assistant")
+    assert "writing from" not in seen[-1] and "Connected now: bilbo, studio-pc." in seen[-1]
