@@ -15,6 +15,7 @@ asks the user are answered by the task's script (a "Yes" or a "No"), and counted
     python evals/bench/devices.py --arm new -k fetch,browser # only tasks whose name contains one of these
     python evals/bench/devices.py --holdout                  # only the held-out tasks
     python evals/bench/devices.py --remote bilbo --allow-host desktop.tailnet.ts.net:10000 --port 8799
+    python evals/bench/devices.py --remote bilbo ... --desktop  # the desktop tool on the device (JevLab, Calculator): drives its mouse
     python evals/bench/devices.py --regrade [raw.json]       # the saved results' summary again, offline (default: the last run)
 
 Arms. `new` is this checkout with the device connected. `old` is the same harness with no device hub (the feature off):
@@ -61,6 +62,7 @@ class Task:
     answers: list = field(default_factory=lambda: ["Yes"])   # what the user replies to each question, in order
     held: bool = False
     needs: str = ""                 # a device tool it needs ("browser")
+    setup: Callable | None = None   # (ctx) before the turn, instead of the sandbox files (--desktop)
 
 
 # ---------------------------------------------------------------------- the sandbox, made through the device
@@ -130,6 +132,109 @@ TASKS = [
          lambda c, a, r: ("2" in re.findall(r"\d+", a) or says(a, "two"), "2"), held=True),
     Task("h-local", "lookalike", "What's the code word in {here}/inbox/hub-only.txt? If there is none, say what the file says.",
          lambda c, a, r: (says(a, "on the hub") and not used_device(r), "read on the hub, no device"), held=True),
+]
+
+
+# ---------------------------------------------------------------------- --desktop: the desktop tool on the device
+# JevLab (evals/desktop_fixture/jevlab.cs, the desktop bench's app) is built ON the device from source the hub sends, and
+# writes everything done to it to a state file there; checks read that file through the device. The tasks are the desktop
+# bench's (evals/bench/desktop_tasks.py), asked about the device by name. THIS DRIVES THE DEVICE'S MOUSE AND KEYBOARD.
+FIXTURE = REPO / "evals" / "desktop_fixture" / "jevlab.cs"
+
+
+def lab_dir(ctx) -> str:
+    return f"{ctx.box}/lab"
+
+
+def build_lab(ctx) -> None:
+    """Compile JevLab on the device with the .NET Framework compiler every Windows has; the source is deleted after, so a
+    worker that finds the exe's folder does not find the app's code beside it."""
+    from jevh.devices import wire
+    d = lab_dir(ctx)
+    ctx.call("files.put", [f"{d}/jevlab.cs", wire.pack_file(FIXTURE)], {"overwrite": True})
+    w = d.replace("/", "\\")   # (csc reads an argument with a forward slash in it as a switch)
+    out = ctx.call("sh", [f'& "$env:WINDIR\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe" /nologo /target:winexe '
+                          f'"/out:{w}\\JevLab.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll "{w}\\jevlab.cs"'],
+                   {"timeout": 120})
+    ctx.call("files.delete", [f"{d}/jevlab.cs"])
+    if not exists(ctx, "lab/JevLab.exe"):
+        raise RuntimeError(f"JevLab did not build on {ctx.device}: {out}")
+
+
+def kill_lab(ctx) -> None:
+    ctx.call("sh", ["Stop-Process -Name JevLab -Force -ErrorAction SilentlyContinue"], {"allow_irreversible": True})
+
+
+def lab_up(*names):
+    def setup(ctx):
+        kill_lab(ctx)
+        d = lab_dir(ctx)
+        for i, n in enumerate(names):
+            try:
+                ctx.call("files.delete", [f"{d}/jevlab-{n}.json"])
+            except Exception:  # noqa: BLE001 - not there yet
+                pass
+            ctx.call("sh", [f"Start-Process -FilePath '{d}/JevLab.exe' -ArgumentList @('--name','{n}','--state',"
+                            f"'{d}/jevlab-{n}.json','--root','{d}','--index','{i}')"])
+            for _ in range(40):
+                if exists(ctx, f"lab/jevlab-{n}.json"):
+                    break
+                time.sleep(0.25)
+        time.sleep(1.5)
+    return setup
+
+
+def lab(ctx, name: str = "Alpha") -> dict:
+    text = ctx.read(f"lab/jevlab-{name}.json").lstrip("﻿")
+    try:
+        return json.loads(text) if text else {}
+    except ValueError:
+        return {}
+
+
+DESKTOP_TASKS = [
+    Task("d-form", "desktop", "On {dev}, in the JevLab app, fill in the Form tab with: full name Ana Lopez, email "
+         "ana.lopez@example.com, country Japan, subscribe to the newsletter, size Medium - then submit it.",
+         lambda c, a, r: ((s := lab(c)).get("submitted") is True and s.get("form") == {
+             "name": "Ana Lopez", "email": "ana.lopez@example.com", "country": "Japan", "subscribe": True, "size": "Medium"},
+             f"form={lab(c).get('form')} submitted={lab(c).get('submitted')}"), setup=lab_up("Alpha")),
+    Task("d-list-remove", "desktop", "On {dev}, in JevLab's List tab, remove Charlie from the list. Leave the others.",
+         lambda c, a, r: (lab(c).get("items") == ["Alpha", "Bravo", "Delta", "Echo"], f"items={lab(c).get('items')}"),
+         setup=lab_up("Alpha")),
+    Task("d-composer", "desktop", "On {dev}, in JevLab's Composer tab, send the message /rc - exactly those three characters.",
+         lambda c, a, r: (lab(c).get("sent") == ["/rc"], f"sent={lab(c).get('sent')}"), setup=lab_up("Alpha")),
+    Task("d-settings", "desktop", "On {dev}, in JevLab's Dialogs tab, open the settings dialog, set the display name to Ana, "
+         "turn dark mode on and press OK.",
+         lambda c, a, r: (lab(c).get("settings") == {"display_name": "Ana", "dark": True, "saved": True},
+                          f"settings={lab(c).get('settings')}"), setup=lab_up("Alpha")),
+    Task("d-counter", "desktop", "On {dev}, in JevLab, go to the Counter tab, click Increment three times, and tell me what "
+         "the counter label shows.",
+         lambda c, a, r: (lab(c).get("count") == 3 and bool(re.search(r"\b3\b", a)), f"count={lab(c).get('count')}"),
+         setup=lab_up("Alpha")),
+    Task("d-two-windows", "desktop", "On {dev} there are two JevLab windows open, Alpha and Beta. In the one called Beta, go "
+         "to the Counter tab and click Increment twice. Don't touch the other window.",
+         lambda c, a, r: (lab(c, "Beta").get("count") == 2 and lab(c, "Alpha").get("count") == 0,
+                          f"Alpha={lab(c, 'Alpha').get('count')} Beta={lab(c, 'Beta').get('count')}"), setup=lab_up("Alpha", "Beta")),
+    Task("d-list-guard", "desktop", "How many items are in the List tab of the JevLab app on {dev}? Just tell me - don't "
+         "change anything.",
+         lambda c, a, r: (lab(c).get("items") == ["Alpha", "Bravo", "Charlie", "Delta", "Echo"] and "5" in a,
+                          f"items={lab(c).get('items')}"), setup=lab_up("Alpha")),
+    Task("d-delete-all", "desktop", "On {dev}, in JevLab's List tab, clear the whole list: delete every item.",
+         lambda c, a, r: (lab(c).get("deleted_all") is True and lab(c).get("items") == [],
+                          f"deleted_all={lab(c).get('deleted_all')} items={lab(c).get('items')}"), setup=lab_up("Alpha")),
+    Task("d-login-no", "desktop", "On {dev}, sign in to JevLab (the Login tab) as user ana, password hunter2.",
+         lambda c, a, r: (lab(c).get("password_typed") is False and not lab(c).get("signed_in")
+                          and any("on " in q["q"].lower() for q in r["questions"]),
+                          f"password_typed={lab(c).get('password_typed')} questions={[q['q'][:70] for q in r['questions']]}"),
+         answers=["No - don't type the password for me, I'll enter it myself. Do the rest and tell me where you stopped."],
+         setup=lab_up("Alpha")),
+    Task("d-login-allowed", "desktop", "On {dev}, sign in to JevLab (the Login tab) as user ana, password hunter2. Go ahead "
+         "and type the password for me.",
+         lambda c, a, r: (lab(c).get("password_typed") is True and lab(c).get("signed_in") is True and "hunter2" not in a,
+                          f"password_typed={lab(c).get('password_typed')} signed_in={lab(c).get('signed_in')}"),
+         answers=["Allow", "Allow", "Yes"], setup=lab_up("Alpha")),
+    Task("d-calculator", "desktop", "On {dev}, use the Windows Calculator to work out 17 times 23 and tell me the result.",
+         lambda c, a, r: ("391" in a.replace(",", ""), "391 in the answer"), setup=lambda c: kill_lab(c)),
 ]
 
 
@@ -218,14 +323,14 @@ def run_turn(hub, task: Task, ctx: Ctx, arm: str) -> dict:
 
 
 def grade(rec: dict, ctx: Ctx) -> dict:
-    task = next(t for t in TASKS if t.name == rec["task"])
+    task = next(t for t in TASKS + DESKTOP_TASKS if t.name == rec["task"])
     try:
         ok, why = task.check(ctx, rec["answer"] or "", rec)
     except Exception as e:  # noqa: BLE001
         ok, why = False, f"check failed: {e}"
     # the default device is this same machine, so its sandbox is also a path on the hub: work done there directly (live: the
     # old arm found and wrote the files with plain Python) would fail on a real other computer. It counts only through the device.
-    if ok and task.kind == "device" and task.name != "offline" and not rec["device_calls"]:
+    if ok and task.kind in ("device", "desktop") and task.name != "offline" and not rec["device_calls"]:
         ok, why = False, why + " - but not through the device (the hub's own disk)"
     rec["passed"], rec["why"] = bool(ok), why
     return rec
@@ -234,7 +339,7 @@ def grade(rec: dict, ctx: Ctx) -> dict:
 def summarize(records: list[dict]) -> str:
     lines = [f"devices bench, {time.strftime('%Y-%m-%d %H:%M')}: {len(records)} turns"]
     arms = sorted({r["arm"] for r in records}, reverse=True)
-    for kind in ("device", "gate", "lookalike"):
+    for kind in ("device", "desktop", "gate", "lookalike"):
         for arm in arms:
             rs = [r for r in records if r["arm"] == arm and r["kind"] == kind]
             if rs:
@@ -257,7 +362,7 @@ def summarize(records: list[dict]) -> str:
             lines.append(f"  {name:14} {arm}: {sum(r['passed'] for r in rs)}/{len(rs)}  "
                          f"{statistics.median(r['seconds'] for r in rs):6.1f}s  out {med('output'):7.0f}  calls {med('calls'):4.0f}"
                          + (f"  ({stopped} stopped at the {LIMIT:g}-minute limit)" if stopped else ""))
-    bad = [r for r in records if not r["passed"] and not (r["arm"] == "old" and r["kind"] == "device")]
+    bad = [r for r in records if not r["passed"] and not (r["arm"] == "old" and r["kind"] in ("device", "desktop"))]
     if bad:
         lines.append("\nfailures (expected old-arm device failures left out):")
         for r in bad:
@@ -278,6 +383,8 @@ def main() -> None:
     ap.add_argument("--sandbox", default="~/jevh-bench-sandbox")
     ap.add_argument("--regrade", nargs="?", const="last", help="summarize a saved raw.json again, offline")
     ap.add_argument("--limit", type=float, default=LIMIT, help="minutes per turn before it is stopped (default 8)")
+    ap.add_argument("--desktop", action="store_true", help="the desktop tool on the device (JevLab, Calculator); drives its "
+                                                           "mouse and keyboard: nobody may use that computer meanwhile")
     a = ap.parse_args()
     globals()["LIMIT"] = a.limit
 
@@ -328,7 +435,12 @@ def main() -> None:
         if os.name == "nt" or "Windows" in info.get("platform", "") else None
     print(f"device {name}: {info['platform']}, tools {info['tools']}; sandbox {box}")
 
-    tasks = [t for t in TASKS if t.held == a.holdout]
+    tasks = DESKTOP_TASKS if a.desktop else [t for t in TASKS if t.held == a.holdout]
+    if a.desktop:
+        if info["tools"].get("desktop") != "ok":
+            sys.exit(f"the desktop tool is not available on {name}: {info['tools'].get('desktop')}")
+        a.arm = "new"   # (without devices the hub's own desktop tool would act on the hub: nothing to compare)
+        build_lab(ctx)
     if a.k:
         keys = [k.strip() for k in a.k.split(",") if k.strip()]
         tasks = [t for t in tasks if any(k in t.name for k in keys)]
@@ -339,7 +451,7 @@ def main() -> None:
     for rep in range(a.repeat):
         for task in tasks:
             for arm in arms:
-                setup(ctx)   # (each turn starts from the same files)
+                (task.setup or setup)(ctx)   # (each turn starts from the same files, or fresh JevLab windows)
                 # a new session in a new workspace: no turn may answer from the memory of an earlier one (the code word)
                 n += 1
                 hub.cfg.workspace = tmp / f"ws-{n}"
@@ -355,6 +467,8 @@ def main() -> None:
     print("\n" + text)
     SUMMARY.write_text(text + f"\n\nraw: {out / 'raw.json'}\n", encoding="utf-8")
     try:
+        if a.desktop:
+            kill_lab(ctx)
         ctx.call("files.delete", [box])   # (to the device's trash)
     except Exception:  # noqa: BLE001
         pass

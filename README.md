@@ -301,7 +301,7 @@ message shows in the turn with what became of it. On a phone the same box and th
 **Your other computers, and signing in:** a computer that runs `jevh app` (or `jevh device run`) and is paired in the
 **Devices** panel becomes one the assistant can use: its files, a shell, its screen, its browser and its apps ("what's in
 the Downloads folder on my laptop?"). Making an account there replaces the per-launch link below with a sign-in that lasts.
-Verified live across two computers (desktop tool on a device and the app's window not yet); see [docs/devices.md](docs/devices.md).
+Verified live across two computers, the desktop tool on the other one included (the app's window not yet); see [docs/devices.md](docs/devices.md).
 
 **From your phone (Tailscale):** the dashboard stays bound to 127.0.0.1; `tailscale serve` is the way in, and it is
 tailnet-only (never `funnel`). Run `tailscale serve --bg --https=10000 http://127.0.0.1:8740`, then
@@ -686,7 +686,8 @@ missed pick costs one `help(name)`, not the capability. The Inspector shows the 
   - End to end (`evals/bench/devices.py`, live, 3 repeats, the device on the hub machine connected like a remote one):
     device tasks **27/27 with the tool against 1/27 without**, held out 6/6 against 0/6, lookalikes 12/12 in both with no device
     touched, and the "delete it / user says No" gate 2/3 (the miss: a model-server stall, nothing deleted). Across two real
-    computers (the hub and a second PC over Tailscale, 2026-10-12): 13/13, median 12 s a task. See
+    computers (the hub and a second PC over Tailscale, 2026-10-12): 13/13, median 12 s a task; the desktop tool on that PC
+    (`--desktop`, JevLab and Calculator): 11/11, including a password question asked back through the hub and refused. See
     [docs/devices.md](docs/devices.md#what-has-been-checked).
 - **project**: the user's folder (dashboard "Project" field, `--project`, `/project`).
   - `tree`, `grep` and `read` (numbered lines).

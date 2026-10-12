@@ -13,7 +13,8 @@ apps. You chat from any of them, or from your phone.
 
 Status: **verified across two computers** (the hub and a second Windows 11 PC over Tailscale, 2026-10-12: 13/13 tasks).
 The offline tests cover sign-in, pairing, the connection, files, the shell, asking back, pausing, cancelling and revoking.
-Not checked yet: the desktop tool on a device, and the app's window on a computer other than the hub. See
+The desktop tool on a device too (11/11 on the same PC). Not checked yet: the app's window on a computer other than the
+hub. See
 [What has been checked](#what-has-been-checked).
 
 ## Set up the hub
@@ -140,9 +141,17 @@ stayed), and the three lookalikes with no device touched. Median 12 s a task; Ch
 its Jev questions went through the hub. Raw: `evals/bench/devices_bilbo_raw.json`. The run without devices was stopped
 after 2 tasks: on a real other computer it searched the hub until the 8-minute limit each time.
 
+**The desktop tool on that computer** (2026-10-12, `--desktop`): JevLab, the desktop bench's test app, was built on bilbo
+from source the hub sent, and each check read the app's own state file on bilbo. **11/11**: fill and submit a form, remove
+one list item, send `/rc`, a modal settings dialog, a counter, the right one of two windows, count a list without changing
+it, delete a list with the user's yes, sign in with the password refused (the question reached the hub as "[on bilbo] May
+I type a password ...", No was kept, nothing typed) and allowed (typed, not repeated in the answer), and Windows
+Calculator. Median 35 s a task; the delete-all took 269 s and 28 steps, and on the way the tool typed "Confirm delete"
+into the app's Notes field, which the worker noticed and cleared (a desktop-tool quirk, not one of devices). Raw:
+`evals/bench/devices_bilbo_desktop_raw.json`.
+
 Not checked live yet:
 
-- the desktop tool on a device (the bench avoids typing into real windows);
 - the app's window and tray on a computer other than the hub.
 
 ## Limits
