@@ -222,6 +222,25 @@ document.getElementById("go").onclick = async () => { const role = (document.que
 </script></body></html>"""
 
 
+class OrbApi:
+    """window.pywebview.api in the orb's chat bubble (the hub's /orb page)."""
+
+    def __init__(self, app: "App"):
+        self._app = app
+
+    def mood(self, mood: str) -> None:
+        """What the orb shows: idle, working, attention (a question for you) or unread (an answer you haven't seen)."""
+        if self._app.orb is not None:
+            self._app.orb.set_mood(str(mood))
+
+    def close(self, blurred: bool = False) -> None:
+        self._app.hide_bubble()
+
+    def open_app(self) -> None:
+        self._app.hide_bubble()
+        self._app.show()
+
+
 # ---------------------------------------------------------------------- the app
 class App:
     def __init__(self, conf: dict, hidden: bool = False):
@@ -234,6 +253,10 @@ class App:
         self.home_url = ""
         self._last_notice = 0.0
         self._quitting = False
+        self.orb = None              # the floating orb (jevh/orb.py), shown while this window is minimized or in the tray
+        self.bubble = None           # its chat bubble: a small window on the hub's /orb page
+        self.bubble_visible = False
+        self._bubble_hidden_at = 0.0
 
     # -- what the window shows
     def begin(self, conf: dict) -> None:
@@ -252,6 +275,7 @@ class App:
             save_app_conf(conf)
         if self.window is not None:
             self.window.load_url(first or self.home_url)
+        self.make_bubble()
         self.refresh_tray()
 
     def _serve(self, port: int, allow_hosts: list[str]) -> None:
@@ -351,6 +375,8 @@ class App:
             pystray.MenuItem("Pause the assistant here", lambda: self.set_paused(not paused()), checked=paused,
                              visible=paired),
             pystray.MenuItem("Activity", lambda: self.show_activity(), visible=paired),
+            pystray.MenuItem("Show the orb when minimized", lambda: self.toggle_orb(),
+                             checked=lambda _i: bool(self.conf.get("orb", True)), visible=os.name == "nt"),
             pystray.MenuItem("Start with Windows", lambda: self.toggle_startup(), checked=lambda _i: startup_file().exists(),
                              visible=os.name == "nt"),
             pystray.Menu.SEPARATOR,
@@ -360,6 +386,103 @@ class App:
         if self.window is not None:
             self.window.show()
             self.window.restore()
+        self.main_shown()
+
+    # -- the orb and its chat bubble
+    def orb_wanted(self) -> bool:
+        return os.name == "nt" and bool(self.conf.get("orb", True))
+
+    def start_orb(self) -> None:
+        if not self.orb_wanted() or self.orb is not None:
+            return
+        try:
+            from .orb import Orb
+            pos = self.conf.get("orb_pos")
+            self.orb = Orb(on_click=self.orb_clicked, on_moved=self._orb_moved, pos=tuple(pos) if pos else None)
+            self.orb.start()
+        except Exception:  # noqa: BLE001 - no orb (numpy missing, an old Windows): the app works without it
+            self.orb = None
+
+    def _orb_moved(self, x: int, y: int) -> None:
+        self.conf["orb_pos"] = [x, y]
+        save_app_conf(self.conf)
+
+    def main_hidden(self) -> None:
+        """The main window was minimized or closed to the tray: the orb takes over."""
+        if self.orb is not None and not self._quitting:
+            self.orb.show()
+
+    def main_shown(self) -> None:
+        if self.orb is not None:
+            self.orb.hide()
+        self.hide_bubble()
+
+    def toggle_orb(self) -> None:
+        self.conf["orb"] = not self.conf.get("orb", True)
+        save_app_conf(self.conf)
+        if self.conf["orb"]:
+            self.start_orb()
+            if self.window is not None and not self._main_visible():
+                self.main_hidden()
+        elif self.orb is not None:
+            self.orb.hide()
+            self.hide_bubble()
+
+    def _main_visible(self) -> bool:
+        try:
+            return bool(self.window.native.Visible) and str(self.window.native.WindowState) != "Minimized"
+        except Exception:  # noqa: BLE001
+            return True
+
+    def make_bubble(self) -> None:
+        """(once the hub's address is known) The bubble window, hidden until the orb is clicked."""
+        if self.bubble is not None or not self.home_url or os.name != "nt":
+            return
+        import webview
+        self.bubble = webview.create_window("jev-harness chat", url=self.home_url + "orb", js_api=OrbApi(self), width=380,
+                                            height=540, frameless=True, easy_drag=False, on_top=True, hidden=True,
+                                            resizable=False)
+
+    def orb_clicked(self) -> None:
+        if self.bubble is None:
+            self.show()
+            return
+        if self.bubble_visible:
+            self.hide_bubble()
+            return
+        if time.time() - self._bubble_hidden_at < 0.5:
+            return   # the click on the orb took the focus from the bubble, which hid it: that click meant "close"
+        self.place_bubble()
+        self.bubble.show()
+        self.bubble_visible = True
+        try:
+            self.bubble.evaluate_js("window.orbShown && window.orbShown()")
+        except Exception:  # noqa: BLE001 - still loading: it focuses itself when it is
+            pass
+
+    def hide_bubble(self) -> None:
+        if self.bubble is not None and self.bubble_visible:
+            self.bubble_visible = False
+            self._bubble_hidden_at = time.time()
+            self.bubble.hide()
+            try:
+                self.bubble.evaluate_js("window.orbHidden && window.orbHidden()")
+            except Exception:  # noqa: BLE001
+                pass
+
+    def place_bubble(self) -> None:
+        """Beside the orb, toward the middle of the screen, its bottom level with the orb's."""
+        if self.orb is None:
+            return
+        from .orb import work_area
+        x, y, w, h = self.orb.rect()
+        scale = self.orb.scale
+        bw, bh = 380 * scale, 540 * scale
+        left, top, right, bottom = work_area(x + w // 2, y + h // 2)
+        bx = x + w * 0.2 - bw if x + w / 2 > (left + right) / 2 else x + w * 0.8
+        by = y + h * 0.75 - bh
+        bx, by = min(max(bx, left + 8), right - bw - 8), min(max(by, top + 8), bottom - bh - 8)
+        self.bubble.move(int(bx / scale), int(by / scale))   # (pywebview takes unscaled pixels)
 
     def show_activity(self) -> None:
         import html
@@ -388,6 +511,8 @@ class App:
 
     def quit(self) -> None:
         self._quitting = True
+        if self.orb is not None:
+            self.orb.close()
         self.stop_agent()
         if self.server is not None:
             self.server.should_exit = True
@@ -411,11 +536,18 @@ class App:
         def closing():
             if self._quitting:
                 return True
-            self.window.hide()   # the app stays in the tray; Quit ends it
+            self.window.hide()   # the app stays in the tray (and the orb comes out); Quit ends it
+            self.main_hidden()
             return False
         self.window.events.closing += closing
+        self.window.events.minimized += self.main_hidden
+        self.window.events.restored += self.main_shown
         self.icon = pystray.Icon("jev-harness", self._image(), "jev-harness", menu=self._menu())
         self.icon.run_detached()
+        if not first:
+            self.start_orb()
+            if self.hidden:   # started in the tray: the orb is how it is reached
+                self.main_hidden()
         if not first:
             threading.Thread(target=self.begin, args=(self.conf,), daemon=True).start()
         webview.start(private_mode=False, storage_path=str(device_home() / "webview"))

@@ -107,7 +107,7 @@ stops, `/steer <text>` always adds.
 | `jevh notebook` | your notebook of ideas and problems |
 | `jevh newsroom` | the Newsroom board from a terminal: `kinds`, `add`, `refresh`, `notes`, `rm` (see [docs/newsroom.md](docs/newsroom.md)) |
 | `jevh context` | the context window each model is loaded with, and where the harness will condense its steps |
-| `jevh app` | the desktop app: the dashboard in a window, a tray icon; on another computer, it also lets the assistant use it (see [docs/devices.md](docs/devices.md)) |
+| `jevh app` | the desktop app: the dashboard in a window, a tray icon, and while it is minimized a floating orb you click to chat; on another computer, it also lets the assistant use it (see [docs/devices.md](docs/devices.md)) |
 | `jevh users` | accounts that sign in to the dashboard from other devices: `add`, `list`, `password`, `remove` |
 | `jevh device` | let a hub's assistant use this computer: `pair <hub> <code>`, `run`, `status`, `pause`, `resume`, `activity`, `forget` |
 

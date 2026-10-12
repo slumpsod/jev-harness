@@ -532,6 +532,11 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     def index() -> str:
         return (STATIC / "index.html").read_text(encoding="utf-8").replace("__JEVH_TOKEN__", token)
 
+    @app.get("/orb", response_class=HTMLResponse)
+    def orb_page() -> str:
+        """The desktop app's orb chat bubble (jevh/app.py): the same conversation, small; same sign-in and token."""
+        return (STATIC / "orb.html").read_text(encoding="utf-8").replace("__JEVH_TOKEN__", token)
+
     # ------------------------------------------------------------ signing in (jevh/accounts.py)
     @app.get("/login", response_class=HTMLResponse)
     def login_page(request: Request):

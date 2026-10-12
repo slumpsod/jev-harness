@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jev-harness chat</title>
+<!-- The orb's chat bubble (jevh/app.py, jevh/orb.py): the same conversation as the dashboard, small. Served by the hub at
+     /orb, behind the same sign-in, with the same API token. It tells the app which mood the orb shows. -->
+<style>
+  :root { --bg: #f6f8fb; --panel: #ffffff; --text: #16181d; --muted: #6a7180; --line: #e1e5ec; --accent: #2f8fe8;
+          --accent2: #36c3f0; --on-accent: #fff; --user: #e6f3ff; --warn: #c27a12; --warn-bg: #fff4e2; --code: #eef1f6;
+          color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #12151b; --panel: #181c24; --text: #e7eaf0; --muted: #98a0ae; --line: #2a303b; --accent: #4aa8ff;
+            --accent2: #5fd4ff; --on-accent: #06121f; --user: #1d2c40; --warn: #f2b45a; --warn-bg: #2d2416; --code: #222834; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+               font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  .wrap { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--line); }
+  header { display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 14px; border-bottom: 1px solid var(--line);
+           background: var(--panel); cursor: move; user-select: none; }
+  header b { font-size: 13.5px; flex: 1; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.working { background: var(--accent2); box-shadow: 0 0 0 0 var(--accent2); animation: ping 1.4s infinite; }
+  .dot.attention { background: var(--warn); }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent2) 60%, transparent); }
+                    100% { box-shadow: 0 0 0 8px transparent; } }
+  header button { border: 0; background: none; color: var(--muted); width: 28px; height: 28px; border-radius: 7px;
+                  cursor: pointer; font-size: 15px; display: grid; place-items: center; }
+  header button:hover { background: var(--line); color: var(--text); }
+  #log { flex: 1; overflow-y: auto; padding: 12px 12px 4px; }
+  .msg { margin: 0 0 10px; max-width: 92%; padding: 8px 11px; border-radius: 12px; overflow-wrap: anywhere; }
+  .user { margin-left: auto; background: var(--user); border-bottom-right-radius: 4px; }
+  .bot { background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .bot p { margin: 0 0 6px; } .bot p:last-child { margin: 0; }
+  .meta { font-size: 11.5px; color: var(--muted); margin: -6px 0 10px; }
+  .meta.r { text-align: right; }
+  code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: 12.5px; }
+  pre { background: var(--code); padding: 8px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; margin: 4px 0; }
+  .status { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; display: flex; gap: 6px; align-items: center; }
+  .ask { background: var(--warn-bg); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); border-radius: 12px;
+         padding: 10px 11px; margin: 0 0 10px; }
+  .ask .q { margin-bottom: 8px; white-space: pre-wrap; }
+  .ask .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ask button, .ask input { font: inherit; border-radius: 8px; padding: 5px 10px; border: 1px solid var(--line);
+                            background: var(--panel); color: var(--text); cursor: pointer; }
+  .ask input { flex: 1; min-width: 0; cursor: text; }
+  .empty { color: var(--muted); text-align: center; margin-top: 30%; font-size: 13px; padding: 0 20px; }
+  form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); background: var(--panel); }
+  textarea { flex: 1; resize: none; font: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+             background: var(--bg); color: var(--text); max-height: 120px; outline: none; overflow-y: hidden; }
+  textarea:focus { border-color: var(--accent); }
+  form button { border: 0; border-radius: 10px; width: 38px; background: linear-gradient(135deg, var(--accent), var(--accent2));
+                color: var(--on-accent); font-size: 16px; cursor: pointer; }
+  form button:disabled { opacity: .5; cursor: default; }
+  #err { color: #d33; font-size: 12px; padding: 0 12px 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="pywebview-drag-region">
+    <span class="dot" id="dot"></span><b id="title">jev-harness</b>
+    <button id="full" title="Open the full app" aria-label="Open the full app">&#x2922;</button>
+    <button id="close" title="Tuck away (Esc)" aria-label="Close">&#x2715;</button>
+  </header>
+  <div id="log" role="log" aria-live="polite"></div>
+  <div id="err" role="alert"></div>
+  <form id="f"><textarea id="input" rows="1" placeholder="Message" aria-label="Message"></textarea>
+    <button id="send" title="Send (Enter)" aria-label="Send">&#x2191;</button></form>
+</div>
+<script>
+const TOKEN = "__JEVH_TOKEN__";
+const $ = (id) => document.getElementById(id);
+const app = () => (window.pywebview && window.pywebview.api) || null;
+const SHOW = 6;                       // the last turns shown
+let state = null, lastSeq = 0, seen = Number(localStorage.getItem("orb.seen") || 0), shown = false, mood = "";
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-Jevh-Token": TOKEN, ...(opts.headers || {})}});
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+function md(text) {   // just enough: code blocks, inline code, bold, paragraphs
+  const blocks = [];
+  let s = esc(text).replace(/```[\w-]*\n?([\s\S]*?)```/g, (_, c) => { blocks.push(c); return `\u0000${blocks.length - 1}\u0000`; });
+  s = s.replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+  s = s.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
+  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<pre>${blocks[+i]}</pre>`);
+}
+
+function render() {
+  const log = $("log"), st = state;
+  if (!st) return;
+  const turns = (st.turns || []).slice(-SHOW);
+  let html = "";
+  if (!turns.length && !(st.questions || []).length) html = `<div class="empty">Ask anything. "This computer" means the one you're on.</div>`;
+  for (const t of turns) {
+    html += `<div class="msg user">${esc(t.message)}</div>`;
+    if (t.status === "running") html += `<div class="status"><span class="dot working"></span>Working${t.persona ? ` (${esc(t.persona)})` : ""}...</div>`;
+    else if (t.answer) html += `<div class="msg bot">${md(t.answer)}</div><div class="meta">${esc(t.persona || "")}${t.seconds ? ` · ${Math.round(t.seconds)} s` : ""}</div>`;
+  }
+  for (const q of st.questions || []) {
+    const opts = (q.options || []).map((o) => `<button type="button" data-q="${esc(q.id)}" data-a="${esc(o)}">${esc(o)}</button>`).join("");
+    html += `<div class="ask"><div class="q">${esc(q.question)}</div><div class="opts">${opts}
+      <input data-qi="${esc(q.id)}" type="${q.secret ? "password" : "text"}" placeholder="${q.secret ? "typed hidden" : "or type an answer"}" autocomplete="off"></div></div>`;
+  }
+  const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  log.innerHTML = html;
+  if (atBottom || shown) log.scrollTop = log.scrollHeight;
+  $("dot").className = "dot " + mood;
+}
+
+function computeMood() {
+  const st = state || {}, turns = st.turns || [];
+  const last = turns[turns.length - 1];
+  if (shown && last && last.status !== "running") markSeen(last.id);
+  const m = (st.questions || []).length ? "attention" : st.busy ? "working"
+    : last && last.status !== "running" && last.id > seen ? "unread" : "idle";
+  if (m !== mood) { mood = m; try { app() && app().mood(m); } catch {} }
+}
+function markSeen(id) { if (id > seen) { seen = id; try { localStorage.setItem("orb.seen", String(id)); } catch {} } }
+
+let pending = null;
+function refresh() {   // (many events in a burst: one fetch)
+  clearTimeout(pending);
+  pending = setTimeout(async () => {
+    try { state = await api("/api/state"); lastSeq = Math.max(lastSeq, state.last_seq || 0); $("err").textContent = ""; }
+    catch (e) { $("err").textContent = e.message; }
+    computeMood(); render();
+  }, 150);
+}
+
+const WATCH = new Set(["turn_start", "turn_done", "turn_error", "question", "answered", "question_timeout", "reset", "queued", "aside"]);
+function listen() {
+  const es = new EventSource(`/api/events?since=${lastSeq}&token=${encodeURIComponent(TOKEN)}`);
+  es.onmessage = (m) => { const e = JSON.parse(m.data); lastSeq = Math.max(lastSeq, e.seq); if (WATCH.has(e.kind)) refresh(); };
+  es.onerror = () => { es.close(); setTimeout(() => { refresh(); listen(); }, 3000); };
+}
+
+async function send() {
+  const text = $("input").value.trim();
+  if (!text) return;
+  $("send").disabled = true;
+  try { await api("/api/chat", {method: "POST", body: JSON.stringify({message: text})}); $("input").value = ""; autosize(); }
+  catch (e) { $("err").textContent = e.message; }
+  $("send").disabled = false;
+  refresh();
+}
+async function answer(id, text) {
+  if (!text) return;
+  try { await api("/api/answer", {method: "POST", body: JSON.stringify({id, answer: text})}); } catch (e) { $("err").textContent = e.message; }
+  refresh();
+}
+function autosize() {   // (+2: the borders; without them a one-line box showed a scroll bar)
+  const t = $("input"); t.style.height = "auto";
+  const full = t.scrollHeight + 2;
+  t.style.height = Math.min(full, 120) + "px"; t.style.overflowY = full > 120 ? "auto" : "hidden";
+}
+
+$("f").addEventListener("submit", (ev) => { ev.preventDefault(); send(); });
+$("input").addEventListener("input", autosize);
+$("input").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); send(); } });
+$("log").addEventListener("click", (ev) => { const b = ev.target.closest("[data-q]"); if (b) answer(b.dataset.q, b.dataset.a); });
+$("log").addEventListener("keydown", (ev) => {
+  const i = ev.target.closest("[data-qi]");
+  if (i && ev.key === "Enter") { ev.preventDefault(); answer(i.dataset.qi, i.value.trim()); }
+});
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") { try { app() && app().close(); } catch {} } });
+$("close").addEventListener("click", () => { try { app() && app().close(); } catch {} });
+$("full").addEventListener("click", () => { try { app() && app().open_app(); } catch {} });
+// tucked away when you click elsewhere (the app ignores a click on the orb right after, so the orb toggles it)
+window.addEventListener("blur", () => { if (shown) { try { app() && app().close(true); } catch {} } });
+// the app calls these when it shows and hides the bubble
+window.orbShown = () => { shown = true; refresh(); setTimeout(() => $("input").focus(), 50); };
+window.orbHidden = () => { shown = false; };
+
+refresh(); listen();
+</script>
+</body>
+</html>
