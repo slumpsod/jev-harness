@@ -1,14 +1,10 @@
 """The floating orb (jevh/orb_art.py, jevh/orb.py, the hub's /orb page, jevh/app.py's bubble), offline.
 
 The window itself is Windows-only and drawn by Windows; it was checked live on the screen (2026-10-12): see
-docs/devices.md. These test what can be tested without a desktop: the pictures, where it settles, the chat page and the
-moods it reports, and the app's click logic.
+docs/devices.md. These test what can be tested without a desktop: the pictures, where it settles, the chat page behind
+sign-in, and the app's click logic. The bubble driven in Chromium (moods through a question) is in test_dashboard_ui.py.
 """
 from __future__ import annotations
-
-import socket
-import threading
-import time
 
 import numpy as np
 import pytest
@@ -19,8 +15,7 @@ from jevh.jev import Jev
 from jevh.orchestrator import Harness
 from jevh.web.server import create_app
 
-from conftest import FakeSystemOne, ScriptedLLM, choice_ans, py
-from test_dashboard_ui import browse  # noqa: F401 - the fixture
+from conftest import FakeSystemOne, ScriptedLLM, choice_ans
 
 R = 30
 
@@ -71,53 +66,6 @@ def test_the_bubble_page_is_behind_the_same_sign_in(cfg):
     assert page.status_code == 200 and 'TOKEN = "tok"' in page.text
     assert c.get("/orb", headers={"Host": "box.ts.net:10000"}).status_code == 403
     assert c.get("/orb?key=k3y", headers={"Host": "box.ts.net:10000"}).status_code == 200
-
-
-@pytest.fixture
-def asking_hub(cfg):
-    """A dashboard whose assistant asks the user a question, then answers with what they said."""
-    import uvicorn
-    replies = [py("a = ask_user('Go ahead with the plan?', ['Yes', 'No'])\nfinal('You said ' + a)")]
-
-    def factory(on_event, session=None):
-        return Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM(list(replies)),
-                       on_event=on_event)
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(create_app(cfg, port=port, harness_factory=factory, token="t"),
-                                           host="127.0.0.1", port=port, log_level="warning"))
-    threading.Thread(target=server.run, daemon=True).start()
-    for _ in range(100):
-        if server.started:
-            break
-        time.sleep(0.05)
-    yield f"http://127.0.0.1:{port}/orb"
-    server.should_exit = True
-
-
-def test_the_bubble_chats_answers_questions_and_tells_the_orb_its_mood(asking_hub, browse):
-    def body(page):
-        # the app's bridge, as pywebview gives it: the moods it is told are recorded
-        page.add_init_script("window.__moods = []; window.pywebview = {api: {mood: (m) => window.__moods.push(m), "
-                             "close: () => {}, open_app: () => {}}};")
-        page.goto(asking_hub)
-        page.wait_for_selector(".empty")
-        page.fill("#input", "make the plan")
-        page.keyboard.press("Enter")
-        page.wait_for_selector(".ask button", timeout=20000)             # the question, with its options
-        assert "Go ahead with the plan?" in page.inner_text(".ask")
-        page.wait_for_function("window.__moods.includes('attention')")
-        page.click(".ask button:has-text('Yes')")
-        page.wait_for_selector(".msg.bot", timeout=20000)
-        assert "You said Yes" in page.inner_text(".msg.bot")
-        page.wait_for_function("window.__moods[window.__moods.length - 1] === 'unread'")   # (not shown: an unread answer)
-        moods = page.evaluate("window.__moods")
-        assert "working" in moods and moods.index("working") < moods.index("attention")
-        page.evaluate("window.orbShown()")                                # the bubble opened: it has been seen
-        page.wait_for_function("window.__moods[window.__moods.length - 1] === 'idle'")
-        assert not page.errors
-    browse(body)
 
 
 class _Fake:
