@@ -454,3 +454,44 @@ def test_a_file_the_harness_collected_counts_as_handed_over():
     assert not answer_rules(req, "Done.", ["/a/primes.py"], "", ok, t)
     assert any("primes.py" in p for p in answer_rules(req, "Done.", ["/a/high_end_dev_fib.py"], "", ok, t))
     assert any("primes.py" in p for p in answer_rules(req, "Done.", ["/a/high_end_dev_notprimes.py"], "", ok, t))
+
+
+def test_grounding_reads_prices_printed_without_a_leading_zero():
+    # live 2026-10-12: the rebate PDF prints "$.49 per sq ft"; "$0.49" in the answer was sent back as made up
+    from jevh.verify import grounding
+    pdf = "Insulation (Ceiling/Attic) >= R-49 $.49 per sq ft up to $890\n>= R-19 $.53 per sq ft up to $740"
+    assert grounding("Attic: $0.49 up to $890; basement $0.53 up to $740", pdf) == ({"0.49", "890", "0.53", "740"}, set())
+    assert grounding("Attic: $0.59 per sq ft", pdf)[1] == {"0.59"}
+
+
+def test_grounding_counts_totals_worked_out_in_the_answer():
+    from jevh.verify import grounding
+    caps = "Attic up to $500; Walls up to $750; Floor up to $250; Basement up to $250; Rim up to $250; air up to $500; " \
+           "ducts up to $300"
+    shown = ("Total insulation: $2,000 (500+750+250+250+250). Max package: $2,800 ($2,000 insulation + $500 air "
+             "sealing + $300 ducts).")
+    assert grounding(shown, caps) == ({"2,000", "2,800", "500", "750", "250", "300"}, set())
+    # a total stated without its working is still unsupported, and so is a sum that doesn't add up
+    assert grounding("Total insulation: $2,000.", caps)[1] == {"2,000"}
+    assert grounding("Total: $2,100 (500+750+250+250+250)", caps)[1] == {"2,100"}
+    # a sum of numbers no tool gave proves nothing
+    assert grounding("Total: $90 (40 + 50)", caps)[1] == {"90", "40", "50"}
+
+
+def test_grounding_lets_estimates_and_near_approximations_through():
+    from jevh.verify import grounding
+    assert grounding("Stuck on one field (30-second fix for you).", "timed out") == (set(), set())
+    readmes = "README.ar.md README.de.md ... 18 localized READMEs"
+    assert grounding("localized READMEs in ~20 languages", readmes) == ({"20"}, set())
+    assert grounding("localized READMEs in ~40 languages", readmes)[1] == {"40"}
+    assert grounding("localized READMEs in 20 languages", readmes)[1] == {"20"}     # stated as exact: still checked
+
+
+def test_a_promise_that_waits_for_the_users_word_is_not_left_hanging():
+    t = lambda name: 0.5   # noqa: E731
+    waits = ['Reply "go" and I\'ll create the app right now.',
+             'Once you\'ve saved it, say "saved" and I\'ll finish the rest unassisted.']
+    for answer in waits:
+        assert not any("you'll do more next" in p for p in answer_rules("connect facebook", answer, [], "ran x", {}, t))
+    hanging = "The page is open. Next, I'll create the app and register it with Nango."
+    assert any("you'll do more next" in p for p in answer_rules("connect facebook", hanging, [], "ran x", {}, t))

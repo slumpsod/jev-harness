@@ -199,3 +199,27 @@ def test_a_stalled_worker_is_offered_only_final_on_its_last_step(cfg):
         "find a hotel", force="daily_assistant")
     assert [t["function"]["name"] for t in llm.tools_seen[4]] == ["final"]
     assert r.answer.startswith("Booking.com's results would not load"), r.answer
+
+
+def test_a_plain_fenced_block_in_a_native_reply_is_part_of_the_answer_not_code(cfg):
+    # live 2026-10-12 (a chess game): "Made and verified:\n```\n1. b3 e5..." ran as Python, and its SyntaxError came back
+    # as the next user turn
+    moves = "Made and verified:\n\n```\n1. b3   e5\n2. Bb2  Nf6\n```\n\nYour move, White."
+    llm = NativeLLM([moves])
+    r = harness(cfg, llm).turn("your move", force="high_end_dev")
+    assert r.answer.startswith("Made and verified:") and "1. b3" in r.answer
+    assert len(llm.seen) == 1          # nothing was run, no "Output:" turn followed
+
+
+def test_a_python_fence_in_a_native_reply_still_runs(cfg):
+    llm = NativeLLM(["```python\nprint(6 * 7)\n```", call("final('42')")])
+    assert harness(cfg, llm).turn("6*7? use code", force="high_end_dev").answer == "42"
+    assert "42" in str(llm.seen[1][-1]["content"])
+
+
+def test_which_fenced_blocks_are_code():
+    from jevh.worker import code_blocks
+    text = "```\n1. b3 e5\n```\n```\nTotal: 5\n```\n```\n3, 4\n```\n```\nprint(1)\n```\n```py\nx = 1\n```"
+    assert code_blocks(text) == ["print(1)\n", "x = 1\n"]          # text mode: a plain block that is Python runs
+    assert code_blocks(text, native=True) == ["x = 1\n"]           # native: only a block tagged python
+    assert code_blocks("```python\nprint(\n```") == ["print(\n"]   # a tagged block runs, broken or not

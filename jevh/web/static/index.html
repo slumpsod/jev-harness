@@ -406,6 +406,10 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 .saytag.corrected { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
 .saytag.stopped { color: var(--bad-ink); border-color: color-mix(in srgb, var(--bad) 50%, transparent); }
 .sayrep { margin-top: 5px; color: var(--text); }
+.say.told { border-left-color: var(--accent); background: var(--surface); }
+.say.told .toldtext { margin-top: 3px; }
+.say.told .toldtext p:first-child { margin-top: 0; }
+.say.told .toldtext p:last-child { margin-bottom: 0; }
 .saywait { color: var(--faint); font-size: 12px; }
 .queuebar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 8px 6px; font-size: 12px; color: var(--muted); }
 .qchip { padding: 1px 8px; border-radius: var(--pill); border: 1px solid var(--line); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
@@ -1236,6 +1240,8 @@ function handle(e) {
       break;
     }
     case "aside": { const it = [...(t.said || [])].reverse().find((x) => x.outcome === "status" && !x.aside); if (it) { it.aside = d.answer; it.source = d.source; it.seconds = d.seconds; } break; }
+    case "say": (t.told = t.told || []).push({ts: e.ts, text: d.text, persona: d.persona}); break;
+    case "resuming": t.activity.push({ts: e.ts, kind: "learn", text: `continuing the turn that was cut off at step ${d.step}: ${d.task}`}); break;
     case "steer": t.activity.push({ts: e.ts, kind: "learn", text: `${d.persona}: heard you at step ${d.step} - "${d.text}"`}); break;
     case "redirect": t.activity.push({ts: e.ts, kind: "warn", text: `${d.persona}: cut the model's reply at step ${d.step} to hear you (nothing in it ran)`}); break;
     case "queued": S.queued = d.queue || []; t.activity.push({ts: e.ts, kind: "learn", text: `${d.late ? "kept for after" : "queued"}: ${(d.texts || []).join(" | ")}`}); break;
@@ -1296,8 +1302,10 @@ function renderQueue() {   // requests sent while a turn runs: they start by the
   el.hidden = !q.length;
   el.innerHTML = q.length ? `<span>Waiting to run after this (${q.length}):</span>${q.map((x) => `<span class="qchip" title="${esc(x)}">${esc(x.length > 40 ? x.slice(0, 40) + "..." : x)}</span>`).join("")}` : "";
 }
-function saidHtml(t) {   // what you said while it worked, and what became of it
-  return (t.said || []).map((s) => {
+function saidHtml(t) {   // what you said while it worked, what became of it, and what the assistant told you meanwhile (say())
+  const told = (t.told || []).map((s) => ({...s, told: true}));
+  return [...(t.said || []), ...told].sort((a, b) => (a.ts || 0) - (b.ts || 0)).map((s) => {
+    if (s.told) return `<div class="say told"><span class="saywho">${esc(s.persona || "assistant")}</span> <div class="toldtext">${md(s.text)}</div></div>`;
     const tag = s.outcome === "corrected" && s.replaces ? "swapping the task" : {corrected: "added to the task", queued: "queued for after", status: "quick reply", stopped: "stopped"}[s.outcome] || s.outcome;
     const reply = s.outcome === "status" ? `<div class="sayrep">${esc(s.aside || s.answer)}${!s.aside && s.asking ? ' <span class="saywait">(the task\'s own answer is coming...)</span>' : ""}</div>` : "";
     return `<div class="say"><span class="saywho">You</span> ${esc(s.text)} <span class="saytag ${esc(s.outcome)}">${esc(tag)}</span>${reply}</div>`;

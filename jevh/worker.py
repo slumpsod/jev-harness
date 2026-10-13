@@ -6,6 +6,7 @@ sits in the REPL as `ctx[...]` and is only listed by name and size.
 """
 from __future__ import annotations
 
+import ast
 import inspect
 import json
 import os
@@ -50,7 +51,7 @@ def _step_outputs(messages: list[dict]) -> list[str]:
         if m["role"] == "assistant":
             if current is not None:
                 outs.append(current)
-            current = "" if (m.get("tool_calls") or CODE_RE.search(str(m.get("content", "")))) else None
+            current = "" if (m.get("tool_calls") or code_blocks(str(m.get("content", "")))) else None
         elif current is not None and m["role"] in ("tool", "user"):
             text = str(m.get("content", "")).split("\n\n[", 1)[0].replace("Output:\n", "", 1).strip()
             current += ("\n" if current else "") + text
@@ -112,7 +113,8 @@ CHARS_PER_TOKEN = 3.2      # conservative for code-heavy transcripts (context-si
 # in its cache, so the redirect costs the new tokens only.
 STEER_NOTE = ('[Message from the user, sent while you were working: "{text}"\n'
               "Take it into account from here on: if it changes what they want, follow it instead of the earlier "
-              "request. Your REPL variables and files are as you left them.]")
+              "request. If it asks you something, answer it now with say(\"...\") - they are waiting and see nothing "
+              "of your thinking - then carry on. Your REPL variables and files are as you left them.]")
 STEER_REPLACE = ('[Message from the user, sent while you were working: "{text}"\n'
                  "This replaces the request you were given: drop what you were doing for it, do this instead, and "
                  "hand over only what this asks for. Your REPL variables and files are as you left them.]")
@@ -167,6 +169,33 @@ HARVEST_MAX = 20            # files handed over from the worker's folder when it
 # web app's built page can be the deliverable; the HARVEST_MAX cap bounds what is copied from them)
 HARVEST_SKIP = {"node_modules", "bower_components", "site-packages", "venv", "env"}
 CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
+FENCE_RE = re.compile(r"```(python|py)?[ \t]*\n(.*?)```", re.DOTALL)
+
+
+def code_blocks(text: str, native: bool = False) -> list[str]:
+    """The code a reply's text asks to run: its ```python blocks, and a plain ``` block only when it is Python.
+    Live (2026-10-12, Qwen with native tools, a chess game): the reply "Made and verified:\n```\n1. b3 e5\n2. Bb2 Nf6..."
+    was run as code; its SyntaxError came back as the next user turn, and the model spent the rest of the session
+    answering "echo pastes" it took for the user's. With native tools the model acts by calling the python tool, so a
+    plain block in its text is part of what it says (a move list, a table, a command for the user); in text mode it
+    is code when it compiles and is more than a bare value."""
+    out = []
+    for tag, body in FENCE_RE.findall(text or ""):
+        if tag or (not native and _is_code(body)):
+            out.append(body)
+    return out
+
+
+def _is_code(body: str) -> bool:
+    try:
+        tree = ast.parse(body)
+    except (SyntaxError, ValueError):
+        return False
+    # "1, 2, 3", "Total: 5", a bare name: data that happens to parse, not something to run
+    return any(not (isinstance(n, ast.Expr) and isinstance(n.value, (ast.Constant, ast.Tuple, ast.Name)))
+               and not (isinstance(n, ast.AnnAssign) and n.value is None) for n in tree.body)
+
+
 # Some local models (seen: ornith in LM Studio) sometimes answer in their native tool-call
 # template instead of a fenced block: <tool_call><function=python><parameter=content>...
 TOOL_CALL_RE = re.compile(r"<function=python[^>]*>\s*<parameter=\w+>\s*(.*?)\s*(?:</parameter>|</function>|</tool_call>|\Z)",
@@ -177,7 +206,7 @@ OPEN_FENCE_RE = re.compile(r"```(?:python|py)[ \t]*\n")
 XML_CALL_RE = re.compile(r"<function=(\w+)>(.*?)(?:</function>|</tool_call>|\Z)", re.DOTALL)
 XML_PARAM_RE = re.compile(r"<parameter=(\w+)>\s*(.*?)\s*(?:</parameter>|(?=<parameter=)|\Z)", re.DOTALL)
 PRIMARY = {"web": "ask", "browser": "do", "project": "find", "comfy": "run"}   # a bare "question=" etc.
-REPL_CALLS = {"final", "ask_user", "recall", "remember", "request", "save_artifact", "load_artifact", "peek",
+REPL_CALLS = {"final", "ask_user", "say", "recall", "remember", "request", "save_artifact", "load_artifact", "peek",
               "report_failure"}
 
 
@@ -298,7 +327,7 @@ def msg_code(m: dict) -> list[str]:
     calls = [call_args(c.get("function", {}).get("arguments", "")) for c in m.get("tool_calls") or []]
     native = [a["code"] for a in calls if isinstance(a.get("code"), str)]
     text = str(m.get("content", ""))
-    return native + (CODE_RE.findall(text) or TOOL_CALL_RE.findall(text))
+    return native + (code_blocks(text, bool(native)) or TOOL_CALL_RE.findall(text))
 
 
 def is_output(m: dict) -> bool:
@@ -377,6 +406,8 @@ In the REPL:
     (save_artifact('report.csv', path='report.csv')) - never as data. load_artifact(ref).
 - ask_user(question, options=None) -> str: ask the user and wait (details only they know; confirm
   anything hard to undo, like an order, a payment, sending or deleting).
+- say(text): tell the user something now and keep working - above all the answer to a question they
+  send while you work (they see nothing of your thinking or code until you finish).
 - final(answer, artifacts=None): finish.
 - Also there (help(name) shows how): start_job / job_status / job_wait (long commands in the
   background), recall / remember (past conversations; lasting facts about the user), llm_query
@@ -796,7 +827,7 @@ class Worker:
                         messages += self._replies(call_ids, note.strip("\n()") + self._steps_left_note(step))
                         continue
                 else:
-                    blocks = CODE_RE.findall(out.text) or TOOL_CALL_RE.findall(out.text)
+                    blocks = code_blocks(out.text, self.native) or TOOL_CALL_RE.findall(out.text)
                     if not blocks and "<function=" in out.text:
                         blocks, failed = translate_tool_calls(out.text, self.tools)
                         if blocks:
