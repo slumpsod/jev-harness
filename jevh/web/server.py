@@ -526,6 +526,12 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         response = await call_next(request)
         if remote and is_access_key(key_sent) and not accounts.has_users():   # (this also replaces a stale cookie)
             response.set_cookie("jevh_key", access_key, httponly=True, secure=True, samesite="strict")
+        if remote and user and request.method == "GET":
+            # renew the browser's copy too (a page load, or the open page's own requests: the app can stay open for weeks):
+            # the hub slides the sign-in's 30 days with each use, and a cookie still set to end 30 days after signing in
+            # would sign the device out anyway
+            response.set_cookie(SESSION_COOKIE, request.cookies.get(SESSION_COOKIE, ""), max_age=SESSION_DAYS * 86400,
+                                httponly=True, secure=True, samesite="lax")
         return response
 
     @app.get("/", response_class=HTMLResponse)

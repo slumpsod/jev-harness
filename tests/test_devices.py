@@ -521,3 +521,26 @@ def test_an_invite_link_lets_another_device_make_its_account_and_sign_in(cfg):
                   headers=remote).status_code == 400
     # signed in, anyone may invite the next person
     assert c.post("/api/accounts/invite", headers={**signed, "X-Jevh-Token": TOKEN}).status_code == 200
+
+
+def test_a_sign_in_in_use_never_runs_out(cfg, tmp_path, monkeypatch):
+    """The 30 days start over with each use (written at most hourly), and the browser's cookie is renewed with them."""
+    import jevh.accounts as A
+    acc = Accounts(tmp_path / "accounts.db")
+    acc.add_user("jed", "correct horse")
+    token = acc.start_session("jed")
+    now = [time.time()]
+    monkeypatch.setattr(A.time, "time", lambda: now[0])
+    for _ in range(4):                       # used every 25 days: well past 30 days from signing in
+        now[0] += 25 * 86400
+        assert acc.session_user(token) == "jed"
+    now[0] += 31 * 86400                     # a month unused: signed out
+    assert acc.session_user(token) is None
+    monkeypatch.undo()
+    app = make_app(cfg)
+    hub = app.state.hub
+    hub.accounts.add_user("jed", "correct horse")
+    c = TestClient(app, base_url="http://127.0.0.1:8740")
+    signed = {"Host": f"{REMOTE}:10000", "X-Jevh-Token": TOKEN, "Cookie": "jevh_session=" + hub.accounts.start_session("jed")}
+    cookie = c.get("/api/me", headers=signed).headers.get("set-cookie", "").lower()
+    assert "jevh_session=" in cookie and f"max-age={30 * 86400}" in cookie and "httponly" in cookie and "secure" in cookie

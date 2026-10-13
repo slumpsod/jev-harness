@@ -198,7 +198,9 @@ class Accounts:
             self._q("DELETE FROM sessions WHERE token = ?", (_sha(token),))
             return None
         if now - seen > 3600:   # (written at most hourly: every request would make the page a writer)
-            self._q("UPDATE sessions SET seen = ? WHERE token = ?", (now, _sha(token)))
+            # sliding: SESSION_DAYS from the last use, so a device in use is never asked again
+            self._q("UPDATE sessions SET seen = ?, expires = ? WHERE token = ?",
+                    (now, now + SESSION_DAYS * 86400, _sha(token)))
         return user
 
     def end_session(self, token: str | None) -> None:

@@ -125,7 +125,7 @@ something that runs what your assistant decides.
 
 - Accounts live in `workspace/accounts.db` on the hub: scrypt password hashes, and the hashes of sign-in and device
   tokens. Every account is an owner of the hub: there is one assistant, one memory and one set of devices.
-- A sign-in lasts 30 days on that browser. Changing a password signs that account out everywhere. Repeated wrong
+- A sign-in lasts 30 days from the last time you used that device or browser (each use starts the 30 days over), so a device you use never asks again. Changing a password signs that account out everywhere. Repeated wrong
   passwords or pairing codes from one address are refused for a few minutes.
 - **Making an account from another device: an invite link.** On the hub, **Invite to an account** in the Devices panel (or
   `jevh users invite --hub https://<hub>.<tailnet>.ts.net:10000`) gives a one-time link. Anyone already signed in can make
