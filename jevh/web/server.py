@@ -44,7 +44,7 @@ from ..bus import jsonable, task_json
 from ..config import Config, load_config
 from ..interject import KINDS
 from ..lmstudio import gate_for
-from ..orchestrator import Harness
+from ..orchestrator import ELSEWHERE, Harness
 from ..history import History
 from ..accounts import SESSION_DAYS, AccountError, Accounts
 from ..devices import wire
@@ -193,7 +193,8 @@ class Hub:
         turn = {"id": max(len(self.turns), getattr(self.harness, "turn_no", 0)) + 1, "message": message, "status": "running", "started": time.time(),
                 "pin": self.pin, "tier_mode": self.harness.tier_mode,
                 # which computer it was written on, shown under the message - only while there are others to tell apart
-                "origin": (self.devices.here if self.harness.origin == HERE else self.harness.origin)
+                "origin": (self.devices.here if self.harness.origin == HERE else "another device"
+                           if self.harness.origin == ELSEWHERE else self.harness.origin)
                 if self.devices.online() else None}
         self.turns.append(turn)
         self.publish("turn_start", {"turn": dict(turn)})
@@ -484,14 +485,14 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         return forwarded_ip(request.headers.get("x-forwarded-for"), request.client.host if request.client else "")
 
     def origin_of(request) -> str | None:
-        """Which computer the user is writing from: HERE (this one, the hub), a connected device's name, or None (a
-        phone, or a browser on a computer that is not paired)."""
+        """Which computer the user is writing from: HERE (this one, the hub), a connected device's name, or ELSEWHERE (a
+        phone, or a browser on a computer that is not connected)."""
         if not request.state.remote:
             return HERE
         ip = client_of(request)
         if ip in local_ips:
             return HERE
-        return hub.devices.device_at(ip)
+        return hub.devices.device_at(ip) or ELSEWHERE
 
     @app.middleware("http")
     async def guard(request: Request, call_next):

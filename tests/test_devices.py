@@ -456,7 +456,7 @@ def test_a_message_is_known_to_come_from_the_device_it_was_written_on(cfg):
 
     assert send({**signed, "X-Forwarded-For": "192.0.2.19"}) == ("bilbo", "bilbo")       # the app or a browser on bilbo
     assert send({"X-Jevh-Token": TOKEN})[1] == "here"                                        # on the hub itself
-    assert send({**signed, "X-Forwarded-For": "192.0.2.24"}) == (None, None)               # the phone: not a computer
+    assert send({**signed, "X-Forwarded-For": "192.0.2.24"}) == ("another device", "elsewhere")   # the phone
 
 
 def test_the_worker_is_told_which_computer_this_is(cfg):
@@ -482,6 +482,28 @@ def test_the_worker_is_told_which_computer_this_is(cfg):
     h.origin = "oldbox"                                        # a computer that is not connected: no claim about it
     h.turn("hello", force="daily_assistant")
     assert "writing from" not in seen[-1] and "Connected now: bilbo, studio-pc." in seen[-1]
+    h.origin = "elsewhere"                                     # a phone: not in front of the hub's screen
+    h.turn("open example.com", force="daily_assistant")
+    assert "writing from another device" in seen[-1] and "they don't see its screen" in seen[-1]
+
+
+def test_a_persona_without_the_devices_tool_is_still_told_the_user_is_on_another_computer(cfg):
+    """Live 2026-10-12: the hub ran with persona files that predated the devices tool; asked "did you open that on bilbo
+    or the hub? because im on bilbo", the worker answered "Which one is DESKTOP-AUIDSM2?"."""
+    seen = []
+
+    class Spy(ScriptedLLM):
+        def chat(self, messages):
+            seen.append(messages[0]["content"])
+            return super().chat(messages)
+
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: Spy([py("final('ok')")] * 3))
+    h.personas["daily_assistant"].tools = [t for t in h.personas["daily_assistant"].tools if t != "devices"]
+    h.devices = FakeDeviceHub(["bilbo"])
+    h.origin = "bilbo"
+    h.turn("did you open that on bilbo or the hub?", force="daily_assistant")
+    assert "The user is writing from bilbo" in seen[-1] and "no tool that acts on bilbo" in seen[-1]
+    assert "devices.get(" not in seen[-1]
 
 
 # ---------------------------------------------------------------------- invites: an account made from any device

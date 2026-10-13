@@ -80,6 +80,7 @@ COMPACT_Q = ("Does `step` hold information that finishing `task` will use again,
 CIRCLES_Q = ("Is `work_log` repeating the same or nearly the same attempt and getting the same result, "
              "without learning anything new?")
 STOPPED_NOTE = "[stopped by the user before finishing]"
+ELSEWHERE = "elsewhere"   # Harness.origin: written on a device that is not connected (a phone), not on the hub
 # A turn the harness never finished (it crashed, or the dashboard was restarted under it) was never remembered, so the next
 # turn knew nothing of it: live 2026-10-12, "get REA running on this computer" died at step 42 with a restart, and the
 # user's "continue" was answered by explaining the repo again. The next turn now records it first (see _note_cut_off).
@@ -923,7 +924,7 @@ class Harness:
         notes = {"nango": self._nango_summary()} if "nango" in tools.tools else {}
         if "devices" in persona.tools:   # (said with the guide or, when Jev did not pick it, with its pointer line)
             notes["devices"] = self._devices_note()
-        where = self._where_note() if "devices" in persona.tools else None
+        where = self._where_note("devices" in persona.tools)
         system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
                               [catalog[k] for k in tools.mcp if k in catalog], tool_notes=notes, where=where)
         ctx = {"request": task.text, "memory": mem.kept, "inputs": task.inputs,
@@ -1151,14 +1152,25 @@ class Harness:
             return None
         return next((n for n in self.devices_online() if n.lower() == str(o).lower()), None)
 
-    def _where_note(self) -> str | None:
+    def _where_note(self, can_reach: bool = True) -> str | None:
         """For the Environment section, when the user writes from another computer: that their things are there, and
         that this REPL is not. (Live, 2026-10-12: told only in the devices guide, a worker asked for "note.txt in my home
-        folder" from a device opened ~/... on the hub with plain Python.)"""
+        folder" from a device opened ~/... on the hub with plain Python.) `can_reach`: the persona has the devices tool.
+        Without it, or from a computer that is not connected (a phone), the worker is still told it is not in front of
+        the user: live 2026-10-12, asked "did you open that on bilbo or the hub? because im on bilbo", a worker without
+        the tool answered "Which one is DESKTOP-AUIDSM2?"."""
         o = self.origin_device()
-        if not o:
-            return None
         hub_name = getattr(self.devices, "here", "") or "the hub"
+        if not o:
+            if self.origin != ELSEWHERE:
+                return None
+            return (f"The user is writing from another device (a phone, or a computer not connected to this one), not on "
+                    f"this computer ({hub_name}): they don't see its screen. A page, window or file you open here shows "
+                    f"on {hub_name}, not in front of them - say so, and give them a link or the file instead.")
+        if not can_reach:
+            return (f"The user is writing from {o}, another of their computers - not on this computer ({hub_name}), and "
+                    f"you have no tool that acts on {o}. What you open, run or change happens on {hub_name}, where they "
+                    f"can't see it: say so plainly, and give them a link or the file instead.")
         return (f"The user is writing from {o}, another of their computers - not the one this REPL runs on. Their files, "
                 f"folders, apps and screen (\"my home folder\", \"my Downloads\", \"this computer\") are on {o}: reach them "
                 f"with devices.get({o!r}). Python's open() and os here, and the project, desktop and browser tools, see "
@@ -1169,6 +1181,8 @@ class Harness:
         computer" is - the one the user is writing on (Hub.start_turn's origin), when that is known."""
         names = ", ".join(self.devices_online())
         hub_name = getattr(self.devices, "here", "") or "the hub"
+        if not names:   # (it said "Connected now: ." with none online)
+            return f"No other computer is connected right now: everything you do happens on this one ({hub_name})."
         tools_here = "browser, desktop, project and start_job act on the hub"
         o = self.origin_device()
         if o:
