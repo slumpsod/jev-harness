@@ -174,3 +174,33 @@ def test_the_bar_and_bubble_are_drawn_with_their_clickable_parts():
     _, _, after = a.draw_bubble({"kind": "reply", "text": long}, 1.0, scroll=10 ** 6)
     assert after == overflow
     assert len(a.premultiplied(img)) == img.width * img.height * 4
+
+
+def test_more_glass_shows_more_of_what_is_behind_frosted():
+    from PIL import Image
+    from jevh import orb_chat_art as a
+    assert a.tint_alpha(0) == 250 and a.tint_alpha(a.GLASS) == a.PANEL_A and a.tint_alpha(100) == 110
+    assert a.tint_alpha(-5) == 250 and a.tint_alpha(500) == 110
+    solid, _ = a.draw_bar("hi", 420, 1.0, glass=0)
+    glassy, _ = a.draw_bar("hi", 420, 1.0, glass=100)
+    mid = (solid.width // 3, solid.height // 2)
+    assert glassy.getpixel(mid)[3] < solid.getpixel(mid)[3]                                   # the tint lets more through
+    behind = Image.new("RGB", glassy.size, (255, 0, 0))                                       # a red wall behind it
+    frosted = a.frost(glassy, a.frost_backdrop(behind, 100))
+    r, g, b, al = frosted.getpixel(mid)
+    assert al == 255 and r > g + 40                                                           # opaque glass, tinted by the red
+    edge = (glassy.width // 2, glassy.height - 4)                                              # the shadow under the pill
+    assert glassy.getpixel(edge)[3] > 0 and frosted.getpixel(edge) == glassy.getpixel(edge)    # is as it was
+    assert a.frost(glassy, None) is glassy and a.frost(glassy, behind.resize((5, 5))) is glassy   # nothing (right) behind
+    bubble, _, _ = a.draw_bubble({"kind": "reply", "text": "391"}, 1.0, glass=70)
+    assert "shape" in bubble.info and bubble.info["shape"].size == bubble.size
+
+
+def test_the_glass_level_reaches_the_orb_with_the_conversation(cfg):
+    from pathlib import Path
+    page = (Path(__file__).resolve().parents[1] / "jevh" / "web" / "static" / "orb.html").read_text(encoding="utf-8")
+    assert "glass: st.appearance" in page and '"appearance"]' in page        # reported with the state; the event refreshes it
+    def factory(on_event, session=None):
+        return Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM([]), on_event=on_event)
+    c = TestClient(create_app(cfg, port=8740, harness_factory=factory, token="tok"), base_url="http://127.0.0.1:8740")
+    assert c.get("/api/state", headers={"X-Jevh-Token": "tok"}).json()["appearance"] == {"orb_glass": 10}

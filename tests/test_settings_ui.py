@@ -92,3 +92,31 @@ def _flow(page, url, conf, srv):
     assert not saved.exists() and page.input_value("select[data-set=model]") == "" and page.input_value("select[data-set=fast]") == "lmstudio:ornith"
     assert page.input_value("select[data-set=search]") == "duckduckgo"
     assert page.errors == []
+
+
+def test_the_chat_glass_slider_previews_as_it_moves_and_saves_when_let_go(dashboard, conf, browse):
+    import os
+    shots = os.environ.get("JEVH_UI_SHOTS")   # (a folder: screenshots of the card, to look at)
+
+    def flow(page):
+        page.goto(dashboard)
+        page.wait_for_selector(".hello")
+        page.click('#tabs [data-tab="settings"]')
+        slider = page.locator("input[data-glass]")
+        slider.wait_for()
+        assert slider.input_value() == "10" and page.inner_text("#glass-val") == "10"
+        solid = page.eval_on_selector("#glass-preview", "e => e.style.getPropertyValue('--tint')")
+        if shots:
+            page.locator("#p-settings .card", has=slider).screenshot(path=os.path.join(shots, "glass-10.png"))
+        slider.fill("85")                                                                       # moving it: the preview follows
+        assert page.inner_text("#glass-val") == "85"
+        assert float(page.eval_on_selector("#glass-preview", "e => e.style.getPropertyValue('--tint')")) < float(solid)
+        page.wait_for_function("document.getElementById('glass-msg').textContent === 'Saved.'")
+        assert yaml.safe_load((conf.workspace / SETTINGS_FILE).read_text(encoding="utf-8"))["appearance"] == {"orb_glass": 85}
+        if shots:
+            page.locator("#p-settings .card", has=slider).screenshot(path=os.path.join(shots, "glass-85.png"))
+        page.reload()
+        page.click('#tabs [data-tab="settings"]')
+        page.locator("input[data-glass]").wait_for()
+        assert page.input_value("input[data-glass]") == "85"
+    browse(flow)

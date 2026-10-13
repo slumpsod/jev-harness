@@ -3,6 +3,8 @@
     Model         which model every assistant runs on (models.strong); "each assistant's own" leaves it to their files
     Quick model   the model easy tasks go to (models.fast); "off" always uses the main one
     Web search    DuckDuckGo, SearXNG (your server's address) or Brave Search (an API key); `Test` tries it first
+    Chat glass    how see-through the desktop app's orb chat is (appearance.orb_glass, 0 solid to 100): saved at once,
+                  on every computer signed in to this hub (the orb's chat page reads it with the conversation's state)
 
 They are saved in `<workspace>/settings.yaml`, which jevh/config.py lays over every other config file, so a choice made in the
 tab wins and `config.yaml` / `config.local.yaml` (with their comments) are never rewritten. Delete the file, or press Reset,
@@ -31,6 +33,7 @@ import yaml
 from .config import SETTINGS_FILE, Config, load_config, read_settings
 from .tools import web
 
+ORB_GLASS = 10   # the chat's glass when nothing is saved (jevh/orb_chat_art.GLASS: the look it was made with)
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}   # the servers whose models are listed (a cloud provider is never probed)
 DISCOVER_TTL = 10.0
 _discovered: dict[str, tuple[float, list[dict]]] = {}
@@ -57,7 +60,17 @@ def view(cfg: Config) -> dict[str, Any]:
     return {"model": _model_text(cfg.models.get("strong")), "fast": _model_text(cfg.models.get("fast")),
             "search": {"provider": str(s.get("provider") or "duckduckgo"), "searxng_url": str(s.get("searxng_url") or ""),
                        "brave_key": bool(s.get("brave_api_key") or os.environ.get("BRAVE_SEARCH_API_KEY"))},
-            "file": str(path(cfg)), "saved": path(cfg).is_file()}
+            "appearance": appearance(cfg), "file": str(path(cfg)), "saved": path(cfg).is_file()}
+
+
+def appearance(cfg: Config) -> dict[str, int]:
+    """How the desktop app looks: {orb_glass: 0..100}."""
+    a = cfg.raw.get("appearance") or {}
+    try:
+        glass = int(a.get("orb_glass", ORB_GLASS)) if isinstance(a, dict) else ORB_GLASS
+    except (TypeError, ValueError):
+        glass = ORB_GLASS
+    return {"orb_glass": min(100, max(0, glass))}
 
 
 def providers_view() -> list[dict[str, str]]:
@@ -177,6 +190,23 @@ def save(cfg: Config, change: dict[str, Any]) -> dict[str, Any]:
     return view(cfg)
 
 
+def save_appearance(cfg: Config, change: dict[str, Any]) -> dict[str, int]:
+    """Save how the app looks ({orb_glass: 0..100}) at once: it changes no model, so it needs no Save and no idle hub.
+    -> appearance(cfg)."""
+    unknown = set(change) - {"orb_glass"}
+    if unknown or "orb_glass" not in change:
+        raise SettingsError(f"unknown setting: {', '.join(sorted(unknown)) or '(none)'}")
+    glass = change["orb_glass"]
+    if isinstance(glass, bool) or not isinstance(glass, (int, float)) or not 0 <= glass <= 100:
+        raise SettingsError("Chat glass: a number from 0 to 100")
+    layer = read_settings(cfg.workspace)
+    layer["appearance"] = {**(layer.get("appearance") if isinstance(layer.get("appearance"), dict) else {}),
+                           "orb_glass": round(glass)}
+    _write(path(cfg), layer)
+    reload(cfg)
+    return appearance(cfg)
+
+
 def reset(cfg: Config) -> dict[str, Any]:
     """Forget every saved choice: the config files say what is used again."""
     try:
@@ -213,7 +243,7 @@ def reload(cfg: Config) -> None:
     environment). Everything else in `cfg` stays as it is."""
     fresh = load_config(cfg.source, settings_dir=cfg.workspace)   # (the folder save() wrote to)
     cfg.models = fresh.models
-    for key in ("models", "search"):
+    for key in ("models", "search", "appearance"):
         if fresh.raw.get(key) is None:
             cfg.raw.pop(key, None)
         else:

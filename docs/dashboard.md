@@ -33,6 +33,7 @@ page and the command line.
 |---|---|
 | Model | The model every assistant runs on (`models.strong`). "Each assistant's own" leaves each one on the model in its persona file. The list is what your local servers say they serve (LM Studio's models, loaded or not; the model a llama.cpp server has loaded); "Other" takes any `provider:model`, such as `anthropic:claude-opus-5-5`. |
 | Quick model | Where Jev sends easy tasks (`models.fast`). Off: every task uses the main model. |
+| Chat glass | How see-through the desktop app's orb chat is (`appearance.orb_glass`, 0 to 100). Unlike the rest, it is saved as soon as you let go of the slider, even while a turn runs, and every signed-in app's orb picks it up. The strip under it previews the look. |
 | Web search | The engine behind `web.search` and `web.ask` (workers) and the Newsroom's web widgets. **DuckDuckGo** needs nothing (it reads a web page, which can ask for a human check). **SearXNG** takes your server's address; its `settings.yml` must allow the `json` format. **Brave Search** takes an API key (api.search.brave.com has a free plan). **Test search** runs one real search with what is on the page, before you save. |
 
 Save sends only what you changed, and refuses a choice that cannot work in plain words (an unknown provider, a missing address
@@ -40,8 +41,8 @@ or key). It is refused while a turn is running: the turn keeps the model it has.
 the first one may wait while a model loads. **Reset** forgets everything saved here, so the config files decide again.
 
 They are saved in `workspace/settings.yaml`, which is read last: a choice made here wins over `config.yaml`,
-`~/.jevh/config.yaml` and `config.local.yaml`, and those files (and their comments) are never rewritten. Only `models` and
-`search` are read from it. It can hold a Brave key, so it is created readable by your user account only, and the page is never
+`~/.jevh/config.yaml` and `config.local.yaml`, and those files (and their comments) are never rewritten. Only `models`,
+`search` and `appearance` are read from it. It can hold a Brave key, so it is created readable by your user account only, and the page is never
 sent the key back (it says "saved"). A dashboard started with `--model` ignores the two model choices, and says so.
 
 ## How tool calls become a sentence

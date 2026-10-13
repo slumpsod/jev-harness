@@ -408,3 +408,36 @@ def test_a_save_takes_effect_even_when_the_workspace_was_changed_after_the_confi
     assert st.view(conf)["model"] == "llamacpp:qwen3.8-27b-q5" and conf.models["strong"]["model"] == "qwen3.8-27b-q5"
     st.reset(conf)
     assert st.view(conf)["model"] == ""
+
+
+# ---------------------------------------------------------------- the desktop app's chat glass
+
+def test_the_chat_glass_is_saved_at_once_kept_beside_the_other_choices_and_checked(conf, tmp_path):
+    assert st.view(conf)["appearance"] == {"orb_glass": st.ORB_GLASS}                      # nothing saved: the look it was made with
+    st.save(conf, {"search": {"provider": "searxng", "searxng_url": "http://h:1"}})
+    assert st.save_appearance(conf, {"orb_glass": 72.4}) == {"orb_glass": 72}
+    saved = read_settings(tmp_path / "ws")
+    assert saved["appearance"] == {"orb_glass": 72} and saved["search"]["provider"] == "searxng"   # the other choice stays
+    assert load_config(conf.source, settings_dir=conf.workspace).raw["appearance"]["orb_glass"] == 72
+    for bad in ({"orb_glass": 101}, {"orb_glass": -1}, {"orb_glass": "lots"}, {"orb_glass": True}, {}, {"glow": 3}):
+        with pytest.raises(st.SettingsError):
+            st.save_appearance(conf, bad)
+    assert st.view(conf)["appearance"] == {"orb_glass": 72}
+    conf.raw["appearance"] = {"orb_glass": "nonsense"}                                       # a hand-edited file: the default
+    assert st.appearance(conf) == {"orb_glass": st.ORB_GLASS}
+    st.reset(conf)
+    assert st.view(conf)["appearance"] == {"orb_glass": st.ORB_GLASS}
+
+
+def test_the_chat_glass_saves_even_while_a_turn_runs_and_every_orb_hears_of_it(conf):
+    client, app, auth = api(conf, delay=1.0)
+    client.post("/api/chat", json={"message": "build a page"}, headers=auth())              # a turn is now running
+    r = client.post("/api/config/appearance", json={"orb_glass": 60}, headers=auth())
+    assert r.status_code == 200 and r.json() == {"appearance": {"orb_glass": 60}}
+    assert client.get("/api/state", headers=auth()).json()["appearance"] == {"orb_glass": 60}   # the orb's chat page reads this
+    assert any(e["kind"] == "appearance" and e["data"] == {"orb_glass": 60} for e in app.state.hub.events)
+    bad = client.post("/api/config/appearance", json={"orb_glass": 500}, headers=auth())
+    assert bad.status_code == 400 and "0 to 100" in bad.json()["detail"]
+    assert client.get("/api/config", headers=auth()).json()["appearance"] == {"orb_glass": 60}
+    from test_web import wait_done
+    wait_done(client)

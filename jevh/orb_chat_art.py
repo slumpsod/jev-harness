@@ -11,11 +11,12 @@ import re
 from functools import lru_cache
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 FONT_DIR = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
 PANEL = (19, 25, 35)            # the glass: deep blue-grey ...
-PANEL_A = 236                   # ... nearly opaque, so text reads on any wallpaper
+PANEL_A = 236                   # ... nearly opaque at the default glass, so text reads on any wallpaper
+GLASS = 10                      # how glassy the chat is, 0 (solid) to 100: the Settings tab sets it (appearance.orb_glass)
 EDGE = (110, 205, 255)          # a thin water-blue rim, the orb's colour
 TEXT, MUTED, LINK = (232, 238, 246), (140, 152, 170), (120, 205, 255)
 ACCENT, AMBER = (64, 170, 245), (255, 176, 72)
@@ -44,8 +45,18 @@ def _shadow(size, box, radius, blur, alpha=110):
     return layer.filter(ImageFilter.GaussianBlur(blur))
 
 
-def _compose(size, shape, shadow, fill_rgb, fill_a, edge_a=70):
-    """A shape (an L mask) with its shadow underneath and a thin rim of the orb's blue."""
+def tint_alpha(glass: float) -> int:
+    """How opaque the glass's tint is: 0 -> 250 (solid), the default 10 -> 236, 100 -> 110 (more of what is behind shows;
+    jevh/orb.py frosts that, so text still reads)."""
+    g = min(100.0, max(0.0, float(glass))) / 100
+    return round(250 - 140 * g)
+
+
+def _compose(size, shape, shadow, fill_rgb, fill_a, edge_a=70, glass=GLASS):
+    """A shape (an L mask) with its shadow underneath and a thin rim of the orb's blue. The more glass, the stronger the
+    sheen across its top and the brighter its rim. The shape is kept in img.info["shape"] (jevh/orb.py frosts under it)."""
+    g = min(100.0, max(0.0, float(glass))) / 100
+    edge_a = round(edge_a + 90 * g)
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     sh = Image.new("RGBA", size, (0, 0, 0, 0))
     sh.putalpha(shadow)
@@ -58,12 +69,22 @@ def _compose(size, shape, shadow, fill_rgb, fill_a, edge_a=70):
     e = Image.new("RGBA", size, EDGE + (0,))
     e.putalpha(edge)
     img.alpha_composite(e)
+    if g > 0.15:   # the sheen: light on the top of the glass, fading out by its middle
+        ys, _ = np.nonzero(np.asarray(shape) > 127)
+        if len(ys):
+            top, bot = ys.min(), ys.max()
+            ramp = np.clip(1 - (np.arange(size[1]) - top) / max(1, (bot - top) * 0.55), 0, 1)
+            a = (np.asarray(shape, np.float32) / 255) * ramp[:, None] * (34 * g)
+            sheen = Image.new("RGBA", size, (255, 255, 255, 0))
+            sheen.putalpha(Image.fromarray(a.astype(np.uint8)))
+            img.alpha_composite(sheen)
+    img.info["shape"] = shape
     return img
 
 
 # ---------------------------------------------------------------------- the bar
 def draw_bar(text: str, width: int, scale: float = 1.0, caret: bool = True, caret_at: int | None = None,
-             secret: bool = False, placeholder: str = "Ask anything...", busy: bool = False):
+             secret: bool = False, placeholder: str = "Ask anything...", busy: bool = False, glass: float = GLASS):
     """The input bar, `width` px wide (it slides out: any width from its height up). -> (image, regions)"""
     s = scale
     h, m = round(BAR_H * s), round(10 * s)                 # m: room for the shadow
@@ -71,7 +92,8 @@ def draw_bar(text: str, width: int, scale: float = 1.0, caret: bool = True, care
     box = (m, m, m + max(width, h) - 1, m + h - 1)
     shape = Image.new("L", (W, H), 0)
     ImageDraw.Draw(shape).rounded_rectangle(box, h // 2, fill=255)
-    img = _compose((W, H), shape, _shadow((W, H), (m + 2, m + 4, box[2] - 2, box[3] + 3), h // 2, 6 * s), PANEL, PANEL_A)
+    img = _compose((W, H), shape, _shadow((W, H), (m + 2, m + 4, box[2] - 2, box[3] + 3), h // 2, 6 * s), PANEL, tint_alpha(glass),
+                   glass=glass)
     d = ImageDraw.Draw(img)
     regions = {}
     f = font(round(14 * s))
@@ -192,7 +214,7 @@ def layout(model: dict, scale: float = 1.0) -> list[tuple]:
 
 
 def draw_bubble(model: dict, scale: float = 1.0, tail: str = "right", below: bool = False, scroll: int = 0,
-                tick: int = 0):
+                tick: int = 0, glass: float = GLASS):
     """A speech bubble, its tail pointing at the orb (tail: the side the orb is on; below: the bubble is under the orb).
     model: {kind: reply | waiting | question | error, text, you (what was asked), options: [...], persona}.
     -> (image, regions, overflow): regions: close, open, option:<i>; overflow: how far it scrolls."""
@@ -239,7 +261,7 @@ def draw_bubble(model: dict, scale: float = 1.0, tail: str = "right", below: boo
         ds.polygon([(tx - 9 * s, box[3] - 1), (tx + 9 * s, box[3] - 1), (tx + (8 if tail == "right" else -8) * s, box[3] + tl)], fill=255)
     shadow = shape.filter(ImageFilter.GaussianBlur(7 * s)).point(lambda v: v * 120 // 255)
     shadow = Image.fromarray(np.roll(np.asarray(shadow), round(4 * s), axis=0))
-    img = _compose((W, H), shape, shadow, PANEL, PANEL_A)
+    img = _compose((W, H), shape, shadow, PANEL, tint_alpha(glass), glass=glass)
     d = ImageDraw.Draw(img)
     regions = {}
     # the content, scrolled, clipped to the view
@@ -306,6 +328,26 @@ def draw_bubble(model: dict, scale: float = 1.0, tail: str = "right", below: boo
     regions["bubble"] = box
     regions["tail_x"] = tx
     return img, regions, overflow
+
+
+def frost_backdrop(behind: Image.Image, glass: float = GLASS, scale: float = 1.0) -> Image.Image:
+    """What is on the screen behind the chat, frosted: blurred (more, the more glass) and a little more colourful."""
+    g = min(100.0, max(0.0, float(glass))) / 100
+    blurred = behind.convert("RGB").filter(ImageFilter.GaussianBlur((5 + 15 * g) * scale))
+    return ImageEnhance.Color(blurred).enhance(1 + 0.4 * g)
+
+
+def frost(img: Image.Image, backdrop: Image.Image | None) -> Image.Image:
+    """Frosted glass: `backdrop` (frost_backdrop of the screen behind the picture, the same size) under the glass's shape,
+    the tint and the text over it. The shadow outside the shape is left as it is. Nothing behind: the picture as it is."""
+    shape = img.info.get("shape")
+    if backdrop is None or shape is None or backdrop.size != img.size:
+        return img
+    base = backdrop.convert("RGBA")
+    base.putalpha(shape)
+    base.alpha_composite(img)   # (outside the shape `base` is clear: the shadow comes through as it was)
+    base.info["shape"] = shape
+    return base
 
 
 def premultiplied(img: Image.Image) -> bytes:

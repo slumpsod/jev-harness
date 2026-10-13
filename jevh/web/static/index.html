@@ -612,6 +612,17 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 #p-settings .arow select { min-width: 13em; max-width: 62%; flex: 0 0 auto; }
 #p-settings .arow input, #p-devices .arow input { min-width: 15em; max-width: 62%; flex: 0 1 auto; }
 #p-settings .arow > span:first-child, #p-devices .arow > span:first-child { flex: 1 1 7em; min-width: 0; }
+#p-settings .glassrow { display: flex; align-items: center; gap: 12px; flex: 0 1 26em; min-width: 0; }
+#p-settings .glassrow input[type=range] { flex: 1 1 auto; min-width: 8em; accent-color: #40aaf5; }
+#p-settings .glassrow output { width: 2.6em; text-align: right; font-variant-numeric: tabular-nums; }
+.glasspreview { position: relative; height: 64px; border-radius: 10px; overflow: hidden; margin: 6px 0 2px;
+  background: repeating-linear-gradient(115deg, #ffb46e 0 22px, #f4f1ea 22px 44px, #ff7fae 44px 66px, #6fc3ff 66px 88px); }
+.glasspreview::before { content: "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.";
+  position: absolute; inset: 8px 10px; font-size: 12px; line-height: 16px; color: #222; }
+.glasspreview .pill { position: absolute; left: 14px; right: 14px; top: 13px; height: 38px; border-radius: 19px;
+  display: flex; align-items: center; padding: 0 18px; color: #e8eef6; font-size: 14px;
+  border: 1px solid rgba(110, 205, 255, var(--rim)); background: linear-gradient(rgba(255,255,255,var(--sheen)), rgba(255,255,255,0) 55%),
+  rgba(19, 25, 35, var(--tint)); backdrop-filter: blur(var(--blur)) saturate(var(--sat)); -webkit-backdrop-filter: blur(var(--blur)) saturate(var(--sat)); }
 #p-settings .setbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 2px 0 10px; }
 /* devices */
 #p-devices .setbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0 2px; }
@@ -2613,12 +2624,31 @@ function renderSettings() {
       ${d.search.brave_key && prov.needs !== "key" ? `<div class="kv">A Brave key is saved. <button data-set-act="clearkey" class="linkbtn">Remove it</button></div>` : ""}
       <div class="arow"><span class="kv" id="set-test" role="status">${testLine}</span><button data-set-act="test" ${t && t.busy ? "disabled" : ""}>Test search</button></div>
     </div>
+    <div class="card"><h3>Desktop app</h3>
+      <div class="arow"><span>Chat glass<small>How see-through the orb's chat bar and speech bubbles are. Saved as you let go, for every computer signed in here.</small></span>
+        <span class="glassrow"><input type="range" min="0" max="100" step="1" data-glass value="${d.appearance.orb_glass}" aria-label="Chat glass">
+        <output id="glass-val">${d.appearance.orb_glass}</output></span></div>
+      <div class="glasspreview" id="glass-preview" aria-hidden="true"><div class="pill">Ask anything...</div></div>
+      <div class="kv" id="glass-msg" role="status"></div>
+    </div>
     <div class="setbar">
       <button class="primary" data-set-act="save" ${ST.busy ? "disabled" : ""}>Save</button>
       <button data-set-act="reset" ${d.saved && !ST.busy ? "" : "disabled"} title="Forget what was saved here, so the config files say what is used">Reset</button>
       <span class="kv ${ST.err ? "bad" : ""}" role="status" id="set-msg">${esc(ST.err || ST.msg)}</span>
     </div>
     <div class="kv">Saved in <code>${esc(d.file)}</code>, which wins over config.yaml and config.local.yaml. It applies from your next message${anyRunning() ? " (a turn is running now: save when it is done)" : ""}.</div>`;
+  glassLook(d.appearance.orb_glass);
+}
+function glassLook(g) {   // the preview, the way jevh/orb_chat_art.py draws the glass (tint, frost, sheen, rim)
+  const el = $("glass-preview"); if (!el) return; const f = g / 100;
+  el.style.setProperty("--tint", ((250 - 140 * f) / 255).toFixed(3)); el.style.setProperty("--blur", (5 + 15 * f) / 2.2 + "px");
+  el.style.setProperty("--sat", (1 + 0.4 * f).toFixed(2)); el.style.setProperty("--sheen", f > 0.15 ? (34 * f / 255).toFixed(3) : 0);
+  el.style.setProperty("--rim", ((70 + 90 * f) / 255).toFixed(3)); $("glass-val").textContent = g;
+}
+async function saveGlass(g) {
+  const msg = $("glass-msg");
+  try { const r = await api("/api/config/appearance", {method: "POST", body: JSON.stringify({orb_glass: g})}); ST.data.appearance = r.appearance; msg.textContent = "Saved."; msg.classList.remove("bad"); }
+  catch (e) { msg.textContent = e.message; msg.classList.add("bad"); }
 }
 function settingsChange() {   // only what differs from what is in force now
   const d = ST.data, dr = ST.draft, pick = (v, other) => (v === OTHER ? other.trim() : v), change = {};
@@ -2638,11 +2668,13 @@ async function settingsPost(path, body, done) {
   ST.busy = false; renderSettings();
 }
 $("p-settings").addEventListener("change", (ev) => {
+  if (ev.target.dataset && "glass" in ev.target.dataset) { saveGlass(Number(ev.target.value)); return; }
   const k = ev.target.dataset && ev.target.dataset.set; if (!k || !ST.draft) return;
   ST.draft[k] = ev.target.value; ST.test = null; ST.msg = "";
   if (ev.target.tagName === "SELECT") renderSettings();   // another engine shows other fields; "Other..." shows a box
 });
 $("p-settings").addEventListener("input", (ev) => {   // typing keeps the draft current without redrawing (and losing the cursor)
+  if (ev.target.dataset && "glass" in ev.target.dataset) { glassLook(Number(ev.target.value)); return; }
   const k = ev.target.dataset && ev.target.dataset.set; if (k && ST.draft && ev.target.tagName === "INPUT") ST.draft[k] = ev.target.value;
 });
 $("p-settings").addEventListener("click", async (ev) => {

@@ -727,7 +727,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                                  "fast_ok": p.fast_ok, "draft": p.draft} for n, p in h.personas.items()},
                 "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq, "project": h.project,
                 "watch_browser": h.watch_browser, "questions": h.pending_questions(), "queued": h.queued(),
-                "thresholds": h.cfg.thresholds, "problems": h.problems()}
+                "thresholds": h.cfg.thresholds, "problems": h.problems(), "appearance": usersettings.appearance(h.cfg)}
 
     @app.post("/api/chat")
     async def chat(request: Request) -> dict:
@@ -1102,6 +1102,18 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         finally:
             hub.busy.release()
         return await asyncio.to_thread(settings_payload, True)
+
+    @app.post("/api/config/appearance")
+    async def config_appearance(request: Request) -> dict:
+        """How the desktop app looks (the orb chat's glass): saved at once, even while a turn runs; every signed-in app's
+        orb hears of it (an `appearance` event makes its chat page read /api/state again)."""
+        body = await request.json()
+        try:
+            out = await asyncio.to_thread(usersettings.save_appearance, hub.cfg, body if isinstance(body, dict) else {})
+        except usersettings.SettingsError as e:
+            raise HTTPException(400, str(e)) from None
+        hub.publish("appearance", out)
+        return {"appearance": out}
 
     @app.post("/api/config/test-search")
     async def config_test_search(request: Request) -> dict:

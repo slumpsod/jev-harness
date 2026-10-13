@@ -101,7 +101,7 @@ def _expand(p: str, base: Path) -> str:
 
 
 SETTINGS_FILE = "settings.yaml"          # in the workspace: what the dashboard's Settings tab saved
-SETTINGS_KEYS = ("models", "search")      # the only sections that file may set; anything else in it is ignored
+SETTINGS_KEYS = ("models", "search", "appearance")   # the only sections that file may set; anything else is ignored
 
 
 def read_settings(workspace: Path) -> dict[str, Any]:

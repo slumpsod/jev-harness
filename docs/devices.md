@@ -157,6 +157,9 @@ somewhere else, which tucks the bar away too. A long reply scrolls with the mous
 conversation. When the assistant asks you something, the bubble shows the question with its options to click (or type
 the answer in the bar; a password is typed hidden). A reply that arrives while the bar is closed pops out by itself.
 **Drag the orb** anywhere and it settles against the nearer side of the screen, and it stays where you put it next time.
+How see-through the bar and the bubbles are is **Chat glass** in the dashboard's Settings tab (0 solid, 100 very glassy;
+10 until you change it): higher shows more of what is behind them, blurred like frosted glass. It is saved on the hub when you
+let go of the slider and reaches every signed-in computer's orb.
 
 It tells you things without being clicked:
 
@@ -177,6 +180,12 @@ almost nothing. The bar and the bubble are layered windows too, drawn with Pillo
 say: `jevh/orb_chat.py`): only the bar takes the keyboard. The conversation goes through the hub's `/orb` page in a hidden
 window, which holds the sign-in. Checked live on the hub's screen (2026-10-13): click, the bar takes the keyboard, a
 question typed and sent, "Working" bubble, Qwen's answer in its bubble, a click elsewhere tucks both away.
+
+The frosted glass: the screen around the orb is read just before the chat comes out and blurred under the tint (`frost` in
+`jevh/orb_chat_art.py`). It is read then, with neither showing, because a copy of the screen includes layered windows, the
+chat's own among them (measured on Windows 11, 2026-10-13, with and without CAPTUREBLT); so what is behind is the moment the
+chat came out, not live. The level comes with the conversation's state (`appearance` in `/api/state`; an `appearance` event
+makes the page read it again). Checked live on the hub's screen (2026-10-13): at 85 the wallpaper shows through, frosted.
 
 ## What has been checked
 

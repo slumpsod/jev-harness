@@ -6,6 +6,10 @@ Three layered windows (WS_EX_LAYERED), each given its picture with UpdateLayered
 the shadows blend with whatever is behind them, and the see-through pixels let clicks through. (pywebview's "transparent"
 windows were measured opaque on Windows 11 / WebView2, 2026-10-12.) The orb's frames come from jevh/orb_art.py, drawn ahead
 of time; the bar and the bubble from jevh/orb_chat_art.py, drawn when they change; what they say from jevh/orb_chat.py.
+The bar and the bubble are frosted glass: what is behind them on the screen is blurred under their tint. The screen
+around the orb is read just before the chat comes out (a copy of the screen includes layered windows, so it cannot be
+read with them showing: measured on Windows 11, 2026-10-13), and kept while it is out; how glassy is the Settings tab's "Chat glass" (appearance.orb_glass, 0 to 100),
+which the chat page reports with the conversation's state.
 The orb and the bubble never take the focus; the bar does, while you type, and a click anywhere else tucks the chat away.
 All three live on one thread with its own message loop; other threads talk to it through a queue and a posted message.
 """
@@ -16,6 +20,8 @@ import queue
 import threading
 from ctypes import wintypes
 from typing import Callable
+
+from PIL import Image
 
 from . import orb_art, orb_chat_art
 from .orb_art import settle
@@ -114,7 +120,35 @@ def _sigs() -> None:
     gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HGDIOBJ]
     gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
     gdi32.DeleteDC.argtypes = [wintypes.HDC]
+    gdi32.BitBlt.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.HDC, ctypes.c_int,
+                             ctypes.c_int, wintypes.DWORD]
     kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+
+
+SRCCOPY = 0x00CC0020
+
+
+def behind(x: int, y: int, w: int, h: int, screen_dc) -> Image.Image | None:
+    """What is on the screen at (x, y, w, h), as RGB: what is behind the chat, for its frosted glass. None when it cannot
+    be read (a locked screen, a secure desktop)."""
+    if w <= 0 or h <= 0:
+        return None
+    dc = gdi32.CreateCompatibleDC(screen_dc)
+    bits = ctypes.c_void_p()
+    bmi = BITMAPINFOHEADER(biSize=ctypes.sizeof(BITMAPINFOHEADER), biWidth=w, biHeight=-h, biPlanes=1, biBitCount=32)
+    bmp = gdi32.CreateDIBSection(dc, ctypes.byref(bmi), 0, ctypes.byref(bits), None, 0)
+    data = None
+    try:
+        if bmp and bits:
+            old = gdi32.SelectObject(dc, bmp)
+            if gdi32.BitBlt(dc, 0, 0, w, h, screen_dc, x, y, SRCCOPY):
+                data = ctypes.string_at(bits, w * h * 4)
+            gdi32.SelectObject(dc, old)
+    finally:
+        if bmp:
+            gdi32.DeleteObject(bmp)
+        gdi32.DeleteDC(dc)
+    return Image.frombuffer("RGB", (w, h), data, "raw", "BGRX", 0, 1) if data else None
 
 
 def work_area(x: int, y: int) -> tuple[int, int, int, int]:
@@ -197,6 +231,8 @@ class Orb:
         self._scroll = 0
         self._regions: dict = {}   # the bubble's clickable parts, in its own pixels
         self._overflow = 0
+        self.glass = orb_chat_art.GLASS   # 0 (solid) to 100 (very glassy)
+        self._snap = None         # (x, y, the screen around the orb, frosted) from just before the chat came out
         self.size = (0, 0)
         self.scale = 1.0           # the screen's scaling (150% -> 1.5): pywebview's windows are placed unscaled
 
@@ -308,33 +344,61 @@ class Orb:
         left, _, right, _ = work_area(int(cx), int(cy))
         return "right" if cx > (left + right) / 2 else "left"
 
+    def _snapshot(self) -> None:
+        """Read the screen around the orb, where the bar and the bubble can go, and frost it. Only while neither shows."""
+        self._snap = None
+        if self.glass <= 2:
+            return
+        s = self.scale
+        cx, cy = self._water()
+        left, top, right, bottom = work_area(int(cx), int(cy))
+        span_x, span_y = (BAR_W + 80) * s + self.radius, (orb_chat_art.BUBBLE_MAX_H + 160) * s
+        x0, y0 = int(max(left, cx - span_x)), int(max(top, cy - span_y))
+        x1, y1 = int(min(right, cx + span_x)), int(min(bottom, cy + span_y))
+        shot = behind(x0, y0, x1 - x0, y1 - y0, self._screen_dc)
+        if shot is not None:
+            self._snap = (x0, y0, orb_chat_art.frost_backdrop(shot, self.glass, s))
+
+    def _frosted(self, img, x: int, y: int):
+        """`img` as frosted glass over what was behind it at (x, y) when the chat came out."""
+        if self.glass <= 2 or not self._snap:
+            return img
+        x0, y0, snap = self._snap
+        bx, by = x - x0, y - y0
+        if bx < 0 or by < 0 or bx + img.width > snap.width or by + img.height > snap.height:
+            return img
+        return orb_chat_art.frost(img, snap.crop((bx, by, bx + img.width, by + img.height)))
+
     def _draw_bar(self) -> None:
         s = self.scale
         img, _ = orb_chat_art.draw_bar(self.chat.text, max(1, round(self._bar_w)), s, caret=(self._i // 16) % 2 == 0,
                                        caret_at=self.chat.caret, secret=self.chat.secret,
                                        placeholder="Type it (hidden)" if self.chat.secret else
                                        "Answer, or pick above" if self.chat.question else "Ask anything...",
-                                       busy=self.chat.awaiting is not None and self.chat.busy)
+                                       busy=self.chat.awaiting is not None and self.chat.busy, glass=self.glass)
         cx, cy = self._water()
         m = round(10 * s)
         x = (cx - self.radius - GAP * s - img.width + m) if self._side() == "right" else (cx + self.radius + GAP * s - m)
-        self._bar.put(orb_chat_art.premultiplied(img), img.width, img.height, round(x), round(cy - img.height / 2),
-                      self._screen_dc)
+        x, y = round(x), round(cy - img.height / 2)
+        img = self._frosted(img, x, y)
+        self._bar.put(orb_chat_art.premultiplied(img), img.width, img.height, x, y, self._screen_dc)
 
     def _draw_bubble(self) -> None:
         if not (self.chat.bubble and self.chat.bubble_open):
             self._bubble.hide()
             return
+        if not self._bubble.visible and not self._bar.visible:   # coming out on its own: what is behind it first
+            self._snapshot()
         s = self.scale
         side = self._side()
         cx, cy = self._water()
         left, top, right, bottom = work_area(int(cx), int(cy))
         img, regions, overflow = orb_chat_art.draw_bubble(self.chat.bubble, s, tail=side, scroll=self._scroll,
-                                                          tick=self._i // 12)
+                                                          tick=self._i // 12, glass=self.glass)
         above = cy - self.radius - (img.height if not self.bar_open else img.height + 0) > top
         if not above:
             img, regions, overflow = orb_chat_art.draw_bubble(self.chat.bubble, s, tail=side, below=True,
-                                                              scroll=self._scroll, tick=self._i // 12)
+                                                              scroll=self._scroll, tick=self._i // 12, glass=self.glass)
         self._regions, self._overflow = regions, overflow
         # the tail's tip points at the water: just above it (or below), a little in from its middle
         tip = regions["tail_x"]
@@ -347,13 +411,16 @@ class Orb:
             y = (self._bar.pos[1] - img.height + round(16 * s)) if above else (self._bar.pos[1] + self._bar.size[1] - round(16 * s))
         else:
             y = (cy - self.radius * 0.9 - img.height) if above else (cy + self.radius * 0.9)
-        x = min(max(x, left), right - img.width)
-        self._bubble.put(orb_chat_art.premultiplied(img), img.width, img.height, round(x), round(y), self._screen_dc)
+        x, y = round(min(max(x, left), right - img.width)), round(y)
+        img = self._frosted(img, x, y)
+        self._bubble.put(orb_chat_art.premultiplied(img), img.width, img.height, x, y, self._screen_dc)
         self._bubble.show()
         if self.chat.bubble.get("kind") == "reply" and self.chat.bubble.get("id"):
             self.on_seen(self.chat.bubble["id"])
 
     def _open_bar(self) -> None:
+        self._bubble.hide()   # (the screen behind is read with neither showing; the bubble comes back below)
+        self._snapshot()
         self.bar_open, self._bar_w = True, float(round(40 * self.scale))
         self._draw_bar()
         self._bar.show(activate=True)
@@ -439,6 +506,10 @@ class Orb:
                 self.mood = cmd[1]
             elif cmd[0] == "state":
                 pop = self.chat.update(cmd[1])
+                glass = cmd[1].get("glass")
+                if isinstance(glass, (int, float)) and not isinstance(glass, bool) and float(glass) != self.glass:
+                    self.glass = min(100.0, max(0.0, float(glass)))
+                    self._snap = None   # (read again, at the new level, the next time the chat comes out)
                 if self.visible and (pop or self.bar_open or (self.chat.bubble_open and self._bubble.visible)):
                     if self.bar_open:
                         self._draw_bar()
