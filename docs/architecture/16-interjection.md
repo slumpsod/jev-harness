@@ -132,6 +132,16 @@ the `full` prompt goes to the other slot with nothing cached (all 2,029 tokens r
 that is ~30 s at this machine's 700 tokens/s), so **digest is the default on LM Studio**; a server that shares prefix
 blocks between running requests (vLLM) makes `full` nearly free.
 
+## The worker answers: say()
+
+A message added to the prompt reaches the worker, but until 2026-10-12 it could answer only in its thinking and its
+final reply (flagged session 9: "are you running it on bilbo or on the hub computer?", answered at the end). The REPL
+now has `say(text)`: the message goes to the chat at once (a `say` event; the dashboard shows it in the turn as the
+assistant's, the CLI prints it, the turn's memory notes keep it as "Told the user while working") and the task goes
+on. `STEER_NOTE` tells the worker to answer a question that way; the guide lists it beside `ask_user`. The quick reply
+above still answers questions about progress by itself. Bench: `evals/bench/flagged.py --stage say` (whether an answer
+reaches the chat before the task ends, and how fast; a run with no question counts say() chatter).
+
 ## The queue and Stop
 
 `/queue` appends to `Harness._queue`; `take_queued()` hands the next one to whoever runs

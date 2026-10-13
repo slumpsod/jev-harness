@@ -132,23 +132,25 @@ CASES = [
 ]
 
 
-def gate_check(rec):
-    a = rec["answer"].replace(",", "")
-    if not (re.search(r"(?<!\d)0?\.49\b", a) and re.search(r"(?<!\d)0?\.53\b", a)):
-        return False, "rates missing or wrong"
-    if "2520" not in a:
-        return False, "the total (2,520) is missing or wrong"
-    return True, "right"
+def gate_check(*rates):
+    def check(rec):
+        a = rec["answer"].replace(",", "")
+        if not all(re.search(r"(?<!\d)0?\." + r + r"(?!\d)", a) for r in rates):
+            return False, "rates missing or wrong"
+        if "2520" not in a:
+            return False, "the total (2,520) is missing or wrong"
+        return True, "right"
+    return check
 
 
 CASES += [
     Case("gate_rebate", "gate", "fires", "The file rebates.txt in your working folder is the envelope table of Black Hills "
          "Energy's 2026 gas rebate application. Read it and tell me: the attic and basement wall insulation rates (per sq ft) "
          "and caps for each R-value tier, and the most I could get back if I did R-60 attic insulation, R-19 basement wall "
-         "insulation and whole-home air sealing, all at the cap.", gate_check, extra={"file": REBATE_TABLE}),
+         "insulation and whole-home air sealing, all at the cap.", gate_check("49", "60", "48", "53"), extra={"file": REBATE_TABLE}),
     Case("gate_rebate_short", "gate", "fires", "rebates.txt in your working folder is a utility's rebate table. What does it "
          "pay per sq ft for R-49 attic insulation and for R-13 basement wall insulation, and what's the combined cap if I max "
-         "out R-60 attic, R-19 basement wall and air sealing?", gate_check, extra={"file": REBATE_TABLE}, holdout=True),
+         "out R-60 attic, R-19 basement wall and air sealing?", gate_check("49", "48"), extra={"file": REBATE_TABLE}, holdout=True),
 ]
 
 

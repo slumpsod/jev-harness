@@ -1,5 +1,26 @@
-flagged-session fixes, live (2026-10-12 20:52): 0 turns
+flagged-session fixes, live (2026-10-12 20:55): 6 turns
 
-[replay] 9 answers the gate sent back over numbers: the old rule flags 9, the new 8. Numbers the new rule no longer flags (check each is a fair pass):
-  #97: 612  (still flagged: 153, 90)
-  #122: 0.25, 0.48, 0.49, 0.53  (still flagged: -)
+[fence]
+  fires      new dev     : 1/1 passed, median 20s, 0.0 code steps
+    fence_moves        old: 0/0  new: 1/1
+
+[gate]
+  fires      new dev     : 1/1 passed, median 22s, 3.0 code steps, bounces 0
+  fires      new held-out: 0/1 passed, median 14s, 2.0 code steps, bounces 0
+    gate_rebate        old: 0/0  new: 1/1
+    gate_rebate_short  old: 0/0  new: 0/1
+
+[resume]
+  fires      new dev     : 1/1 passed, median 28s, 2.0 code steps
+    cutoff_continue    old: 0/0  new: 1/1
+
+[say]
+  fires      new dev     : 1/1 passed, median 43s, 5.0 code steps, median answer 6s after the question
+    say_where          old: 0/0  new: 1/1
+
+[where]
+  fires      new dev     : 1/1 passed, median 20s, 1.0 code steps
+    where_phone        old: 0/0  new: 1/1
+
+new-arm failures:
+  gate_rebate_short: rates missing or wrong; "Here's what the table shows:\n\n- **R-49 attic insulation:** $0.49 per sq ft (up to $890)\n- **R-13 basement wall insulation:** $0.48 per sq ft (up to $675)\n- **Combined cap** if you max out R-60 attic ($1,090), R-19 baseme"
