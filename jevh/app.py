@@ -187,7 +187,7 @@ class AppApi:
                 if not hub.strip():
                     return {"error": "Type the hub's address."}
                 conf["hub"] = device_agent.hub_base(hub)
-                if "key=" in hub:   # the dashboard's key link: opened once, so the first account can be made here
+                if "key=" in hub or "invite=" in hub:   # a key or invite link: opened once (the account is made there)
                     conf["first_url"] = hub.strip()
             elif serve:
                 conf["allow_hosts"] = [tailscale_serve(int(port), 10000)]
@@ -457,6 +457,11 @@ class App:
             return
         if time.time() - self._bubble_hidden_at < 0.5:
             return   # the click on the orb took the focus from the bubble, which hid it: that click meant "close"
+        try:   # loaded before the user signed in (a 403 then): load it again now
+            if not self.bubble.evaluate_js("typeof window.orbShown === 'function'"):
+                self.bubble.load_url(self.home_url + "orb")
+        except Exception:  # noqa: BLE001
+            pass
         self.place_bubble()
         self.bubble.show()
         self.bubble_visible = True
@@ -604,7 +609,7 @@ def main(argv: list[str] | None = None) -> None:
     conf = load_app_conf()
     if a.hub:
         conf = {**conf, "role": "device", "hub": device_agent.hub_base(a.hub)}
-        if "key=" in a.hub:
+        if "key=" in a.hub or "invite=" in a.hub:
             conf["first_url"] = a.hub.strip()
     elif a.serve:
         conf = {**conf, "role": "hub"}
