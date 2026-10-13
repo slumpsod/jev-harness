@@ -561,3 +561,26 @@ def test_the_bubble_chats_answers_questions_and_tells_the_orb_its_mood(asking_hu
         page.wait_for_function("window.__moods[window.__moods.length - 1] === 'idle'")
         assert not page.errors
     browse(body)
+
+
+def test_a_page_with_a_stale_token_reloads_itself_once(dashboard, browse):
+    """The dashboard restarted (a new API token each launch): the open page reloads to get it, instead of showing
+    'missing or bad token' - and only once, if the refusal goes on."""
+    def body(page):
+        page.goto(dashboard)
+        page.wait_for_selector(".hello")
+        refusals = {"n": 0}
+
+        def stale(route):
+            refusals["n"] += 1
+            route.fulfill(status=403, content_type="application/json", body='{"detail": "missing or bad token"}')
+        page.route("**/api/status*", stale)
+        loads = []
+        page.on("load", lambda: loads.append(1))
+        page.evaluate("api('/api/status').catch(() => {})")
+        page.wait_for_timeout(1500)
+        assert len(loads) == 1                                   # reloaded, picking up the page's new token
+        page.evaluate("api('/api/status').catch(() => {})")      # still refused right after: no loop
+        page.wait_for_timeout(1500)
+        assert len(loads) == 1 and refusals["n"] >= 2
+    browse(body)

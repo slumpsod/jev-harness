@@ -76,9 +76,21 @@ const app = () => (window.pywebview && window.pywebview.api) || null;
 const SHOW = 6;                       // the last turns shown
 let state = null, lastSeq = 0, seen = Number(localStorage.getItem("orb.seen") || 0), shown = false, mood = "";
 
+// the dashboard restarted (each launch has a new API token): reload to get the new one - the sign-in survives it.
+// (at most once every 15 s: a page that still gets refused after reloading shows the error instead of looping)
+function staleToken() {
+  let last = 0;
+  try { last = Number(sessionStorage.getItem("jevh.reloaded") || 0); sessionStorage.setItem("jevh.reloaded", String(Date.now())); } catch {}
+  if (Date.now() - last > 15000) location.reload();
+}
 async function api(path, opts = {}) {
   const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-Jevh-Token": TOKEN, ...(opts.headers || {})}});
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  if (r.status === 401) location.replace("/login");
+  if (!r.ok) {
+    const detail = (await r.json().catch(() => ({}))).detail || r.statusText;
+    if (r.status === 403 && /bad token/.test(detail)) staleToken();
+    throw new Error(detail);
+  }
   return r.json();
 }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
