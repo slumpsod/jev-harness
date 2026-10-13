@@ -190,9 +190,24 @@ PRIMES_TASK = ("In Python, find all the primes below 300000 in one step; then, i
 
 
 def say_check(rec):
-    if not rec.get("heard_at"):
+    if rec.get("heard_at") is None:
         return False, "no answer reached the chat before the task ended"
     return True, f"answered {rec['heard_at']:.0f}s after the question ({rec['heard_by']})"
+
+
+def say_where_check(rec):
+    """As say_check, and the answer must be right: the bench runs on this computer, and the worker is not told where the
+    user is, so "on your laptop" is a made-up answer (seen in the first run)."""
+    ok, why = say_check(rec)
+    if not ok:
+        return ok, why
+    import platform
+    said = " ".join(rec.get("told") or []) or rec.get("aside", "")
+    if rec["heard_by"] == "say()" and (re.search(r"\b(?:on|from) your (?:own )?laptop\b", said, re.I)
+                                       or not re.search(re.escape(platform.node()) + r"|\bhub\b|this (?:computer|machine|PC)",
+                                                        said, re.I)):
+        return False, f"answered, but wrongly or vaguely: {said[:150]!r}"
+    return True, why
 
 
 def quiet_check(rec):
@@ -203,7 +218,7 @@ def quiet_check(rec):
 
 
 CASES += [
-    Case("say_where", "say", "fires", PRIMES_TASK, say_check, persona="high_end_dev",
+    Case("say_where", "say", "fires", PRIMES_TASK, say_where_check, persona="high_end_dev",
          extra={"ask": "quick question - are you running this on my laptop or on the hub computer?"}),
     Case("say_why", "say", "fires", PRIMES_TASK, say_check, persona="high_end_dev", holdout=True,
          extra={"ask": "why did you decide to do it that way?"}),
