@@ -29,8 +29,8 @@ hub. See
    Or use the desktop app: `jevh app`, choose **This computer is the hub**, and tick the Tailscale box (it runs the
    `tailscale serve` line for you). `jevh app install` adds a Start menu entry.
 
-2. Make your account. In the dashboard on the hub computer, open **Devices**, then **Make an account**. Or run
-   `jevh users add jed` in a terminal. From then on other devices **sign in** (the account lasts across restarts), and
+2. Make your account. In the dashboard on the hub computer, open **Devices**, then **Make an account**, or run
+   `jevh users add jed` in a terminal. Not at the hub? An invite link does it from any device (see Sign-in details). From then on other devices **sign in** (the account lasts across restarts), and
    the per-launch `?key=` link stops working. The hub computer itself (127.0.0.1) never asks.
 
 ## Add a computer
@@ -127,7 +127,11 @@ something that runs what your assistant decides.
   tokens. Every account is an owner of the hub: there is one assistant, one memory and one set of devices.
 - A sign-in lasts 30 days on that browser. Changing a password signs that account out everywhere. Repeated wrong
   passwords or pairing codes from one address are refused for a few minutes.
-- `jevh users list | add NAME | password NAME | remove NAME` manages accounts from the hub's terminal.
+- **Making an account from another device: an invite link.** On the hub, **Invite to an account** in the Devices panel (or
+  `jevh users invite --hub https://<hub>.<tailnet>.ts.net:10000`) gives a one-time link. Anyone already signed in can make
+  one too. Open it on any device, pick a name and a password there, and you're signed in. It works once, for 30 minutes,
+  and nobody passes a password along. (Before any account exists, the dashboard's key link can also make the first one.)
+- `jevh users list | add NAME | password NAME | remove NAME | invite` manages accounts from the hub's terminal.
 - The hub is reachable only on your tailnet (`tailscale serve`, never `funnel`). Sign-in is the second lock.
 
 ## The desktop app

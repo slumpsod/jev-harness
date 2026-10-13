@@ -438,8 +438,9 @@ def test_a_message_is_known_to_come_from_the_device_it_was_written_on(cfg):
     hub = app.state.hub
     c = TestClient(app, base_url="http://127.0.0.1:8740", client=("127.0.0.1", 50000))   # (tailscale serve's peer)
     dev, _ = hub.accounts.redeem(hub.accounts.pair_code("jed")[0], "bilbo")
-    hub.devices._links[dev.id] = Link(dev, ws=None, ip="100.70.62.19")
-    assert hub.devices.device_at("100.70.62.19") == "bilbo" and hub.devices.device_at("100.9.9.9") is None
+    # (192.0.2.x: documentation addresses, no machine's own. bilbo's real 100.70.62.19 failed this on bilbo, where it is "here")
+    hub.devices._links[dev.id] = Link(dev, ws=None, ip="192.0.2.19")
+    assert hub.devices.device_at("192.0.2.19") == "bilbo" and hub.devices.device_at("192.0.2.99") is None
     assert hub.devices.device_at("127.0.0.1") is None
     hub.accounts.add_user("jed", "correct horse")
     signed = {"Host": f"{REMOTE}:10000", "X-Jevh-Token": TOKEN,
@@ -453,9 +454,9 @@ def test_a_message_is_known_to_come_from_the_device_it_was_written_on(cfg):
             time.sleep(0.02)
         return turn["origin"], hub.harness.origin
 
-    assert send({**signed, "X-Forwarded-For": "100.70.62.19"}) == ("bilbo", "bilbo")       # the app or a browser on bilbo
+    assert send({**signed, "X-Forwarded-For": "192.0.2.19"}) == ("bilbo", "bilbo")       # the app or a browser on bilbo
     assert send({"X-Jevh-Token": TOKEN})[1] == "here"                                        # on the hub itself
-    assert send({**signed, "X-Forwarded-For": "100.90.56.24"}) == (None, None)               # the phone: not a computer
+    assert send({**signed, "X-Forwarded-For": "192.0.2.24"}) == (None, None)               # the phone: not a computer
 
 
 def test_the_worker_is_told_which_computer_this_is(cfg):
@@ -481,3 +482,42 @@ def test_the_worker_is_told_which_computer_this_is(cfg):
     h.origin = "oldbox"                                        # a computer that is not connected: no claim about it
     h.turn("hello", force="daily_assistant")
     assert "writing from" not in seen[-1] and "Connected now: bilbo, studio-pc." in seen[-1]
+
+
+# ---------------------------------------------------------------------- invites: an account made from any device
+def test_an_invite_makes_one_account_once(tmp_path):
+    acc = Accounts(tmp_path / "accounts.db")
+    token, expires = acc.invite("hub computer")
+    assert acc.invite_ok(token) and expires > time.time()
+    with pytest.raises(AccountError):
+        acc.accept_invite(token, "jed", "short")             # a bad password keeps the invite for another try
+    assert acc.invite_ok(token)
+    assert acc.accept_invite(token, "jed", "correct horse") == "jed"
+    assert not acc.invite_ok(token)
+    with pytest.raises(AccountError, match="used or expired"):
+        acc.accept_invite(token, "eve", "12345678")
+    old, _ = acc.invite("jed", minutes=-1)
+    assert not acc.invite_ok(old)
+    assert token not in (tmp_path / "accounts.db").read_bytes().decode("latin-1")
+
+
+def test_an_invite_link_lets_another_device_make_its_account_and_sign_in(cfg):
+    app = make_app(cfg)
+    c = TestClient(app, base_url="http://127.0.0.1:8740")
+    remote = {"Host": f"{REMOTE}:10000"}
+    assert c.post("/api/accounts/invite", headers={**remote, "X-Jevh-Token": TOKEN}).status_code == 403   # nobody may
+    link = c.post("/api/accounts/invite", headers={"X-Jevh-Token": TOKEN}).json()["link"]          # from the hub itself
+    assert link.startswith(f"https://{REMOTE}:10000/setup?invite=")
+    path = link.split(":10000", 1)[1]
+    page = c.get(path, headers=remote)
+    assert page.status_code == 200 and 'INVITE = "1"' in page.text                  # no sign-in, no key needed for it
+    token = path.split("invite=", 1)[1]
+    r = c.post("/auth/setup", json={"invite": token, "name": "jed", "password": "correct horse"}, headers=remote)
+    assert r.status_code == 200 and r.json()["user"] == "jed"
+    signed = {**remote, "Cookie": "jevh_session=" + r.cookies["jevh_session"]}
+    assert c.get("/", headers=signed).status_code == 200 and TOKEN in c.get("/", headers=signed).text
+    assert 'INVITE = "0"' in c.get(path, headers=remote).text                      # used: "this invite has run out"
+    assert c.post("/auth/setup", json={"invite": token, "name": "eve", "password": "12345678"},
+                  headers=remote).status_code == 400
+    # signed in, anyone may invite the next person
+    assert c.post("/api/accounts/invite", headers={**signed, "X-Jevh-Token": TOKEN}).status_code == 200

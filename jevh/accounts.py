@@ -4,6 +4,9 @@
   one set of devices. Accounts are made on the hub machine itself (`jevh users add`, or the dashboard opened on this machine).
 - Sign-in sessions: a random token in an HttpOnly cookie (`jevh_session`); only its SHA-256 is stored. They outlive a
   dashboard restart (the old per-launch `?key=` link did not), last SESSION_DAYS, and can be ended one by one.
+- Invites: a one-time link (INVITE_MINUTES long) to make an account from any device. Made on the hub computer
+  (`jevh users invite`, or the dashboard there) or by someone signed in; whoever opens it picks their own name and
+  password, so nobody has to be at the hub, and no password is ever passed along. Only the link's hash is stored.
 - Devices: a computer the assistant may use (jevh/devices). A signed-in user makes a pairing code; the device trades the
   code once, within PAIR_MINUTES, for its own key, which it sends on every connection. Only the key's hash is stored, so a
   copy of accounts.db lets nobody in. Revoking a device ends its key (and the hub drops its connection).
@@ -25,6 +28,7 @@ from pathlib import Path
 
 SESSION_DAYS = 30
 PAIR_MINUTES = 10
+INVITE_MINUTES = 30
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"   # no 0/O or 1/I: read aloud or typed from another screen
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._-]{0,39}$")
 MIN_PASSWORD = 8
@@ -39,6 +43,7 @@ CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, name TEXT NOT NULL COLL
     key TEXT NOT NULL UNIQUE, platform TEXT NOT NULL DEFAULT '', created REAL NOT NULL, seen REAL NOT NULL DEFAULT 0,
     revoked REAL);
 CREATE TABLE IF NOT EXISTS pair_codes (code TEXT PRIMARY KEY, user TEXT NOT NULL, expires REAL NOT NULL, used REAL);
+CREATE TABLE IF NOT EXISTS invites (code TEXT PRIMARY KEY, by TEXT NOT NULL, expires REAL NOT NULL, used REAL);
 """
 
 
@@ -200,6 +205,30 @@ class Accounts:
         if token:
             self._q("DELETE FROM sessions WHERE token = ?", (_sha(token),))
 
+    # ------------------------------------------------------------------ invites
+    def invite(self, by: str, minutes: float = INVITE_MINUTES) -> tuple[str, float]:
+        """A one-time token for an invite link (/setup?invite=...): whoever has it may make one account."""
+        token = secrets.token_urlsafe(18)
+        expires = time.time() + minutes * 60
+        self._q("DELETE FROM invites WHERE expires < ?", (time.time() - 86400,))
+        self._q("INSERT INTO invites (code, by, expires) VALUES (?, ?, ?)", (_sha(token), by, expires))
+        return token, expires
+
+    def invite_ok(self, token: str | None) -> bool:
+        rows = self._q("SELECT expires, used FROM invites WHERE code = ?", (_sha(str(token or "")),))
+        return bool(rows) and rows[0][1] is None and rows[0][0] >= time.time()
+
+    def accept_invite(self, token: str, name: str, password: str, who: str = "") -> str:
+        """Make the invited account (the invite is then used up) -> its name."""
+        if self.throttled(f"invite:{who}"):
+            raise AccountError("Too many tries: wait a few minutes.")
+        if not self.invite_ok(token):
+            self.failed(f"invite:{who}")
+            raise AccountError("That invite link is wrong, used or expired: ask for a new one.")
+        name = self.add_user(name, password)   # (checks the name and the password first: a bad one keeps the invite)
+        self._q("UPDATE invites SET used = ? WHERE code = ?", (time.time(), _sha(str(token))))
+        return name
+
     # ------------------------------------------------------------------ devices
     def pair_code(self, user: str) -> tuple[str, float]:
         """A one-time code (8 characters, PAIR_MINUTES long) a device trades for its key."""
@@ -286,6 +315,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("name")
     p = sub.add_parser("remove", help="delete an account (its devices stay paired)")
     p.add_argument("name")
+    p = sub.add_parser("invite", help="a one-time link to make an account from any device (no need to be at the hub)")
+    p.add_argument("--hub", help="the hub's address as other devices reach it, e.g. https://desktop.tailnet.ts.net:10000")
+    p.add_argument("--minutes", type=float, default=INVITE_MINUTES)
     a = ap.parse_args(argv)
     acc = Accounts(load_config(a.config).workspace / "accounts.db")
 
@@ -307,6 +339,11 @@ def main(argv: list[str] | None = None) -> None:
         elif a.cmd == "password":
             acc.set_password(a.name, ask())
             print("Password changed; every browser signed in to it was signed out.")
+        elif a.cmd == "invite":
+            token, expires = acc.invite("hub computer", a.minutes)
+            hub = (a.hub or "<the hub's address, e.g. https://this-pc.tailnet.ts.net:10000>").rstrip("/")
+            print(f"{hub}/setup?invite={token}\n(works once, until {time.strftime('%H:%M', time.localtime(expires))}; "
+                  f"whoever opens it picks a name and password. Keep it private.)")
         elif a.cmd == "remove":
             acc.remove_user(a.name)
             print(f"Removed {a.name}." + ("" if acc.has_users() else " No accounts are left: the ?key= link works again."))

@@ -60,7 +60,7 @@ MAX_EVENTS = 5000
 SUB_QUEUE = 2000
 SESSION_COOKIE = "jevh_session"
 HERE = "here"   # a message's origin when it was written on the hub itself
-OPEN_PATHS = {"/login", "/auth/login", "/auth/logout", "/auth/pair"}   # reachable from another device before signing in
+OPEN_PATHS = {"/login", "/auth/login", "/auth/logout", "/auth/pair", "/setup", "/auth/setup"}   # reachable from another device before signing in
 
 
 def forwarded_ip(header: str | None, peer: str) -> str:
@@ -543,7 +543,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         if request.state.user or (not request.state.remote and not accounts.has_users()):
             return RedirectResponse("/", status_code=303)
         return (STATIC / "login.html").read_text(encoding="utf-8").replace(
-            "__JEVH_NO_ACCOUNTS__", "" if accounts.has_users() else "1")
+            "__JEVH_NO_ACCOUNTS__", "" if accounts.has_users() else "1").replace("__JEVH_INVITE__", "")
 
     @app.post("/auth/login")
     async def login(request: Request):
@@ -565,6 +565,36 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         resp = JSONResponse({"ok": True})
         resp.delete_cookie(SESSION_COOKIE)
         return resp
+
+    @app.get("/setup", response_class=HTMLResponse)
+    def setup_page(invite: str = ""):
+        """An invite link (jevh/accounts.py invites): make your account, from any device."""
+        page = (STATIC / "login.html").read_text(encoding="utf-8").replace("__JEVH_NO_ACCOUNTS__", "")
+        return page.replace("__JEVH_INVITE__", "1" if accounts.invite_ok(invite) else "0")
+
+    @app.post("/auth/setup")
+    async def setup(request: Request):
+        body = await request.json()
+        try:
+            name = await asyncio.to_thread(accounts.accept_invite, str(body.get("invite", "")), str(body.get("name", "")),
+                                           str(body.get("password", "")), client_of(request))
+        except AccountError as e:
+            raise HTTPException(400, str(e)) from None
+        resp = JSONResponse({"user": name})
+        resp.set_cookie(SESSION_COOKIE, accounts.start_session(name, request.headers.get("user-agent", "")),
+                        max_age=SESSION_DAYS * 86400, httponly=True, secure=request.state.remote, samesite="lax")
+        return resp
+
+    @app.post("/api/accounts/invite")
+    def make_invite(request: Request) -> dict:
+        """From the hub computer, or by someone signed in: a one-time link to make an account from any device."""
+        if request.state.remote and not request.state.user:
+            raise HTTPException(403, "Sign in first.")
+        token, expires = accounts.invite(request.state.user or "hub computer")
+        base = hub_urls[0] if hub_urls else f"http://127.0.0.1:{port}"
+        return {"link": f"{base}/setup?invite={token}", "expires": expires,
+                "remote": bool(hub_urls), "note": "" if hub_urls else "This hub is not reachable from other devices "
+                "(no --allow-host): the link only works on this computer."}
 
     @app.post("/auth/pair")
     async def pair(request: Request) -> dict:

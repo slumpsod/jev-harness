@@ -38,23 +38,42 @@
     <input id="name" name="username" autocomplete="username" required autofocus>
     <label for="pw">Password</label>
     <input id="pw" name="password" type="password" autocomplete="current-password" required>
+    <div id="again" hidden><label for="pw2">Password again</label>
+    <input id="pw2" type="password" autocomplete="new-password"></div>
     <button id="go" type="submit">Sign in</button>
     <div id="msg" role="alert"></div>
   </form>
 </main>
 <script>
 const NO_ACCOUNTS = "__JEVH_NO_ACCOUNTS__" === "1";
+const INVITE = "__JEVH_INVITE__";   // "1": a valid invite link (make an account), "0": a used or expired one, "": sign in
+const inviteToken = new URLSearchParams(location.search).get("invite") || "";
+if (INVITE === "1") {
+  document.querySelector("h1").textContent = "Make your account";
+  document.getElementById("lead").textContent = "You were invited to this hub's assistant. Choose a name and a password (8 or more characters): you'll sign in with them on any device.";
+  document.getElementById("again").hidden = false;
+  document.getElementById("pw").autocomplete = "new-password";
+  document.getElementById("go").textContent = "Make my account";
+} else if (INVITE === "0") {
+  document.querySelector("h1").textContent = "This invite has run out";
+  document.getElementById("lead").textContent = "The link was already used, or it expired (they last 30 minutes). Ask for a new one, or sign in if you already have an account.";
+  document.getElementById("lead").insertAdjacentHTML("beforeend", ' <a href="/login">Sign in</a>');
+  document.getElementById("f").hidden = true;
+}
 if (NO_ACCOUNTS) {
-  document.getElementById("lead").innerHTML = "This hub has no accounts yet. Make one on the hub computer: open the dashboard there " +
-    "(Devices panel), or run <code>jevh users add NAME</code>.";
+  document.getElementById("lead").innerHTML = "This hub has no accounts yet. Ask for an invite link (on the hub: " +
+    "<code>jevh users invite</code>, or the dashboard's Devices panel there), or open the dashboard's key link.";
 }
 document.getElementById("f").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const go = document.getElementById("go"), msg = document.getElementById("msg");
   go.disabled = true; msg.textContent = "";
+  const name = document.getElementById("name").value, password = document.getElementById("pw").value;
+  if (INVITE === "1" && password !== document.getElementById("pw2").value) { msg.textContent = "The two passwords don't match."; go.disabled = false; return; }
   try {
-    const r = await fetch("/auth/login", {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({name: document.getElementById("name").value, password: document.getElementById("pw").value})});
+    const r = INVITE === "1"
+      ? await fetch("/auth/setup", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({invite: inviteToken, name, password})})
+      : await fetch("/auth/login", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({name, password})});
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
     location.replace("/");
   } catch (e) { msg.textContent = e.message; go.disabled = false; }
