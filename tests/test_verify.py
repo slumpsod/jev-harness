@@ -495,3 +495,16 @@ def test_a_promise_that_waits_for_the_users_word_is_not_left_hanging():
         assert not any("you'll do more next" in p for p in answer_rules("connect facebook", answer, [], "ran x", {}, t))
     hanging = "The page is open. Next, I'll create the app and register it with Nango."
     assert any("you'll do more next" in p for p in answer_rules("connect facebook", hanging, [], "ran x", {}, t))
+
+
+def test_grounding_counts_a_named_total_of_numbers_in_its_sentence():
+    # live 2026-10-13 (bench): "...R-60 attic ($1,090), R-19 basement wall ($740) and air sealing ($690): $2,520" sent back
+    from jevh.verify import grounding
+    table = "R-60 $.60 per sq ft up to $1,090\nR-19 $.53 per sq ft up to $740\nAir sealing up to $690"
+    ok = "Combined cap if you max out R-60 attic ($1,090), R-19 basement wall ($740) and air sealing ($690): $2,520"
+    assert grounding(ok, table)[1] == set()
+    # not a sum of them: still unsupported; and without a word that names a total, a sum is not assumed
+    assert grounding(ok.replace("2,520", "2,620"), table)[1] == {"2,620"}
+    assert grounding("Attic ($1,090), wall ($740), air sealing ($690); also $2,520 for windows.", table)[1] == {"2,520"}
+    # the total's terms must be numbers the tools gave
+    assert grounding("Combined: $500 and $700, so $1,200 in all.", table)[1] == {"500", "700", "1,200"}

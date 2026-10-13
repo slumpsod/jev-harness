@@ -220,6 +220,31 @@ def _derived(answer: str, seen: list[float]) -> list[float]:
     return out
 
 
+# "Combined cap if you max out R-60 attic ($1,090), R-19 basement wall ($740) and air sealing ($690): $2,520" - a total
+# named as one, summing numbers in the same sentence without a "+" (live 2026-10-13, the flagged bench: sent back 2 of 6)
+TOTAL_WORD = re.compile(r"\b(?:total|combined|altogether|in all|sum|overall|together|max(?:imum)?|most|up to a)\b", re.I)
+SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z*])|\n+")
+
+
+def _sentence_totals(answer: str, seen: list[float]) -> list[float]:
+    """Numbers in a sentence that names a total and that equal the sum of 2-6 of that sentence's numbers the tools gave."""
+    from itertools import combinations
+    out = []
+    for sent in SENTENCE.split(answer):
+        if not TOTAL_WORD.search(sent):
+            continue
+        nums = [v for _, v, _ in _nums(sent)]
+        given = [v for v in nums if any(abs(s - v) <= 1e-6 * max(1.0, abs(v)) for s in seen)][:10]
+        for total in nums:
+            if any(abs(s - total) <= 1e-6 * max(1.0, abs(total)) for s in seen + out):
+                continue
+            terms = [g for g in given if g < total]
+            if any(abs(sum(c) - total) <= 1e-6 * max(1.0, total)
+                   for k in range(2, min(6, len(terms)) + 1) for c in combinations(terms, k)):
+                out.append(total)
+    return out
+
+
 def grounding(answer: str, evidence: str) -> tuple[set[str], set[str]]:
     """(supported, unsupported): the answer's numbers (2+ digits, not years) that do / don't
     appear anywhere in what the worker saw or was told. A price, fare, date or count the
@@ -232,6 +257,7 @@ def grounding(answer: str, evidence: str) -> tuple[set[str], set[str]]:
     # an aspect ratio is a format, not a figure a tool returns (live: a "16:9 widescreen" deck was sent back)
     text = DURATION_WORD.sub(" ", ASPECT.sub(" ", answer))
     seen += _derived(text, seen)
+    seen += _sentence_totals(text, seen)
     for m in NUM.finditer(text):
         for digits, value, slack in _nums(m.group(0)):
             year = re.fullmatch(r"(19|20)\d\d", digits) is not None   # "2026" yes, "$1,999" no

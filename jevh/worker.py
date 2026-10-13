@@ -160,6 +160,12 @@ RESUME_NOTE = ("[Resumed after an interruption. Your REPL was restarted, so vari
 RESTORED_NOTE = ("[Resumed after an interruption. Your REPL was restarted and its saved state brought back - "
                  "variables: {vars}; functions/classes: {defs}.{lost} Files in your working directory, the artifact "
                  "store and the project are as you left them. Continue the task from where you were.]")
+# A follow-up turn by the same assistant starts where the previous one left off (Worker.carry_from). Live 2026-10-12, a
+# chess game played over several turns: every move began "the helper module was lost - let me rebuild it", re-reading
+# the game's source and the board before it could play.
+CARRIED_NOTE = ("[This follows your previous turn. Its working folder is {dir} - the files you wrote there are still "
+                "there (use that path).{state}]")
+CARRIED_STATE = " Your REPL state from the end of that turn is back: variables: {vars}; functions/classes: {defs}.{lost}"
 TIMEOUT_RESTORED_NOTE = ("[timed out after {secs:.0f}s; the REPL was restarted and its state as of the end of your "
                          "previous step was brought back - variables: {vars}; functions/classes: {defs}.{lost} "
                          "Anything this block created or changed in memory is gone; files it wrote are still there.]")
@@ -478,8 +484,12 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
     if persona.code:
         # (ARC bench, native tool: step 1 assumed Linux and walked '/' looking for a Windows path)
         pkgs = importable()
+        # (the computer's name: live 2026-10-12, asked "my laptop or the hub computer?" mid-task, workers answered "on your
+        # laptop" and "on your own computer" from nothing)
         parts.append(f"## Environment\nYour REPL runs Python {sys.version.split()[0]} on {platform.system()} "
-                     f"{platform.release()}. It starts in your private working folder, {WORKDIR_MARK}. Paths you "
+                     f"{platform.release()}, on the computer named {platform.node() or 'unknown'}"
+                     + ("" if where else " (unless told, you don't know which computer the user is on: don't guess)")
+                     + f". It starts in your private working folder, {WORKDIR_MARK}. Paths you "
                      f"are given are {'Windows' if os.name == 'nt' else 'POSIX'} paths you can open as-is."
                      + (f" Installed packages you can import: {', '.join(pkgs)} (and the standard library)."
                         if pkgs else "")
@@ -555,6 +565,7 @@ class Worker:
         # window (jevh/context.py). None, or a model nothing can be asked about: compact_tokens stands.
         self.budget: Callable[[], Any] | None = None
         self.checkpoint = checkpoint    # json of the conversation after every step (for resume)
+        self.carry_from: Path | None = None   # the previous turn's folder, when this turn follows up on it (_carry)
         self._task_idx = 0              # index of the task message (compaction rewrites everything after it)
         self._task_text = ""
         self._progress_log = ""         # a pre-Jev checkpoint's log (resume only); new logs are self._entries
@@ -752,6 +763,8 @@ class Worker:
             repl.set("ctx", ctx)
             if resume:
                 self._add_resume_note(messages, repl)
+            elif self.carry_from is not None:
+                self._carry(messages, repl)
             self._live = messages
             step = 0
             while step < self.limit:   # (a step spent hearing the user out raises the limit by one)
@@ -919,6 +932,8 @@ class Worker:
                               f"it to continue where it stopped]\n"
                               + messages[-2]["content"][-2000:])
                 res.stopped = "max_steps"
+            if res.stopped in ("final", "plain"):   # the state a follow-up turn starts from (carry_from)
+                self._snapshot()
         res.transcript = messages
         self._save(messages, res.steps, True, res.stopped)
         return res
@@ -1236,6 +1251,24 @@ class Worker:
             defs=", ".join(info.get("defs") or []) or "none",
             lost=f" Not restored (recreate them if needed): {', '.join(lost)}." if lost else "")
 
+    def _carry(self, messages: list[dict], repl) -> None:
+        """A follow-up turn: the previous turn's REPL state comes back, and the task message names its folder (the note
+        goes in the task text, so compaction keeps it)."""
+        prev = Path(self.carry_from)
+        state = prev / "repl_state.pkl"
+        info = repl.restore(state) if state.is_file() else {}
+        extra = ""
+        if info.get("restored") or info.get("defs"):
+            lost = info.get("failed") or []
+            extra = CARRIED_STATE.format(vars=", ".join(info.get("restored") or []) or "none",
+                                         defs=", ".join(info.get("defs") or []) or "none",
+                                         lost=f" Not brought back: {', '.join(lost)}." if lost else "")
+        note = "\n\n" + CARRIED_NOTE.format(dir=prev, state=extra)
+        self._task_text += note
+        if 0 < self._task_idx < len(messages):
+            messages[self._task_idx] = {**messages[self._task_idx],
+                                        "content": str(messages[self._task_idx]["content"]) + note}
+
     def _add_resume_note(self, messages: list[dict], repl) -> None:
         info = repl.restore(self._state_path) if self._state_path else {}
         if info.get("restored") or info.get("defs"):
@@ -1250,15 +1283,20 @@ class Worker:
         else:
             messages.append({"role": "user", "content": note})
 
+    def _snapshot(self) -> None:
+        if self.repl is None or self.checkpoint is None:
+            return
+        try:
+            self.checkpoint.parent.mkdir(parents=True, exist_ok=True)
+            self.repl.snapshot(self._state_path)
+        except Exception:  # noqa: BLE001 - a convenience; never fail the task over it
+            pass
+
     def _save(self, messages: list[dict], step: int, finished: bool, stopped: str | None = None) -> None:
         if self.checkpoint is None:
             return
-        if self.repl is not None and not finished:   # REPL variables too, so a resume keeps them
-            try:
-                self.checkpoint.parent.mkdir(parents=True, exist_ok=True)
-                self.repl.snapshot(self._state_path)
-            except Exception:  # noqa: BLE001 - a convenience; never fail the task over it
-                pass
+        if not finished:   # REPL variables too, so a resume keeps them
+            self._snapshot()
         data = {"version": 1, "persona": self.persona.name, "task_text": self._task_text, "task_idx": self._task_idx,
                 "progress_log": self._render_log(), "compact": {"entries": self._entries, "dropped": self._dropped, "seq": self._seq},
                 "step": step, "finished": finished, "stopped": stopped,

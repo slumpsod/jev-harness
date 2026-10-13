@@ -15,6 +15,9 @@ two arms differ only in the fix:
   say      a question sent while a task runs could only be answered at the end (flag 9). The question is sent after the
            first step; counted: an answer reached the chat before the task ended (say(), or the quick reply), and when.
            A run with no question counts say() chatter (regression).
+  carry    a follow-up turn started with a fresh REPL in a new folder (flag 8: "the helper module was lost - let me
+           rebuild it" before every chess move). A tic-tac-toe game over two or three turns: does the graded turn go on
+           from the last turn's `board` or rebuild it?
   where    the worker was not told the user was on another computer when it had no devices tool, or wrote from a phone
            (flag 11). A stub device hub stands in for the dashboard's (no device is called); the models are live.
 
@@ -86,7 +89,9 @@ def _has(*words):
 
 
 def ran(rec: dict, pattern: str) -> bool:
-    return any(re.search(pattern, c) for c in rec["code"])
+    """Code matching `pattern` ran - not counting a final() call, whose answer text holds the block (the `final` tool
+    becomes print(final(...)))."""
+    return any(re.search(pattern, c) for c in rec["code"] if "final(" not in c)
 
 
 def syntax_errors(rec: dict) -> int:
@@ -124,7 +129,8 @@ CASES = [
          "command in a plain ``` block with no language tag; don't run it.",
          fence_check(r"Sort-Object", r"Sort-Object"), persona="high_end_dev", holdout=True),
     Case("fence_haiku", "fence", "fires", "Write me a haiku about rain inside a plain ``` code block (no language tag).",
-         fence_check(r"\w+\s*\n.*\w+\s*\n.*\w+", r"(?i)rain"), persona="high_end_dev", holdout=True),
+         fence_check(r"```[^\n`]*\n(?:[^\n`]*\w[^\n`]*\n){3}```", r"(?im)^\s*\w+[^\n=()]*,?\s*$"), persona="high_end_dev",
+         holdout=True),
     Case("regress_fib", "fence", "regression", "Use Python to compute the 30th Fibonacci number (F1 = F2 = 1) and tell me "
          "the value.", regress_check("832040"), persona="high_end_dev"),
     Case("regress_count", "fence", "regression", "With Python, count how many times the lowercase letter s appears in "
@@ -204,7 +210,26 @@ CASES += [
     Case("say_quiet", "say", "regression", PRIMES_TASK, quiet_check, persona="high_end_dev"),
 ]
 
-NOT_THERE = r"hub|DESKTOP-AUIDSM2|this (?:computer|machine|PC)|not (?:on )?your (?:screen|phone|laptop)|can'?t see|won'?t see|" \
+def carry_check(rec):
+    a = rec["answer"]
+    if not re.search(r"\bX\b", a) or not re.search(r"\bO\b", a):
+        return False, "no board in the answer"
+    rebuilt = any(re.search(r"^\s*board\s*=\s*\[", c, re.M) for c in rec["code"])
+    return (not rebuilt, "went on from the last turn's board" if not rebuilt else "rebuilt the board from scratch")
+
+
+TTT_FIRST = ("Let's play tic-tac-toe, managed in Python: keep the board in a variable called `board` (a list of 9 cells) "
+             "and write a helper `show()` that prints it as a 3x3 grid. I'm X, you're O. I take the center. Make your "
+             "move and show me the board.")
+CASES += [
+    Case("carry_ttt", "carry", "fires", "I take the top-left corner. Your move - show me the board.", carry_check,
+         persona="high_end_dev", extra={"before": [TTT_FIRST]}),
+    Case("carry_ttt2", "carry", "fires", "Top-right for me. Your turn, and show the board.", carry_check,
+         persona="high_end_dev", extra={"before": [TTT_FIRST, "I take the top-left corner. Your move - show me the board."]},
+         holdout=True),
+]
+
+NOT_THERE =r"hub|DESKTOP-AUIDSM2|this (?:computer|machine|PC)|not (?:on )?your (?:screen|phone|laptop)|can'?t see|won'?t see|" \
             r"isn'?t (?:on|in front of)|on my (?:end|side)|here,? not"
 
 
@@ -272,6 +297,8 @@ def arm(stage: str, which: str):
                 st.enter_context(mock.patch.object(worker, "STEER_NOTE", OLD_STEER_NOTE))
                 st.enter_context(mock.patch.object(worker, "HOW_YOU_WORK", re.sub(
                     r"- say\(text\):.*?\n(?=- final)", "", worker.HOW_YOU_WORK, flags=re.S)))
+            elif stage == "carry":
+                st.enter_context(mock.patch.object(orchestrator.Harness, "_previous_folder", lambda self, n, p: None))
             elif stage == "where":
                 st.enter_context(mock.patch.object(orchestrator.Harness, "_where_note",
                                                    lambda self, can_reach=True: None))
@@ -365,6 +392,11 @@ def run_case(case: Case, which: str, where: Path) -> dict:
         if case.extra.get("no_devices"):
             p = h.personas[case.persona]
             p.tools = [t for t in p.tools if t != "devices"]
+    for before in case.extra.get("before") or []:   # earlier turns of the same session; only the last one is graded
+        timed_turn(h, before, case.persona)
+    if case.extra.get("before"):
+        events.clear()
+        started = time.time()
     asker = None
     if case.extra.get("ask"):
         def ask():
@@ -501,7 +533,7 @@ def _literal_final(code: str) -> str | None:
 # ------------------------------------------------------------------------------------------------------------- summary
 def summarize(records: list[dict], replayed: list[dict] | None = None) -> str:
     lines = [f"flagged-session fixes, live ({time.strftime('%Y-%m-%d %H:%M')}): {len(records)} turns"]
-    for stage in ("fence", "gate", "resume", "say", "where"):
+    for stage in ("fence", "gate", "resume", "say", "carry", "where"):
         rs = [r for r in records if r["stage"] == stage]
         if not rs:
             continue
@@ -556,7 +588,7 @@ def grade(rec: dict) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--stage", default="fence,gate,resume,say,where,replay")
+    ap.add_argument("--stage", default="fence,gate,resume,say,carry,where,replay")
     ap.add_argument("--arm", default="both", choices=["old", "new", "both"])
     ap.add_argument("--reps", type=int, default=3)
     ap.add_argument("--holdout", action="store_true", help="only the held-out cases")
@@ -596,6 +628,8 @@ def main() -> int:
                                                              ensure_ascii=False, default=str), encoding="utf-8")
     text = summarize(records, replayed)
     print(text)
+    if not records:   # (a replay-only run must not overwrite the last live results)
+        return 0
     RAW.write_text(json.dumps({"records": records, "replay": replayed}, indent=1, ensure_ascii=False, default=str),
                    encoding="utf-8")
     SUMMARY.write_text(text + "\n", encoding="utf-8")

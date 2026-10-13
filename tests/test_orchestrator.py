@@ -560,3 +560,28 @@ def test_reasoning_tail_carries_to_the_next_step(cfg):
     assert h.turn("solve the puzzle", force="high_end_dev").answer == "mirrored"
     carried = llm.seen[1][-2]
     assert "mirror each row" in carried["reasoning_content"] and "mirror" not in carried["content"]
+
+
+def test_a_follow_up_turn_starts_with_the_last_turns_repl_state_and_folder(cfg):
+    """Live 2026-10-12 (a chess game over several turns): every move began "the helper module was lost - let me rebuild
+    it", re-reading the game's source and the board."""
+    llm = ScriptedLLM([py("board = ['e4', 'e5']\ndef play(m):\n    board.append(m)\n    return board\n"
+                          "open('game.txt', 'w').write('e4 e5')\nfinal('Your move.')"),
+                       py("final(' '.join(play('Nf3')) + ' | ' + open(r'{}').read())")])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(followup_rules(0.9, 0.9))), llm_factory=lambda p: llm)
+    h.learning = False
+    h.turn("let's play chess")
+    first = next(d for d in h.session_dir.iterdir() if d.name.startswith("u1t1-"))
+    llm.replies[0] = llm.replies[0].replace("{}", str(first / "game.txt"))
+    assert h.turn("your move").answer == "e4 e5 Nf3 | e4 e5"      # the variable, the function and the file
+    task_msg = next(m["content"] for m in llm.seen[1] if m["role"] == "user" and "This follows your previous turn" in m["content"])
+    assert str(first) in task_msg and "variables: board" in task_msg and "play" in task_msg
+
+
+def test_a_new_topic_starts_with_a_fresh_repl(cfg):
+    llm = ScriptedLLM([py("board = 1\nfinal('ok')"), py("final(str('board' in globals()))")])
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(followup_rules(0.05, 0.05))), llm_factory=lambda p: llm)
+    h.learning = False
+    h.turn("let's play chess")
+    assert h.turn("what's the capital of Peru?").answer == "False"
+    assert not any("This follows your previous turn" in str(m["content"]) for m in llm.seen[1])

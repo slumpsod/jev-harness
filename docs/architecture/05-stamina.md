@@ -123,3 +123,12 @@ turn's notes, so routing, the follow-up check and the conversation the next work
 only asks to carry on (`CONTINUE_RE`: "continue", "ok keep going", "resume please", "pick up where you left off"; not
 "continue with the calculator instead"), `turn()` resumes that task instead (`resume(path)`: its conversation, folder
 and REPL variables), with a `resuming` event. Bench: `evals/bench/flagged.py --stage resume`.
+
+### A follow-up turn starts where the last one left off
+
+Each turn's lead task gets its own folder and a fresh REPL. A follow-up by the same assistant (Jev's follow-up check said
+the message continues the conversation) now starts with the previous turn's REPL state restored (`Worker.carry_from`,
+`_carry`: the `repl_state.pkl` the worker snapshots after each step and, now, when it finishes) and the task message
+names that turn's folder (`CARRIED_NOTE`, in the task text so compaction keeps it). Live (2026-10-12, a chess game
+played over several turns, flagged session 8): every move began "the helper module was lost - let me rebuild it". A
+new topic still starts fresh. Bench: `evals/bench/flagged.py --stage carry`.

@@ -449,6 +449,15 @@ class Harness:
             return None
         return {**data, "path": str(ck)}
 
+    def _previous_folder(self, turn_no: int, persona: str) -> Path | None:
+        """The lead task folder of the session's turn before `turn_no`, when the same assistant did it (Worker.carry_from)."""
+        best = None
+        for d in self.session_dir.iterdir() if self.session_dir.is_dir() else []:
+            m = TASK_DIR.match(d.name)
+            if m and m[2] == "1" and int(m[1]) < turn_no and (best is None or int(m[1]) > best[0]):
+                best = (int(m[1]), d, m[3])
+        return best[1] if best and best[2] == persona else None
+
     def _note_cut_off(self) -> dict[str, Any] | None:
         """The last turn when it was cut off (_last_cut_off). One that never finished at all (a crash, a restart) was
         never remembered: it is remembered now, with what it had done, so the conversation the next turn sees has it."""
@@ -999,6 +1008,8 @@ class Harness:
         worker.measure, worker.archive = bool(cs.get("measure")), bool(cs.get("archive"))
         worker.log_share, worker.note_tail = float(cs.get("log_share") or 0), bool(cs.get("note_tail"))
         worker.retry_delay = float(interject.settings(self.cfg.raw)["retry_delay"])
+        if task.parent is None and not resume and task.history:   # a follow-up: start where the last turn left off
+            worker.carry_from = self._previous_folder(turn_no, persona.name)
         worker.step_value, worker.keep_at = self._compact_fn(task), self.cfg.t("compact_keep")
         if self.cfg.lim("thinking_watch"):
             worker.thinking_watch = self._watch_fn(task)

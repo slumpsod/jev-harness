@@ -1,26 +1,58 @@
-flagged-session fixes, live (2026-10-12 20:55): 6 turns
+flagged-session fixes, live (2026-10-13 08:05): 102 turns
 
 [fence]
-  fires      new dev     : 1/1 passed, median 20s, 0.0 code steps
-    fence_moves        old: 0/0  new: 1/1
+  fires      old dev     : 1/6 passed, median 77s, 3.2 code steps
+  fires      old held-out: 0/6 passed, median 176s, 5.8 code steps
+  fires      new dev     : 6/6 passed, median 16s, 0.3 code steps
+  fires      new held-out: 6/6 passed, median 13s, 0.2 code steps
+  regression old dev     : 6/6 passed, median 13s, 2.2 code steps
+  regression new dev     : 6/6 passed, median 13s, 2.2 code steps
+    fence_cmd          old: 0/3  new: 3/3
+    fence_haiku        old: 0/3  new: 3/3
+    fence_moves        old: 0/3  new: 3/3
+    fence_table        old: 1/3  new: 3/3
+    regress_count      old: 3/3  new: 3/3
+    regress_fib        old: 3/3  new: 3/3
 
 [gate]
-  fires      new dev     : 1/1 passed, median 22s, 3.0 code steps, bounces 0
-  fires      new held-out: 0/1 passed, median 14s, 2.0 code steps, bounces 0
-    gate_rebate        old: 0/0  new: 1/1
-    gate_rebate_short  old: 0/0  new: 0/1
+  fires      old dev     : 3/3 passed, median 48s, 5.3 code steps, bounces 3
+  fires      old held-out: 3/3 passed, median 39s, 4.7 code steps, bounces 3
+  fires      new dev     : 3/3 passed, median 32s, 3.0 code steps, bounces 1
+  fires      new held-out: 3/3 passed, median 28s, 2.7 code steps, bounces 1
+    gate_rebate        old: 3/3  new: 3/3
+    gate_rebate_short  old: 3/3  new: 3/3
 
 [resume]
-  fires      new dev     : 1/1 passed, median 28s, 2.0 code steps
-    cutoff_continue    old: 0/0  new: 1/1
+  fires      old dev     : 1/3 passed, median 498s, 20.3 code steps
+  fires      old held-out: 1/3 passed, median 84s, 9.7 code steps
+  fires      new dev     : 3/3 passed, median 39s, 7.3 code steps
+  fires      new held-out: 3/3 passed, median 51s, 5.0 code steps
+    cutoff_continue    old: 1/3  new: 3/3
+    cutoff_recall      old: 1/3  new: 3/3
 
 [say]
-  fires      new dev     : 1/1 passed, median 43s, 5.0 code steps, median answer 6s after the question
-    say_where          old: 0/0  new: 1/1
+  fires      old dev     : 1/3 passed, median 77s, 4.7 code steps, median answer 0s after the question
+  fires      old held-out: 3/3 passed, median 65s, 4.0 code steps, median answer 0s after the question
+  fires      new dev     : 3/3 passed, median 42s, 5.0 code steps, median answer 11s after the question
+  fires      new held-out: 3/3 passed, median 38s, 4.3 code steps, median answer 0s after the question
+  regression old dev     : 3/3 passed, median 37s, 4.0 code steps
+  regression new dev     : 3/3 passed, median 33s, 4.3 code steps
+    say_quiet          old: 3/3  new: 3/3
+    say_where          old: 1/3  new: 3/3
+    say_why            old: 3/3  new: 3/3
 
 [where]
-  fires      new dev     : 1/1 passed, median 20s, 1.0 code steps
-    where_phone        old: 0/0  new: 1/1
+  fires      old dev     : 1/6 passed, median 27s, 2.2 code steps
+  fires      old held-out: 0/3 passed, median 12s, 1.7 code steps
+  fires      new dev     : 6/6 passed, median 16s, 1.0 code steps
+  fires      new held-out: 3/3 passed, median 22s, 0.7 code steps
+  lookalike  old dev     : 3/3 passed, median 14s, 1.7 code steps
+  lookalike  new dev     : 3/3 passed, median 12s, 2.0 code steps
+    where_bilbo        old: 1/3  new: 3/3
+    where_bilbo_open   old: 0/3  new: 3/3
+    where_hub          old: 3/3  new: 3/3
+    where_phone        old: 0/3  new: 3/3
 
-new-arm failures:
-  gate_rebate_short: rates missing or wrong; "Here's what the table shows:\n\n- **R-49 attic insulation:** $0.49 per sq ft (up to $890)\n- **R-13 basement wall insulation:** $0.48 per sq ft (up to $675)\n- **Combined cap** if you max out R-60 attic ($1,090), R-19 baseme"
+[replay] 9 answers the gate sent back over numbers: the old rule flags 9, the new 8. Numbers the new rule no longer flags (check each is a fair pass):
+  #97: 612  (still flagged: 153, 90)
+  #122: 0.25, 0.48, 0.49, 0.53  (still flagged: -)
