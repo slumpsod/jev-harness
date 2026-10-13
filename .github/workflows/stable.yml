@@ -4,6 +4,8 @@
 #
 # Linux / Python 3.11 is required for a commit to become stable. The other legs report but don't
 # block (see `continue-on-error`); make one required by adding it to the `required` list below.
+# There is no macOS leg: it timed out at 20 minutes on every run, and GitHub bills macOS minutes at 10x; it
+# most likely used up the account's Actions minutes: `promote` then got no runner (2026-10-13).
 name: Tests, then stable
 
 on:
@@ -29,7 +31,6 @@ jobs:
           - {os: ubuntu-latest, python: "3.11", required: true}
           - {os: ubuntu-latest, python: "3.13", required: false}
           - {os: windows-latest, python: "3.11", required: false}
-          - {os: macos-latest, python: "3.11", required: false}
     continue-on-error: ${{ !matrix.required }}
     steps:
       - uses: actions/checkout@v4
