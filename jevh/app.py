@@ -170,6 +170,25 @@ class AppApi:
         return {"ok": True}
 
 
+    # -- the window's own title bar: the page's buttons (any page of the main window: they only move the window)
+    def win_minimize(self) -> None:
+        if self._app.chrome is not None:
+            self._app.chrome.minimize()
+
+    def win_maximize(self) -> bool:
+        if self._app.chrome is not None:
+            self._app.chrome.toggle_maximize()
+        return self.win_state()["maximized"]
+
+    def win_state(self) -> dict:
+        return {"maximized": bool(self._app.chrome and self._app.chrome.maximized()), "frameless": self._app.chrome is not None}
+
+    def win_close(self) -> None:
+        self._app.hide_main()
+
+    def win_border(self, color: str) -> None:
+        self._app.window_border(str(color))
+
     # -- the first run's page (only until a role is chosen)
     def suggest(self) -> dict:
         if self._app.conf.get("role"):
@@ -258,6 +277,9 @@ class App:
         self.bubble = None           # its chat bubble: a small window on the hub's /orb page
         self.bubble_visible = False
         self._bubble_hidden_at = 0.0
+        self.chrome = None                       # the window's own title bar, once installed
+        self._chrome_ready = threading.Event()
+        self._first_load = threading.Event()     # the window's first page is loaded (WebView2 is up)
 
     # -- what the window shows
     def begin(self, conf: dict) -> None:
@@ -275,6 +297,7 @@ class App:
         if first:   # (once: the key in it changes with every launch of the hub)
             save_app_conf(conf)
         if self.window is not None:
+            self._chrome_ready.wait(15)
             self.window.load_url(first or self.home_url)
         self.make_bubble(first)
         self.refresh_tray()
@@ -335,16 +358,21 @@ class App:
 
     # -- the tray
     def _image(self, paused: bool = False, busy: bool = False):
-        from PIL import Image, ImageDraw
-        img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-        d = ImageDraw.Draw(img)
-        color = (150, 150, 160) if paused else (225, 140, 40) if busy else (75, 91, 214)
-        d.ellipse((4, 4, 60, 60), fill=color)
-        d.text((24, 16), "J", fill=(255, 255, 255))
-        if paused:
-            d.rectangle((22, 22, 29, 42), fill=(255, 255, 255))
-            d.rectangle((35, 22, 42, 42), fill=(255, 255, 255))
-        return img
+        """The tray icon: the orb (working: its brighter mood; paused: grey and faint)."""
+        try:
+            from . import orb_art
+            img = orb_art.icon_image(64, "working" if busy and not paused else "idle")
+            if paused:
+                from PIL import Image
+                grey = img.convert("LA").convert("RGBA")
+                grey.putalpha(img.getchannel("A").point(lambda a: a * 55 // 100))
+                img = grey
+            return img
+        except Exception:  # noqa: BLE001 - no numpy: a plain dot
+            from PIL import Image, ImageDraw
+            img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+            ImageDraw.Draw(img).ellipse((4, 4, 60, 60), fill=(150, 150, 160) if paused else (60, 160, 240))
+            return img
 
     def _state_line(self) -> str:
         if self.conf.get("role") == "hub":
@@ -388,6 +416,63 @@ class App:
             self.window.show()
             self.window.restore()
         self.main_shown()
+
+    # -- the window's own title bar (jevh/winchrome.py)
+    def _install_chrome(self, reload: bool = False) -> None:
+        """(once the window exists) No Windows frame: the page's top strip drags it (WebView2's non-client regions,
+        which must be on before the page they apply to is loaded), a thin border resizes it."""
+        if os.name != "nt":
+            self._chrome_ready.set()
+            return
+        # Wait for the first page (WebView2 is up then), and touch the window and WebView2 only on the window's own thread:
+        # polling them from this one deadlocked the window as it loaded its first page (live, 2026-10-13).
+        if not self._first_load.wait(30):
+            self._chrome_ready.set()   # (no page after 30 s: load the dashboard anyway, with no title bar of its own)
+            return
+        form = self.window.native
+        import System   # (only now: .NET is loaded by pywebview's start, after this thread began)
+        from System.Windows.Forms import Padding
+        from .winchrome import Chrome
+
+        def setup():
+            core = form.browser.webview.CoreWebView2
+            core.Settings.IsNonClientRegionSupportEnabled = True
+            form.Padding = Padding(GRIP)
+            self.chrome = Chrome(form.Handle.ToInt32(), grip=GRIP)
+            self.chrome.install()
+            if reload:   # (the first-run page was loaded before the setting)
+                core.Reload()
+        try:
+            form.Invoke(System.Action(setup))
+        finally:
+            self._chrome_ready.set()
+
+    def _grip(self, on: bool) -> None:
+        """The resize border is only there while the window is not maximized."""
+        form = getattr(self.window, "native", None)
+        if form is None or os.name != "nt":
+            return
+        import System
+        from System.Windows.Forms import Padding
+        form.Invoke(System.Action(lambda: setattr(form, "Padding", Padding(GRIP if on else 0))))
+
+    def window_border(self, color: str) -> None:
+        """The resize border takes the page's background colour, so it does not show."""
+        form = getattr(self.window, "native", None)
+        if form is None or os.name != "nt":
+            return
+        import System
+        try:
+            c = System.Drawing.ColorTranslator.FromHtml(color)
+        except Exception:  # noqa: BLE001
+            return
+        form.Invoke(System.Action(lambda: setattr(form, "BackColor", c)))
+
+    def hide_main(self) -> None:
+        """The page's close button: to the tray, as the close of a framed window was."""
+        if self.window is not None:
+            self.window.hide()
+        self.main_hidden()
 
     # -- the orb and its chat bubble
     def orb_wanted(self) -> bool:
@@ -539,9 +624,10 @@ class App:
             print("jev-harness is already running: its window was brought up.")
             return
         first = not self.conf.get("role")
-        self.window = webview.create_window("jev-harness", html=SETUP_HTML if first else "<p style='font:14px system-ui'>Starting...</p>",
+        set_app_id()
+        self.window = webview.create_window("jev-harness", html=setup_html() if first else STARTING_HTML,
                                             js_api=AppApi(self), width=1280, height=860, min_size=(420, 560),
-                                            hidden=self.hidden and not first)
+                                            hidden=self.hidden and not first, frameless=os.name == "nt", easy_drag=False)
 
         def closing():
             if self._quitting:
@@ -553,6 +639,10 @@ class App:
         self.window.events.minimized += self.main_hidden
         self.window.events.restored += self.main_shown
         self.window.events.maximized += self.main_shown   # (un-minimizing a maximized window fires this, not restored)
+        self.window.events.maximized += lambda: self._grip(False)
+        self.window.events.restored += lambda: self._grip(True)
+        self.window.events.loaded += lambda: self._first_load.set()
+        threading.Thread(target=self._install_chrome, args=(first,), name="jevh-chrome", daemon=True).start()
         self.icon = pystray.Icon("jev-harness", self._image(), "jev-harness", menu=self._menu())
         self.icon.run_detached()
         if not first:
@@ -561,8 +651,43 @@ class App:
                 self.main_hidden()
         if not first:
             threading.Thread(target=self.begin, args=(self.conf,), daemon=True).start()
-        webview.start(private_mode=False, storage_path=str(device_home() / "webview"))
+        webview.start(private_mode=False, storage_path=str(device_home() / "webview"), icon=app_icon())
         self.quit()
+
+
+GRIP = 5   # the resize border around the page, unscaled pixels
+STARTING_HTML = ("<body style='margin:0;font:14px system-ui;background:#12151b;color:#9aa0ae;display:grid;place-items:center;"
+                 "height:100vh'>Starting...</body>")
+
+
+def setup_html() -> str:
+    """The first-run page, with the app's title bar (the hub's /app-chrome.js, inlined: there is no hub yet)."""
+    js = (Path(__file__).parent / "web" / "static" / "app-chrome.js").read_text(encoding="utf-8")
+    bar = '<div class="app-drag" style="position:fixed;top:0;left:0;right:0;height:34px"></div>'
+    return SETUP_HTML.replace("<body>", "<body>" + bar, 1).replace("</body>", f"<script>{js}</script></body>", 1)
+
+
+def app_icon() -> str | None:
+    """The orb as the app's .ico (window, taskbar, Start menu), drawn once into the device folder."""
+    path = device_home() / "orb.ico"
+    try:
+        if not path.exists():
+            from . import orb_art
+            path.parent.mkdir(parents=True, exist_ok=True)
+            orb_art.write_icon(path)
+        return str(path)
+    except Exception:  # noqa: BLE001 - no numpy or Pillow: Python's own icon
+        return None
+
+
+def set_app_id() -> None:
+    """The taskbar groups the app as itself (with its own icon), not as one more python.exe."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("JevHarness.App")
+        except (AttributeError, OSError):
+            pass
 
 
 def startup_file() -> Path:
@@ -579,9 +704,9 @@ def install_shortcut() -> Path:
     lnk = Path(os.environ["APPDATA"]) / "Microsoft/Windows/Start Menu/Programs/jev-harness.lnk"
     ps = ("$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:JEVH_LNK);"
           "$s.TargetPath=$env:JEVH_EXE;$s.Arguments='-m jevh app';$s.WorkingDirectory=$env:USERPROFILE;"
-          "$s.Description='jev-harness';$s.Save()")
+          "$s.Description='jev-harness';if($env:JEVH_ICO){$s.IconLocation=$env:JEVH_ICO};$s.Save()")
     subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=True, capture_output=True,
-                   env={**os.environ, "JEVH_LNK": str(lnk), "JEVH_EXE": pythonw()},
+                   env={**os.environ, "JEVH_LNK": str(lnk), "JEVH_EXE": pythonw(), "JEVH_ICO": app_icon() or ""},
                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     return lnk
 

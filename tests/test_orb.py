@@ -91,3 +91,30 @@ def test_a_click_on_the_orb_toggles_the_bubble(monkeypatch):
     assert not app.bubble_visible
     app.main_shown()                         # the main window came back: the orb goes, and the bubble with it
     assert "hide" in app.orb.calls
+
+
+def test_the_app_title_bar_script_is_served_to_every_app_page(cfg):
+    """jevh/web/static/app-chrome.js: open (the sign-in page needs it), included by the dashboard, the sign-in page and
+    the app's first-run page; it does nothing outside the app (it waits for pywebview's frameless window)."""
+    def factory(on_event, session=None):
+        return Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM([]), on_event=on_event)
+    app = create_app(cfg, port=8740, harness_factory=factory, token="tok", allow_hosts=["box.ts.net:10000"])
+    app.state.hub.accounts.add_user("jed", "correct horse")
+    c = TestClient(app, base_url="http://127.0.0.1:8740")
+    js = c.get("/app-chrome.js", headers={"Host": "box.ts.net:10000"})              # before signing in, from elsewhere
+    assert js.status_code == 200 and "javascript" in js.headers["content-type"] and "app-region: drag" in js.text
+    assert "win_state" in js.text and "frameless" in js.text                          # inert unless the app says so
+    assert '<script src="/app-chrome.js">' in c.get("/").text
+    assert '<script src="/app-chrome.js">' in c.get("/login", headers={"Host": "box.ts.net:10000"}).text
+    from jevh.app import setup_html
+    page = setup_html()
+    assert "app-region: drag" in page and 'class="app-drag"' in page
+
+
+def test_the_orb_is_the_apps_icon(tmp_path):
+    from PIL import Image
+    img = orb_art.icon_image(64)
+    assert img.size == (64, 64) and img.mode == "RGBA"
+    assert img.getpixel((0, 0))[3] < 40 and img.getpixel((32, 32))[3] > 150    # a drop on nothing
+    orb_art.write_icon(tmp_path / "orb.ico")
+    assert (16, 16) in Image.open(tmp_path / "orb.ico").info["sizes"]

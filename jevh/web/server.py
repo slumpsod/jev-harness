@@ -60,7 +60,7 @@ MAX_EVENTS = 5000
 SUB_QUEUE = 2000
 SESSION_COOKIE = "jevh_session"
 HERE = "here"   # a message's origin when it was written on the hub itself
-OPEN_PATHS = {"/login", "/auth/login", "/auth/logout", "/auth/pair", "/setup", "/auth/setup"}   # reachable from another device before signing in
+OPEN_PATHS = {"/login", "/auth/login", "/auth/logout", "/auth/pair", "/setup", "/auth/setup", "/app-chrome.js"}   # reachable from another device before signing in
 
 
 def forwarded_ip(header: str | None, peer: str) -> str:
@@ -537,6 +537,12 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
         return (STATIC / "index.html").read_text(encoding="utf-8").replace("__JEVH_TOKEN__", token)
+
+    @app.get("/app-chrome.js")
+    def app_chrome() -> Response:
+        """The desktop app's title bar for its pages (does nothing outside the app); open: the sign-in page uses it."""
+        return Response((STATIC / "app-chrome.js").read_text(encoding="utf-8"), media_type="text/javascript",
+                        headers={"Cache-Control": "no-cache"})
 
     @app.get("/orb", response_class=HTMLResponse)
     def orb_page() -> str:

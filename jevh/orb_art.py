@@ -105,3 +105,23 @@ def preview(path: str, radius: int = 34, mood: str = "idle", t: float = 0.1, bac
     bg = np.array(backdrop[::-1], np.float32)
     rgb = f[..., :3] + bg * (1 - a)                          # premultiplied over: src + dst * (1 - a)
     Image.fromarray(np.clip(rgb[..., ::-1], 0, 255).astype(np.uint8), "RGB").save(path)
+
+
+def icon_image(size: int = 256, mood: str = "idle", t: float = 0.12) -> Image.Image:
+    """The orb as a square RGBA picture (straight alpha): the app's icon, its tray icon, its Start menu entry."""
+    radius = max(8, round(size / 2.55))
+    w, h = size_for(radius)
+    f = frame(t, radius, mood).astype(np.float32)
+    a = f[..., 3:4]
+    rgb = np.where(a > 0, f[..., :3] * 255 / np.maximum(a, 1), 0)          # premultiplied -> straight alpha
+    img = Image.fromarray(np.dstack([rgb[..., ::-1], a]).clip(0, 255).astype(np.uint8), "RGBA")
+    cx, cy = w / 2 + 0.35 * radius * math.sin(2 * math.pi * t), h / 2 + 0.08 * radius
+    half = size / 2
+    return img.crop((round(cx - half), round(cy - half), round(cx - half) + size, round(cy - half) + size))
+
+
+def write_icon(path) -> str:
+    """A Windows .ico of the orb, every size Windows asks for."""
+    icon_image(256).save(path, sizes=[(16, 16), (20, 20), (24, 24), (32, 32), (40, 40), (48, 48), (64, 64), (128, 128),
+                                      (256, 256)])
+    return str(path)

@@ -30,6 +30,7 @@
 </style>
 </head>
 <body>
+<div class="app-drag" style="position:fixed;top:0;left:0;right:0;height:34px"></div>
 <main>
   <h1>Sign in</h1>
   <p id="lead">To your assistant on this hub.</p>
@@ -79,5 +80,6 @@ document.getElementById("f").addEventListener("submit", async (ev) => {
   } catch (e) { msg.textContent = e.message; go.disabled = false; }
 });
 </script>
+<script src="/app-chrome.js"></script>
 </body>
 </html>
