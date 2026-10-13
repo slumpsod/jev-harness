@@ -270,7 +270,7 @@ def _phone(page, dashboard):
     assert not page.evaluate(too_wide)
     assert page.evaluate("document.getElementById('send').getBoundingClientRect().right <= innerWidth")     # the composer fits
     assert page.evaluate("getComputedStyle(document.getElementById('input')).fontSize") == "16px"          # no zoom-on-tap on iOS
-    for tab in ("inspector", "artifacts", "memory", "history", "browser", "review", "notebook", "status"):
+    for tab in ("inspector", "artifacts", "memory", "history", "browser", "review", "notebook"):
         page.click(f'#tabs [data-tab="{tab}"]')                              # a panel never covers the tab bar, so the next click works
         page.wait_for_function("document.getElementById('app').dataset.panel === 'open'")
         assert not page.evaluate(too_wide), tab
@@ -278,12 +278,89 @@ def _phone(page, dashboard):
         assert not colour.startswith("rgba") or colour.endswith(", 1)"), f"{tab}: the panel is see-through ({colour})"
         assert page.evaluate("document.getElementById('side').getBoundingClientRect().bottom"
                              " <= document.querySelector('.rail').getBoundingClientRect().top + 1"), tab
-    page.click('#tabs [data-tab="notebook"]')
+    for name in ("newsroom", "settings"):                                    # the full pages: above the tab bar too, with a way back
+        page.click(f'.rail [data-page="{name}"]')
+        page.wait_for_function(f"document.getElementById('app').dataset.view === '{name}'")
+        assert not page.evaluate(too_wide), name
+        assert page.evaluate(f"document.getElementById('page-{name}').getBoundingClientRect().bottom"
+                             " <= document.querySelector('.rail').getBoundingClientRect().top + 1"), name
+        assert page.is_visible(f"#page-{name} .back") and not page.is_visible("#chat")
+    for sec in ("general", "devices", "status", "updates"):                  # every section of Settings, at phone width
+        page.click(f'#setnav [data-sec="{sec}"]')
+        page.wait_for_selector(f"#sec-{sec} .card, #sec-{sec} .arow, #sec-{sec} .kv")
+        assert not page.evaluate(too_wide), sec
+    page.click("#page-settings .back")
+    assert page.is_visible("#chat") and page.inner_text("#ptitle") == "Notebook"   # back to the panel that was open
     page.fill("#nbtext", "an idea from my phone")                            # the notebook works with a thumb
     assert page.evaluate("getComputedStyle(document.getElementById('nbtext')).fontSize") == "16px"
     page.click("#nbadd")
     page.wait_for_selector("#nblist .nbitem")
     assert not page.evaluate(too_wide) and not page.errors
+
+
+VERSION = {"branch": "main", "channel": "stable", "channels": ["stable", "main"], "upstream": "origin/stable",
+           "current": {"sha": "aaaaaaa", "date": "2026-10-10", "subject": "what is on disk"},
+           "latest": {"sha": "bbbbbbb", "date": "2026-10-12", "subject": "the newest"}, "behind": 2, "ahead": 0,
+           "incoming": [{"sha": "bbbbbbb", "date": "2026-10-12", "subject": "the newest"},
+                        {"sha": "ccccccc", "date": "2026-10-11", "subject": "the one before"}],
+           "dirty": [], "conflicts": [], "in_way": [], "deps_changed": False, "fetched": True, "can_update": True,
+           "previous": None, "snapshot": None, "error": None}
+
+
+def test_the_newsroom_and_settings_are_pages_of_their_own_and_the_chat_comes_back(dashboard, browse):
+    browse(lambda page: _pages(page, dashboard))
+
+
+def _pages(page, dashboard):
+    page.route("**/api/version*", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(VERSION)))
+    page.goto(dashboard)
+    page.wait_for_selector(".hello")
+    view = "document.getElementById('app').dataset.view"
+    page.click('#tabs [data-tab="memory"]')                                  # a panel is open beside the chat ...
+    page.click('.rail [data-page="newsroom"]')                               # ... and the Newsroom takes the place of both
+    assert page.evaluate(view) == "newsroom"
+    assert not page.is_visible("#chat") and not page.is_visible("#side") and page.is_visible("#page-newsroom")
+    assert page.evaluate("document.querySelector('#page-newsroom').getBoundingClientRect().width"
+                         " >= innerWidth - document.querySelector('.rail').offsetWidth - 1")   # the whole width
+    assert page.evaluate("document.activeElement.id") == "nrtitle"          # a screen reader lands on the page
+    assert page.get_attribute('.rail [data-page="newsroom"]', "aria-pressed") == "true"
+    page.keyboard.press("Escape")                                            # Esc goes back, to the panel that was open
+    assert page.evaluate(view) == "chat" and page.is_visible("#chat")
+    assert page.inner_text("#ptitle") == "Memory" and attr(page, "#app", "data-panel") == "open"
+    assert page.evaluate("document.activeElement.dataset.page") == "newsroom"
+    page.click('.rail [data-page="newsroom"]')
+    page.click('.rail [data-page="newsroom"]')                               # its rail button again goes back too
+    assert page.evaluate(view) == "chat"
+    page.click('.rail [data-page="newsroom"]')
+    page.click("#page-newsroom .back")                                       # and so does "Chat"
+    assert page.evaluate(view) == "chat"
+
+    # Settings: one page, four sections (what were the Settings, Devices and Status tabs)
+    page.wait_for_function("document.getElementById('updcount').textContent === '2' && !document.getElementById('updcount').hidden")
+    page.click('.rail [data-page="settings"]')                               # the first time: models and search
+    assert page.get_attribute("#st-general", "aria-selected") == "true" and page.is_visible("#sec-general")
+    assert not page.is_visible("#sec-devices") and not page.is_visible("#sec-status") and not page.is_visible("#sec-updates")
+    assert page.is_visible("#updcount2") and page.inner_text("#updcount2") == "2"   # the count is on the Updates section too
+    page.wait_for_selector("#p-settings select[data-set=model]")
+    page.click('#setnav [data-sec="devices"]')
+    page.wait_for_selector("#p-devices .card h3:has-text('Signing in')")
+    assert "is the hub" in page.inner_text("#p-devices")
+    page.focus("#st-devices")
+    page.keyboard.press("ArrowDown")                                         # a tab list: arrows move between the sections
+    assert page.get_attribute("#st-status", "aria-selected") == "true" and page.evaluate("document.activeElement.id") == "st-status"
+    page.wait_for_selector("#p-status .card")
+    page.keyboard.press("End")
+    assert page.is_visible("#sec-updates") and page.get_attribute("#st-devices", "tabindex") == "-1"
+    card = page.inner_text("#p-updates")
+    assert "2 new commits" in card and "the one before" in card and page.is_visible('#p-updates [data-upd="apply"]')
+    page.click('#tabs [data-tab="inspector"]')                               # a panel's tab leaves the page for the chat
+    assert page.evaluate(view) == "chat" and page.inner_text("#ptitle") == "Inspector"
+    page.click('.rail [data-page="settings"]')                               # Settings opens where it was left
+    assert page.is_visible("#sec-updates")
+    page.click("#page-settings .back")
+    page.click("#stat")                                                      # the header's status dots open Status
+    assert page.evaluate(view) == "settings" and page.is_visible("#sec-status")
+    assert not page.errors
 
 
 def test_a_message_sent_while_the_task_runs_is_heard(slow_dashboard, browse):
@@ -484,7 +561,8 @@ def _llamacpp(page, dashboard):
     page.goto(dashboard)
     page.wait_for_function("document.getElementById('statmodel').textContent.includes('qwen3.8-27b')")
     assert page.inner_text("#statmodel") == "qwen3.8-27b · 76.0k"             # the header names the server the harness uses
-    page.click("#stat")
+    page.click("#stat")                                                      # the header's dots open Status, in Settings
+    assert page.get_attribute("#st-status", "aria-selected") == "true" and page.is_visible("#sec-status")
     page.wait_for_selector("#p-status .card h3:has-text('llama.cpp server')")
     card = page.inner_text("#p-status .card:has(h3:has-text('llama.cpp server'))")
     assert "used by the harness" in card.lower() and "76,032 context, 2 slots" in card

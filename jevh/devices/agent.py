@@ -133,7 +133,7 @@ class Agent:
         self.conf = conf or load_conf()
         if not self.conf.get("key"):
             raise RuntimeError("this device is not paired: run `jevh device pair <hub> <code>` (the code comes from "
-                               "the dashboard's Devices panel)")
+                               "Settings, Devices in the dashboard)")
         self.ops = ops or Ops()
         self.ops.paused = bool(self.conf.get("paused"))
         self.on_activity = on_activity or (lambda e: None)
@@ -445,7 +445,7 @@ def recent_activity(n: int = 200) -> list[dict]:
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="jevh device", description="Let a hub's assistant use this computer.")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("pair", help="pair this computer with a hub, using a code from its dashboard (Devices panel)")
+    p = sub.add_parser("pair", help="pair this computer with a hub, using a code from its dashboard (Settings, Devices)")
     p.add_argument("hub", help="the hub's address, e.g. https://desktop.tailnet.ts.net:10000")
     p.add_argument("code", help="the pairing code, e.g. ABCD-EFGH")
     p.add_argument("--name", help="what the assistant calls this computer (default: its host name)")
@@ -478,7 +478,7 @@ def main(argv: list[str] | None = None) -> None:
             conf_path().unlink()
         except FileNotFoundError:
             pass
-        print("This device's key is deleted. Revoke it in the dashboard too (Devices panel).")
+        print("This device's key is deleted. Revoke it in the dashboard too (Settings, Devices).")
     elif a.cmd == "activity":
         for e in recent_activity(40):
             if e.get("kind") == "done":

@@ -21,7 +21,7 @@ flowchart LR
   RUN["Runner thread in the dashboard<br/>every tick: due widgets"] -->|"refresh(): fetch, dedupe, alerts"| DB
   RUN -->|"newsroom / newsroom_alert events"| BUS["Hub.publish -> SSE"]
   JJ["Jev: is this item about ...?<br/>(only widgets with an about alert)"] -.->|"judge()"| RUN
-  DB -->|"GET /api/newsroom?rev="| PAGE["Newsroom tab: grid, bell list,<br/>toasts, Add widget form"]
+  DB -->|"GET /api/newsroom?rev="| PAGE["Newsroom page: grid, bell list,<br/>toasts, Add widget form"]
   BUS --> PAGE
   PAGE -->|"POST /api/newsroom/*"| DB
   K["KINDS registry<br/>(the widget template)"] --> W

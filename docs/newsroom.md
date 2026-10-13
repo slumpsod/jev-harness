@@ -13,7 +13,7 @@ You don't build it by hand. **Ask in the chat:**
 > What's on my newsroom?
 
 The assistant puts the widget on the board, takes a first look, and tells you what it found and what will notify you.
-(The tab opens by itself when a turn adds a widget; switch that off with *Open the panel for you* in Appearance.)
+(The page opens by itself when a turn adds a widget, with the new tile marked; switch that off with *Open panels and pages for you* in Appearance.)
 
 > **Status: partly verified.** Built in a cloud session, then run on 2026-10-09 against the real thing: Jev = semif, worker =
 > Qwen3.8 27B (Q5_K_M, llama.cpp), Windows; the offline tests pass (`python -m pytest -q tests/test_newsroom*.py`).
@@ -71,7 +71,7 @@ The **first look at a widget is its baseline**: the items already there are show
 doesn't bury you in the last month's stories. One look notifies at most five times, then one "and N more". A story seen
 again is not new.
 
-Notifications appear as a **bell list** at the top of the Newsroom tab (with a count on its rail icon), as a **toast** in
+Notifications appear as a **bell list** at the top of the Newsroom page (with a count on its rail icon), as a **toast** in
 the page, and, if you press *Desktop alerts* and allow it, as a **desktop notification** while the tab is in the
 background. They are kept until you mark them read or clear them. Nothing leaves your machine: there is no email or
 phone push.

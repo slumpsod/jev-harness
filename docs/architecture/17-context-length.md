@@ -121,7 +121,7 @@ compact = max(2048, min(window × compact_at, window − room))      compact_at 
     lmstudio:ornith-1.5-35b-a3b            window not known: LM Studio has not loaded it yet  -> condenses at 60,000   [fast tier]
   ```
 - The dashboard: the context ring's popover says "Model window: 100,096 tokens (what LM Studio loaded it with)" and what the model
-  supports; the Status tab, the LM Studio pill and the model chip show each loaded model with its context (`/api/status`
+  supports; Settings' Status section, the LM Studio pill and the model chip show each loaded model with its context (`/api/status`
   `lmstudio.contexts`).
 - The CLI: a warning when a window is too small; with `--verbose`, the window once per task.
 
@@ -139,7 +139,7 @@ compact = max(2048, min(window × compact_at, window − room))      compact_at 
 ## Other servers
 
 vLLM (`max_model_len` in `GET /v1/models`) and hosted models are not asked: nothing here runs them, and a
-wrong number would set the limit wrong. (llama.cpp is: see above. The Status panel shows such a server as its own card,
+wrong number would set the limit wrong. (llama.cpp is: see above. Settings' Status section shows such a server as its own card,
 marked "used by the harness" when the config's models run on it; LM Studio's card then says it is not used.) Give such a model `context_length` in its block or provider. Adding a probe means a
 `window()` on its client and a live check beside `evals/bench/context_detect.py`.
 

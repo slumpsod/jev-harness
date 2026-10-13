@@ -155,6 +155,6 @@ def refresh(widget=None) -> list[dict]:
 
 
 def notify(title: str, body: str = "", url: str = "") -> dict:
-    """A notification for the user: the bell on the Newsroom tab, a toast, a desktop notification if they allowed it."""
+    """A notification for the user: the bell on the Newsroom page, a toast, a desktop notification if they allowed it."""
     n = _board().notify(title, body, url, why="from the assistant")
     return {"sent": n["title"], "at": time.strftime("%H:%M", time.localtime(n["ts"]))}

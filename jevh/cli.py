@@ -298,7 +298,7 @@ def show_problems(h, limit: int = 8) -> None:
         what = "skipped" if p.get("skipped") else "warning"
         console.print(f"[yellow]{what}: {p['kind']} {esc(p['name'])}[/] [dim]{esc(p['path'])}[/] {esc(p['error'])}")
     if len(probs) > limit:
-        console.print(f"[yellow]... and {len(probs) - limit} more[/] [dim](the dashboard's Status tab lists them all)[/]")
+        console.print(f"[yellow]... and {len(probs) - limit} more[/] [dim](the dashboard's Settings, Status lists them all)[/]")
 
 
 def notebook_chat(h, cmd: str, arg: str) -> None:

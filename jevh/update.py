@@ -9,7 +9,7 @@
     jevh update --snapshots            # the data snapshots taken before updates
     jevh update --restore-data <name>  # put one back (CLI and dashboard stopped)
 
-The same is /update in the CLI chat and the Harness version card in the dashboard's Status tab.
+The same is /update in the CLI chat and the Harness version card in the dashboard's Settings, Updates.
 
 Channels: `stable` is moved forward by GitHub Actions (.github/workflows/stable.yml) only after the
 tests pass on main, so a broken commit on main never reaches it. It is the default once it exists;

@@ -54,7 +54,7 @@ class SearchBlocked(SearchError):
 
 CHALLENGE = re.compile(r"bots use DuckDuckGo|anomaly-modal|Select all squares", re.I)
 
-# Which engine `search` asks is a setting (the dashboard's Settings tab; jevh/settings.py). It reaches a worker's REPL as
+# Which engine `search` asks is a setting (the dashboard's Settings page; jevh/settings.py). It reaches a worker's REPL as
 # environment variables and the dashboard's own Newsroom as `using(...)`; DuckDuckGo when nothing is set.
 PROVIDERS = {
     "duckduckgo": {"label": "DuckDuckGo", "needs": "",
@@ -95,7 +95,7 @@ def search_env(cfg: dict | None) -> dict[str, str]:
 
 
 def search_with(settings: dict[str, str], query: str, n: int = 8) -> list[dict]:
-    """`search` under these settings (the Settings tab's Test button tries a choice before it is saved)."""
+    """`search` under these settings (the Settings page's Test button tries a choice before it is saved)."""
     with using(settings):
         return search(query, n)
 

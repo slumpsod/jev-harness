@@ -1,4 +1,4 @@
-"""The Settings tab's engine (jevh/settings.py): the layer it saves into, what it validates, the models it lists, the web search
+"""The Settings page's engine (jevh/settings.py): the layer it saves into, what it validates, the models it lists, the web search
 choices, and a harness picking the new choices up. No browser here (tests/test_settings_ui.py has one); the servers are real
 local ones, so the requests that leave are the requests a real server would get."""
 import json

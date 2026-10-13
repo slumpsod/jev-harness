@@ -57,7 +57,7 @@ every skills folder are added to their skill, including the notes that ship with
 A persona or skill that can't be used is skipped with the reason, instead of stopping the harness.
 The reason could be bad YAML, a missing description, a list written as a single value, or a model
 provider that isn't configured. The CLI lists skipped items when it starts, and so does the
-dashboard's Status tab. An unknown key in a persona is dropped with a warning, and the persona still
+dashboard (Settings, Status). An unknown key in a persona is dropped with a warning, and the persona still
 loads. An MCP server that fails to start is listed the same way.
 
 ## Recommendations
