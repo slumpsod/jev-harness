@@ -118,3 +118,59 @@ def test_the_orb_is_the_apps_icon(tmp_path):
     assert img.getpixel((0, 0))[3] < 40 and img.getpixel((32, 32))[3] > 150    # a drop on nothing
     orb_art.write_icon(tmp_path / "orb.ico")
     assert (16, 16) in Image.open(tmp_path / "orb.ico").info["sizes"]
+
+
+# ---------------------------------------------------------------------- the orb's own chat (bar + speech bubbles)
+def test_the_bar_takes_typing_and_sends_on_enter():
+    from jevh.orb_chat import ChatState
+    c = ChatState()
+    for ch in "hello wrld":
+        c.char(ord(ch))
+    c.key(0x25); c.key(0x25); c.key(0x25)          # left x3: before "rld"
+    c.char(ord("o"))
+    assert c.text == "hello world" and c.caret == 8
+    c.char(127)                                     # ctrl+backspace: a word
+    assert c.text == "hello rld"
+    c.char(1); c.char(ord("x"))                     # ctrl+a, then typing replaces it
+    assert c.text == "x"
+    assert c.char(13) == ("send", "x") and c.text == ""
+    assert c.char(13) is None                       # nothing to send
+    assert c.char(27) == ("close",)
+
+
+def test_the_bubble_follows_the_conversation():
+    from jevh.orb_chat import ChatState
+    c = ChatState()
+    old = {"id": 4, "message": "hi", "answer": "hello", "status": "done"}
+    assert c.update({"busy": False, "last": old}) is False and c.bubble is None     # what was already answered is not news
+    c.sent("17 times 23?")
+    assert c.bubble["kind"] == "waiting" and c.bubble_open
+    c.update({"busy": True, "last": {"id": 5, "message": "17 times 23?", "status": "running", "persona": "daily_assistant"}})
+    assert c.bubble["status"] == "Working (daily assistant)"
+    q = {"id": "q1", "question": "Go ahead?", "options": ["Yes", "No"], "secret": False}
+    assert c.update({"busy": True, "last": {"id": 5, "status": "running"}, "question": q}) is True
+    assert c.bubble["kind"] == "question" and c.bubble["options"] == ["Yes", "No"]
+    assert c.char(ord("Y")) is None and c.char(13) == ("answer", "q1", "Y")       # typed answers go to the question
+    c.answered()
+    assert c.update({"busy": False, "last": {"id": 5, "message": "17 times 23?", "answer": "391", "status": "done",
+                                             "persona": "daily_assistant"}}) is True
+    assert c.bubble["kind"] == "reply" and c.bubble["text"] == "391" and c.awaiting is None
+    assert c.update({"busy": False, "last": {"id": 5, "answer": "391", "status": "done"}}) is False   # shown once
+    c.update({"busy": True, "question": {"id": "pw", "question": "Password?", "options": [], "secret": True}})
+    assert c.secret                                                                 # the bar hides what is typed
+
+
+def test_the_bar_and_bubble_are_drawn_with_their_clickable_parts():
+    from jevh import orb_chat_art as a
+    bar, regions = a.draw_bar("hello", 420, 1.5)
+    assert bar.mode == "RGBA" and bar.getpixel((0, 0))[3] == 0 and "send" in regions        # see-through around the pill
+    narrow, regions = a.draw_bar("hello", 50, 1.5)                                            # still sliding out: no text yet
+    assert "send" not in regions
+    img, regions, overflow = a.draw_bubble({"kind": "question", "text": "Go ahead?", "options": ["Yes", "No", "Later"]}, 1.0)
+    assert {"close", "open", "option:0", "option:2"} <= set(regions) and overflow == 0
+    long = "\n\n".join(f"Paragraph {i}: " + "words " * 40 for i in range(12))
+    img, regions, overflow = a.draw_bubble({"kind": "reply", "text": long}, 1.0)
+    assert overflow > 0 and img.height < 420                                                   # a long reply scrolls
+    _, _, after = a.draw_bubble({"kind": "reply", "text": long}, 1.0, scroll=10 ** 6)
+    assert after == overflow
+    assert len(a.premultiplied(img)) == img.width * img.height * 4

@@ -243,7 +243,8 @@ document.getElementById("go").onclick = async () => { const role = (document.que
 
 
 class OrbApi:
-    """window.pywebview.api in the orb's chat bubble (the hub's /orb page)."""
+    """window.pywebview.api in the orb's chat page (the hub's /orb, in a hidden window): it tells the orb the
+    conversation's state; the orb's own bar and speech bubbles (jevh/orb.py) show it."""
 
     def __init__(self, app: "App"):
         self._app = app
@@ -252,6 +253,10 @@ class OrbApi:
         """What the orb shows: idle, working, attention (a question for you) or unread (an answer you haven't seen)."""
         if self._app.orb is not None:
             self._app.orb.set_mood(str(mood))
+
+    def update(self, state: dict) -> None:
+        if self._app.orb is not None and isinstance(state, dict):
+            self._app.orb.chat_state(state)
 
     def close(self, blurred: bool = False) -> None:
         self._app.hide_bubble()
@@ -484,7 +489,11 @@ class App:
         try:
             from .orb import Orb
             pos = self.conf.get("orb_pos")
-            self.orb = Orb(on_click=self.orb_clicked, on_moved=self._orb_moved, pos=tuple(pos) if pos else None)
+            self.orb = Orb(on_click=self.orb_clicked, on_moved=self._orb_moved, pos=tuple(pos) if pos else None,
+                           on_send=lambda text: self._brain("window.orbSend(%s)" % json.dumps(text)),
+                           on_answer=lambda qid, text: self._brain("window.orbAnswer(%s, %s)" % (json.dumps(qid), json.dumps(text))),
+                           on_seen=lambda tid: self._brain("window.orbSeen(%s)" % json.dumps(tid), wait=False),
+                           on_open_app=self.show)
             self.orb.start()
         except Exception:  # noqa: BLE001 - no orb (numpy missing, an old Windows): the app works without it
             self.orb = None
@@ -532,6 +541,31 @@ class App:
         self.bubble = webview.create_window("jev-harness chat", url=url, js_api=OrbApi(self), width=380,
                                             height=540, frameless=True, easy_drag=False, on_top=True, hidden=True,
                                             resizable=False)
+
+    def _brain(self, code: str, wait: bool = True) -> None:
+        """Run `code` in the orb's hidden chat page; if the page is not there (it loaded before the user signed in, or
+        the hub restarted), load it again first."""
+        if self.bubble is None:
+            return
+        try:
+            ok = self.bubble.evaluate_js("typeof window.orbSend === 'function'")
+        except Exception:  # noqa: BLE001
+            ok = False
+        if not ok:
+            if not wait:
+                return
+            self.bubble.load_url(self.home_url + "orb")
+            for _ in range(50):
+                time.sleep(0.2)
+                try:
+                    if self.bubble.evaluate_js("typeof window.orbSend === 'function'"):
+                        break
+                except Exception:  # noqa: BLE001
+                    pass
+        try:
+            self.bubble.evaluate_js(code)
+        except Exception:  # noqa: BLE001
+            pass
 
     def orb_clicked(self) -> None:
         if self.bubble is None:

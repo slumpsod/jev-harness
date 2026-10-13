@@ -141,15 +141,22 @@ device, the app also runs the device agent while it is open. The tray menu has *
 **Activity**, **Start with Windows** and **Quit**. `jevh app --hidden` starts in the tray (what Start with Windows
 runs). `jevh app reset` asks the hub-or-device question again.
 
+The window has no Windows frame: the dashboard's top bar (and the side panel's header) drags it, double-click maximizes,
+and three slim buttons sit in the top right corner (close goes to the tray). It still resizes from its edges, snaps
+to the screen's sides and halves, and has the Windows shadow (`jevh/winchrome.py`, `jevh/web/static/app-chrome.js`). Its
+icon in the taskbar, the tray and the Start menu entry (`jevh app install`) is the orb.
+
 It is a Python app (pywebview with WebView2, and pystray), started from your checkout. There is no installer `.exe` yet.
 
 ### The orb
 
 While the app's window is minimized or closed to the tray, a small blob of water rests at the edge of the screen,
-rolling gently back and forth with a soft glow. **Click it** to chat in a bubble beside it: the same conversation as the
-app, the last few messages, a box to type in (Enter sends). Esc, a click elsewhere or a second click on the orb tucks it
-away; the arrow button opens the full app. **Drag it** anywhere and it settles against the nearer side of the screen,
-and it stays where you put it next time.
+rolling gently back and forth with a soft glow. **Click it** and a slim bar slides out of it: type, Enter sends. The
+reply comes out of the orb as a speech bubble and stays until you close it (its cross), send the next message, or click
+somewhere else, which tucks the bar away too. A long reply scrolls with the mouse wheel; **Open in app** shows the whole
+conversation. When the assistant asks you something, the bubble shows the question with its options to click (or type
+the answer in the bar; a password is typed hidden). A reply that arrives while the bar is closed pops out by itself.
+**Drag the orb** anywhere and it settles against the nearer side of the screen, and it stays where you put it next time.
 
 It tells you things without being clicked:
 
@@ -157,7 +164,7 @@ It tells you things without being clicked:
 |---|---|
 | cyan glow, gentle roll | idle |
 | brighter glow, the water churns | the assistant is working |
-| amber pulse | it is asking you something: click to answer (the question's buttons are in the bubble) |
+| amber pulse | it is asking you something: the question is in its bubble |
 | cyan breathing | an answer you haven't seen yet |
 
 Messages you send from the bubble are from this computer, so "this computer" in them means the one the orb is on.
@@ -166,8 +173,10 @@ Messages you send from the bubble are from this computer, so "this computer" in 
 How it is drawn: a native layered window with per-pixel alpha (`jevh/orb.py`), so the glow blends with whatever is
 behind it and clicks pass through everything but the water. pywebview's own transparent windows came out opaque on
 Windows 11 (measured 2026-10-12). The frames are drawn ahead of time with numpy (`jevh/orb_art.py`), so animating costs
-almost nothing. The bubble is the hub's `/orb` page in a small window. Checked live on the hub's screen
-(2026-10-12): in the tray, then click, then a question answered by Qwen in 5 s, then closed and dragged.
+almost nothing. The bar and the bubble are layered windows too, drawn with Pillow (`jevh/orb_chat_art.py`; what they
+say: `jevh/orb_chat.py`): only the bar takes the keyboard. The conversation goes through the hub's `/orb` page in a hidden
+window, which holds the sign-in. Checked live on the hub's screen (2026-10-13): click, the bar takes the keyboard, a
+question typed and sent, "Working" bubble, Qwen's answer in its bubble, a click elsewhere tucks both away.
 
 ## What has been checked
 

@@ -131,7 +131,25 @@ function computeMood() {
   const m = (st.questions || []).length ? "attention" : st.busy ? "working"
     : last && last.status !== "running" && last.id > seen ? "unread" : "idle";
   if (m !== mood) { mood = m; try { app() && app().mood(m); } catch {} }
+  report();
 }
+// the orb's own chat (jevh/orb.py draws a bar and speech bubbles): it is told the conversation's state, and sends through
+// this page (which holds the sign-in), with orbSend / orbAnswer / orbSeen below
+let reported = "";
+function report() {
+  const st = state || {}, turns = st.turns || [], last = turns[turns.length - 1] || null, q = (st.questions || [])[0] || null;
+  const payload = {mood, busy: !!st.busy,
+    last: last && {id: last.id, message: last.message, answer: last.answer || "", status: last.status, persona: last.persona || ""},
+    question: q && {id: q.id, question: q.question, options: q.options || [], secret: !!q.secret}};
+  const text = JSON.stringify(payload);
+  if (text !== reported) { reported = text; try { app() && app().update(payload); } catch {} }
+}
+window.orbSend = async (text) => {
+  try { await api("/api/chat", {method: "POST", body: JSON.stringify({message: String(text)})}); } catch (e) { $("err").textContent = e.message; }
+  refresh();
+};
+window.orbAnswer = (id, text) => answer(String(id), String(text));
+window.orbSeen = (id) => { markSeen(Number(id)); computeMood(); };
 function markSeen(id) { if (id > seen) { seen = id; try { localStorage.setItem("orb.seen", String(id)); } catch {} } }
 
 let pending = null;
