@@ -1,4 +1,4 @@
-flagged-session fixes, live (2026-10-13 08:05): 102 turns
+flagged-session fixes, live (2026-10-13 09:20): 114 turns
 
 [fence]
   fires      old dev     : 1/6 passed, median 77s, 3.2 code steps
@@ -15,10 +15,10 @@ flagged-session fixes, live (2026-10-13 08:05): 102 turns
     regress_fib        old: 3/3  new: 3/3
 
 [gate]
-  fires      old dev     : 3/3 passed, median 48s, 5.3 code steps, bounces 3
-  fires      old held-out: 3/3 passed, median 39s, 4.7 code steps, bounces 3
-  fires      new dev     : 3/3 passed, median 32s, 3.0 code steps, bounces 1
-  fires      new held-out: 3/3 passed, median 28s, 2.7 code steps, bounces 1
+  fires      old dev     : 3/3 passed, median 66s, 6.7 code steps, bounces 3
+  fires      old held-out: 3/3 passed, median 62s, 4.7 code steps, bounces 3
+  fires      new dev     : 3/3 passed, median 41s, 3.0 code steps, bounces 1
+  fires      new held-out: 3/3 passed, median 40s, 2.0 code steps, bounces 0
     gate_rebate        old: 3/3  new: 3/3
     gate_rebate_short  old: 3/3  new: 3/3
 
@@ -31,15 +31,23 @@ flagged-session fixes, live (2026-10-13 08:05): 102 turns
     cutoff_recall      old: 1/3  new: 3/3
 
 [say]
-  fires      old dev     : 1/3 passed, median 77s, 4.7 code steps, median answer 0s after the question
-  fires      old held-out: 3/3 passed, median 65s, 4.0 code steps, median answer 0s after the question
-  fires      new dev     : 3/3 passed, median 42s, 5.0 code steps, median answer 11s after the question
-  fires      new held-out: 3/3 passed, median 38s, 4.3 code steps, median answer 0s after the question
-  regression old dev     : 3/3 passed, median 37s, 4.0 code steps
-  regression new dev     : 3/3 passed, median 33s, 4.3 code steps
+  fires      old dev     : 0/3 passed, median 109s, 3.7 code steps
+  fires      old held-out: 3/3 passed, median 95s, 4.7 code steps, median answer 0s after the question
+  fires      new dev     : 3/3 passed, median 117s, 5.7 code steps, median answer 13s after the question
+  fires      new held-out: 3/3 passed, median 103s, 4.3 code steps, median answer 0s after the question
+  regression old dev     : 3/3 passed, median 73s, 4.3 code steps
+  regression new dev     : 3/3 passed, median 64s, 4.0 code steps
     say_quiet          old: 3/3  new: 3/3
-    say_where          old: 1/3  new: 3/3
+    say_where          old: 0/3  new: 3/3
     say_why            old: 3/3  new: 3/3
+
+[carry]
+  fires      old dev     : 0/3 passed, median 88s, 2.0 code steps
+  fires      old held-out: 0/3 passed, median 83s, 1.7 code steps
+  fires      new dev     : 3/3 passed, median 40s, 2.0 code steps
+  fires      new held-out: 3/3 passed, median 116s, 1.7 code steps
+    carry_ttt          old: 0/3  new: 3/3
+    carry_ttt2         old: 0/3  new: 3/3
 
 [where]
   fires      old dev     : 1/6 passed, median 27s, 2.2 code steps

@@ -203,7 +203,7 @@ def say_where_check(rec):
         return ok, why
     import platform
     said = " ".join(rec.get("told") or []) or rec.get("aside", "")
-    if rec["heard_by"] == "say()" and (re.search(r"\b(?:on|from) your (?:own )?laptop\b", said, re.I)
+    if rec["heard_by"] == "say()" and (re.search(r"(?<!not )\b(?:on|from) your (?:own )?laptop\b", said, re.I)
                                        or not re.search(re.escape(platform.node()) + r"|\bhub\b|this (?:computer|machine|PC)",
                                                         said, re.I)):
         return False, f"answered, but wrongly or vaguely: {said[:150]!r}"
