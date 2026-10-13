@@ -1,0 +1,3294 @@
+[
+ {
+  "variant": "at80",
+  "seed": 1,
+  "rep": 1,
+  "window_told": 24000,
+  "answer": "Wrote policy.py with decide(case) applying all 18 rules in rule-number order:\n\n1. NORTH: +9% handling \u00b7 2. plus & \u22653 items: \u22125% \u00b7 3. express +$9.00 (doubled in SOUTH) \u00b7 4. total strictly >40000 \u2192 flag 'tundra' \u00b7 5. 'tundra' + EAST \u2192 status 'review' (pro skips, per R17) \u00b7 6. fragile +$2.00/item (plus exempt, per R18) \u00b7 7. SAVE10 \u221210% \u00b7 8. VIP25 \u22124000 (floor 0) \u00b7 9. FREESHIP \u2192 'juniper' \u00b7 10. pro & \u22651 item \u221215% \u00b7 11. WEST +5% \u00b7 12. \u226510 items \u2192 'granite' \u00b7 13. basic capped at 120000 \u00b7 14. express minimum $15.00 \u00b7 15. NORTH removes 'juniper' \u00b7 16. basic & total strictly >85000 \u2192 'reject', total kept, no later changes \u00b7 17/18 are amendments of 5/6 (reflected in place). BULK5 is mentioned by no memo \u2192 no-op. Percent amounts use exact integer half-up rounding (verified: 5% of 1050 = 52.5 \u2192 53; 10% of 1015 = 101.5 \u2192 102; avoids float/banker's rounding). Distractor figures (retired 2019 pilot 18%, ended 2%/5%/14% depot surcharges, superseded draft thresholds 65000/45000/30000/90000, old CS-quoted figures) are ignored. Verified with 47 hand-derived test cases covering every rule, both amendments, strict-threshold edges (40000 no tundra vs 40001 tundra, 85000 vs 85001 reject, 120000 cap, express $15 floor), rounding halves, the VIP25 zero floor, flag add/remove interplay, and status precedence (reject overwrites review) \u2014 all 47/47 pass.",
+  "seconds": 516.1,
+  "input": 378344,
+  "output": 25207,
+  "thinking": 12923,
+  "timed_out": false,
+  "error": null,
+  "call_errors": 0,
+  "steps": 23,
+  "bounces": 1,
+  "compactions": 1,
+  "compact_events": [
+   {
+    "step": 14,
+    "tokens_before": 19572,
+    "tokens_after": 11557,
+    "full": 1,
+    "notes": 9,
+    "dropped": 0
+   }
+  ],
+  "limit": 18000,
+  "window": 24000,
+  "peak_real": 27863,
+  "peak_est": 16561,
+  "real_over_est": 1.161,
+  "prefill_s": 30.5,
+  "decode_s": 474.0,
+  "calls": 23,
+  "calls_log": [
+   {
+    "est": 1497,
+    "real": 1808,
+    "out": 87,
+    "think": 12,
+    "secs": 5.1,
+    "decode": 1.422
+   },
+   {
+    "est": 1590,
+    "real": 2036,
+    "out": 119,
+    "think": 22,
+    "secs": 2.2,
+    "decode": 1.93
+   },
+   {
+    "est": 2884,
+    "real": 3082,
+    "out": 555,
+    "think": 229,
+    "secs": 12.0,
+    "decode": 11.087
+   },
+   {
+    "est": 4491,
+    "real": 4662,
+    "out": 1080,
+    "think": 461,
+    "secs": 19.6,
+    "decode": 18.596
+   },
+   {
+    "est": 6436,
+    "real": 6892,
+    "out": 845,
+    "think": 199,
+    "secs": 17.7,
+    "decode": 15.547
+   },
+   {
+    "est": 8008,
+    "real": 8790,
+    "out": 175,
+    "think": 45,
+    "secs": 4.1,
+    "decode": 3.018
+   },
+   {
+    "est": 8094,
+    "real": 8981,
+    "out": 56,
+    "think": 15,
+    "secs": 1.3,
+    "decode": 1.086
+   },
+   {
+    "est": 9379,
+    "real": 10090,
+    "out": 135,
+    "think": 49,
+    "secs": 3.8,
+    "decode": 2.649
+   },
+   {
+    "est": 10738,
+    "real": 11290,
+    "out": 106,
+    "think": 42,
+    "secs": 3.2,
+    "decode": 1.997
+   },
+   {
+    "est": 11397,
+    "real": 11912,
+    "out": 87,
+    "think": 23,
+    "secs": 2.3,
+    "decode": 1.575
+   },
+   {
+    "est": 11612,
+    "real": 12174,
+    "out": 91,
+    "think": 27,
+    "secs": 1.9,
+    "decode": 1.487
+   },
+   {
+    "est": 12700,
+    "real": 13136,
+    "out": 77,
+    "think": 13,
+    "secs": 2.3,
+    "decode": 1.302
+   },
+   {
+    "est": 13540,
+    "real": 13916,
+    "out": 7908,
+    "think": 6915,
+    "secs": 157.3,
+    "decode": 156.453
+   },
+   {
+    "est": 11558,
+    "real": 13414,
+    "out": 2228,
+    "think": 1049,
+    "secs": 51.5,
+    "decode": 39.516
+   },
+   {
+    "est": 12582,
+    "real": 15680,
+    "out": 2145,
+    "think": 20,
+    "secs": 38.3,
+    "decode": 38.027
+   },
+   {
+    "est": 13014,
+    "real": 18355,
+    "out": 3053,
+    "think": 1496,
+    "secs": 59.1,
+    "decode": 58.362
+   },
+   {
+    "est": 14221,
+    "real": 21579,
+    "out": 3166,
+    "think": 920,
+    "secs": 56.5,
+    "decode": 56.047
+   },
+   {
+    "est": 15025,
+    "real": 24766,
+    "out": 669,
+    "think": 470,
+    "secs": 13.5,
+    "decode": 13.18
+   },
+   {
+    "est": 15472,
+    "real": 25495,
+    "out": 227,
+    "think": 153,
+    "secs": 4.5,
+    "decode": 4.187
+   },
+   {
+    "est": 15622,
+    "real": 25804,
+    "out": 583,
+    "think": 28,
+    "secs": 11.5,
+    "decode": 11.146
+   },
+   {
+    "est": 15857,
+    "real": 26570,
+    "out": 928,
+    "think": 579,
+    "secs": 19.6,
+    "decode": 19.026
+   },
+   {
+    "est": 16492,
+    "real": 27664,
+    "out": 178,
+    "think": 52,
+    "secs": 3.9,
+    "decode": 3.398
+   },
+   {
+    "est": 16561,
+    "real": 27863,
+    "out": 709,
+    "think": 104,
+    "secs": 13.3,
+    "decode": 12.942
+   }
+  ],
+  "rule_blocks": 13,
+  "reread_after_compact": 0,
+  "reread": 0,
+  "history_reads": 0,
+  "passed": 81,
+  "total": 81,
+  "correct": true,
+  "tail": [
+   "........................................................................ [ 88%]",
+   ".........                                                                [100%]",
+   "81 passed in 0.10s"
+  ]
+ },
+ {
+  "variant": "at80_all",
+  "seed": 1,
+  "rep": 1,
+  "window_told": 24000,
+  "answer": " \"flags\": sorted list}.\n\nRules extracted from the pages (decoy background text ignored \u2014 retired 2019-pilot figures, superseded draft thresholds, ended depot-move surcharges):\n- R1 NORTH: +9% of running total. R2 plus + >=3 items: -5%. R3 express: +900c, doubled to 1800c in SOUTH. R4 total strictly over 40000c: flag 'tundra' (40000 gives [], 40001 gives ['tundra']). R5 tundra + EAST: status 'review' \u2014 amended by R17 so pro customers skip it. R6 fragile: +200c/item \u2014 amended by R18 so plus customers are exempt. R7 SAVE10: -10%. R8 VIP25: -4000c, floored at 0. R9 FREESHIP: flag 'juniper', total unchanged. R10 pro + >=1 item: -15%. R11 WEST: +5%. R12 >=10 items: flag 'granite'. R13 basic: cap 120000c. R14 express: floor 1500c. R15 NORTH: remove 'juniper' if present. R16 basic + total strictly over 85000c: status 'reject' (85000 stays 'review', 85001 becomes 'reject'), total unchanged, no later rule applies. R17/R18 are amendment-only memos. BULK5 appears on no page, so it is a no-op.\n\nPercentages apply to the current total, rounded half up to whole cents (Decimal arithmetic, no float drift). Verified with a suite of 41 hand-computed cases covering the edges \u2014 the 40000/40001 and 85000/85001 strictness boundaries, reject overriding an earlier 'review', express floor vs WEST fee ordering, basic cap vs reject interplay, plus/pro exemptions from R5/R6, juniper add-then-remove in NORTH, and rounding (94.95 -> 95, 7.5 -> 8). Final check in the log: \"ran 41 cases, passed 41, failed 0\".",
+  "seconds": 443.4,
+  "input": 389914,
+  "output": 19743,
+  "thinking": 9590,
+  "timed_out": false,
+  "error": null,
+  "call_errors": 0,
+  "steps": 30,
+  "bounces": 2,
+  "compactions": 3,
+  "compact_events": [
+   {
+    "step": 23,
+    "tokens_before": 20633,
+    "tokens_after": 10679,
+    "full": 2,
+    "notes": 17,
+    "dropped": 0
+   },
+   {
+    "step": 25,
+    "tokens_before": 18174,
+    "tokens_after": 13414,
+    "full": 0,
+    "notes": 21,
+    "dropped": 0
+   },
+   {
+    "step": 28,
+    "tokens_before": 18194,
+    "tokens_after": 11384,
+    "full": 0,
+    "notes": 25,
+    "dropped": 0
+   }
+  ],
+  "limit": 18000,
+  "window": 24000,
+  "peak_real": 17932,
+  "peak_est": 20107,
+  "real_over_est": 0.918,
+  "prefill_s": 56.0,
+  "decode_s": 368.1,
+  "calls": 30,
+  "calls_log": [
+   {
+    "est": 1500,
+    "real": 1810,
+    "out": 95,
+    "think": 18,
+    "secs": 5.1,
+    "decode": 1.607
+   },
+   {
+    "est": 1604,
+    "real": 2046,
+    "out": 107,
+    "think": 26,
+    "secs": 2.1,
+    "decode": 1.793
+   },
+   {
+    "est": 2907,
+    "real": 3100,
+    "out": 267,
+    "think": 196,
+    "secs": 6.2,
+    "decode": 5.208
+   },
+   {
+    "est": 3956,
+    "real": 3915,
+    "out": 151,
+    "think": 80,
+    "secs": 3.6,
+    "decode": 2.951
+   },
+   {
+    "est": 4807,
+    "real": 4616,
+    "out": 101,
+    "think": 30,
+    "secs": 2.3,
+    "decode": 1.673
+   },
+   {
+    "est": 5620,
+    "real": 5271,
+    "out": 114,
+    "think": 41,
+    "secs": 2.6,
+    "decode": 1.961
+   },
+   {
+    "est": 6451,
+    "real": 5964,
+    "out": 101,
+    "think": 30,
+    "secs": 2.3,
+    "decode": 1.636
+   },
+   {
+    "est": 7280,
+    "real": 6639,
+    "out": 129,
+    "think": 52,
+    "secs": 2.9,
+    "decode": 2.162
+   },
+   {
+    "est": 8173,
+    "real": 7373,
+    "out": 112,
+    "think": 32,
+    "secs": 2.7,
+    "decode": 1.93
+   },
+   {
+    "est": 8973,
+    "real": 8043,
+    "out": 88,
+    "think": 20,
+    "secs": 2.3,
+    "decode": 1.424
+   },
+   {
+    "est": 9748,
+    "real": 8679,
+    "out": 100,
+    "think": 29,
+    "secs": 2.3,
+    "decode": 1.616
+   },
+   {
+    "est": 10559,
+    "real": 9348,
+    "out": 93,
+    "think": 24,
+    "secs": 2.3,
+    "decode": 1.567
+   },
+   {
+    "est": 11333,
+    "real": 9986,
+    "out": 107,
+    "think": 36,
+    "secs": 2.6,
+    "decode": 1.854
+   },
+   {
+    "est": 12166,
+    "real": 10665,
+    "out": 100,
+    "think": 32,
+    "secs": 2.5,
+    "decode": 1.723
+   },
+   {
+    "est": 12969,
+    "real": 11326,
+    "out": 93,
+    "think": 24,
+    "secs": 2.3,
+    "decode": 1.531
+   },
+   {
+    "est": 13783,
+    "real": 11999,
+    "out": 119,
+    "think": 46,
+    "secs": 2.9,
+    "decode": 2.113
+   },
+   {
+    "est": 14582,
+    "real": 12666,
+    "out": 113,
+    "think": 43,
+    "secs": 2.6,
+    "decode": 1.879
+   },
+   {
+    "est": 15428,
+    "real": 13362,
+    "out": 116,
+    "think": 46,
+    "secs": 2.8,
+    "decode": 2.025
+   },
+   {
+    "est": 16263,
+    "real": 14046,
+    "out": 195,
+    "think": 107,
+    "secs": 4.2,
+    "decode": 3.446
+   },
+   {
+    "est": 17213,
+    "real": 14827,
+    "out": 225,
+    "think": 147,
+    "secs": 5.6,
+    "decode": 4.748
+   },
+   {
+    "est": 18202,
+    "real": 15648,
+    "out": 2114,
+    "think": 1929,
+    "secs": 43.1,
+    "decode": 42.273
+   },
+   {
+    "est": 20107,
+    "real": 17932,
+    "out": 4906,
+    "think": 3679,
+    "secs": 95.6,
+    "decode": 95.155
+   },
+   {
+    "est": 11975,
+    "real": 13801,
+    "out": 2069,
+    "think": 31,
+    "secs": 49.0,
+    "decode": 36.21
+   },
+   {
+    "est": 12883,
+    "real": 16990,
+    "out": 1334,
+    "think": 528,
+    "secs": 26.3,
+    "decode": 24.988
+   },
+   {
+    "est": 10172,
+    "real": 15446,
+    "out": 869,
+    "think": 668,
+    "secs": 29.2,
+    "decode": 16.061
+   },
+   {
+    "est": 10765,
+    "real": 16397,
+    "out": 620,
+    "think": 11,
+    "secs": 12.0,
+    "decode": 11.672
+   },
+   {
+    "est": 10968,
+    "real": 17175,
+    "out": 2720,
+    "think": 694,
+    "secs": 49.3,
+    "decode": 48.731
+   },
+   {
+    "est": 7270,
+    "real": 10175,
+    "out": 668,
+    "think": 35,
+    "secs": 19.9,
+    "decode": 11.51
+   },
+   {
+    "est": 7504,
+    "real": 11026,
+    "out": 503,
+    "think": 202,
+    "secs": 10.1,
+    "decode": 9.639
+   },
+   {
+    "est": 7883,
+    "real": 11729,
+    "out": 1414,
+    "think": 754,
+    "secs": 27.4,
+    "decode": 26.987
+   }
+  ],
+  "rule_blocks": 22,
+  "reread_after_compact": 0,
+  "reread": 0,
+  "history_reads": 0,
+  "passed": 81,
+  "total": 81,
+  "correct": true,
+  "tail": [
+   "........................................................................ [ 88%]",
+   ".........                                                                [100%]",
+   "81 passed in 0.10s"
+  ]
+ },
+ {
+  "variant": "base",
+  "seed": 1,
+  "rep": 1,
+  "window_told": 24000,
+  "answer": "Wrote policy.py with decide(case) implementing all 18 memos in rule-number order, using the operative sentences pulled verbatim from the pages (logged above): R-01 NORTH +9% of running total; R-02 plus & at least 3 items \u22125%; R-03 express flat $9.00, doubled in SOUTH; R-04 total over 40000 strictly \u2192 flag 'tundra'; R-05 'tundra' + EAST \u2192 status 'review' (R-17 amends: pro customers skip it); R-06 fragile $2.00/item (R-18 amends: plus customers are exempt and skip it); R-07 SAVE10 \u221210%; R-08 VIP25 \u22124000 cents, floored at 0; R-09 FREESHIP \u2192 flag 'juniper'; R-10 pro & \u22651 item \u221215%; R-11 WEST +5%; R-12 \u226510 items \u2192 flag 'granite'; R-13 basic capped at 120000 cents; R-14 express charged at least $15.00; R-15 NORTH removes 'juniper'; R-16 basic over 85000 strictly \u2192 status 'reject', total unchanged, no later rule changes anything. Percentages round half up to a whole cent. Verified with a 31-case suite covering the strict vs. at-threshold edges (40000/85000), rounding at .45/.5/.54, item-count edges (0/1/3/9/10), the pro and plus exemptions, flag add-then-remove, VIP25 flooring, and review\u2192reject override: log shows \"Test suite: 31/31 passed, 0 failures\", plus spot checks (12315 and 1800) matching hand traces of the rule sequence.",
+  "seconds": 583.3,
+  "input": 652639,
+  "output": 23730,
+  "thinking": 14582,
+  "timed_out": false,
+  "error": null,
+  "call_errors": 0,
+  "steps": 54,
+  "bounces": 1,
+  "compactions": 8,
+  "compact_events": [
+   {
+    "step": 18,
+    "tokens_before": 14581,
+    "tokens_after": 7756,
+    "full": 4,
+    "notes": 10,
+    "dropped": 0
+   },
+   {
+    "step": 26,
+    "tokens_before": 15035,
+    "tokens_after": 8504,
+    "full": 3,
+    "notes": 19,
+    "dropped": 0
+   },
+   {
+    "step": 33,
+    "tokens_before": 14636,
+    "tokens_after": 8670,
+    "full": 1,
+    "notes": 28,
+    "dropped": 0
+   },
+   {
+    "step": 40,
+    "tokens_before": 14750,
+    "tokens_after": 9310,
+    "full": 0,
+    "notes": 36,
+    "dropped": 0
+   },
+   {
+    "step": 44,
+    "tokens_before": 14792,
+    "tokens_after": 10465,
+    "full": 0,
+    "notes": 36,
+    "dropped": 4
+   },
+   {
+    "step": 47,
+    "tokens_before": 15134,
+    "tokens_after": 11090,
+    "full": 0,
+    "notes": 32,
+    "dropped": 11
+   },
+   {
+    "step": 49,
+    "tokens_before": 15535,
+    "tokens_after": 14067,
+    "full": 0,
+    "notes": 30,
+    "dropped": 15
+   },
+   {
+    "step": 50,
+    "tokens_before": 14457,
+    "tokens_after": 11128,
+    "full": 0,
+    "notes": 29,
+    "dropped": 17
+   }
+  ],
+  "limit": 14400,
+  "window": 24000,
+  "peak_real": 20030,
+  "peak_est": 14742,
+  "real_over_est": 0.888,
+  "prefill_s": 108.7,
+  "decode_s": 446.5,
+  "calls": 54,
+  "calls_log": [
+   {
+    "est": 1497,
+    "real": 1799,
+    "out": 86,
+    "think": 13,
+    "secs": 4.0,
+    "decode": 1.424
+   },
+   {
+    "est": 1592,
+    "real": 2026,
+    "out": 144,
+    "think": 15,
+    "secs": 2.7,
+    "decode": 2.398
+   },
+   {
+    "est": 2875,
+    "real": 3107,
+    "out": 247,
+    "think": 95,
+    "secs": 5.7,
+    "decode": 4.704
+   },
+   {
+    "est": 3062,
+    "real": 3503,
+    "out": 64,
+    "think": 31,
+    "secs": 1.5,
+    "decode": 1.205
+   },
+   {
+    "est": 3845,
+    "real": 4115,
+    "out": 200,
+    "think": 167,
+    "secs": 4.9,
+    "decode": 4.223
+   },
+   {
+    "est": 4796,
+    "real": 4865,
+    "out": 60,
+    "think": 27,
+    "secs": 1.7,
+    "decode": 0.982
+   },
+   {
+    "est": 5587,
+    "real": 5479,
+    "out": 88,
+    "think": 55,
+    "secs": 2.1,
+    "decode": 1.449
+   },
+   {
+    "est": 6409,
+    "real": 6146,
+    "out": 69,
+    "think": 36,
+    "secs": 1.8,
+    "decode": 1.127
+   },
+   {
+    "est": 7325,
+    "real": 6861,
+    "out": 130,
+    "think": 97,
+    "secs": 3.1,
+    "decode": 2.31
+   },
+   {
+    "est": 8258,
+    "real": 7596,
+    "out": 85,
+    "think": 52,
+    "secs": 2.1,
+    "decode": 1.377
+   },
+   {
+    "est": 9056,
+    "real": 8239,
+    "out": 53,
+    "think": 20,
+    "secs": 1.6,
+    "decode": 0.856
+   },
+   {
+    "est": 9817,
+    "real": 8840,
+    "out": 63,
+    "think": 30,
+    "secs": 1.7,
+    "decode": 0.997
+   },
+   {
+    "est": 10615,
+    "real": 9472,
+    "out": 62,
+    "think": 28,
+    "secs": 1.8,
+    "decode": 1.051
+   },
+   {
+    "est": 11378,
+    "real": 10079,
+    "out": 59,
+    "think": 25,
+    "secs": 1.7,
+    "decode": 0.958
+   },
+   {
+    "est": 12189,
+    "real": 10710,
+    "out": 66,
+    "think": 32,
+    "secs": 1.8,
+    "decode": 1.109
+   },
+   {
+    "est": 12977,
+    "real": 11337,
+    "out": 57,
+    "think": 23,
+    "secs": 1.7,
+    "decode": 0.918
+   },
+   {
+    "est": 13778,
+    "real": 11974,
+    "out": 94,
+    "think": 60,
+    "secs": 2.4,
+    "decode": 1.646
+   },
+   {
+    "est": 7757,
+    "real": 6976,
+    "out": 94,
+    "think": 60,
+    "secs": 8.2,
+    "decode": 1.602
+   },
+   {
+    "est": 8609,
+    "real": 7653,
+    "out": 113,
+    "think": 79,
+    "secs": 2.7,
+    "decode": 1.992
+   },
+   {
+    "est": 9473,
+    "real": 8334,
+    "out": 163,
+    "think": 129,
+    "secs": 3.6,
+    "decode": 2.841
+   },
+   {
+    "est": 10405,
+    "real": 9083,
+    "out": 363,
+    "think": 329,
+    "secs": 7.8,
+    "decode": 7.022
+   },
+   {
+    "est": 11496,
+    "real": 10042,
+    "out": 270,
+    "think": 220,
+    "secs": 6.0,
+    "decode": 5.239
+   },
+   {
+    "est": 12501,
+    "real": 10860,
+    "out": 136,
+    "think": 103,
+    "secs": 3.1,
+    "decode": 2.394
+   },
+   {
+    "est": 13348,
+    "real": 11546,
+    "out": 92,
+    "think": 59,
+    "secs": 2.3,
+    "decode": 1.54
+   },
+   {
+    "est": 14168,
+    "real": 12192,
+    "out": 135,
+    "think": 102,
+    "secs": 3.2,
+    "decode": 2.507
+   },
+   {
+    "est": 8504,
+    "real": 7581,
+    "out": 149,
+    "think": 116,
+    "secs": 9.0,
+    "decode": 2.691
+   },
+   {
+    "est": 9407,
+    "real": 8304,
+    "out": 356,
+    "think": 323,
+    "secs": 7.1,
+    "decode": 6.34
+   },
+   {
+    "est": 10562,
+    "real": 9265,
+    "out": 120,
+    "think": 87,
+    "secs": 2.8,
+    "decode": 2.081
+   },
+   {
+    "est": 11392,
+    "real": 9943,
+    "out": 85,
+    "think": 52,
+    "secs": 2.1,
+    "decode": 1.379
+   },
+   {
+    "est": 12182,
+    "real": 10576,
+    "out": 96,
+    "think": 63,
+    "secs": 2.2,
+    "decode": 1.525
+   },
+   {
+    "est": 13006,
+    "real": 11241,
+    "out": 89,
+    "think": 55,
+    "secs": 2.2,
+    "decode": 1.446
+   },
+   {
+    "est": 13794,
+    "real": 11875,
+    "out": 94,
+    "think": 60,
+    "secs": 2.2,
+    "decode": 1.492
+   },
+   {
+    "est": 8671,
+    "real": 7700,
+    "out": 97,
+    "think": 63,
+    "secs": 7.9,
+    "decode": 1.557
+   },
+   {
+    "est": 9488,
+    "real": 8358,
+    "out": 85,
+    "think": 51,
+    "secs": 2.2,
+    "decode": 1.458
+   },
+   {
+    "est": 10312,
+    "real": 9023,
+    "out": 105,
+    "think": 71,
+    "secs": 2.4,
+    "decode": 1.703
+   },
+   {
+    "est": 11120,
+    "real": 9676,
+    "out": 99,
+    "think": 65,
+    "secs": 2.3,
+    "decode": 1.616
+   },
+   {
+    "est": 11970,
+    "real": 10358,
+    "out": 95,
+    "think": 61,
+    "secs": 2.4,
+    "decode": 1.625
+   },
+   {
+    "est": 12800,
+    "real": 11021,
+    "out": 192,
+    "think": 158,
+    "secs": 4.8,
+    "decode": 4.01
+   },
+   {
+    "est": 13764,
+    "real": 11799,
+    "out": 198,
+    "think": 164,
+    "secs": 4.7,
+    "decode": 3.983
+   },
+   {
+    "est": 9311,
+    "real": 8227,
+    "out": 247,
+    "think": 133,
+    "secs": 11.7,
+    "decode": 4.775
+   },
+   {
+    "est": 10877,
+    "real": 9461,
+    "out": 442,
+    "think": 193,
+    "secs": 10.6,
+    "decode": 9.492
+   },
+   {
+    "est": 12439,
+    "real": 10984,
+    "out": 334,
+    "think": 212,
+    "secs": 8.3,
+    "decode": 6.771
+   },
+   {
+    "est": 13242,
+    "real": 11717,
+    "out": 425,
+    "think": 223,
+    "secs": 9.3,
+    "decode": 8.73
+   },
+   {
+    "est": 10465,
+    "real": 9660,
+    "out": 640,
+    "think": 305,
+    "secs": 20.5,
+    "decode": 12.568
+   },
+   {
+    "est": 11176,
+    "real": 10591,
+    "out": 809,
+    "think": 581,
+    "secs": 15.7,
+    "decode": 15.266
+   },
+   {
+    "est": 11955,
+    "real": 11481,
+    "out": 3117,
+    "think": 2825,
+    "secs": 60.1,
+    "decode": 59.76
+   },
+   {
+    "est": 11090,
+    "real": 11310,
+    "out": 6312,
+    "think": 4902,
+    "secs": 124.9,
+    "decode": 115.716
+   },
+   {
+    "est": 14742,
+    "real": 17678,
+    "out": 2352,
+    "think": 13,
+    "secs": 42.9,
+    "decode": 42.55
+   },
+   {
+    "est": 14067,
+    "real": 19395,
+    "out": 752,
+    "think": 350,
+    "secs": 32.8,
+    "decode": 14.824
+   },
+   {
+    "est": 11129,
+    "real": 16518,
+    "out": 279,
+    "think": 55,
+    "secs": 19.3,
+    "decode": 5.492
+   },
+   {
+    "est": 11254,
+    "real": 16863,
+    "out": 763,
+    "think": 284,
+    "secs": 15.1,
+    "decode": 14.791
+   },
+   {
+    "est": 11696,
+    "real": 17787,
+    "out": 1243,
+    "think": 861,
+    "secs": 26.6,
+    "decode": 26.031
+   },
+   {
+    "est": 13069,
+    "real": 19510,
+    "out": 459,
+    "think": 183,
+    "secs": 9.9,
+    "decode": 9.214
+   },
+   {
+    "est": 13339,
+    "real": 20030,
+    "out": 703,
+    "think": 186,
+    "secs": 14.0,
+    "decode": 13.704
+   }
+  ],
+  "rule_blocks": 5,
+  "reread_after_compact": 2,
+  "reread": 2,
+  "history_reads": 0,
+  "passed": 81,
+  "total": 81,
+  "correct": true,
+  "tail": [
+   "........................................................................ [ 88%]",
+   ".........                                                                [100%]",
+   "81 passed in 0.10s"
+  ]
+ },
+ {
+  "variant": "at80_all",
+  "seed": 2,
+  "rep": 1,
+  "window_told": 24000,
+  "answer": "Done: C:/Users/Jedidiah/Projects/jev-harness/evals/bench/runs/long_horizon/ws/at80_all__s2__r1/policy.py is written and verified. decide(case) applies R-01..R-18 in rule-number order, honouring the two amendments (R-17 exempts pro from R-05's review; R-18 makes plus skip R-06's packing fee) and ignoring the decoys (BULK5 does nothing; superseded/pilot figures are not in force). Returns {\"total\": int, \"status\": str, \"flags\": list} with flags sorted; status stays 'ok' unless a rule changes it. Verification: 41 hand-computed test cases (35 main + 6 extra) all passed, covering every rule, both amendments, and the edges \u2014 e.g. 72001 -> kestrel/review (strictly over 72000), 70001 -> rejected (strictly over 70000), amount 50 -> 52 (R-13 fee), amount 75 -> 80 (6% of 75 = 4.5, rounds half-up to 5), item-count boundaries, and rule-order interactions (R-03 fee before R-04 threshold; R-04 before R-13 cap; R-16 rejection overrides R-05 review). Input dict is not mutated.",
+  "seconds": 411.7,
+  "input": 370294,
+  "output": 18690,
+  "thinking": 10089,
+  "timed_out": false,
+  "error": null,
+  "call_errors": 0,
+  "steps": 30,
+  "bounces": 2,
+  "compactions": 3,
+  "compact_events": [
+   {
+    "step": 22,
+    "tokens_before": 18532,
+    "tokens_after": 9871,
+    "full": 3,
+    "notes": 15,
+    "dropped": 0
+   },
+   {
+    "step": 25,
+    "tokens_before": 21033,
+    "tokens_after": 12765,
+    "full": 0,
+    "notes": 21,
+    "dropped": 0
+   },
+   {
+    "step": 28,
+    "tokens_before": 18380,
+    "tokens_after": 11448,
+    "full": 0,
+    "notes": 25,
+    "dropped": 0
+   }
+  ],
+  "limit": 18000,
+  "window": 24000,
+  "peak_real": 20476,
+  "peak_est": 18313,
+  "real_over_est": 0.938,
+  "prefill_s": 49.4,
+  "decode_s": 344.8,
+  "calls": 30,
+  "calls_log": [
+   {
+    "est": 1500,
+    "real": 1809,
+    "out": 91,
+    "think": 15,
+    "secs": 4.3,
+    "decode": 1.517
+   },
+   {
+    "est": 1600,
+    "real": 2041,
+    "out": 143,
+    "think": 18,
+    "secs": 2.6,
+    "decode": 2.26
+   },
+   {
+    "est": 2885,
+    "real": 3122,
+    "out": 127,
+    "think": 51,
+    "secs": 3.3,
+    "decode": 2.308
+   },
+   {
+    "est": 3733,
+    "real": 3813,
+    "out": 290,
+    "think": 240,
+    "secs": 6.2,
+    "decode": 5.554
+   },
+   {
+    "est": 4829,
+    "real": 4675,
+    "out": 79,
+    "think": 29,
+    "secs": 2.0,
+    "decode": 1.305
+   },
+   {
+    "est": 5618,
+    "real": 5329,
+    "out": 106,
+    "think": 56,
+    "secs": 2.5,
+    "decode": 1.776
+   },
+   {
+    "est": 6417,
+    "real": 5983,
+    "out": 88,
+    "think": 38,
+    "secs": 2.2,
+    "decode": 1.541
+   },
+   {
+    "est": 7262,
+    "real": 6665,
+    "out": 116,
+    "think": 66,
+    "secs": 2.7,
+    "decode": 1.971
+   },
+   {
+    "est": 8209,
+    "real": 7432,
+    "out": 134,
+    "think": 84,
+    "secs": 3.2,
+    "decode": 2.445
+   },
+   {
+    "est": 9055,
+    "real": 8134,
+    "out": 94,
+    "think": 44,
+    "secs": 2.3,
+    "decode": 1.614
+   },
+   {
+    "est": 9873,
+    "real": 8803,
+    "out": 93,
+    "think": 43,
+    "secs": 2.3,
+    "decode": 1.569
+   },
+   {
+    "est": 10676,
+    "real": 9462,
+    "out": 80,
+    "think": 30,
+    "secs": 2.1,
+    "decode": 1.39
+   },
+   {
+    "est": 11470,
+    "real": 10111,
+    "out": 74,
+    "think": 24,
+    "secs": 1.9,
+    "decode": 1.194
+   },
+   {
+    "est": 12246,
+    "real": 10737,
+    "out": 79,
+    "think": 29,
+    "secs": 2.0,
+    "decode": 1.299
+   },
+   {
+    "est": 13049,
+    "real": 11385,
+    "out": 74,
+    "think": 24,
+    "secs": 2.0,
+    "decode": 1.204
+   },
+   {
+    "est": 13820,
+    "real": 12008,
+    "out": 101,
+    "think": 51,
+    "secs": 2.5,
+    "decode": 1.79
+   },
+   {
+    "est": 14640,
+    "real": 12686,
+    "out": 103,
+    "think": 53,
+    "secs": 2.6,
+    "decode": 1.786
+   },
+   {
+    "est": 15470,
+    "real": 13370,
+    "out": 80,
+    "think": 30,
+    "secs": 2.1,
+    "decode": 1.317
+   },
+   {
+    "est": 16319,
+    "real": 14061,
+    "out": 197,
+    "think": 147,
+    "secs": 4.6,
+    "decode": 3.79
+   },
+   {
+    "est": 17250,
+    "real": 14824,
+    "out": 280,
+    "think": 230,
+    "secs": 6.2,
+    "decode": 5.357
+   },
+   {
+    "est": 18313,
+    "real": 15694,
+    "out": 2929,
+    "think": 2348,
+    "secs": 55.0,
+    "decode": 54.222
+   },
+   {
+    "est": 11518,
+    "real": 10859,
+    "out": 6094,
+    "think": 4906,
+    "secs": 125.6,
+    "decode": 115.485
+   },
+   {
+    "est": 15110,
+    "real": 16975,
+    "out": 2878,
+    "think": 24,
+    "secs": 50.8,
+    "decode": 50.511
+   },
+   {
+    "est": 15632,
+    "real": 20476,
+    "out": 989,
+    "think": 429,
+    "secs": 19.1,
+    "decode": 18.274
+   },
+   {
+    "est": 9745,
+    "real": 15564,
+    "out": 1498,
+    "think": 626,
+    "secs": 41.9,
+    "decode": 28.53
+   },
+   {
+    "est": 10316,
+    "real": 17136,
+    "out": 409,
+    "think": 28,
+    "secs": 8.7,
+    "decode": 8.417
+   },
+   {
+    "est": 10574,
+    "real": 17725,
+    "out": 484,
+    "think": 225,
+    "secs": 10.2,
+    "decode": 9.614
+   },
+   {
+    "est": 6829,
+    "real": 7332,
+    "out": 507,
+    "think": 147,
+    "secs": 14.8,
+    "decode": 8.864
+   },
+   {
+    "est": 7082,
+    "real": 7960,
+    "out": 104,
+    "think": 34,
+    "secs": 2.3,
+    "decode": 1.893
+   },
+   {
+    "est": 7128,
+    "real": 8097,
+    "out": 369,
+    "think": 20,
+    "secs": 6.2,
+    "decode": 5.969
+   }
+  ],
+  "rule_blocks": 22,
+  "reread_after_compact": 0,
+  "reread": 0,
+  "history_reads": 0,
+  "passed": 0,
+  "total": 1,
+  "correct": false,
+  "tail": [
+   "=========================== short test summary info ===========================",
+   "ERROR test_rulebook2_hidden.py",
+   "!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!",
+   "1 error in 0.20s"
+  ]
+ },
+ {
+  "variant": "base",
+  "seed": 2,
+  "rep": 1,
+  "window_told": 24000,
+  "answer": "l>72000 -> flag 'kestrel' (strictly above, verified: 72000 -> no flag, 72001 -> 'kestrel'); R-05 kestrel+NORTH -> status 'review' (amended by R-17: pro exempt/skipped); R-06 fragile +150c/item (amended by R-18: WEST doubles to 300c/item); R-07 SAVE10 -12%; R-08 VIP25 -3000c, clamped at 0; R-09 FREESHIP +5% if not express; R-10 BULK5 +500c if not express; R-11 basic & items>7 -> 'manual'; R-12 total<1000 -> 'tiny'; R-13 pro & items>50 -> 'bulk'; R-14 WEST +3%; R-15 pro & items>=3 +200c/item (per-item fee extracted from source: 200; 3 items -> +600); R-16 total>50000 & EAST +4%.\n- Percentages are of the current running total, rounded half up to a whole cent (Decimal ROUND_HALF_UP). Later status rules override earlier ones (applied in number order). Returns {\"total\": int, \"status\": str, \"flags\": sorted list}.\n\nVerified against 37 hand-computed cases covering the edges (72000 vs 72001, 50000 threshold before/after R-01, exactly 7/50 items, VIP25 clamp, express suppressing FREESHIP/BULK5, status override chains like basic 8 items at 500c -> 'tiny', pro exemption in NORTH) plus a 200k-sample property check of the half-up rounding against exact integer arithmetic. All pass; py_compile OK and fresh import works.\n\n---\nNot verified - the harness's checks still found:\n- These numbers in your answer appear in none of your outputs or the request: 200. Check them against what the tools returned and correct them; if one is your own arithmetic, compute it in code so the result is in the log.",
+  "seconds": 487.5,
+  "input": 447394,
+  "output": 22720,
+  "thinking": 12747,
+  "timed_out": false,
+  "error": null,
+  "call_errors": 0,
+  "steps": 31,
+  "bounces": 2,
+  "compactions": 3,
+  "compact_events": [
+   {
+    "step": 13,
+    "tokens_before": 14442,
+    "tokens_after": 8541,
+    "full": 2,
+    "notes": 7,
+    "dropped": 0
+   },
+   {
+    "step": 18,
+    "tokens_before": 14421,
+    "tokens_after": 8178,
+    "full": 2,
+    "notes": 12,
+    "dropped": 0
+   },
+   {
+    "step": 23,
+    "tokens_before": 15702,
+    "tokens_after": 11069,
+    "full": 0,
+    "notes": 19,
+    "dropped": 0
+   }
+  ],
+  "limit": 14400,
+  "window": 24000,
+  "peak_real": 24542,
+  "peak_est": 14113,
+  "real_over_est": 1.063,
+  "prefill_s": 49.3,
+  "decode_s": 419.4,
+  "calls": 31,
+  "calls_log": [
+   {
+    "est": 1497,
+    "real": 1801,
+    "out": 88,
+    "think": 15,
+    "secs": 3.9,
+    "decode": 1.47
+   },
+   {
+    "est": 1598,
+    "real": 2030,
+    "out": 123,
+    "think": 10,
+    "secs": 2.4,
+    "decode": 2.075
+   },
+   {
+    "est": 2876,
+    "real": 3076,
+    "out": 203,
+    "think": 84,
+    "secs": 4.8,
+    "decode": 3.824
+   },
+   {
+    "est": 3147,
+    "real": 3528,
+    "out": 156,
+    "think": 70,
+    "secs": 3.2,
+    "decode": 2.825
+   },
+   {
+    "est": 3990,
+    "real": 4243,
+    "out": 159,
+    "think": 59,
+    "secs": 3.4,
+    "decode": 2.735
+   },
+   {
+    "est": 4856,
+    "real": 4974,
+    "out": 217,
+    "think": 113,
+    "secs": 4.6,
+    "decode": 3.907
+   },
+   {
+    "est": 6258,
+    "real": 6132,
+    "out": 240,
+    "think": 136,
+    "secs": 5.2,
+    "decode": 4.202
+   },
+   {
+    "est": 7666,
+    "real": 7310,
+    "out": 206,
+    "think": 102,
+    "secs": 4.4,
+    "decode": 3.379
+   },
+   {
+    "est": 9037,
+    "real": 8464,
+    "out": 218,
+    "think": 114,
+    "secs": 4.7,
+    "decode": 3.721
+   },
+   {
+    "est": 10409,
+    "real": 9615,
+    "out": 170,
+    "think": 66,
+    "secs": 3.9,
+    "decode": 2.806
+   },
+   {
+    "est": 11738,
+    "real": 10715,
+    "out": 168,
+    "think": 64,
+    "secs": 3.8,
+    "decode": 2.731
+   },
+   {
+    "est": 13068,
+    "real": 11818,
+    "out": 218,
+    "think": 114,
+    "secs": 4.7,
+    "decode": 3.601
+   },
+   {
+    "est": 8541,
+    "real": 7862,
+    "out": 316,
+    "think": 212,
+    "secs": 12.7,
+    "decode": 5.828
+   },
+   {
+    "est": 10039,
+    "real": 9117,
+    "out": 1103,
+    "think": 944,
+    "secs": 22.8,
+    "decode": 21.743
+   },
+   {
+    "est": 11783,
+    "real": 10792,
+    "out": 112,
+    "think": 31,
+    "secs": 2.6,
+    "decode": 1.865
+   },
+   {
+    "est": 12564,
+    "real": 11452,
+    "out": 153,
+    "think": 72,
+    "secs": 3.5,
+    "decode": 2.731
+   },
+   {
+    "est": 13435,
+    "real": 12199,
+    "out": 269,
+    "think": 188,
+    "secs": 5.7,
+    "decode": 4.966
+   },
+   {
+    "est": 8178,
+    "real": 7697,
+    "out": 182,
+    "think": 101,
+    "secs": 9.3,
+    "decode": 3.024
+   },
+   {
+    "est": 9030,
+    "real": 8447,
+    "out": 114,
+    "think": 33,
+    "secs": 2.6,
+    "decode": 1.901
+   },
+   {
+    "est": 9837,
+    "real": 9136,
+    "out": 5054,
+    "think": 4449,
+    "secs": 96.8,
+    "decode": 96.091
+   },
+   {
+    "est": 13851,
+    "real": 14745,
+    "out": 1367,
+    "think": 10,
+    "secs": 24.0,
+    "decode": 23.3
+   },
+   {
+    "est": 13896,
+    "real": 16170,
+    "out": 5069,
+    "think": 2758,
+    "secs": 91.5,
+    "decode": 91.219
+   },
+   {
+    "est": 11069,
+    "real": 17694,
+    "out": 1850,
+    "think": 1551,
+    "secs": 50.6,
+    "decode": 35.201
+   },
+   {
+    "est": 12105,
+    "real": 19568,
+    "out": 320,
+    "think": 15,
+    "secs": 5.8,
+    "decode": 5.499
+   },
+   {
+    "est": 12248,
+    "real": 20045,
+    "out": 646,
+    "think": 414,
+    "secs": 11.8,
+    "decode": 11.353
+   },
+   {
+    "est": 12504,
+    "real": 20712,
+    "out": 884,
+    "think": 378,
+    "secs": 18.7,
+    "decode": 18.4
+   },
+   {
+    "est": 13002,
+    "real": 21658,
+    "out": 766,
+    "think": 133,
+    "secs": 15.3,
+    "decode": 14.933
+   },
+   {
+    "est": 13297,
+    "real": 22558,
+    "out": 466,
+    "think": 173,
+    "secs": 10.0,
+    "decode": 9.463
+   },
+   {
+    "est": 13608,
+    "real": 23206,
+    "out": 713,
+    "think": 31,
+    "secs": 13.0,
+    "decode": 12.553
+   },
+   {
+    "est": 13792,
+    "real": 24040,
+    "out": 441,
+    "think": 270,
+    "secs": 10.1,
+    "decode": 9.568
+   },
+   {
+    "est": 14113,
+    "real": 24542,
+    "out": 729,
+    "think": 37,
+    "secs": 12.9,
+    "decode": 12.508
+   }
+  ],
+  "rule_blocks": 20,
+  "reread_after_compact": 7,
+  "reread": 7,
+  "history_reads": 0,
+  "passed": 20,
+  "total": 81,
+  "correct": false,
+  "tail": [
+   "FAILED test_rulebook2_hidden.py::test_case_76 - AssertionError: assert {'tota...",
+   "FAILED test_rulebook2_hidden.py::test_case_78 - AssertionError: assert {'tota...",
+   "FAILED test_rulebook2_hidden.py::test_case_79 - AssertionError: assert {'tota...",
+   "61 failed, 20 passed in 0.21s"
+  ]
+ },
+ {
+  "variant": "at80",
+  "seed": 2,
+  "rep": 1,
+  "window_told": 24000,
+  "answer": " ignoring boilerplate, retired 2019-pilot figures, superseded draft thresholds, and the ended depot-move surcharges. BULK5 appears in no memo (verified by grep: only SAVE10 in rule 7, VIP25 in rule 8, FREESHIP in rule 9), so it does nothing.\n\nEffective rules (memo dollar figures converted to cents: $9.00 = 900, $18.00 = 1800, $1.50 = 150, $30.00 = 3000): 1 EAST +6% of running total; 2 plus & 4+ items -12%; 3 express +900 cents, doubled to 1800 in SOUTH; 4 running total strictly above 72000 -> flag 'kestrel'; 5 kestrel & NORTH -> status 'review', total unchanged; 6 fragile +150 cents per item; 7 SAVE10 -12%; 8 VIP25 flat -3000, floor 0; 9 FREESHIP -> flag 'onyx'; 10 pro & 2+ items -6%; 11 WEST +3%; 12 10+ items -> flag 'sparrow'; 13 basic capped at 95000; 14 express floored at 2000; 15 EAST removes 'onyx'; 16 basic & above 70000 -> status 'rejected', total frozen for the remaining rules; 17 pro exempt from rule 5; 18 plus exempt from rule 6. Percentages use exact decimal arithmetic rounded half-up to whole cents.\n\nVerified: 29/29 hand-computed edge cases passed, including the strict-vs-at boundaries (70000 -> ok, 70001 -> rejected; 72000 -> no kestrel, 72001 -> kestrel; express fee pushing 71900 vs 72100 across the kestrel line), rounding (1.5-cent values round up: 23 and 52), VIP25 floor to 0, express floor, basic cap, the R17/R18 exemptions, and flag sorting; plus a 20000-case randomized cross-check against an independently written reference implementation with 0 mismatches.",
+  "seconds": 645.7,
+  "input": 690300,
+  "output": 28805,
+  "thinking": 18916,
+  "timed_out": false,
+  "error": null,
+  "call_errors": 0,
+  "steps": 51,
+  "bounces": 2,
+  "compactions": 4,
+  "compact_events": [
+   {
+    "step": 20,
+    "tokens_before": 18133,
+    "tokens_after": 7763,
+    "full": 2,
+    "notes": 14,
+    "dropped": 0
+   },
+   {
+    "step": 31,
+    "tokens_before": 18287,
+    "tokens_after": 8617,
+    "full": 1,
+    "notes": 26,
+    "dropped": 0
+   },
+   {
+    "step": 41,
+    "tokens_before": 24572,
+    "tokens_after": 14950,
+    "full": 0,
+    "notes": 32,
+    "dropped": 5
+   },
+   {
+    "step": 45,
+    "tokens_before": 18549,
+    "tokens_after": 9381,
+    "full": 0,
+    "notes": 29,
+    "dropped": 12
+   }
+  ],
+  "limit": 18000,
+  "window": 24000,
+  "peak_real": 22755,
+  "peak_est": 17741,
+  "real_over_est": 0.879,
+  "prefill_s": 73.7,
+  "decode_s": 545.8,
+  "calls": 51,
+  "calls_log": [
+   {
+    "est": 1497,
+    "real": 1807,
+    "out": 86,
+    "think": 11,
+    "secs": 4.7,
+    "decode": 1.429
+   },
+   {
+    "est": 1588,
+    "real": 2034,
+    "out": 123,
+    "think": 10,
+    "secs": 2.4,
+    "decode": 2.086
+   },
+   {
+    "est": 2861,
+    "real": 3079,
+    "out": 444,
+    "think": 338,
+    "secs": 10.5,
+    "decode": 9.518
+   },
+   {
+    "est": 4082,
+    "real": 4088,
+    "out": 377,
+    "think": 272,
+    "secs": 8.1,
+    "decode": 7.43
+   },
+   {
+    "est": 5705,
+    "real": 5390,
+    "out": 271,
+    "think": 138,
+    "secs": 6.2,
+    "decode": 5.183
+   },
+   {
+    "est": 6698,
+    "real": 6233,
+    "out": 109,
+    "think": 37,
+    "secs": 2.5,
+    "decode": 1.785
+   },
+   {
+    "est": 7495,
+    "real": 6917,
+    "out": 124,
+    "think": 52,
+    "secs": 2.8,
+    "decode": 2.074
+   },
+   {
+    "est": 8292,
+    "real": 7589,
+    "out": 84,
+    "think": 52,
+    "secs": 2.2,
+    "decode": 1.463
+   },
+   {
+    "est": 9148,
+    "real": 8267,
+    "out": 98,
+    "think": 66,
+    "secs": 2.3,
+    "decode": 1.611
+   },
+   {
+    "est": 9988,
+    "real": 8944,
+    "out": 102,
+    "think": 70,
+    "secs": 2.5,
+    "decode": 1.716
+   },
+   {
+    "est": 10810,
+    "real": 9614,
+    "out": 80,
+    "think": 48,
+    "secs": 2.2,
+    "decode": 1.476
+   },
+   {
+    "est": 11633,
+    "real": 10269,
+    "out": 79,
+    "think": 47,
+    "secs": 2.1,
+    "decode": 1.388
+   },
+   {
+    "est": 12444,
+    "real": 10914,
+    "out": 76,
+    "think": 43,
+    "secs": 2.0,
+    "decode": 1.299
+   },
+   {
+    "est": 13246,
+    "real": 11559,
+    "out": 57,
+    "think": 24,
+    "secs": 1.7,
+    "decode": 0.917
+   },
+   {
+    "est": 14022,
+    "real": 12168,
+    "out": 61,
+    "think": 28,
+    "secs": 1.8,
+    "decode": 1.017
+   },
+   {
+    "est": 14821,
+    "real": 12798,
+    "out": 67,
+    "think": 34,
+    "secs": 1.9,
+    "decode": 1.164
+   },
+   {
+    "est": 15600,
+    "real": 13414,
+    "out": 85,
+    "think": 52,
+    "secs": 2.3,
+    "decode": 1.551
+   },
+   {
+    "est": 16418,
+    "real": 14076,
+    "out": 85,
+    "think": 52,
+    "secs": 2.3,
+    "decode": 1.55
+   },
+   {
+    "est": 17245,
+    "real": 14742,
+    "out": 106,
+    "think": 73,
+    "secs": 2.6,
+    "decode": 1.844
+   },
+   {
+    "est": 7763,
+    "real": 6972,
+    "out": 697,
+    "think": 664,
+    "secs": 20.5,
+    "decode": 13.874
+   },
+   {
+    "est": 9390,
+    "real": 8235,
+    "out": 103,
+    "think": 70,
+    "secs": 2.5,
+    "decode": 1.798
+   },
+   {
+    "est": 10254,
+    "real": 8928,
+    "out": 584,
+    "think": 530,
+    "secs": 12.5,
+    "decode": 11.816
+   },
+   {
+    "est": 11619,
+    "real": 10084,
+    "out": 72,
+    "think": 40,
+    "secs": 2.0,
+    "decode": 1.244
+   },
+   {
+    "est": 12417,
+    "real": 10731,
+    "out": 82,
+    "think": 50,
+    "secs": 2.1,
+    "decode": 1.395
+   },
+   {
+    "est": 13215,
+    "real": 11361,
+    "out": 82,
+    "think": 50,
+    "secs": 2.2,
+    "decode": 1.488
+   },
+   {
+    "est": 14065,
+    "real": 12037,
+    "out": 227,
+    "think": 195,
+    "secs": 5.0,
+    "decode": 4.275
+   },
+   {
+    "est": 15047,
+    "real": 12843,
+    "out": 101,
+    "think": 69,
+    "secs": 2.5,
+    "decode": 1.74
+   },
+   {
+    "est": 15872,
+    "real": 13512,
+    "out": 73,
+    "think": 41,
+    "secs": 2.0,
+    "decode": 1.262
+   },
+   {
+    "est": 16682,
+    "real": 14160,
+    "out": 77,
+    "think": 45,
+    "secs": 2.2,
+    "decode": 1.404
+   },
+   {
+    "est": 17489,
+    "real": 14803,
+    "out": 71,
+    "think": 38,
+    "secs": 2.0,
+    "decode": 1.22
+   },
+   {
+    "est": 8617,
+    "real": 7647,
+    "out": 72,
+    "think": 39,
+    "secs": 8.1,
+    "decode": 1.231
+   },
+   {
+    "est": 9408,
+    "real": 8271,
+    "out": 71,
+    "think": 38,
+    "secs": 1.8,
+    "decode": 1.133
+   },
+   {
+    "est": 10315,
+    "real": 8983,
+    "out": 172,
+    "think": 80,
+    "secs": 3.8,
+    "decode": 3.069
+   },
+   {
+    "est": 11687,
+    "real": 10097,
+    "out": 193,
+    "think": 116,
+    "secs": 4.6,
+    "decode": 3.513
+   },
+   {
+    "est": 12608,
+    "real": 10867,
+    "out": 78,
+    "think": 45,
+    "secs": 2.1,
+    "decode": 1.385
+   },
+   {
+    "est": 13425,
+    "real": 11526,
+    "out": 73,
+    "think": 40,
+    "secs": 2.0,
+    "decode": 1.201
+   },
+   {
+    "est": 14282,
+    "real": 12210,
+    "out": 730,
+    "think": 477,
+    "secs": 15.8,
+    "decode": 15.058
+   },
+   {
+    "est": 16123,
+    "real": 13915,
+    "out": 118,
+    "think": 28,
+    "secs": 3.4,
+    "decode": 2.224
+   },
+   {
+    "est": 16710,
+    "real": 14448,
+    "out": 47,
+    "think": 14,
+    "secs": 1.5,
+    "decode": 0.873
+   },
+   {
+    "est": 17518,
+    "real": 15085,
+    "out": 7222,
+    "think": 6592,
+    "secs": 139.2,
+    "decode": 138.438
+   },
+   {
+    "est": 14950,
+    "real": 15419,
+    "out": 701,
+    "think": 61,
+    "secs": 25.9,
+    "decode": 12.119
+   },
+   {
+    "est": 15627,
+    "real": 16654,
+    "out": 1555,
+    "think": 337,
+    "secs": 28.4,
+    "decode": 27.637
+   },
+   {
+    "est": 15990,
+    "real": 18262,
+    "out": 4273,
+    "think": 2564,
+    "secs": 77.2,
+    "decode": 76.906
+   },
+   {
+    "est": 17741,
+    "real": 22755,
+    "out": 1053,
+    "think": 931,
+    "secs": 22.3,
+    "decode": 21.819
+   },
+   {
+    "est": 9382,
+    "real": 13076,
+    "out": 915,
+    "think": 48,
+    "secs": 26.8,
+    "decode": 15.854
+   },
+   {
+    "est": 9526,
+    "real": 14064,
+    "out": 242,
+    "think": 28,
+    "secs": 4.5,
+    "decode": 4.159
+   },
+   {
+    "est": 9603,
+    "real": 14329,
+    "out": 717,
+    "think": 156,
+    "secs": 14.0,
+    "decode": 13.733
+   },
+   {
+    "est": 10003,
+    "real": 15235,
+    "out": 2082,
+    "think": 1722,
+    "secs": 43.6,
+    "decode": 43.045
+   },
+   {
+    "est": 11797,
+    "real": 17671,
+    "out": 864,
+    "think": 250,
+    "secs": 16.7,
+    "decode": 16.114
+   },
+   {
+    "est": 12165,
+    "real": 18706,
+    "out": 2251,
+    "think": 2075,
+    "secs": 47.0,
+    "decode": 46.41
+   },
+   {
+    "est": 14023,
+    "real": 21021,
+    "out": 693,
+    "think": 36,
+    "secs": 12.2,
+    "decode": 11.877
+   }
+  ],
+  "rule_blocks": 6,
+  "reread_after_compact": 1,
+  "reread": 1,
+  "history_reads": 0,
+  "passed": 68,
+  "total": 81,
+  "correct": false,
+  "tail": [
+   "FAILED test_rulebook2_hidden.py::test_case_68 - AssertionError: assert {'tota...",
+   "FAILED test_rulebook2_hidden.py::test_case_69 - AssertionError: assert {'tota...",
+   "FAILED test_rulebook2_hidden.py::test_case_70 - AssertionError: assert {'tota...",
+   "13 failed, 68 passed in 0.13s"
+  ]
+ },
+ {
+  "variant": "base",
+  "seed": 3,
+  "rep": 1,
+  "window_told": 24000,
+  "answer": "Wrote C:/Users/Jedidiah/Projects/jev-harness/evals/bench/runs/long_horizon/ws/base__s3__r1/policy.py with decide(case) -> {\"total\": int, \"status\": str, \"flags\": sorted list}, applying all 18 memos in rule-number order: R1 WEST +9%; R2 plus 4+ items \u221212%; R3 express +$6.00 (\u00d72 in EAST); R4 total strictly >40000 \u2192 'harbor'; R5 harbor+NORTH \u2192 'review' (R17: pro skips); R6 fragile +$2.00/item (R18: plus skips); R7 SAVE10 \u221212%; R8 VIP25 \u2212$40.00 floor 0; R9 FREESHIP \u2192 'juniper'; R10 pro 2+ items \u22129%; R11 SOUTH +11%; R12 8+ items \u2192 'quartz'; R13 basic cap $800.00; R14 express floor 2500c; R15 WEST drops 'juniper'; R16 basic strictly >60000 \u2192 'reject' (total unchanged, no later rule); BULK5 unmentioned \u2192 no-op. Percentages rounded half-up to the cent. Verified: 44/44 edge cases (at/over each threshold, rounding .45/.5/.6, zero floor, amendments, rule ordering) and 20000/20000 fuzz cases vs an independent Decimal-based reference.",
+  "seconds": 742.0,
+  "input": 660481,
+  "output": 34113,
+  "thinking": 15727,
+  "timed_out": false,
+  "error": null,
+  "call_errors": 0,
+  "steps": 50,
+  "bounces": 1,
+  "compactions": 6,
+  "compact_events": [
+   {
+    "step": 17,
+    "tokens_before": 14957,
+    "tokens_after": 7723,
+    "full": 3,
+    "notes": 10,
+    "dropped": 0
+   },
+   {
+    "step": 24,
+    "tokens_before": 14722,
+    "tokens_after": 8129,
+    "full": 0,
+    "notes": 20,
+    "dropped": 0
+   },
+   {
+    "step": 30,
+    "tokens_before": 16029,
+    "tokens_after": 10042,
+    "full": 0,
+    "notes": 26,
+    "dropped": 0
+   },
+   {
+    "step": 34,
+    "tokens_before": 15943,
+    "tokens_after": 10394,
+    "full": 0,
+    "notes": 29,
+    "dropped": 1
+   },
+   {
+    "step": 41,
+    "tokens_before": 14405,
+    "tokens_after": 6842,
+    "full": 0,
+    "notes": 28,
+    "dropped": 10
+   },
+   {
+    "step": 48,
+    "tokens_before": 14438,
+    "tokens_after": 8897,
+    "full": 0,
+    "notes": 26,
+    "dropped": 18
+   }
+  ],
+  "limit": 14400,
+  "window": 24000,
+  "peak_real": 21246,
+  "peak_est": 14292,
+  "real_over_est": 0.971,
+  "prefill_s": 85.7,
+  "decode_s": 628.6,
+  "calls": 50,
+  "calls_log": [
+   {
+    "est": 1497,
+    "real": 1801,
+    "out": 87,
+    "think": 13,
+    "secs": 4.3,
+    "decode": 1.421
+   },
+   {
+    "est": 1591,
+    "real": 2029,
+    "out": 132,
+    "think": 10,
+    "secs": 2.5,
+    "decode": 2.121
+   },
+   {
+    "est": 2865,
+    "real": 3086,
+    "out": 363,
+    "think": 111,
+    "secs": 8.4,
+    "decode": 7.412
+   },
+   {
+    "est": 4281,
+    "real": 4529,
+    "out": 211,
+    "think": 92,
+    "secs": 5.1,
+    "decode": 3.98
+   },
+   {
+    "est": 5150,
+    "real": 5286,
+    "out": 145,
+    "think": 113,
+    "secs": 3.5,
+    "decode": 2.834
+   },
+   {
+    "est": 6041,
+    "real": 5981,
+    "out": 72,
+    "think": 40,
+    "secs": 1.8,
+    "decode": 1.168
+   },
+   {
+    "est": 6836,
+    "real": 6601,
+    "out": 63,
+    "think": 31,
+    "secs": 1.7,
+    "decode": 1.038
+   },
+   {
+    "est": 7650,
+    "real": 7249,
+    "out": 82,
+    "think": 50,
+    "secs": 2.1,
+    "decode": 1.412
+   },
+   {
+    "est": 8479,
+    "real": 7920,
+    "out": 93,
+    "think": 61,
+    "secs": 2.4,
+    "decode": 1.654
+   },
+   {
+    "est": 9318,
+    "real": 8604,
+    "out": 92,
+    "think": 60,
+    "secs": 2.2,
+    "decode": 1.512
+   },
+   {
+    "est": 10163,
+    "real": 9288,
+    "out": 88,
+    "think": 56,
+    "secs": 2.2,
+    "decode": 1.47
+   },
+   {
+    "est": 10973,
+    "real": 9929,
+    "out": 97,
+    "think": 65,
+    "secs": 2.4,
+    "decode": 1.715
+   },
+   {
+    "est": 11787,
+    "real": 10582,
+    "out": 78,
+    "think": 45,
+    "secs": 2.0,
+    "decode": 1.29
+   },
+   {
+    "est": 12573,
+    "real": 11218,
+    "out": 76,
+    "think": 43,
+    "secs": 2.0,
+    "decode": 1.254
+   },
+   {
+    "est": 13359,
+    "real": 11834,
+    "out": 80,
+    "think": 47,
+    "secs": 2.1,
+    "decode": 1.396
+   },
+   {
+    "est": 14176,
+    "real": 12484,
+    "out": 73,
+    "think": 40,
+    "secs": 2.0,
+    "decode": 1.213
+   },
+   {
+    "est": 7723,
+    "real": 6829,
+    "out": 85,
+    "think": 52,
+    "secs": 7.9,
+    "decode": 1.416
+   },
+   {
+    "est": 8515,
+    "real": 7465,
+    "out": 89,
+    "think": 56,
+    "secs": 2.2,
+    "decode": 1.464
+   },
+   {
+    "est": 9334,
+    "real": 8119,
+    "out": 149,
+    "think": 116,
+    "secs": 3.5,
+    "decode": 2.745
+   },
+   {
+    "est": 10262,
+    "real": 8861,
+    "out": 121,
+    "think": 88,
+    "secs": 2.8,
+    "decode": 2.091
+   },
+   {
+    "est": 11132,
+    "real": 9558,
+    "out": 199,
+    "think": 166,
+    "secs": 4.6,
+    "decode": 3.898
+   },
+   {
+    "est": 12081,
+    "real": 10327,
+    "out": 727,
+    "think": 626,
+    "secs": 13.6,
+    "decode": 12.889
+   },
+   {
+    "est": 14046,
+    "real": 11999,
+    "out": 370,
+    "think": 145,
+    "secs": 8.7,
+    "decode": 7.633
+   },
+   {
+    "est": 8129,
+    "real": 7657,
+    "out": 233,
+    "think": 163,
+    "secs": 10.6,
+    "decode": 4.147
+   },
+   {
+    "est": 9658,
+    "real": 8888,
+    "out": 674,
+    "think": 592,
+    "secs": 15.0,
+    "decode": 13.975
+   },
+   {
+    "est": 10720,
+    "real": 9856,
+    "out": 135,
+    "think": 65,
+    "secs": 2.7,
+    "decode": 2.246
+   },
+   {
+    "est": 11645,
+    "real": 10621,
+    "out": 967,
+    "think": 792,
+    "secs": 18.1,
+    "decode": 17.337
+   },
+   {
+    "est": 12491,
+    "real": 11615,
+    "out": 71,
+    "think": 34,
+    "secs": 1.5,
+    "decode": 1.199
+   },
+   {
+    "est": 13323,
+    "real": 12280,
+    "out": 1413,
+    "think": 1136,
+    "secs": 28.2,
+    "decode": 27.434
+   },
+   {
+    "est": 10042,
+    "real": 9497,
+    "out": 1118,
+    "think": 499,
+    "secs": 26.7,
+    "decode": 18.736
+   },
+   {
+    "est": 11989,
+    "real": 11644,
+    "out": 432,
+    "think": 113,
+    "secs": 10.9,
+    "decode": 8.775
+   },
+   {
+    "est": 12548,
+    "real": 12427,
+    "out": 133,
+    "think": 70,
+    "secs": 3.1,
+    "decode": 2.493
+   },
+   {
+    "est": 13895,
+    "real": 13490,
+    "out": 2323,
+    "think": 2188,
+    "secs": 45.7,
+    "decode": 44.652
+   },
+   {
+    "est": 10395,
+    "real": 10182,
+    "out": 3846,
+    "think": 2247,
+    "secs": 77.0,
+    "decode": 68.617
+   },
+   {
+    "est": 11922,
+    "real": 14084,
+    "out": 1933,
+    "think": 18,
+    "secs": 34.4,
+    "decode": 34.126
+   },
+   {
+    "est": 12242,
+    "real": 16420,
+    "out": 1085,
+    "think": 503,
+    "secs": 20.5,
+    "decode": 19.899
+   },
+   {
+    "est": 12736,
+    "real": 17526,
+    "out": 2431,
+    "think": 1626,
+    "secs": 46.9,
+    "decode": 46.57
+   },
+   {
+    "est": 13738,
+    "real": 20055,
+    "out": 959,
+    "think": 336,
+    "secs": 18.2,
+    "decode": 17.857
+   },
+   {
+    "est": 14041,
+    "real": 21038,
+    "out": 128,
+    "think": 47,
+    "secs": 2.9,
+    "decode": 2.638
+   },
+   {
+    "est": 14166,
+    "real": 21246,
+    "out": 673,
+    "think": 33,
+    "secs": 13.5,
+    "decode": 13.137
+   },
+   {
+    "est": 6843,
+    "real": 7302,
+    "out": 533,
+    "think": 402,
+    "secs": 17.6,
+    "decode": 11.223
+   },
+   {
+    "est": 8629,
+    "real": 9276,
+    "out": 730,
+    "think": 113,
+    "secs": 14.0,
+    "decode": 12.514
+   },
+   {
+    "est": 10084,
+    "real": 11004,
+    "out": 504,
+    "think": 126,
+    "secs": 11.0,
+    "decode": 9.905
+   },
+   {
+    "est": 11558,
+    "real": 12549,
+    "out": 422,
+    "think": 30,
+    "secs": 8.3,
+    "decode": 7.138
+   },
+   {
+    "est": 11837,
+    "real": 13226,
+    "out": 2842,
+    "think": 495,
+    "secs": 51.9,
+    "decode": 51.414
+   },
+   {
+    "est": 12947,
+    "real": 17007,
+    "out": 2214,
+    "think": 1338,
+    "secs": 42.3,
+    "decode": 41.213
+   },
+   {
+    "est": 14292,
+    "real": 19718,
+    "out": 2258,
+    "think": 70,
+    "secs": 39.8,
+    "decode": 39.074
+   },
+   {
+    "est": 8897,
+    "real": 14871,
+    "out": 1269,
+    "think": 217,
+    "secs": 36.7,
+    "decode": 23.611
+   },
+   {
+    "est": 9229,
+    "real": 16175,
+    "out": 218,
+    "think": 82,
+    "secs": 5.9,
+    "decode": 4.384
+   },
+   {
+    "est": 10652,
+    "real": 17835,
+    "out": 997,
+    "think": 266,
+    "secs": 20.9,
+    "decode": 19.266
+   }
+  ],
+  "rule_blocks": 9,
+  "reread_after_compact": 5,
+  "reread": 5,
+  "history_reads": 0,
+  "passed": 81,
+  "total": 81,
+  "correct": true,
+  "tail": [
+   "........................................................................ [ 88%]",
+   ".........                                                                [100%]",
+   "81 passed in 0.10s"
+  ]
+ },
+ {
+  "variant": "at80",
+  "seed": 3,
+  "rep": 1,
+  "window_told": 24000,
+  "answer": "Wrote C:/Users/Jedidiah/Projects/jev-harness/evals/bench/runs/long_horizon/ws/at80__s3__r1/policy.py with decide(case) -> {\"total\": int, \"status\": str, \"flags\": sorted list}.\n\nExtracted the 18 real rules from the memos (ignoring superseded drafts, old quoted figures, retired pilot values and ended depot surcharges), applied in rule-number order:\nR01 WEST +9% handling \u00b7 R02 plus & \u22654 items \u221212% \u00b7 R03 express +600c (EAST +1200c) \u00b7 R04 total strictly >40000 \u2192 flag 'harbor' \u00b7 R05 'harbor' + NORTH \u2192 status 'review' \u00b7 R06 fragile +200c/item \u00b7 R07 SAVE10 \u221212% \u00b7 R08 VIP25 \u22124000c (floor 0) \u00b7 R09 FREESHIP \u2192 flag 'juniper' \u00b7 R10 pro & \u22652 items \u22129% \u00b7 R11 SOUTH +11% \u00b7 R12 \u22658 items \u2192 flag 'quartz' \u00b7 R13 basic capped at 80000c \u00b7 R14 express floor 2500c \u00b7 R15 WEST removes 'juniper' \u00b7 R16 basic strictly >60000c \u2192 'reject', terminal. Amendments honored: R17 (pro skips R05) and R18 (plus skips R06). Percentages use round-half-up in integer cents; BULK5 does nothing.\n\nVerified with 43 distinct hand-computed cases (39 in the first batch \u2014 2 of which initially had wrong expectations of mine, corrected and re-passed \u2014 plus 4 step-by-step trace cases), covering the edges: strictly-over vs at the 40000/60000/80000 thresholds, round-half-up .5 cases, the VIP25-floor\u2192express-floor chain, the pro/plus skip exceptions, WEST stripping 'juniper', and reject overriding review. A 200,000-case randomized fuzz with structural invariants ran with zero failures.",
+  "seconds": 480.5,
+  "input": 495530,
+  "output": 22161,
+  "thinking": 13265,
+  "timed_out": false,
+  "error": null,
+  "call_errors": 0,
+  "steps": 36,
+  "bounces": 1,
+  "compactions": 2,
+  "compact_events": [
+   {
+    "step": 22,
+    "tokens_before": 18190,
+    "tokens_after": 8520,
+    "full": 4,
+    "notes": 14,
+    "dropped": 0
+   },
+   {
+    "step": 28,
+    "tokens_before": 22656,
+    "tokens_after": 14281,
+    "full": 0,
+    "notes": 24,
+    "dropped": 0
+   }
+  ],
+  "limit": 18000,
+  "window": 24000,
+  "peak_real": 24529,
+  "peak_est": 17084,
+  "real_over_est": 0.91,
+  "prefill_s": 45.0,
+  "decode_s": 419.0,
+  "calls": 36,
+  "calls_log": [
+   {
+    "est": 1497,
+    "real": 1807,
+    "out": 94,
+    "think": 13,
+    "secs": 4.1,
+    "decode": 1.568
+   },
+   {
+    "est": 1592,
+    "real": 2042,
+    "out": 87,
+    "think": 19,
+    "secs": 1.8,
+    "decode": 1.477
+   },
+   {
+    "est": 2881,
+    "real": 3030,
+    "out": 655,
+    "think": 565,
+    "secs": 14.3,
+    "decode": 13.368
+   },
+   {
+    "est": 3750,
+    "real": 3897,
+    "out": 112,
+    "think": 76,
+    "secs": 2.5,
+    "decode": 2.094
+   },
+   {
+    "est": 4599,
+    "real": 4555,
+    "out": 129,
+    "think": 93,
+    "secs": 2.9,
+    "decode": 2.246
+   },
+   {
+    "est": 5428,
+    "real": 5234,
+    "out": 85,
+    "think": 49,
+    "secs": 2.2,
+    "decode": 1.541
+   },
+   {
+    "est": 6234,
+    "real": 5867,
+    "out": 90,
+    "think": 54,
+    "secs": 2.1,
+    "decode": 1.419
+   },
+   {
+    "est": 7062,
+    "real": 6542,
+    "out": 80,
+    "think": 44,
+    "secs": 2.0,
+    "decode": 1.319
+   },
+   {
+    "est": 7891,
+    "real": 7211,
+    "out": 112,
+    "think": 76,
+    "secs": 2.8,
+    "decode": 2.076
+   },
+   {
+    "est": 8746,
+    "real": 7914,
+    "out": 183,
+    "think": 147,
+    "secs": 4.5,
+    "decode": 3.784
+   },
+   {
+    "est": 9696,
+    "real": 8689,
+    "out": 88,
+    "think": 52,
+    "secs": 2.3,
+    "decode": 1.572
+   },
+   {
+    "est": 10508,
+    "real": 9330,
+    "out": 96,
+    "think": 60,
+    "secs": 2.4,
+    "decode": 1.718
+   },
+   {
+    "est": 11318,
+    "real": 9982,
+    "out": 65,
+    "think": 29,
+    "secs": 1.8,
+    "decode": 1.103
+   },
+   {
+    "est": 12095,
+    "real": 10605,
+    "out": 63,
+    "think": 27,
+    "secs": 1.7,
+    "decode": 1.01
+   },
+   {
+    "est": 12872,
+    "real": 11208,
+    "out": 63,
+    "think": 27,
+    "secs": 1.8,
+    "decode": 1.021
+   },
+   {
+    "est": 13671,
+    "real": 11841,
+    "out": 58,
+    "think": 22,
+    "secs": 1.8,
+    "decode": 1.014
+   },
+   {
+    "est": 14439,
+    "real": 12448,
+    "out": 88,
+    "think": 52,
+    "secs": 2.3,
+    "decode": 1.545
+   },
+   {
+    "est": 15225,
+    "real": 13087,
+    "out": 75,
+    "think": 39,
+    "secs": 2.1,
+    "decode": 1.356
+   },
+   {
+    "est": 16031,
+    "real": 13727,
+    "out": 191,
+    "think": 120,
+    "secs": 4.7,
+    "decode": 3.883
+   },
+   {
+    "est": 16229,
+    "real": 13984,
+    "out": 79,
+    "think": 43,
+    "secs": 1.7,
+    "decode": 1.363
+   },
+   {
+    "est": 17084,
+    "real": 14656,
+    "out": 298,
+    "think": 262,
+    "secs": 6.9,
+    "decode": 6.128
+   },
+   {
+    "est": 8521,
+    "real": 7552,
+    "out": 262,
+    "think": 226,
+    "secs": 12.3,
+    "decode": 5.085
+   },
+   {
+    "est": 9522,
+    "real": 8384,
+    "out": 1255,
+    "think": 1135,
+    "secs": 24.4,
+    "decode": 23.69
+   },
+   {
+    "est": 12007,
+    "real": 10544,
+    "out": 444,
+    "think": 392,
+    "secs": 10.6,
+    "decode": 9.541
+   },
+   {
+    "est": 13347,
+    "real": 11606,
+    "out": 1063,
+    "think": 506,
+    "secs": 19.2,
+    "decode": 18.387
+   },
+   {
+    "est": 15326,
+    "real": 13730,
+    "out": 266,
+    "think": 88,
+    "secs": 6.3,
+    "decode": 5.038
+   },
+   {
+    "est": 16129,
+    "real": 14631,
+    "out": 7889,
+    "think": 7469,
+    "secs": 154.1,
+    "decode": 153.257
+   },
+   {
+    "est": 14282,
+    "real": 16034,
+    "out": 1301,
+    "think": 7,
+    "secs": 35.8,
+    "decode": 22.062
+   },
+   {
+    "est": 14331,
+    "real": 17394,
+    "out": 2026,
+    "think": 25,
+    "secs": 36.1,
+    "decode": 35.762
+   },
+   {
+    "est": 14574,
+    "real": 19675,
+    "out": 1245,
+    "think": 358,
+    "secs": 24.4,
+    "decode": 23.892
+   },
+   {
+    "est": 14963,
+    "real": 21066,
+    "out": 951,
+    "think": 172,
+    "secs": 19.6,
+    "decode": 19.131
+   },
+   {
+    "est": 15325,
+    "real": 22107,
+    "out": 551,
+    "think": 217,
+    "secs": 10.7,
+    "decode": 10.323
+   },
+   {
+    "est": 15557,
+    "real": 22769,
+    "out": 96,
+    "think": 10,
+    "secs": 2.1,
+    "decode": 1.725
+   },
+   {
+    "est": 15634,
+    "real": 22946,
+    "out": 535,
+    "think": 9,
+    "secs": 10.6,
+    "decode": 10.292
+   },
+   {
+    "est": 15840,
+    "real": 23639,
+    "out": 846,
+    "think": 706,
+    "secs": 17.3,
+    "decode": 16.717
+   },
+   {
+    "est": 16455,
+    "real": 24529,
+    "out": 640,
+    "think": 76,
+    "secs": 11.8,
+    "decode": 11.497
+   }
+  ],
+  "rule_blocks": 21,
+  "reread_after_compact": 2,
+  "reread": 2,
+  "history_reads": 0,
+  "passed": 81,
+  "total": 81,
+  "correct": true,
+  "tail": [
+   "........................................................................ [ 88%]",
+   ".........                                                                [100%]",
+   "81 passed in 0.10s"
+  ]
+ },
+ {
+  "variant": "at80_all",
+  "seed": 3,
+  "rep": 1,
+  "window_told": 24000,
+  "answer": "/ws/at80_all__s3__r1/policy.py is written and fully verified. decide(case) returns {\"total\": int, \"status\": str, \"flags\": sorted list}, with status \"ok\" unless a rule changes it.\n\nRules applied in page order (each rule sees the previous rule's state; percentages of the current total, rounded to nearest cent, half-up via (total*pct+50)//100):\nR1 WEST: +9% handling fee. R2 plus & items>=4: -12%. R3 express: +600 cents (+1200 in EAST). R4 total strictly > 40000: flag \"harbor\". R5 harbor + NORTH: status \"review\" (amended by R17: pro skips). R6 fragile: +200 cents/item (amended by R18: plus skips). R7 SAVE10: -12%. R8 VIP25: -4000 cents, floor 0. R9 FREESHIP: flag \"juniper\". R10 pro & items>=2: -9%. R11 SOUTH: +11%. R12 items>=8: flag \"quartz\". R13 basic: cap total at 80000. R14 express: floor 2500. R15 WEST: remove \"juniper\". R16 basic & total strictly > 60000: status \"reject\", terminal. BULK5 is not mentioned on any page and does nothing. Decoys (old 65000/45000/90000 thresholds, temporary depot surcharges, 2019 pilot, \"preferred\" 2%/18%/12% figures) are background text and were ignored.\n\nVerification (all in the log above): 50/50 hand-computed edge cases pass (strict-vs-equal at 40000/60000/80000/2500, rounding .5 and .09/.11 boundaries, EAST express doubling, floor/cap ordering, all coupons, 8 multi-rule combos); 20000/20000 random cases match an independently written Fraction-based reference implementation; return types confirmed (int total, str status, sorted list of flags).",
+  "seconds": 628.2,
+  "input": 355522,
+  "output": 29129,
+  "thinking": 10469,
+  "timed_out": false,
+  "error": null,
+  "call_errors": 0,
+  "steps": 26,
+  "bounces": 1,
+  "compactions": 4,
+  "compact_events": [
+   {
+    "step": 16,
+    "tokens_before": 18464,
+    "tokens_after": 8923,
+    "full": 2,
+    "notes": 10,
+    "dropped": 0
+   },
+   {
+    "step": 19,
+    "tokens_before": 23795,
+    "tokens_after": 15029,
+    "full": 0,
+    "notes": 15,
+    "dropped": 0
+   },
+   {
+    "step": 21,
+    "tokens_before": 25806,
+    "tokens_after": 23143,
+    "full": 0,
+    "notes": 17,
+    "dropped": 0
+   },
+   {
+    "step": 22,
+    "tokens_before": 21875,
+    "tokens_after": 15058,
+    "full": 0,
+    "notes": 18,
+    "dropped": 0
+   }
+  ],
+  "limit": 18000,
+  "window": 24000,
+  "peak_real": 23331,
+  "peak_est": 17572,
+  "real_over_est": 1.053,
+  "prefill_s": 77.9,
+  "decode_s": 534.3,
+  "calls": 26,
+  "calls_log": [
+   {
+    "est": 1500,
+    "real": 1809,
+    "out": 96,
+    "think": 20,
+    "secs": 4.9,
+    "decode": 1.607
+   },
+   {
+    "est": 1608,
+    "real": 2046,
+    "out": 174,
+    "think": 17,
+    "secs": 3.1,
+    "decode": 2.757
+   },
+   {
+    "est": 2893,
+    "real": 3145,
+    "out": 145,
+    "think": 113,
+    "secs": 3.9,
+    "decode": 2.993
+   },
+   {
+    "est": 3812,
+    "real": 3836,
+    "out": 151,
+    "think": 119,
+    "secs": 3.5,
+    "decode": 2.863
+   },
+   {
+    "est": 4707,
+    "real": 4537,
+    "out": 81,
+    "think": 40,
+    "secs": 2.1,
+    "decode": 1.408
+   },
+   {
+    "est": 6014,
+    "real": 5548,
+    "out": 143,
+    "think": 102,
+    "secs": 3.5,
+    "decode": 2.522
+   },
+   {
+    "est": 7367,
+    "real": 6641,
+    "out": 137,
+    "think": 96,
+    "secs": 3.4,
+    "decode": 2.354
+   },
+   {
+    "est": 8736,
+    "real": 7720,
+    "out": 134,
+    "think": 92,
+    "secs": 3.4,
+    "decode": 2.406
+   },
+   {
+    "est": 10180,
+    "real": 8854,
+    "out": 152,
+    "think": 109,
+    "secs": 3.7,
+    "decode": 2.611
+   },
+   {
+    "est": 11547,
+    "real": 9932,
+    "out": 121,
+    "think": 78,
+    "secs": 3.0,
+    "decode": 1.961
+   },
+   {
+    "est": 12878,
+    "real": 10979,
+    "out": 167,
+    "think": 124,
+    "secs": 4.2,
+    "decode": 3.115
+   },
+   {
+    "est": 14249,
+    "real": 12074,
+    "out": 162,
+    "think": 119,
+    "secs": 4.2,
+    "decode": 3.081
+   },
+   {
+    "est": 15648,
+    "real": 13173,
+    "out": 635,
+    "think": 225,
+    "secs": 13.4,
+    "decode": 12.253
+   },
+   {
+    "est": 17271,
+    "real": 14922,
+    "out": 211,
+    "think": 51,
+    "secs": 5.3,
+    "decode": 3.98
+   },
+   {
+    "est": 17572,
+    "real": 15391,
+    "out": 2603,
+    "think": 2366,
+    "secs": 54.4,
+    "decode": 53.905
+   },
+   {
+    "est": 10188,
+    "real": 10390,
+    "out": 1973,
+    "think": 383,
+    "secs": 42.8,
+    "decode": 33.401
+   },
+   {
+    "est": 10540,
+    "real": 12417,
+    "out": 3614,
+    "think": 41,
+    "secs": 64.4,
+    "decode": 64.133
+   },
+   {
+    "est": 11878,
+    "real": 17707,
+    "out": 7014,
+    "think": 4073,
+    "secs": 132.6,
+    "decode": 130.715
+   },
+   {
+    "est": 10081,
+    "real": 20326,
+    "out": 2698,
+    "think": 428,
+    "secs": 65.7,
+    "decode": 47.77
+   },
+   {
+    "est": 10675,
+    "real": 23331,
+    "out": 2601,
+    "think": 1129,
+    "secs": 51.7,
+    "decode": 51.127
+   },
+   {
+    "est": 10589,
+    "real": 19256,
+    "out": 215,
+    "think": 82,
+    "secs": 20.7,
+    "decode": 4.021
+   },
+   {
+    "est": 8281,
+    "real": 12418,
+    "out": 288,
+    "think": 34,
+    "secs": 15.1,
+    "decode": 5.026
+   },
+   {
+    "est": 8440,
+    "real": 12839,
+    "out": 662,
+    "think": 18,
+    "secs": 12.7,
+    "decode": 12.321
+   },
+   {
+    "est": 8657,
+    "real": 13666,
+    "out": 359,
+    "think": 201,
+    "secs": 7.7,
+    "decode": 7.197
+   },
+   {
+    "est": 8956,
+    "real": 14106,
+    "out": 3600,
+    "think": 59,
+    "secs": 60.5,
+    "decode": 60.223
+   },
+   {
+    "est": 9158,
+    "real": 17839,
+    "out": 993,
+    "think": 350,
+    "secs": 22.3,
+    "decode": 18.543
+   }
+  ],
+  "rule_blocks": 3,
+  "reread_after_compact": 0,
+  "reread": 0,
+  "history_reads": 0,
+  "passed": 81,
+  "total": 81,
+  "correct": true,
+  "tail": [
+   "........................................................................ [ 88%]",
+   ".........                                                                [100%]",
+   "81 passed in 0.10s"
+  ]
+ }
+]

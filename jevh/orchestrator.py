@@ -918,6 +918,9 @@ class Harness:
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
         worker.keep_reasoning = self.cfg.lim("keep_reasoning")
         worker.budget = self._budget_fn(worker)
+        cs = self.context_settings   # (jevh/context.py) how the prompt is sized and what compaction keeps
+        worker.measure, worker.archive = bool(cs.get("measure")), bool(cs.get("archive"))
+        worker.log_share, worker.note_tail = float(cs.get("log_share") or 0), bool(cs.get("note_tail"))
         worker.retry_delay = float(interject.settings(self.cfg.raw)["retry_delay"])
         worker.step_value, worker.keep_at = self._compact_fn(task), self.cfg.t("compact_keep")
         if self.cfg.lim("thinking_watch"):

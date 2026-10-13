@@ -407,3 +407,79 @@ def test_bot_check_switch_reaches_the_browser_only_from_config(cfg, monkeypatch)
         h, _ = harness(cfg, [py("final('ok')")])
         h.turn("hello")
         assert seen[-1]["JEVH_BROWSER_BOT_CHECK"] == "1", on
+
+
+# -- context.measure / archive / log_share / note_tail (2026-10-08; evals/bench/long_horizon.py) -----------------------
+
+def with_context(cfg, **settings):
+    cfg.raw = {**cfg.raw, "context": {**(cfg.raw.get("context") or {}), **settings}}
+
+
+def test_archive_keeps_every_condensed_step_in_full_and_the_log_points_to_it(cfg):
+    with_context(cfg, archive=True)
+    h, llm = compact_harness(cfg, tail_steps(8), events=[], compact_tokens=3000, keep_steps=2)
+    r = h.turn("do a long job")
+    assert r.answer == "all done"
+    log = llm.seen[-1][1]["content"]
+    assert "[#1] " in log and "history.md" in log and "TAIL0" not in log      # the note lost the tail ...
+    saved = next(cfg.workspace.rglob("history.md")).read_text(encoding="utf-8")
+    assert "## [#1]" in saved and "TAIL0" in saved and saved.count("TAIL0") == 1   # ... the file has it, once
+
+
+def test_archive_off_writes_nothing(cfg):
+    h, llm = compact_harness(cfg, tail_steps(8), events=[], compact_tokens=3000, keep_steps=2)
+    h.turn("do a long job")
+    assert not list(cfg.workspace.rglob("history.md")) and "[#1]" not in llm.seen[-1][1]["content"]
+
+
+def test_a_note_keeps_the_end_of_a_long_output_when_asked(cfg):
+    with_context(cfg, note_tail=True)
+    h, llm = compact_harness(cfg, tail_steps(8), events=[], compact_tokens=3000, keep_steps=2)
+    assert h.turn("do a long job").answer == "all done"
+    log = llm.seen[-1][1]["content"]
+    assert "TAIL0" in log and "step 0 done" in log
+
+
+def test_log_share_lets_the_log_grow_past_the_fixed_budget(cfg, monkeypatch):
+    import jevh.worker as worker
+    monkeypatch.setattr(worker, "PROGRESS_CHARS", 3000)
+    with_context(cfg, log_share=0.9)
+    events = []
+    h, llm = compact_harness(cfg, tail_steps(12), needed=lambda s: True, events=events, compact_tokens=3000, keep_steps=2)
+    assert h.turn("do a long job").answer == "all done"
+    log = llm.seen[-1][1]["content"].split("[Progress so far", 1)[1]
+    assert len(log) > 3000 + 400                                   # more than the fixed budget allowed above
+    assert [d for k, d in events if k == "compact"][-1]["dropped"] == 0
+
+
+class CountingLLM(ScriptedLLM):
+    """A server that counts tokens at `chars_per_token` instead of the harness's 3.2."""
+    def __init__(self, replies, chars_per_token):
+        super().__init__(replies)
+        self.cpt = chars_per_token
+
+    def chat(self, messages):
+        r = super().chat(messages)
+        r.input_tokens = int(sum(len(str(m.get("content", ""))) for m in messages) / self.cpt)
+        return r
+
+
+def counting_harness(cfg, replies, cpt, **limits):
+    cfg.limits.update(limits)
+    llm = CountingLLM(replies, cpt)
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules())), llm_factory=lambda p: llm, on_event=lambda k, d: None)
+    h.learning = False
+    return h, llm
+
+
+def test_measure_waits_for_text_the_server_counts_as_cheap_and_acts_on_text_it_counts_as_dear(cfg):
+    # same conversation, compaction limit 6000 tokens: at 8 chars a token the estimate (3.2) is far too high, so
+    # without `measure` the worker condenses early; with it, it waits. At 1 char a token it is the other way round.
+    big = steps(10, big=True)
+    def condensed(measure, cpt):
+        with_context(cfg, measure=measure)
+        h, llm = counting_harness(cfg, list(big), cpt, compact_tokens=6000, keep_steps=1)
+        h.turn("do a long job")
+        return sum("[Progress so far" in s[1]["content"] for s in llm.seen)
+    assert condensed(False, 8.0) > condensed(True, 8.0)
+    assert condensed(True, 1.0) > condensed(False, 1.0)

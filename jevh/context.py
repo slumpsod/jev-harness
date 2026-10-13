@@ -41,7 +41,8 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-DEFAULTS = {"detect": True, "compact_at": 0.6, "min": 16384}
+DEFAULTS = {"detect": True, "compact_at": 0.6, "min": 16384, "measure": False, "archive": False, "log_share": 0.0,
+            "note_tail": False}
 DETECT = {"on": True}   # context.detect, for servers that have no gate (llama.cpp): set by configure()
 _PROPS: dict[str, tuple[float, dict[str, Any] | None]] = {}   # server root -> (when asked, what it said)
 PROPS_TTL = 10.0

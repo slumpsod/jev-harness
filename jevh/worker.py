@@ -534,6 +534,13 @@ class Worker:
         # (old step texts, where the work is now) -> P(the rest of the task needs each step); None = notes only
         self.step_value: Callable[[list[str], str], list[float]] | None = None
         self.keep_at = 0.8
+        # context settings (jevh/context.py; off = the behaviour before 2026-10-08), set by the harness
+        self.measure = False            # context.measure: size the prompt from the server's own token count, not 3.2 chars a token
+        self.archive = False            # context.archive: condensed steps are also saved in full in history.md
+        self.log_share = 0.0            # context.log_share: the progress log may use this share of the limit (0: PROGRESS_CHARS)
+        self.note_tail = False          # context.note_tail: a one-line note keeps the end of the output as well as its start
+        self._cal: tuple[int, int] | None = None   # (prompt tokens the server counted, chars of messages sent) for the last call
+        self._seq = 0                   # steps archived so far (the [#n] in the log and history.md)
         self.repl: Repl | None = None      # the orchestrator kills it when the user stops the turn
         # fast tier only: () -> the persona's strong model, swapped in when the gate sends work back
         self.escalate: Callable[[], LLM] | None = None
@@ -696,6 +703,7 @@ class Worker:
             comp = resume.get("compact")
             if comp:
                 self._entries, self._dropped = comp.get("entries", []), comp.get("dropped", 0)
+                self._seq = comp.get("seq", 0)
             else:
                 self._progress_log = resume.get("progress_log", "")
             # (the resume note goes in once the REPL state is restored: it says what came back)
@@ -724,6 +732,7 @@ class Worker:
                 self._step = step
                 self._note("the model is writing its next step")
                 out = self._llm(messages)
+                self._calibrate(messages, out)
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 if getattr(out, "redirected", False) or self._steers_pending():
@@ -923,7 +932,7 @@ class Worker:
                  "output": output}
         limit, window = self._limit()
         self.on_step("context", {"persona": self.persona.name, "step": step, "limit": limit,
-                                 "parts": {k: round(v / CHARS_PER_TOKEN) for k, v in chars.items()}, **window})
+                                 "parts": {k: round(v * self._per_char()) for k, v in chars.items()}, **window})
 
     def _compact(self, messages: list[dict], step: int) -> None:
         """Keep the conversation inside the model's context: past the compaction limit (a share of the
@@ -932,7 +941,7 @@ class Worker:
         Jev reads each old step: the ones the rest of the task still needs (values, names, sources,
         what failed and why) stay in full, the rest become one-line notes. No model call: a summary
         by the worker's model cost minutes on a thinking model and lost exact values."""
-        size = sum(_msg_chars(m) for m in messages) / CHARS_PER_TOKEN
+        size = self._tokens(messages)
         limit, _ = self._limit()
         if size <= limit:
             return
@@ -946,33 +955,102 @@ class Worker:
         old, recent = body[:cut], body[cut:]
         if not old:
             return
+        per = self._per_char()
         old_chars = sum(_msg_chars(m) for m in old)
-        if old_chars / CHARS_PER_TOKEN < limit * 0.1:
+        if old_chars * per < limit * 0.1:
             return  # not enough old material to be worth condensing (e.g. a big system prompt)
         now = self._condense(recent)[-2000:]
-        new = [{"brief": self._condense(g), "full": self._full(g), "score": None, "keep": False}
-               for g in _steps(old)]
+        groups = _steps(old)
+        new = [{"brief": self._condense(g), "full": self._full(g), "score": None, "keep": False} for g in groups]
+        if self.archive:   # [#n]: the step's number in history.md, where it is kept in full
+            for i, e in enumerate(new):
+                e["n"] = self._seq + i + 1
+                e["brief"] = f"[#{e['n']}] " + e["brief"]
+                e["full"] = f"[#{e['n']}] " + e["full"]
         self._score(new, now)
         # Aim well under the limit (live: compacting only down to it re-triggered every step, and each
         # compaction rewrites the prompt's start, so the model server re-reads all of it). What the log
         # may use is what the target leaves after the system prompt, task and recent steps.
         rest = sum(_msg_chars(m) for m in messages[:self._task_idx] + recent) + len(self._task_text)
-        soft = max(MIN_FULL_LOG, int(limit * COMPACT_TARGET * CHARS_PER_TOKEN) - rest)
+        soft = max(MIN_FULL_LOG, int(limit * COMPACT_TARGET / per) - rest)
         entries = [dict(e) for e in self._entries] + new
-        dropped = self._fit(entries, now, soft)
+        dropped = self._fit(entries, now, soft, self._log_cap(limit))
         log_chars = len(_render(entries, self._dropped + dropped, self._progress_log))
         if log_chars > 0.9 * (old_chars + len(self._render_log())):
             return  # would barely save anything (live: all-needed steps in full grew the context)
         self._entries, self._dropped = entries, self._dropped + dropped
+        if self.archive:
+            self._save_history(groups)
         task_msg = {"role": "user", "content": self._task_text + "\n\n[Progress so far - earlier steps condensed to "
                     "save context (the ones still needed are kept in full); your REPL variables and files are "
-                    "intact:\n" + self._render_log() + "]"}
+                    "intact." + self._history_note() + "\n" + self._render_log() + "]"}
         before = int(size)
         messages[:] = messages[:self._task_idx] + [task_msg] + recent
-        after = int(sum(_msg_chars(m) for m in messages) / CHARS_PER_TOKEN)
+        after = int(self._tokens(messages))
         self.on_step("compact", {"persona": self.persona.name, "step": step, "tokens_before": before,
                                  "tokens_after": after, "full": sum(e["keep"] for e in self._entries),
                                  "notes": sum(not e["keep"] for e in self._entries), "dropped": self._dropped})
+
+    # -- sizing the prompt ---------------------------------------------------------------------------------
+    def _calibrate(self, messages: list[dict], out) -> None:
+        """After a call: remember how many tokens the server counted for the messages just sent."""
+        n = int(getattr(out, "input_tokens", 0) or 0)
+        if self.measure and n > 0:
+            self._cal = (n, sum(_msg_chars(m) for m in messages))
+
+    def _per_char(self) -> float:
+        """Tokens per character of conversation: the server's own count from the last call where it gave one
+        (`measure`), else the fixed estimate. Text, code and numbers differ by a factor of three or more (measured
+        2026-10-08 on Qwen: prose 4.5 chars a token, code 4.0, JSON 3.1, digit grids 1.0)."""
+        if self._cal and self._cal[1] > 0:
+            return min(max(self._cal[0] / self._cal[1], 0.1), 1.5)
+        return 1 / CHARS_PER_TOKEN
+
+    def _tokens(self, messages: list[dict]) -> float:
+        """The prompt's size in tokens: what the server counted last call, plus the messages added or removed since."""
+        chars = sum(_msg_chars(m) for m in messages)
+        if self._cal and self._cal[1] > 0:
+            return max(0.0, self._cal[0] + (chars - self._cal[1]) * self._per_char())
+        return chars / CHARS_PER_TOKEN
+
+    def _log_cap(self, limit: float) -> int:
+        """Chars the progress log may use: PROGRESS_CHARS, or (`log_share`) a share of the compaction limit."""
+        if self.log_share > 0:
+            return max(PROGRESS_CHARS, int(limit * self.log_share / self._per_char()))
+        return PROGRESS_CHARS
+
+    # -- the archive ---------------------------------------------------------------------------------------
+    def _history_path(self) -> Path:
+        return Path(self.workdir) / "history.md"
+
+    def _history_note(self) -> str:
+        if not self.archive:
+            return ""
+        return (f" Every earlier step is saved in full, in order, in {self._history_path()} (numbers match the [#n] "
+                "tags below): search or read that file with Python for an exact value, file content or error "
+                "before reading a file again or redoing work.")
+
+    def _save_history(self, groups: list[list[dict]]) -> None:
+        """Append the steps just condensed to history.md in full: the log keeps notes, this keeps everything."""
+        lines = []
+        for i, g in enumerate(groups):
+            thought, codes, outs = "", [], []
+            for m in g:
+                if m["role"] == "assistant":
+                    thought = (str(m.get("reasoning_content", "")) or CODE_RE.sub("", str(m.get("content", "")))).strip()
+                    codes += msg_code(m)
+                else:
+                    outs.append(str(m.get("content", "")).split("[Not accepted yet", 1)[0].replace("Output:\n", "", 1).strip())
+            lines.append(f"\n## [#{self._seq + i + 1}]\n"
+                         + (f"THOUGHT (end of it): ...{thought[-1500:]}\n" if thought else "")
+                         + "CODE:\n" + "\n".join(codes).strip() + "\nOUTPUT:\n" + "\n".join(outs).strip() + "\n")
+        try:
+            Path(self.workdir).mkdir(parents=True, exist_ok=True)
+            with open(self._history_path(), "a", encoding="utf-8") as f:
+                f.write("".join(lines))
+        except OSError:
+            pass   # a convenience: the log still has the notes
+        self._seq += len(groups)
 
     def _score(self, entries: list[dict], now: str, cached: bool = True) -> None:
         """Jev: does the rest of the task still need this step? (evals/compact_cases.py). A step
@@ -990,13 +1068,14 @@ class Worker:
             s = self._scores.get(e["full"])
             e["score"], e["keep"] = s, s is not None and s >= self.keep_at
 
-    def _fit(self, entries: list[dict], now: str, soft: int) -> int:
+    def _fit(self, entries: list[dict], now: str, soft: int, cap: int = 0) -> int:
         """Shrink the log in place: past `soft` chars, re-check the full steps against where the
         work is now and turn the least needed into notes; past PROGRESS_CHARS, also leave out the
         least needed notes (oldest first on ties). -> how many were left out."""
         def size():
             return sum(len(e["full"] if e["keep"] else e["brief"]) for e in entries)
-        limit = min(soft, PROGRESS_CHARS)
+        cap = cap or PROGRESS_CHARS
+        limit = min(soft, cap)
         if size() > limit:
             full = [e for e in entries if e["keep"]]
             self._score(full, now, cached=False)
@@ -1006,7 +1085,7 @@ class Worker:
                 e["keep"] = False
         dropped = 0
         for e in sorted(entries, key=lambda e: e["score"] or 0.0):
-            if size() <= PROGRESS_CHARS:
+            if size() <= cap:
                 break
             entries.remove(e)
             dropped += 1
@@ -1030,8 +1109,7 @@ class Worker:
         return ((f"THOUGHT: ...{thought[-FULL_THOUGHT:]}\n" if thought else "")
                 + f"CODE:\n{_clip_mid(code, FULL_CODE)}\nOUTPUT:\n{_clip_mid(out, FULL_OUT)}")
 
-    @staticmethod
-    def _condense(old: list[dict]) -> str:
+    def _condense(self, old: list[dict]) -> str:
         lines = []
         for m in old:
             text = str(m.get("content", ""))
@@ -1045,7 +1123,11 @@ class Worker:
                     lines.append("- ran: " + " | ".join(head[:8])[:600] + (" ..." if len(head) > 8 else ""))
             else:
                 out = text.split("[Not accepted yet", 1)[0].replace("Output:\n", "", 1).strip()
-                lines.append("  -> " + out[:400].replace("\n", " ") + (" ..." if len(out) > 400 else ""))
+                if self.note_tail and len(out) > 400:   # the start says what it is, the end what came of it
+                    out = out[:260] + " [...] " + out[-140:]
+                    lines.append("  -> " + out.replace("\n", " "))
+                else:
+                    lines.append("  -> " + out[:400].replace("\n", " ") + (" ..." if len(out) > 400 else ""))
         return "\n".join(lines) + "\n"
 
     def _stalled(self, messages: list[dict], step: int) -> bool:
@@ -1147,7 +1229,7 @@ class Worker:
             except Exception:  # noqa: BLE001 - a convenience; never fail the task over it
                 pass
         data = {"version": 1, "persona": self.persona.name, "task_text": self._task_text, "task_idx": self._task_idx,
-                "progress_log": self._render_log(), "compact": {"entries": self._entries, "dropped": self._dropped},
+                "progress_log": self._render_log(), "compact": {"entries": self._entries, "dropped": self._dropped, "seq": self._seq},
                 "step": step, "finished": finished, "stopped": stopped,
                 "workdir": str(self.workdir), "saved": time.time(),
                 "messages": [m for m in messages if m["role"] != "system"]}

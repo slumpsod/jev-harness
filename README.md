@@ -70,6 +70,7 @@ python evals/bench/context_detect.py   # context-length detection against the LM
 python evals/session_category_cases.py # does Jev put a whole session in the assistant whose field it is about (History tab; --holdout, --offline)
 python evals/bench/history.py          # the History tab's categories on your own sessions, on a read-only copy of them
 python evals/bench/serve_compare.py --report   # serving Qwen 3.8 27B with llama.cpp: 3 quant/speculation setups on full harness turns (ARC + hidden-test coding)
+python evals/bench/long_horizon.py --report    # long tasks and compaction: 60% vs 80% and the context.measure/archive/note_tail/log_share settings, live (--window 24000 --reps 3; --holdout; --mode headroom)
 python evals/button_intent_cases.py    # browser: a click the goal asked for vs one with a side effect
 python evals/expect_cases.py           # browser.test: does the page show the expected result
 python evals/find_cases.py             # project.find: does it point at where a question is answered
