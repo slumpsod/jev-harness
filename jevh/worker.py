@@ -77,6 +77,22 @@ def new_pages(earlier: list[dict], recent: list[dict]) -> list[str]:
     return sorted(pages(recent) - before)
 
 
+STOP_REPEATS = 2   # recent outputs that repeat an earlier one, for a second strike to stop the task (untuned: n = 2 loops)
+
+
+def repeated_outputs(earlier: list[dict], recent: list[dict]) -> int:
+    """How many of `recent`'s step outputs nearly repeat an output from `earlier` or from before them in `recent`."""
+    import difflib
+    pool = [o[:1500] for o in _step_outputs(earlier) if o]
+    hits = 0
+    for o in (o[:1500] for o in _step_outputs(recent) if o and o != "[final answer recorded]"):
+        if any(difflib.SequenceMatcher(None, o, p).quick_ratio() > 0.9 and difflib.SequenceMatcher(None, o, p).ratio() > 0.85
+               for p in pool):
+            hits += 1
+        pool.append(o)
+    return hits
+
+
 def repeated_result(messages: list[dict], n: int = 3) -> str | None:
     """The result the last `n` code steps all printed, if identical and not an error - a worker that
     has its answer and keeps re-checking it instead of handing it over."""
@@ -1196,20 +1212,28 @@ class Worker:
         except Exception:  # noqa: BLE001 - Jev down: no check this time
             return False
         stuck = circles >= self.stall_at
+        # a second strike stops the task only when its steps also printed what earlier ones had: reading a new memo each
+        # step is not a loop, however alike the steps look (long-horizon bench 2026-10: all 5 runs the check stopped had 0
+        # repeated outputs and were reading the task's pages; the two real loops in the failure log, clicks on another
+        # computer that kept timing out, had 3 and 2 of 8). Held, it is told to change approach again.
+        held = stuck and self._stalls >= 1 and \
+            repeated_outputs(messages[self._task_idx + 1:-len(recent)], recent) < STOP_REPEATS
+        strike = self._stalls + (1 if stuck and not held else 0)
         self.on_step("progress_check", {"persona": self.persona.name, "step": step, "circles": round(circles, 3),
-                                  "stuck": stuck, "strike": self._stalls + (1 if stuck else 0)})
+                                        "stuck": stuck, "strike": strike, **({"held": True} if held else {})})
         if stuck:
             self.harness_notes.append(
                 f"step {step}: the progress check (Jev, every {self.progress_every} steps) judged the last "
                 f"{self.progress_every} steps to be the same attempt repeating with the same result "
-                f"(score {circles:.2f}, flagged from {self.stall_at:.2f}); strike {self._stalls + 1} of 2, "
-                f"{'the task is stopped on the second' if self._stalls == 0 else 'the task is being stopped'}. "
-                "A check is not a judgement that the steps were wasted: re-running a test to read its output "
+                f"(score {circles:.2f}, flagged from {self.stall_at:.2f}); strike {strike} of 2, "
+                + ("not stopped: its outputs were new. " if held else
+                   "the task is stopped on the second. " if strike == 1 else "the task is being stopped. ")
+                + "A check is not a judgement that the steps were wasted: re-running a test to read its output "
                 "can look like a repeat.")
         if not stuck:
             self._stalls = 0
             return False
-        self._stalls += 1
+        self._stalls = strike
         if self._stalls >= 2:
             if self._wrap_step is not None:
                 return True

@@ -59,7 +59,8 @@ stateDiagram-v2
   Check --> Working: Jev progress circles < 0.6<br/>(strikes reset)
   Check --> Strike1: circles ≥ 0.6
   Strike1 --> Working: note added to last output<br/>'step back, find the root cause…'<br/>or 'you printed the same result 3× - hand it over'
-  Strike1 --> WrapUp: next check also ≥ 0.6
+  Strike1 --> Strike1: next check also ≥ 0.6 but fewer than 2 outputs<br/>repeat an earlier one (held: nudged again)
+  Strike1 --> WrapUp: next check also ≥ 0.6 and 2+ outputs repeat
   WrapUp --> Stopped: the step after wrap-up<br/>(only the final tool offered)
   WrapUp --> [*]: worker calls final() - accepted as is,<br/>problems listed, never bounced
   Stopped --> [*]: stopped = stalled, files harvested,<br/>last result quoted, resumable
@@ -68,7 +69,13 @@ stateDiagram-v2
 - The Jev question gets the task text (1.5k) and the condensed last 16 messages (4k).
 - `new_pages` (`worker.py:64`) counts only URLs that appeared in tool **outputs**, not URLs the
   worker typed. A page it hadn't reached before counts as progress, however similar the steps look.
-- Each check emits `progress_check` `{circles, stuck, strike, new_pages}`.
+- Each check emits `progress_check` `{circles, stuck, strike, new_pages}` (`held: true` when a second strike was held).
+- **A second strike stops the task only if 2+ of its step outputs nearly repeat an earlier one** (`repeated_outputs`,
+  `STOP_REPEATS`). The long-horizon bench (2026-10) found every run the check stopped reading the task's rule pages,
+  one a step: alike to Jev, each output new (0 repeats in all 4 whose checkpoints were kept); the two real loops in the
+  failure log (clicks on another computer that kept timing out) had 3 and 2 of 8. Replayed on those saved runs, not
+  re-run live (the false stops were 4-5 in 51 runs: too rare to show in a few runs). `STOP_REPEATS = 2` rests on those two
+  loops: wrong if a real loop with varied outputs (different errors each step) now runs to the step limit.
 
 ## Other stamina guards
 
