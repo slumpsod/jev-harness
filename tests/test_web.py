@@ -499,3 +499,123 @@ def test_status_shows_the_llama_cpp_server_the_harness_runs_on(cfg, monkeypatch)
     assert not any(s["name"] == "idle" for s in st["servers"])                # not running, not used: not shown
     if "lmstudio" in st and st["lmstudio"].get("up"):
         assert st["lmstudio"]["in_use"] is False
+
+
+# ---------------------------------------------------------------- files sent from the chat (#5)
+PNG = (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+       b"\x00\x00\x00\rIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82")
+
+
+def upload(client, name, data=PNG, **headers):
+    return client.post("/api/upload", params={"name": name}, content=data, headers=auth(**headers))
+
+
+def test_a_file_sent_from_the_chat_is_kept_in_the_sessions_folder_and_named_in_the_turn(cfg):
+    """Issue #5: from the phone there was no way to send a photo or a PDF. The file goes up first (the body is the file),
+    then the message names it: the request the harness runs says the file is attached and where it is, so routing,
+    the tool pick and the worker all see it."""
+    seen = []
+    client, app = make_client(cfg, [py("final('read it')")])
+    hub = app.state.hub
+    r = upload(client, "IMG_2041.JPG", Origin=BASE)
+    assert r.status_code == 200, r.text
+    f = r.json()
+    assert f["name"] == "IMG_2041.jpg" and f["kind"] == "image" and f["bytes"] == len(PNG)
+    path = Path(f["path"])
+    assert path.parent == Path(hub.harness.session_dir) / "uploads" and path.read_bytes() == PNG
+    assert upload(client, "IMG_2041.JPG").json()["path"] != f["path"]          # the same name twice: two files
+    hub.harness.on_event = (lambda orig: lambda k, d: (seen.append((k, d)), orig(k, d)))(hub.harness.on_event)
+    r = client.post("/api/chat", json={"message": "what's the total on this receipt?", "files": [f["path"]]},
+                    headers=auth())
+    assert r.status_code == 200
+    turn = wait_done(client)
+    from jevh.web.uploads import split
+    text, files = split(turn["message"])
+    assert text == "what's the total on this receipt?" and files == [f["path"]]
+    assert "[Attached by the user" in turn["message"] and "(image, 1 KB)" in turn["message"]
+    route = next(d for k, d in seen if k == "start")
+    assert f["path"] in route["task"].text                                    # the worker's request names the file
+    # served back for the chat's thumbnail, like a session's other files
+    assert client.get("/api/file", params={"path": f["path"], "token": TOKEN}).content == PNG
+
+
+def test_only_files_with_no_text_still_make_a_request(cfg):
+    client, _ = make_client(cfg, [py("final('a cat')")])
+    f = upload(client, "cat.png").json()
+    assert client.post("/api/chat", json={"message": "", "files": [f["path"]]}, headers=auth()).status_code == 200
+    msg = wait_done(client)["message"]
+    assert msg.startswith("(No message: only the attached file.)") and f["path"] in msg
+
+
+def test_uploads_are_checked_like_every_other_api_call_and_limited(cfg, tmp_path):
+    from jevh.web import uploads
+    client, _ = make_client(cfg)
+    assert client.post("/api/upload", params={"name": "a.png"}, content=PNG).status_code == 403            # no token
+    assert upload(client, "a.png", Origin="https://evil.example").status_code == 403                       # foreign page
+    assert upload(client, "run.exe", b"MZ").status_code == 415                                             # no programs
+    assert upload(client, "page.html", b"<script>").status_code == 415                                     # nor web pages
+    assert upload(client, "noext").status_code == 415
+    assert upload(client, "empty.png", b"").status_code == 400
+    big = b"0" * (uploads.MAX_BYTES + 1)
+    assert upload(client, "huge.pdf", big).status_code == 413
+    f = upload(client, r"..\..\evil name?.PDF", b"%PDF-1.4").json()                                      # a path in the name
+    assert Path(f["path"]).parent.name == "uploads" and f["name"] == "evil name.pdf" and f["kind"] == "PDF"
+    # a message may only name this session's own uploads: not any file on the computer
+    other = tmp_path / "secret.txt"
+    other.write_text("nope")
+    r = client.post("/api/chat", json={"message": "read", "files": [str(other)]}, headers=auth())
+    assert r.status_code == 400 and "attach it again" in r.json()["detail"]
+    r = client.post("/api/chat", json={"message": "read", "files": [f["path"]] * 11}, headers=auth())
+    assert r.status_code == 400
+
+
+def test_uploads_from_another_device_need_the_sign_in(cfg):
+    host = "box.tail1234.ts.net"
+
+    def factory(on_event):
+        return Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM([]), on_event=on_event)
+
+    app = create_app(cfg, port=8740, harness_factory=factory, token=TOKEN, allow_hosts=[f"{host}:10000"], access_key="k3y")
+    client = TestClient(app, base_url=BASE)
+    h = {"Host": f"{host}:10000"}
+    assert upload(client, "a.png", **h).status_code == 403                                                # no access key
+    assert upload(client, "a.png", **h, Cookie="jevh_key=k3y").status_code == 200
+    accounts = app.state.hub.accounts
+    accounts.add_user("ana", "correct horse")                                                              # accounts: sign in
+    assert upload(client, "a.png", **h, Cookie="jevh_key=k3y").status_code == 401
+    from jevh.web.server import SESSION_COOKIE
+    assert upload(client, "a.png", **h, Cookie=f"{SESSION_COOKIE}={accounts.start_session('ana')}").status_code == 200
+
+
+def test_a_file_sent_while_a_task_runs_is_added_to_it_not_answered_aside(cfg):
+    cfg.raw = {**cfg.raw, "interject": {"aside_model": False}}
+    client, app = make_client(cfg, [py("import time\ntime.sleep(3)\nfinal('done')")])
+    client.post("/api/chat", json={"message": "sort my receipts"}, headers=auth())
+    time.sleep(1.5)
+    f = upload(client, "another.jpg").json()
+    r = client.post("/api/chat", json={"message": "/btw here is one more?", "files": [f["path"]]}, headers=auth())
+    j = r.json()["interjected"]
+    assert j["kind"] == "correction" and j["outcome"] in ("corrected", "queued") and f["path"] in j["text"]
+    wait_done(client)
+
+
+def test_a_question_can_be_answered_with_a_file(cfg):
+    client, app = make_client(cfg, [py("a = ask_user('send me the photo')\nfinal(a)")])
+    client.post("/api/chat", json={"message": "check my photo"}, headers=auth())
+    deadline = time.time() + 10
+    while not app.state.hub.harness.pending_questions() and time.time() < deadline:
+        time.sleep(0.05)
+    q = app.state.hub.harness.pending_questions()[0]
+    f = upload(client, "photo.png").json()
+    assert client.post("/api/answer", json={"id": q["id"], "answer": "", "files": [f["path"]]},
+                       headers=auth()).status_code == 200
+    assert f["path"] in wait_done(client)["answer"]
+
+
+def test_the_note_naming_the_files_reads_back_out():
+    from jevh.web.uploads import safe_name, split
+    text = "two pages\n\n[Attached by the user (saved on this computer):\n- C:\\ws\\uploads\\001-a b (1).jpg (image, 2.0 MB)\n" \
+           "- /ws/uploads/002-form.pdf (PDF, 80 KB)\n]"
+    assert split(text) == ("two pages", ["C:\\ws\\uploads\\001-a b (1).jpg", "/ws/uploads/002-form.pdf"])
+    assert split("no files here") == ("no files here", [])
+    assert safe_name("../../etc/passwd") == "passwd" and safe_name("") == "file" and safe_name("x.PNG") == "x.png"

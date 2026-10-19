@@ -90,6 +90,119 @@ def llm_query(prompt: str, data=None) -> str:
     return _call("llm_query", prompt, None if data is None else peek(data, 60000))
 
 
+# look_at(): a file's picture shown to the worker's own model (the host's "look" handler, jevh.llm.see_image - the same one
+# browser.look() and desktop.look() use). Issue #2 (session of a user reading scanned PDFs and photos): the worker found no
+# way to look at a file, decided it had no vision and spent many steps installing OCR (pytesseract, a Tesseract installer,
+# winget, rapidocr) for poor results.
+LOOK_IMAGES = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff")
+LOOK_SIDE = 1600       # px on the long side: a page's small print stays legible, a 12 MP phone photo stops costing ~10k tokens
+LOOK_MAX_PAGES = 12    # pages of a PDF looked at when no `pages` are given (each is a model call)
+LOOK_QUESTION = ("Transcribe all the text it shows, in reading order (tables as rows, keep every number, date, name and "
+                 "amount exactly), then say briefly what else is there (a photo, a logo, a stamp, a signature, handwriting).")
+OCR_MODULES = {"pytesseract", "tesseract", "easyocr", "rapidocr", "rapidocr_onnxruntime", "paddleocr", "ocrmypdf",
+               "keras_ocr", "doctr"}
+NO_OCR_HINT = ("(No OCR software needed: look_at(path, question) shows an image or a scanned PDF's pages to your own "
+               "model, which reads them. Don't install OCR (pytesseract, Tesseract, easyocr, winget) for that.)")
+_looked = 0
+
+
+def _look_pages(src: Path, pages) -> tuple[list[tuple[str, str]], str]:
+    """The pictures to show for `src`: [(label, image path)], and a note on pages left out. A PDF's pages are rendered,
+    a photo is turned upright and scaled down, an image format the model may not take becomes PNG."""
+    global _looked
+    _looked += 1
+    out_dir = Path(".look").resolve()   # (the host opens it: from its own working folder)
+    out_dir.mkdir(exist_ok=True)
+    stem = f"{_looked:02d}-{re.sub(r'[^A-Za-z0-9_.-]+', '_', src.stem)[:40]}"
+    suffix = src.suffix.lower()
+    if suffix == ".pdf":
+        try:
+            try:
+                import pymupdf as fitz
+            except ImportError:   # (PyMuPDF before 1.24.3 has only its old name)
+                import fitz
+        except ImportError:
+            raise RuntimeError("look_at() renders a PDF with PyMuPDF, which this Python doesn't have. Ask the user "
+                               "before installing it (pip install pymupdf).") from None
+        doc = fitz.open(str(src))
+        count = doc.page_count
+        wanted = _page_list(pages, count)
+        note = "" if pages is not None or count <= LOOK_MAX_PAGES else \
+            f"(pages {LOOK_MAX_PAGES + 1}-{count} of {count} not looked at: pass pages=[...] for them)"
+        shots = []
+        for n in wanted:
+            page = doc[n - 1]
+            zoom = LOOK_SIDE / max(page.rect.width, page.rect.height, 1)
+            path = out_dir / f"{stem}-p{n}.png"
+            page.get_pixmap(matrix=fitz.Matrix(zoom, zoom)).save(str(path))
+            shots.append((f"page {n} of {count}", str(path)))
+        doc.close()
+        return shots, note
+    if suffix not in LOOK_IMAGES:
+        raise ValueError(f"look_at() takes an image ({', '.join(LOOK_IMAGES)}) or a PDF, not {src.suffix or 'this file'}"
+                         " - read text files as text")
+    try:
+        from PIL import Image, ImageOps, ImageSequence
+    except ImportError:   # no Pillow: what the model takes as it is
+        if suffix in (".png", ".jpg", ".jpeg"):
+            return [("the image", str(src))], ""
+        raise RuntimeError(f"look_at() needs Pillow to convert a {suffix} image (ask the user before installing it)") from None
+    with Image.open(src) as im:
+        frames = [f.copy() for f in ImageSequence.Iterator(im)] if suffix in (".tif", ".tiff") else [im.copy()]
+    count = len(frames)
+    wanted = _page_list(pages, count)
+    shots = []
+    for n in wanted:
+        img = ImageOps.exif_transpose(frames[n - 1])   # (a phone photo is stored on its side, with a tag saying so)
+        if max(img.size) > LOOK_SIDE:
+            img.thumbnail((LOOK_SIDE, LOOK_SIDE))
+        photo = suffix in (".jpg", ".jpeg")
+        path = out_dir / f"{stem}{f'-p{n}' if count > 1 else ''}.{'jpg' if photo else 'png'}"
+        img = img.convert("RGB") if photo or img.mode not in ("RGB", "RGBA", "L", "LA") else img
+        img.save(path, quality=90) if photo else img.save(path)
+        shots.append((f"page {n} of {count}" if count > 1 else "the image", str(path)))
+    return shots, ""
+
+
+def _page_list(pages, count: int) -> list[int]:
+    if pages is None:
+        return list(range(1, min(count, LOOK_MAX_PAGES) + 1))
+    wanted = [pages] if isinstance(pages, int) else list(pages)
+    bad = [p for p in wanted if not isinstance(p, int) or not 1 <= p <= count]
+    if bad:
+        raise ValueError(f"pages are numbered 1-{count}; got {bad}")
+    return wanted
+
+
+def look_at(path, question: str | None = None, pages=None) -> str:
+    """Look at an image or PDF file with your own model: a scan, a photo, a receipt, a form, a screenshot, a chart.
+    -> its answer (for several pages, one section per page). `question`: what to find out (default: transcribe all the
+    text and describe the rest). `pages`: a PDF's or multi-page TIFF's pages to look at, from 1 (default: the first
+    12). Each picture is a model call (~10-60 s). A PDF with a text layer reads faster as text (pymupdf:
+    page.get_text()); look when that comes back empty or the question is about what is drawn."""
+    src = Path(str(path)).expanduser()
+    if not src.is_file():
+        raise FileNotFoundError(f"look_at(): no file {str(path)!r}")
+    shots, note = _look_pages(src, pages)
+    ask = question.strip() if question and str(question).strip() else LOOK_QUESTION
+    answers = []
+    for label, shot in shots:
+        # "right away": asked plainly, Qwen 3.8 thought for 8k tokens over a 2048 board (browser.look); told to read it off,
+        # it answered in ~600
+        answer = _call("look", shot, "Look at the image and answer right away - no deliberation or double-checking, just "
+                       f"read it off. It is {label} from the file {src.name}: answer only from what it shows, exactly "
+                       "(numbers, names, dates, amounts, labels), and say so where something can't be read.\n\n" + ask)
+        answer = str(answer or "")
+        if answer.startswith("(could not look at the image"):
+            return (answer + "\nYour model could not take the picture. Tell the user that this model can't see images "
+                    "(a model with vision would read it); ask them before installing OCR software.")
+        answers.append((label, answer.strip()))
+    if len(answers) == 1 and answers[0][0] == "the image":
+        return answers[0][1]
+    text = "\n\n".join(f"[{label[0].upper() + label[1:]}]\n{a}" for label, a in answers)
+    return text + (f"\n\n{note}" if note else "")
+
+
 def jev(state, questions: dict) -> dict:
     """Fast typed decisions (noul/choice/score) from the System One model."""
     return _call("jev", state, questions)
@@ -274,7 +387,7 @@ G: dict = {"__name__": "__main__", "ctx": {}, "peek": peek, "llm_query": llm_que
            "save_artifact": save_artifact, "load_artifact": load_artifact,
            "list_artifacts": list_artifacts, "final": final, "mcp": mcp, "recall": recall,
            "remember": remember, "ask_user": ask_user, "say": say, "start_job": start_job, "job_status": job_status,
-           "job_wait": job_wait, "report_failure": report_failure}
+           "job_wait": job_wait, "report_failure": report_failure, "look_at": look_at}
 _BUILTINS = set(G)   # the harness's own helpers: never snapshotted (they come back with the REPL)
 
 
@@ -435,6 +548,10 @@ def _exec(code: str) -> tuple[str, bool]:
             frames = [f for f in traceback.extract_tb(tb) if f.filename == "<cell>"]
             lines = traceback.format_list(frames[-3:]) + traceback.format_exception_only(etype, evalue)
             print("".join(lines).rstrip())
+            # an OCR package missing, or pytesseract without its Tesseract program: the worker's own model can read it
+            missing = getattr(evalue, "name", None) if isinstance(evalue, ImportError) else None
+            if (missing and missing.split(".")[0].lower() in OCR_MODULES) or etype.__name__ == "TesseractNotFoundError":
+                print(NO_OCR_HINT)
     return buf.getvalue(), error
 
 

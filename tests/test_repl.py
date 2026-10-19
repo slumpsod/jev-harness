@@ -1,4 +1,5 @@
 import time
+import pytest
 
 from jevh.repl.client import Repl, truncate
 
@@ -125,3 +126,73 @@ def test_truncate_keeps_head_and_tail():
     s = "A" * 100 + "B" * 100
     t = truncate(s, 50)
     assert t.startswith("A") and t.endswith("B")
+
+
+# ---------------------------------------------------------------- look_at(): a file shown to the worker's own model (#2)
+def _looker(seen, reply="it says TOTAL 42.17"):
+    def look(path, question):
+        from PIL import Image
+        with Image.open(path) as im:
+            seen.append({"path": path, "size": im.size, "question": question})
+        return reply
+    return look
+
+
+def test_look_at_shows_a_photo_upright_and_scaled_down_to_the_worker_model(tmp_path):
+    """Issue #2: the worker found no way to look at a photo or a scan, decided it had no vision and installed OCR. A phone
+    photo (4000x3000, stored on its side with an EXIF tag) goes to the model upright and at most LOOK_SIDE px."""
+    Image = pytest.importorskip("PIL.Image")
+    photo = tmp_path / "receipt.jpg"
+    im = Image.new("RGB", (4000, 3000), "white")
+    exif = im.getexif()
+    exif[0x0112] = 6                       # "rotate 90 degrees to show": the camera held upright
+    im.save(photo, exif=exif)
+    seen = []
+    with Repl(tmp_path / "w", tmp_path / "a", {"look": _looker(seen)}, timeout=30) as r:
+        res = r.run(f"look_at(r'{photo}', 'what is the total?')")
+        assert not res.error and "TOTAL 42.17" in res.output
+    assert len(seen) == 1 and seen[0]["size"] == (1200, 1600)   # turned upright, long side 1600
+    assert seen[0]["question"].endswith("what is the total?") and "receipt.jpg" in seen[0]["question"]
+
+
+def test_look_at_renders_each_pdf_page_and_labels_the_answers(tmp_path):
+    fitz = pytest.importorskip("pymupdf")
+    pytest.importorskip("PIL")
+    doc = fitz.open()
+    for _ in range(3):
+        doc.new_page()
+    doc.save(tmp_path / "scan.pdf")
+    seen = []
+    with Repl(tmp_path / "w", tmp_path / "a", {"look": _looker(seen)}, timeout=30) as r:
+        out = r.run(f"print(look_at(r'{tmp_path / 'scan.pdf'}'))").output
+        assert "[Page 1 of 3]" in out and "[Page 3 of 3]" in out and out.count("TOTAL 42.17") == 3
+        assert "Transcribe all the text" in seen[0]["question"]               # no question: read it all
+        out = r.run(f"print(look_at(r'{tmp_path / 'scan.pdf'}', 'the date?', pages=[2]))").output
+        assert "[Page 2 of 3]" in out and "Page 1" not in out
+        assert "numbered 1-3" in r.run(f"look_at(r'{tmp_path / 'scan.pdf'}', pages=[9])").output
+    assert max(seen[0]["size"]) == 1600
+
+
+def test_look_at_says_plainly_when_the_model_takes_no_images(tmp_path):
+    Image = pytest.importorskip("PIL.Image")
+    Image.new("RGB", (50, 50)).save(tmp_path / "a.png")
+    text_only = _looker([], "(could not look at the image: 400 image input is not supported - this model may not take images)")
+    with Repl(tmp_path / "w", tmp_path / "a", {"look": text_only}, timeout=30) as r:
+        out = r.run(f"print(look_at(r'{tmp_path / 'a.png'}'))").output
+    assert "can't see images" in out and "before installing OCR" in out
+
+
+def test_look_at_refuses_what_is_not_a_picture_and_a_missing_file(tmp_path):
+    (tmp_path / "data.csv").write_text("a,b\n1,2\n")
+    with Repl(tmp_path / "w", tmp_path / "a", {"look": _looker([])}, timeout=30) as r:
+        assert "read text files as text" in r.run(f"look_at(r'{tmp_path / 'data.csv'}')").output
+        assert "FileNotFoundError" in r.run("look_at('nope.png')").output
+
+
+def test_a_missing_ocr_package_points_the_worker_at_look_at(tmp_path):
+    with Repl(tmp_path / "w", tmp_path / "a", timeout=30) as r:
+        out = r.run("import rapidocr_not_here_either\n").output
+        assert "look_at" not in out                                          # any other missing module: no hint
+        out = r.run("import sys\nsys.modules['easyocr'] = None\nimport easyocr").output
+        assert "ModuleNotFoundError" in out or "ImportError" in out
+        assert "look_at(path, question)" in out

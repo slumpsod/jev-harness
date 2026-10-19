@@ -43,6 +43,7 @@ from .. import update as updater
 from ..bus import jsonable, task_json
 from ..config import Config, load_config
 from ..interject import KINDS
+from ..interject import parse as parse_command
 from ..lmstudio import gate_for
 from ..orchestrator import ELSEWHERE, Harness
 from ..history import History
@@ -51,6 +52,7 @@ from ..devices import wire
 from ..devices.hub import DeviceHub
 from ..review import list_sessions, session_record
 from ..skills import load_roster
+from . import uploads
 
 STATIC = Path(__file__).with_name("static")
 MAX_EVENTS = 5000
@@ -736,10 +738,34 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                 "watch_browser": h.watch_browser, "questions": h.pending_questions(), "queued": h.queued(),
                 "thresholds": h.cfg.thresholds, "problems": h.problems(), "appearance": usersettings.appearance(h.cfg)}
 
+    @app.post("/api/upload")
+    async def upload(request: Request, name: str = "") -> dict:
+        """A file sent from the chat (attach, paste, drop): the body is the file. Kept in the session's uploads folder;
+        the message that follows names the path this returns (jevh/web/uploads.py)."""
+        try:
+            uploads.check_name(name)
+            if int(request.headers.get("content-length") or 0) > uploads.MAX_BYTES:
+                raise uploads.UploadError(f"the file is over {uploads.MAX_BYTES // (1024 * 1024)} MB", 413)
+            data = bytearray()
+            async for chunk in request.stream():
+                data += chunk
+                if len(data) > uploads.MAX_BYTES:
+                    raise uploads.UploadError(f"the file is over {uploads.MAX_BYTES // (1024 * 1024)} MB", 413)
+            return await asyncio.to_thread(uploads.save, Path(hub.harness.session_dir), name, bytes(data))
+        except uploads.UploadError as e:
+            raise HTTPException(e.status, str(e)) from None
+
+    def attached(body: dict) -> list[Path]:
+        try:
+            return uploads.resolve(Path(hub.harness.session_dir), body.get("files"))
+        except uploads.UploadError as e:
+            raise HTTPException(e.status, str(e)) from None
+
     @app.post("/api/chat")
     async def chat(request: Request) -> dict:
         body = await request.json()
-        message = str(body.get("message", "")).strip()
+        files = attached(body)
+        message = uploads.with_files(str(body.get("message", "")).strip(), files)
         if not message:
             raise HTTPException(400, "empty message")
         if hub.busy.locked():
@@ -747,6 +773,8 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             # progress (Jev tells) or a /command says otherwise: /queue, /stop, /btw, /steer (jevh/interject.py).
             # Jev is asked off the event loop.
             kind = body.get("kind") if body.get("kind") in KINDS else None
+            if files and kind in (None, "status") and parse_command(message)[0] in (None, "status"):
+                kind = "correction"   # files are for the task: never a question about its progress, answered aside
             res = await asyncio.to_thread(hub.harness.interject, message, kind)
             if res["outcome"] != "idle":
                 return {"interjected": res}
@@ -1195,7 +1223,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @app.post("/api/answer")
     async def answer(request: Request) -> dict:
         body = await request.json()
-        text = str(body.get("answer", "")).strip()
+        text = uploads.with_files(str(body.get("answer", "")).strip(), attached(body))   # (a photo the worker asked for)
         if not text:
             raise HTTPException(400, "empty answer")
         if not hub.harness.answer(str(body.get("id", "")), text):

@@ -21,6 +21,21 @@ Artifacts panel (switch both off with *Open panels and pages for you* in Appeara
 `closePanel` drive the panels and `showPage` and `showChat` the pages (`S.tab` is the open panel, `S.view` is `"chat"` or
 the page shown).
 
+## Sending files
+
+The paperclip at the left of the message box attaches photos, screenshots, PDFs and other files (images, PDFs, text, CSV
+and Office files; up to 25 MB each, 10 with a message). Pasting a screenshot into the box or dropping files on the chat
+does the same. Each file uploads at once (`POST /api/upload?name=...`, the body is the file, behind the same token,
+origin and sign-in checks as every other `/api/` call) into the session's folder, `workspace/sessions/<id>/uploads/`;
+the tray above the text shows them, and Send waits until they are up. The message then goes with their paths
+(`/api/chat` or `/api/answer` take `files: [...]`, which must be this session's uploads), and the request the harness runs
+is your text followed by a note naming each file (`jevh/web/uploads.py`): routing, Jev's tool pick, the worker and the
+session's memory all see that a file came with it. The worker opens it from there, and looks at a picture or a scanned
+PDF with `look_at(path, question)` (its own model, when that model takes images). In the chat a picture shows as a
+thumbnail and anything else as a chip; the page reads the note back out of the message. Files sent while a task runs are
+added to that task (never answered aside as a question about its progress); `/queue` with files queues them with the
+request. On a phone, the button opens the photo library or the camera. The orb's small chat has no attach button.
+
 ## Appearance
 
 The palette at the bottom of the left rail opens **Appearance**. Choices apply as you click, and are kept in

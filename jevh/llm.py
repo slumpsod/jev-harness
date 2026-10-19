@@ -503,7 +503,8 @@ def see_image(llm: LLM, path: str, question: str) -> str:
     import base64
     data = base64.b64encode(Path(path).read_bytes()).decode("ascii")
     kind = "image/jpeg" if str(path).lower().endswith((".jpg", ".jpeg")) else "image/png"
-    target = getattr(llm, "_primary", None) or llm
+    target = getattr(llm, "_inner", llm)   # (the harness's usage meter, jevh/usage.Metered, wraps every worker model)
+    target = getattr(target, "_primary", None) or target
     if isinstance(target, AnthropicLLM):
         content = [{"type": "image", "source": {"type": "base64", "media_type": kind, "data": data}},
                    {"type": "text", "text": question}]
