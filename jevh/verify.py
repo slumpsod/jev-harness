@@ -206,6 +206,31 @@ FETCHED = re.compile(
     r"|\b(?:requests|httpx|urllib|subprocess|sqlite3|glob|shutil)\b|os\.(?:listdir|walk|scandir)|\.iterdir\("
     r"|load_artifact\(|recall\(|start_job\(|job_wait\("
     r"|\bctx\[['\"](?!skills\b)|peek\(\s*ctx\[['\"](?!skills\b)|\bpd\.|fitz|pypdf|PdfReader|Image\.open")
+# Files the worker wrote itself, and the variables holding their paths: reading those back is not fetching (live
+# 2026-10-19: a worker saved plan.md, read it back to check it, and its rest times were sent back as made up).
+WROTE = re.compile(r"""open\(\s*['"]([^'"\n]+)['"]\s*,\s*['"][wax]|save_artifact\(\s*['"]([^'"\n]+)['"]"""
+                   r"""|Path\(\s*['"]([^'"\n]+)['"]\s*\)\.write_(?:text|bytes)\(""")
+OWN_VAR = re.compile(r"""\b(\w+)\s*=\s*(?:save_artifact\(|['"]([^'"\n]+)['"]\s*$)""", re.M)
+READ_ARG = re.compile(r"""open\(\s*(?:['"]([^'"\n]+)['"]|(\w+))""")
+
+
+def fetched(log: str) -> bool:
+    """Did the worker's code bring in anything beyond its own words (FETCHED), not counting reads of files it wrote?"""
+    written = {Path(n).name.lower() for m in WROTE.finditer(log) for n in m.groups() if n}
+    own_vars = {m.group(1) for m in OWN_VAR.finditer(log)
+                if m.group(2) is None or Path(m.group(2)).name.lower() in written}
+    for m in FETCHED.finditer(log):
+        hit = m.group(0)
+        if hit.startswith("open("):
+            arg = READ_ARG.match(log, m.start())
+            if arg and ((arg.group(1) and Path(arg.group(1)).name.lower() in written) or arg.group(2) in own_vars):
+                continue
+        if hit == "glob" and any(w in log[m.start():m.start() + 120].lower() for w in written):
+            continue
+        return True
+    return False
+
+
 APPROX = re.compile(r"(?:~|\b(?:about|around|roughly|approximately|approx\.?|nearly|almost|close to)\s+)\$?$", re.I)
 APPROX_SLACK = 0.15
 
@@ -291,7 +316,7 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
     supported, unsupported = grounding(answer, request + "\n" + (evidence if evidence is not None else log))
     # only once something was fetched: a chat answer from knowledge has no outputs to come from, nor does one whose code
     # only wrote out the worker's own words (issue #3: a workout plan saved to plan.md, then its rest times sent back)
-    if log.strip() and unsupported and FETCHED.search(log):
+    if log.strip() and unsupported and fetched(log):
         shown = ", ".join(sorted(unsupported, key=len, reverse=True)[:5])
         problems.append(f"These numbers in your answer appear in none of your outputs or the request: {shown}. "
                         "Check them against what the tools returned and correct them; if one is your own "

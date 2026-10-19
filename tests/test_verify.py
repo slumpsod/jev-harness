@@ -537,3 +537,14 @@ def test_knowledge_numbers_are_not_checked_when_the_code_fetched_nothing():
     read_file = "CODE:\nrows = open('sales.csv').read()\nprint(len(rows))\nOUTPUT: 120"
     assert any("appear in none" in p for p in answer_rules("sum my sales", "Total: 4,512 across 120 rows.", [],
                                                            read_file, {}, t))
+
+
+def test_reading_back_a_file_the_worker_wrote_is_not_fetching():
+    """Live 2026-10-19 (the flagged bench): a worker saved plan.md, read it back to check it, and was sent back over its
+    own rest times; and an SVG's own 1200x800 was sent back the same way (failure log #26)."""
+    from jevh.verify import fetched
+    assert not fetched("CODE:\nwith open('plan.md', 'w') as f:\n    f.write(plan)\nCODE:\nprint(open('plan.md').read())")
+    assert not fetched("CODE:\np = save_artifact('plan.md', data=plan)\nwith open(p, encoding='utf-8') as f:\n    c = f.read()")
+    assert not fetched("CODE:\nsvg_path = 'mountain.svg'\nwith open(svg_path, 'w') as f:\n    f.write(svg)\n"
+                       "CODE:\nwith open(svg_path, encoding='utf-8') as f:\n    print(len(f.read()))")
+    assert fetched("CODE:\nopen('notes.md', 'w').write(x)\nCODE:\nprint(open('sales.csv').read())")   # a file it didn't write
