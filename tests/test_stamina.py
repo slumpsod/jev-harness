@@ -574,3 +574,29 @@ def test_say_reaches_the_chat_mid_task_and_is_remembered_with_the_turn(cfg):
 def test_a_message_sent_mid_task_tells_the_worker_to_answer_it_with_say():
     from jevh.worker import STEER_NOTE
     assert "say(" in STEER_NOTE
+
+
+def test_a_second_strike_does_not_stop_a_worker_whose_steps_print_new_things(cfg):
+    """Long-horizon bench 2026-10: every run the progress check stopped was reading the task's rule pages, one a step
+    (alike to Jev, but each output new); the second strike now stops only when outputs repeat."""
+    import random
+    random.seed(7)
+    words = "rule order total region express bulk flag status cap discount tier customer audit memo".split()
+    memos = [py(f"print('Memo R-{i:02d}: ' + {' '.join(random.choice(words) for _ in range(120))!r})") for i in range(8)]
+    events = []
+    h, llm = harness(cfg, memos + [py("final('policy.py written')")], circles=0.95, events=events, progress_every=2)
+    r = h.turn("read the memos and write policy.py")
+    assert r.answer == "policy.py written"
+    checks = [d for k, d in events if k == "progress_check"]
+    assert checks and all(c["stuck"] for c in checks) and any(c.get("held") for c in checks)
+    assert max(c["strike"] for c in checks) == 1                       # never a second strike
+
+
+def test_repeated_outputs_counts_near_repeats_only():
+    from jevh.worker import repeated_outputs
+    out = lambda t: [{"role": "assistant", "content": py("x")}, {"role": "user", "content": "Output:\n" + t}]   # noqa: E731
+    earlier = out("{'status': 'done', 'changed': False, 'url': 'https://developers.facebook.com/apps/1/settings'}")
+    recent = (out("{'status': 'done', 'changed': False, 'url': 'https://developers.facebook.com/apps/1/settings'}")
+              + out("Memo R-14: the audit team samples about 676 orders a month and flags any bulk discount above cap")
+              + out("{'status': 'done', 'changed': False, 'url': 'https://developers.facebook.com/apps/1/settings/'}"))
+    assert repeated_outputs(earlier, recent) == 2
