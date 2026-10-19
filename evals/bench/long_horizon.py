@@ -33,6 +33,11 @@ VARIANT (a set of settings; see VARIANTS) and seed, several repeats. For each ru
 Results: evals/bench/runs/long_horizon/rows.jsonl (resumable: a finished (variant, seed, rep) is not re-run),
 evals/bench/long_horizon_raw.json and long_horizon_summary.txt beside this file.
 Local models vary a lot from run to run: 1 rep says nothing about a gap of one task. Use --reps 3+.
+A run told another window (--window N, or none) gets its own row and folder (ws/<variant>__s<seed>__r<rep>__full ...).
+
+Run 2026-10-08..13 (51 runs: base/at80/at80_all x dev seeds x 3 reps, at80_measure x 2 reps, base vs at80_all on the
+held-out seeds x 2 reps and at the real window x 1): it moved the shipped defaults to at80_all. The numbers and what
+they do and do not show: docs/architecture/05-stamina.md#compaction-defaults-2026-10.
 """
 from __future__ import annotations
 
@@ -59,14 +64,17 @@ DEV_SEEDS = [1, 2, 3]
 HOLD_SEEDS = [11, 12, 13]
 
 # name -> settings laid over the config for the run: {"context": {...}, "limits": {...}, "compaction": {...}}
+# Every variant names all five settings, so a run means the same whatever config.yaml ships (since 2026-10-18 it ships
+# at80_all; base is what it shipped before).
+OFF = {"measure": False, "archive": False, "note_tail": False, "log_share": 0.0}
 VARIANTS: dict[str, dict] = {
-    "base": {"label": "as shipped: compact at 60% of the window", "context": {"compact_at": 0.6}},
-    "at80": {"label": "compact at 80% (the reply's room still comes off the top)", "context": {"compact_at": 0.8}},
+    "base": {"label": "shipped until 2026-10-18: compact at 60% of the window", "context": {**OFF, "compact_at": 0.6}},
+    "at80": {"label": "compact at 80% (the reply's room still comes off the top)", "context": {**OFF, "compact_at": 0.8}},
     # the changes of 2026-10-08, one at a time and together (jevh/context.py settings), each at 80%
     "at80_measure": {"label": "80% + prompt sized from the server's own token count",
-                     "context": {"compact_at": 0.8, "measure": True}},
+                     "context": {**OFF, "compact_at": 0.8, "measure": True}},
     "at80_archive": {"label": "80% + condensed steps saved in full in history.md",
-                     "context": {"compact_at": 0.8, "archive": True}},
+                     "context": {**OFF, "compact_at": 0.8, "archive": True}},
     "at80_all": {"label": "80% + measure + archive + note tails + log share 25%",
                  "context": {"compact_at": 0.8, "measure": True, "archive": True, "note_tail": True, "log_share": 0.25}},
     "base_all": {"label": "60% + measure + archive + note tails + log share 25%",
@@ -90,6 +98,16 @@ def rereads(events: list[tuple[str, dict]], marks: list[str]) -> dict:
 
 
 # -- one harness turn ------------------------------------------------------------------------------------------------
+
+def _rev() -> str:
+    """The checkout's commit (rows from different code are told apart in the report)."""
+    import subprocess
+    try:
+        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=HERE, capture_output=True, text=True,
+                              timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
 
 class CallLog:
     """Every model call of a run: what the harness estimated for the prompt, and what the server counted."""
@@ -136,6 +154,18 @@ def run_turn(task: dict, variant: dict, ws: Path, window: int, limit: float) -> 
                                                          "context": window}
     calls = CallLog()
     unwrap = calls.wrap()
+    # the time compaction itself takes (Jev scoring the old steps; no model call), apart from the slower first
+    # prompt after it (the server re-reads a prompt whose start changed: that shows in prefill_s)
+    from jevh import worker as workermod
+    orig_compact, compact_secs = workermod.Worker._compact, []
+
+    def timed_compact(self_, *a, **kw):
+        t0 = time.time()
+        try:
+            return orig_compact(self_, *a, **kw)
+        finally:
+            compact_secs.append(time.time() - t0)
+    workermod.Worker._compact = timed_compact
     events: list[tuple[str, dict]] = []
     h = Harness(cfg, on_event=lambda k, d: events.append((k, d)))
     h.learning, h.tier_mode = False, "strong"
@@ -154,6 +184,7 @@ def run_turn(task: dict, variant: dict, ws: Path, window: int, limit: float) -> 
     finally:
         timer.cancel()
         unwrap()
+        workermod.Worker._compact = orig_compact
         ctxwin.server_props = real_props
         h.wait_learning()
     usage = ((r.usage or {}).get("total", {}) if r else {})
@@ -175,6 +206,10 @@ def run_turn(task: dict, variant: dict, ws: Path, window: int, limit: float) -> 
             "real_over_est": round(statistics.median(ratios), 3) if ratios else None,
             "prefill_s": round(sum(max(0.0, x["secs"] - x["decode"]) for x in c), 1),
             "decode_s": round(sum(x["decode"] for x in c), 1), "calls": len(c),
+            # (_compact runs every step but returns at once under the limit: the sum is what the condensing cost)
+            "compact_s": round(sum(compact_secs), 1),
+            "stall_strikes": max([d.get("strike", 0) for k, d in events if k == "progress_check" and d.get("stuck")] or [0]),
+            "rev": _rev(),
             "calls_log": c, **rereads(events, task["marks"])}
 
 
@@ -205,7 +240,7 @@ def stall_stopped(ws: Path) -> bool:
 def run_item(item: dict, a) -> dict:
     import long_tasks
     vname, seed, rep = item["variant"], item["seed"], item["rep"]
-    ws = RUNS / "ws" / f"{vname}__s{seed}__r{rep}"
+    ws = ws_dir(vname, seed, rep, a.window or None)
     if ws.exists():
         shutil.rmtree(ws, ignore_errors=True)
     ws.mkdir(parents=True)
@@ -216,11 +251,22 @@ def run_item(item: dict, a) -> dict:
         row.update(run_turn(task, VARIANTS[vname], ws, a.window, a.limit))
         g = grade(task, ws)
         row.update(passed=g["passed"], total=g["total"], correct=g["all_passed"], tail=g["tail"],
-                   stall_stopped=stall_stopped(ws))
+                   stall_stopped=stall_stopped(ws) or row.get("stall_strikes", 0) >= 2)
     except Exception as e:  # noqa: BLE001
         row.update(error=f"{type(e).__name__}: {e}", correct=False, passed=0, total=80, seconds=0, steps=0, compactions=0,
                    reread=0, reread_after_compact=0, timed_out=False, output=0, input=0, thinking=0, bounces=0)
     return row
+
+
+def ws_dir(variant: str, seed: int, rep: int, window: int | None) -> Path:
+    """A run's folder. The dev sweep told the harness 24k; a run told another window (or none: the server's own) gets
+    its own folder and its own row."""
+    tag = "" if window == 24000 else f"__w{window}" if window else "__full"
+    return RUNS / "ws" / f"{variant}__s{seed}__r{rep}{tag}"
+
+
+def run_key(r: dict) -> tuple:
+    return r["variant"], r["seed"], r["rep"], r.get("window_told") or None
 
 
 # -- headroom: how full can a prompt be --------------------------------------------------------------------------------
@@ -305,35 +351,52 @@ def report(rows: list[dict] | None = None) -> str:
         return "no results yet"
     names = [v for v in VARIANTS if any(r["variant"] == v for r in rows)] + \
             sorted({r["variant"] for r in rows} - set(VARIANTS))
-    by = {v: [r for r in rows if r["variant"] == v] for v in names}
-    L = [f"long_horizon: {len(rows)} runs ({', '.join(f'{v} {len(by[v])}' for v in names)}); window told to the harness: "
-         f"{sorted({r.get('window_told') or 'real' for r in rows}, key=str)}\n"]
-    head = (f"{'variant':12}{'runs':>5}{'solved':>8}{'tests%':>8}{'compacts':>9}{'reread':>7}{'after':>6}{'steps':>7}{'min':>6}"
-            f"{'out k':>7}{'prefill s':>10}{'peak%win':>9}{'real/est':>9}{'dropped':>8}{'stall':>6}{'err':>5}{'t/o':>5}")
-    L += [head, "-" * len(head)]
-    for v in names:
-        rs = by[v]
-        win = [r["peak_real"] / r["window"] for r in rs if r.get("window") and r.get("peak_real")]
-        drop = [max([e.get("dropped") or 0 for e in r.get("compact_events", [])] or [0]) for r in rs]
-        L.append(f"{v:12}{len(rs):>5}{sum(r['correct'] for r in rs):>4}/{len(rs):<3}"
-                 f"{mean([100 * r['passed'] / max(1, r['total']) for r in rs]):>7.0f}%"
-                 f"{mean([r['compactions'] for r in rs]):>9.1f}{mean([r['reread'] for r in rs]):>7.1f}"
-                 f"{mean([r['reread_after_compact'] for r in rs]):>6.1f}{mean([r['steps'] for r in rs]):>7.1f}"
-                 f"{mean([r['seconds'] for r in rs]) / 60:>6.1f}{mean([r['output'] for r in rs]) / 1000:>7.1f}"
-                 f"{mean([r.get('prefill_s') for r in rs]):>10.0f}{100 * mean(win):>8.0f}%"
-                 f"{mean([r.get('real_over_est') for r in rs]):>9.2f}{mean(drop):>8.1f}"
-                 f"{sum(bool(r.get('stall_stopped')) for r in rs):>6}"
-                 f"{sum(bool(r.get('error')) for r in rs):>5}{sum(bool(r.get('timed_out')) for r in rs):>5}")
-    L += ["", "per run (RIGHT = every hidden test passed):"]
-    for r in sorted(rows, key=lambda r: (r["seed"], r["rep"], r["variant"])):
+
+    def group(r: dict) -> str:
+        w = r.get("window_told")
+        return (f"{'held-out' if r['seed'] in HOLD_SEEDS else 'dev'} seeds, window told "
+                f"{f'{w // 1000}k' if w else 'none (the server real 76k)'}")
+    groups = sorted({group(r) for r in rows}, key=lambda g: (("none" in g), ("held" in g)))
+    L = [f"long_horizon: {len(rows)} runs; code: "
+         + ", ".join(f"{k or 'before dcef277'} {n}" for k, n in sorted(
+             {(r.get('rev') or ''): sum((x.get('rev') or '') == (r.get('rev') or '') for x in rows) for r in rows}.items()))
+         + "\n"]
+    head = (f"{'variant':12}{'runs':>5}{'solved':>8}{'tests%':>8}{'compacts':>9}{'reread':>7}{'steps':>7}{'min':>6}"
+            f"{'out k':>7}{'prefill s':>10}{'cmp s':>7}{'peak%win':>9}{'real/est':>9}{'dropped':>8}{'stall':>6}{'err':>5}{'t/o':>5}")
+    for g in groups:
+        L += [f"== {g}", head, "-" * len(head)]
+        for v in names:
+            rs = [r for r in rows if r["variant"] == v and group(r) == g]
+            if not rs:
+                continue
+            win = [r["peak_real"] / r["window"] for r in rs if r.get("window") and r.get("peak_real")]
+            drop = [max([e.get("dropped") or 0 for e in r.get("compact_events", [])] or [0]) for r in rs]
+            cs = [r.get("compact_s") for r in rs if r.get("compact_s") is not None]
+            L.append(f"{v:12}{len(rs):>5}{sum(r['correct'] for r in rs):>4}/{len(rs):<3}"
+                     f"{mean([100 * r['passed'] / max(1, r['total']) for r in rs]):>7.0f}%"
+                     f"{mean([r['compactions'] for r in rs]):>9.1f}{mean([r['reread'] for r in rs]):>7.1f}"
+                     f"{mean([r['steps'] for r in rs]):>7.1f}"
+                     f"{mean([r['seconds'] for r in rs]) / 60:>6.1f}{mean([r['output'] for r in rs]) / 1000:>7.1f}"
+                     f"{mean([r.get('prefill_s') for r in rs]):>10.0f}{(f'{mean(cs):.0f}' if cs else '-'):>7}"
+                     f"{100 * mean(win):>8.0f}%"
+                     f"{mean([r.get('real_over_est') for r in rs]):>9.2f}{mean(drop):>8.1f}"
+                     f"{sum(bool(r.get('stall_stopped')) for r in rs):>6}"
+                     f"{sum(bool(r.get('error')) for r in rs):>5}{sum(bool(r.get('timed_out')) for r in rs):>5}")
+        L.append("")
+    L += ["per run (RIGHT = every hidden test passed):"]
+    for r in sorted(rows, key=lambda r: (group(r), r["seed"], r["rep"], r["variant"])):
         ce = ", ".join(f"{e['tokens_before']}->{e['tokens_after']}" for e in r.get("compact_events", [])[:5])
-        L.append(f"  {r['variant']:10} s{r['seed']} r{r['rep']}  {'RIGHT' if r['correct'] else 'wrong'} {r['passed']}/{r['total']}"
+        w = r.get("window_told")
+        L.append(f"  {r['variant']:10} s{r['seed']} r{r['rep']} {f'{w // 1000}k' if w else 'full':4} "
+                 f"{'RIGHT' if r['correct'] else 'wrong'} {r['passed']}/{r['total']}"
                  f"  {r['steps']:>3} steps {r['seconds'] / 60:5.1f} min  compactions {r['compactions']} [{ce}]"
-                 f"  reread {r['reread']} (after compaction {r['reread_after_compact']})"
+                 f"  reread {r['reread']}{'  STALL-STOPPED' if r.get('stall_stopped') else ''}"
                  f"{'  ERR ' + str(r['error'])[:80] if r.get('error') else ''}{'  TIMEOUT' if r.get('timed_out') else ''}")
-    L += ["", "reread = a rule page opened again after the worker had read it; after = of those, the ones after the first",
-          "compaction. real/est = the server's token count over the harness's estimate (3.2 chars a token); prefill s =",
-          "time the server spent reading prompts. peak%win = the largest real prompt over the window the harness was told."]
+    L += ["", "reread = code blocks that opened the rule pages again after the first compaction (what condensing cost).",
+          "real/est = the server's token count over the harness's estimate (3.2 chars a token); prefill s = time the",
+          "server spent reading prompts; cmp s = time spent condensing (Jev scoring old steps; newer rows only).",
+          "peak%win = the largest real prompt over the window the harness was told. stall = runs ended by the progress",
+          "check (two 'same attempt repeating' strikes). dropped = log entries dropped to fit (max over the run)."]
     return "\n".join(L)
 
 
@@ -355,11 +418,11 @@ def main() -> None:
         import long_tasks
         rows = load_rows()
         for r in rows:
-            ws = RUNS / "ws" / f"{r['variant']}__s{r['seed']}__r{r['rep']}"
+            ws = ws_dir(r["variant"], r["seed"], r["rep"], r.get("window_told"))
             if ws.exists():
                 g = grade(long_tasks.make_task(r["seed"], ws), ws)
                 r.update(passed=g["passed"], total=g["total"], correct=g["all_passed"], tail=g["tail"],
-                         stall_stopped=stall_stopped(ws))
+                         stall_stopped=stall_stopped(ws) or r.get("stall_strikes", 0) >= 2)
         ROWS.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
         print(report(rows))
         return
@@ -376,16 +439,16 @@ def main() -> None:
     for rep in range(1, a.reps + 1):
         for si, seed in enumerate(seeds):
             order = names[(si + rep) % len(names):] + names[:(si + rep) % len(names)]
-            items += [{"variant": v, "seed": seed, "rep": rep} for v in order]
-    done = {(r["variant"], r["seed"], r["rep"]) for r in load_rows()}
+            items += [{"variant": v, "seed": seed, "rep": rep, "window_told": a.window or None} for v in order]
+    done = {run_key(r) for r in load_rows()}
     print(f"{len(items)} runs ({len(names)} variants x {len(seeds)} seeds x {a.reps} reps); window told: {a.window or 'real'}")
     if a.dry:
         for i in items:
-            print(f"  {i['variant']:10} seed {i['seed']} rep {i['rep']}{'  (done)' if (i['variant'], i['seed'], i['rep']) in done else ''}")
+            print(f"  {i['variant']:10} seed {i['seed']} rep {i['rep']}{'  (done)' if run_key(i) in done else ''}")
         return
     RUNS.mkdir(parents=True, exist_ok=True)
     for n, item in enumerate(items):
-        if (item["variant"], item["seed"], item["rep"]) in done:
+        if run_key(item) in done:
             continue
         row = run_item(item, a)
         with open(ROWS, "a", encoding="utf-8") as f:

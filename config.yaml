@@ -83,7 +83,15 @@ limits:
 # The model's context window, as LM Studio loaded it (jevh/context.py; `jevh context` shows what the harness sees).
 context:
   detect: true       # ask LM Studio what each model is loaded with, before each step; false: never ask
-  compact_at: 0.6    # older steps condense once the prompt is this share of the window (the reply's room is kept)
+  compact_at: 0.8    # older steps condense once the prompt is this share of the window (the reply's room is kept:
+                     # with unlimited thinking that is a quarter, so 80% is really 75%). Was 0.6 until 2026-10-18:
+                     # evals/bench/long_horizon.py, docs/architecture/05-stamina.md#compaction-defaults-2026-10
+  measure: true      # size the prompt from the server's own token count (needed for 80%: the 3.2 chars-a-token
+                     # estimate ran real prompts to 110% of the limit's window in the bench, 91% in a real session)
+  archive: true      # condensed steps are kept in full in the task folder's history.md, the log says where ([#n])
+  note_tail: true    # a condensed step's note keeps the end of its output (what came of it), not only the start
+  log_share: 0.25    # the progress log may use this share of the limit (was a fixed 16,000 chars: real 76k sessions
+                     # dropped 31-40 condensed steps and kept none in full)
   min: 16384         # a window below this is flagged: the instructions and tools alone take several thousand tokens
   # A model nothing can be asked about (vLLM, llama.cpp, a hosted one), or one to hold to less than it is loaded with:
   # `context_length: 32768` in its model block (a persona's `model:`, models.fast) or in its provider. It tells the

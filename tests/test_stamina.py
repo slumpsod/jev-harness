@@ -2,11 +2,22 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from jevh.jev import Jev
 from jevh.orchestrator import Harness
 from jevh.repl.client import Repl
 
 from conftest import FakeSystemOne, ScriptedLLM, choice_ans, noul_ans, py
+
+
+@pytest.fixture(autouse=True)
+def estimate_sizing(cfg):
+    """The compaction mechanics below are tested on the 3.2-chars-a-token estimate, with the four context settings off
+    (a scripted model's token count is a placeholder, 10). Tests of a setting turn it on; the shipped values (all on,
+    since 2026-10-18) are tested together in test_the_shipped_context_settings_work_together."""
+    cfg.raw = {**cfg.raw, "context": {**(cfg.raw.get("context") or {}), "measure": False, "archive": False,
+                                      "note_tail": False, "log_share": 0.0}}
 
 
 def rules(circles=0.05):
@@ -483,6 +494,29 @@ def test_measure_waits_for_text_the_server_counts_as_cheap_and_acts_on_text_it_c
         return sum("[Progress so far" in s[1]["content"] for s in llm.seen)
     assert condensed(False, 8.0) > condensed(True, 8.0)
     assert condensed(True, 1.0) > condensed(False, 1.0)
+
+
+def test_the_shipped_context_settings_work_together(cfg):
+    # what config.yaml ships since 2026-10-18 (all four on, 80%): on a server that counts 2 chars a token (denser than
+    # the 3.2 estimate: code, JSON), the prompts it really receives stay smaller than with the estimate alone, and
+    # the archive, the [#n] tags and the notes' tails are all there
+    from jevh import context as ctxwin
+    from jevh.config import load_config
+    shipped = ctxwin.settings(load_config(cfg.source).raw)
+    assert (shipped["compact_at"], shipped["measure"], shipped["archive"], shipped["note_tail"], shipped["log_share"]) \
+        == (0.8, True, True, True, 0.25)
+
+    def biggest(context):
+        cfg.raw = {**cfg.raw, "context": context}
+        h, llm = counting_harness(cfg, tail_steps(24), 2.0, compact_tokens=16000, keep_steps=2)
+        assert h.turn("do a long job").answer == "all done"
+        sent = [sum(len(str(m.get("content", ""))) for m in s) / 2.0 for s in llm.seen]
+        return max(sent), llm.seen[-1][1]["content"]
+    peak, log = biggest(dict(shipped))
+    assert "[Progress so far" in log and "[#1] " in log and "history.md" in log and "TAIL0" in log
+    assert next(cfg.workspace.rglob("history.md")).read_text(encoding="utf-8").count("## [#1]") == 1
+    peak_estimate, _ = biggest({**shipped, "measure": False, "archive": False, "note_tail": False, "log_share": 0.0})
+    assert peak <= 16000 * 1.02 < 16000 * 1.3 < peak_estimate    # (measured here: 15,945 against 24,517)
 
 
 class _Killed(BaseException):

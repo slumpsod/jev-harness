@@ -325,8 +325,8 @@ def _window(page, dashboard):
     said = page.inner_text("#ctxpop")
     assert "Model window: 100,096 tokens (what LM Studio loaded it with)" in said
     assert "the model supports up to 262,144" in said
-    assert "Past 60.1k, older steps get condensed" in said                   # 60% of that window, not limits.compact_tokens
-    assert "of 100.1k tokens" in said                                        # the wheel is out of the window, not out of the 60k trigger
+    assert "Past 80.1k, older steps get condensed" in said                   # 80% of that window, not limits.compact_tokens
+    assert "of 100.1k tokens" in said                                        # the wheel is out of the window, not out of the trigger
     assert "of 100.1k tokens" in page.get_attribute("#ctxring", "aria-label")
     assert not page.errors
 

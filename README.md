@@ -70,7 +70,7 @@ python evals/bench/context_detect.py   # context-length detection against the LM
 python evals/session_category_cases.py # does Jev put a whole session in the assistant whose field it is about (History tab; --holdout, --offline)
 python evals/bench/history.py          # the History tab's categories on your own sessions, on a read-only copy of them
 python evals/bench/serve_compare.py --report   # serving Qwen 3.8 27B with llama.cpp: 3 quant/speculation setups on full harness turns (ARC + hidden-test coding)
-python evals/bench/long_horizon.py --report    # long tasks and compaction: 60% vs 80% and the context.measure/archive/note_tail/log_share settings, live (--window 24000 --reps 3; --holdout; --mode headroom)
+python evals/bench/long_horizon.py --report    # long tasks and compaction, live: 60% vs 80% and context.measure/archive/note_tail/log_share on full harness turns (18 rule pages -> policy.py, 80 hidden tests); 51 runs 2026-10-08..13 decided the shipped defaults (--window 24000 --reps 3; --holdout; --mode headroom)
 python evals/button_intent_cases.py    # browser: a click the goal asked for vs one with a side effect
 python evals/expect_cases.py           # browser.test: does the page show the expected result
 python evals/find_cases.py             # project.find: does it point at where a question is answered
@@ -446,14 +446,15 @@ grew. Now:
 - **Bigger budgets:** 20-60 steps per persona (dev 60, designer 40), and 30 minutes per code
   block (Stop ends one sooner). Long commands run as background jobs:
   `j = start_job("npm run build")`, `job_status(j)`, `job_wait(j)`. They end with the REPL.
-- **Compaction:** past 60% of the model's context window (`context.compact_at`; asked of LM Studio,
-  so 60,057 for the 100,096 Qwen is loaded with; `limits.compact_tokens`, 60k, where the window is
-  not known: [Context length](#context-length) below), older
-  steps condense into a progress log inside the task message: code heads plus output snippets.
-  The last `keep_steps` (3) steps stay verbatim, and variables and files are untouched. If the
-  log itself grows past ~12k chars, the model summarizes it (what's done, what failed and why,
-  what's left). It only fires when there's real old material, never just because the system
-  prompt is big.
+- **Compaction:** past 80% of the model's context window (`context.compact_at`, 60% until 2026-10-18; the reply's
+  room is kept, so 57,024 of the 76,032 Qwen has on llama-server; `limits.compact_tokens`, 60k, where the window is
+  not known: [Context length](#context-length) below), older steps condense into a progress log inside the task
+  message: the steps Jev says are still needed in full, the rest as code heads plus the start and end of their
+  output. The prompt's size is the server's own token count (`context.measure`), not an estimate; the log may use a
+  quarter of the limit (`context.log_share`); every condensed step is also kept in full in the task folder's
+  `history.md` (`context.archive`). The last `keep_steps` (3) steps stay verbatim, and variables and files are
+  untouched. It only fires when there's real old material, never just because the system prompt is big. Why 80% and
+  these settings, with the live numbers: [docs/architecture/05-stamina.md](docs/architecture/05-stamina.md#compaction-defaults-2026-10).
 - **Progress check:** every `progress_every` (8) steps, Jev asks whether the recent steps repeat
   the same attempt with the same result (`evals/progress_cases.py`: 6/6 stalls caught, 0/8 healthy
   runs interrupted, over thresholds 0.3-0.8). The first time, the worker is told to step back and
@@ -479,20 +480,24 @@ accepting. Compaction didn't fire in that run (about 5k tokens per step even wit
 ### Context length
 
 The harness asks LM Studio what context length each model is loaded with (the value set in LM Studio's load settings,
-not the model's maximum) before every step, and condenses older steps once the prompt passes `context.compact_at` (60%)
-of it, keeping room for the reply. It used to be one number for every model, `limits.compact_tokens`. Change the context in
+not the model's maximum) before every step, and condenses older steps once the prompt passes `context.compact_at` (80%)
+of it, keeping room for the reply (a quarter of the window for a model that thinks without limit). It used to be one number for every model, `limits.compact_tokens`. Change the context in
 LM Studio and the harness follows from the next step. `jevh context` shows what it sees:
 
 ```
   qwen3.8-27b                        loaded with   100,096   supports   262,144   parallel 2
-  lmstudio:qwen3.8-27b@q6_k              window 100,096 (asked LM Studio)  -> condenses at 60,057   [daily_assistant, ...]
+  lmstudio:qwen3.8-27b@q6_k              window 100,096 (asked LM Studio)  -> condenses at 75,072   [daily_assistant, ...]
   lmstudio:ornith-1.5-35b-a3b            window not known: LM Studio has not loaded it yet  -> condenses at 60,000   [fast tier]
 ```
 
 ```yaml
 context:
   detect: true       # false: never ask LM Studio (limits.compact_tokens for everything)
-  compact_at: 0.6    # older steps condense at this share of the window
+  compact_at: 0.8    # older steps condense at this share of the window
+  measure: true      # the prompt's size is the server's own token count, not 3.2 chars a token (needed for 0.8)
+  archive: true      # condensed steps are kept in full in the task folder's history.md
+  note_tail: true    # a condensed step's note keeps the end of its output too
+  log_share: 0.25    # the progress log may use this share of the limit
   min: 16384         # a window below this is flagged: the harness's own instructions take several thousand tokens
 # a model nothing can be asked about (vLLM, llama.cpp, hosted), or one to hold to less than it is loaded with:
 #   model: {provider: vllm, model: ..., context_length: 32768}     (a persona's model block, models.fast, or the provider)
