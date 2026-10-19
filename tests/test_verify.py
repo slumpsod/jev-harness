@@ -532,6 +532,8 @@ def test_knowledge_numbers_are_not_checked_when_the_code_fetched_nothing():
     assert not any("appear in none" in p for p in answer_rules("make me a workout plan", answer, [], wrote, {}, t))
     fetched = "CODE:\nprint(web.read('https://example.com/plan', 'rest times'))\nOUTPUT: rest 60 seconds"
     assert any("appear in none" in p for p in answer_rules("make me a workout plan", answer, [], fetched, {}, t))
+    handoff = "CODE:\nr = request('fitness_coach', 'a 3 day plan')\nprint(r['answer'])\nOUTPUT: Day 1: squats, rest 60 s"
+    assert not any("appear in none" in p for p in answer_rules("make me a workout plan", answer, [], handoff, {}, t))
     read_file = "CODE:\nrows = open('sales.csv').read()\nprint(len(rows))\nOUTPUT: 120"
     assert any("appear in none" in p for p in answer_rules("sum my sales", "Total: 4,512 across 120 rows.", [],
                                                            read_file, {}, t))

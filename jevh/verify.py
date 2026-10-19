@@ -197,12 +197,14 @@ SUM_RE = re.compile(rf"{_TERM}{_LABEL}(?:\s*\+\s*{_TERM}{_LABEL})+|{_TERM}(?:\s*
 DURATION_WORD = re.compile(r"(?<![\w.])\d+(?:\.\d+)?-(?:second|sec|minute|min|hour|day|week)s?\b", re.I)
 # "~20 languages" where the log shows 18 (live): an approximation must be near a figure the tools gave, not equal to it
 # Code that brought something in from outside the worker's own words: a tool, an MCP server, a file or input read, a web
-# or shell call, memory. Writing a file (open(..., "w")), printing, computing and reading a skill's instructions do not.
+# or shell call, memory. Writing a file (open(..., "w")), printing, computing and reading a skill's instructions do not,
+# nor does another model's text (a hand-off's answer, llm_query): not a fact source, and a hand-off's answer was checked
+# by its own gate (live 2026-10-19: a workout plan from the fitness coach, rewritten, was sent back over its rest times).
 FETCHED = re.compile(
     r"\b(?:web|browser|project|devices|nango|newsroom|desktop|comfy)\.(?!look\b)\w+\(|\bmcp\("
     r"|\bopen\((?![^)\n]*['\"][wax]b?\+?['\"])|read_(?:text|bytes|csv|excel|json|table|parquet)\(|json\.loads?\("
     r"|\b(?:requests|httpx|urllib|subprocess|sqlite3|glob|shutil)\b|os\.(?:listdir|walk|scandir)|\.iterdir\("
-    r"|load_artifact\(|recall\(|request(?:_async|_all)?\(|wait\(|llm_query\(|start_job\(|job_wait\("
+    r"|load_artifact\(|recall\(|start_job\(|job_wait\("
     r"|\bctx\[['\"](?!skills\b)|peek\(\s*ctx\[['\"](?!skills\b)|\bpd\.|fitz|pypdf|PdfReader|Image\.open")
 APPROX = re.compile(r"(?:~|\b(?:about|around|roughly|approximately|approx\.?|nearly|almost|close to)\s+)\$?$", re.I)
 APPROX_SLACK = 0.15
