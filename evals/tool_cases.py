@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from jevh.config import load_config  # noqa: E402
 from jevh.decide import SystemOneClient, noul  # noqa: E402
 from jevh.tools import TOOLS  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = Path(__file__).with_name("tool_cases_raw.json")
 RAW_HOLDOUT = Path(__file__).with_name("tool_cases_holdout_raw.json")
@@ -167,9 +168,15 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--holdout", action="store_true")
+    _out.add_args(ap)
     args = ap.parse_args()
+    dest = _out.Out.of(args)
     cases, path = (HOLDOUT, RAW_HOLDOUT) if args.holdout else (CASES, RAW)
-    raw = json.loads(path.read_text(encoding="utf-8")) if args.offline else run_live(cases, path)
+    if args.offline:
+        raw = json.loads(dest.read(path).read_text(encoding="utf-8"))
+    else:
+        raw = run_live(cases, dest.write(path))
+        print(f"raw scores saved to {dest.where(dest.write(path))}")
     for name, rows in raw.items():
         print(f"\n== {name}: {PHRASINGS[name]}")
         for t in (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9):

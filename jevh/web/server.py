@@ -414,7 +414,7 @@ def gpus() -> list[dict]:
         return _gpu_cache["data"]
     try:
         out = subprocess.run(["nvidia-smi", "--query-gpu=index,name,memory.used,memory.total,utilization.gpu",
-                              "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=5,
+                              "--format=csv,noheader,nounits"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5,
                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
         data = []
         for line in out.strip().splitlines():

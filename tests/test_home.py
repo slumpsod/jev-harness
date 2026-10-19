@@ -1,6 +1,4 @@
 """jevh home: moving your own things out of the checkout (jevh/home.py), on a fake install."""
-import subprocess
-
 import pytest
 import yaml
 
@@ -9,12 +7,14 @@ from jevh.config import load_config
 from jevh.personas import load_personas
 from jevh.skills import load_roster
 
+from conftest import git
+
 PERSONA = "description: {d}\nsystem_prompt: hi\nmodel: {{provider: lmstudio, model: m}}\n"
 SKILL = "---\nname: {n}\ndescription: does {n}\n---\nHow to {n}.\n"
 
 
 def sh(cwd, *args):
-    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
+    return git(cwd, *args)   # (skips the test where git isn't installed)
 
 
 def write(path, text):

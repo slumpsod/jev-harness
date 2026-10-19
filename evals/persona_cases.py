@@ -33,6 +33,7 @@ from jevh.config import load_config  # noqa: E402
 from jevh.jev import Jev  # noqa: E402
 from jevh.personas import load_personas  # noqa: E402
 from jevh.skills import Skill  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = Path(__file__).with_name("persona_cases_raw.json")
 
@@ -256,7 +257,8 @@ RAW_FILES = {"dev": "persona_cases_raw.json", "held": "persona_cases_holdout_raw
              "fresh": "persona_cases_fresh_raw.json", "fresh2": "persona_cases_fresh2_raw.json"}
 
 
-def run_live(no_fit_cases=NO_FIT, same_cases=SAME, skill_cases=SKILLS, raw_path: Path = RAW) -> dict:
+def run_live(no_fit_cases=NO_FIT, same_cases=SAME, skill_cases=SKILLS, raw_path: Path | None = None) -> dict:
+    raw_path = raw_path or RAW
     cfg = load_config()
     jev = Jev(cfg)
     personas = load_personas(cfg.personas_dirs)
@@ -287,11 +289,17 @@ def main() -> None:
     ap.add_argument("--holdout", action="store_true", help="the held-out cases instead of the tuning ones")
     ap.add_argument("--fresh", action="store_true", help="the fresh cases (run once, after the thresholds are set)")
     ap.add_argument("--fresh2", action="store_true", help="the second fresh set: the confirmation, run once")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     split = "fresh2" if a.fresh2 else "fresh" if a.fresh else "held" if a.holdout else "dev"
     no_fit, same, skills = SETS[split]
     path = RAW.with_name(RAW_FILES[split])
-    raw = json.loads(path.read_text(encoding="utf-8")) if a.offline else run_live(no_fit, same, skills, path)
+    if a.offline:
+        raw = json.loads(dest.read(path).read_text(encoding="utf-8"))
+    else:
+        raw = run_live(no_fit, same, skills, dest.write(path))
+        print(f"raw scores saved to {dest.where(dest.write(path))}")
     sweep("no_fit: no persona is for the request", raw["no_fit"], [c[1] for c in no_fit])
     sweep("same_specialist: one specialist suits both", raw["same"], [c[2] for c in same])
     # the skill is an orphan when "none of these" leads (forge.note_skill also needs it >= orphan)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import tempfile
 from typing import Any, Callable
 
@@ -18,6 +19,16 @@ os.environ["JEVH_NANGO_DIR"] = tempfile.mkdtemp(prefix="jevh-nango-test-")
 from jevh.config import ROOT, load_config
 from jevh.decide import Answer, Response
 from jevh.llm import LLMResult
+
+
+def git(cwd, *args: str) -> str:
+    """`git *args` in `cwd` for a test, its output decoded as UTF-8. A machine without git skips the test with a reason
+    instead of erroring with FileNotFoundError (issue #7: ~36 errors on a Windows machine without git on PATH)."""
+    exe = shutil.which("git")
+    if exe is None:
+        pytest.skip("git is not installed (or not on PATH): this test needs a real repository")
+    return subprocess.run([exe, *args], cwd=cwd, check=True, capture_output=True, text=True, encoding="utf-8",
+                          errors="replace").stdout
 
 
 class FakeSystemOne:

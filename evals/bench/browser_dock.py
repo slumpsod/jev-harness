@@ -23,7 +23,8 @@ model is called (`--e2e` adds full harness turns, below). The "user" acts only t
 
 Per case: whether the panel showed the sign-in page while the user acted, frames that jumped to another tab (each frame
 the panel would have shown), whether the user's typing reached the form (the server records what was posted), the page
-the panel and the worker end on, and errors. Raw results: browser_dock_raw.json; summary: browser_dock_summary.txt.
+the panel and the worker end on, and errors. Raw results: browser_dock_raw.json; summary: browser_dock_summary.txt
+(a live run writes to workspace/evals/<backend>/; --offline re-sweeps the committed ones; see evals/_out.py).
 """
 from __future__ import annotations
 
@@ -43,6 +44,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
+
 RAW = HERE / "browser_dock_raw.json"
 SUMMARY = HERE / "browser_dock_summary.txt"
 BEFORE_REF = "dcef277"   # the code before the fix
@@ -393,14 +397,17 @@ def main() -> None:
     ap.add_argument("--child")
     ap.add_argument("--root", default=str(REPO))
     ap.add_argument("--rep", type=int, default=0)
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     if a.child:
         case = next(c for c in CASES if c["name"] == a.child)
         print("RESULT " + json.dumps(child(case, a.root, a.rep)))
         return
     if a.offline:
-        results = json.loads(RAW.read_text(encoding="utf-8"))
-        print(summarize(results, f"browser_dock (offline re-grade of {RAW.name})"))
+        raw = dest.read(RAW)
+        results = json.loads(raw.read_text(encoding="utf-8"))
+        print(summarize(results, f"browser_dock (offline re-grade of {dest.where(raw)})"))
         return
     cases = [c for c in CASES if bool(c.get("holdout")) == a.holdout or (not a.holdout and a.k)]
     if a.k:
@@ -414,7 +421,8 @@ def main() -> None:
             for arm, root in arms:
                 t = time.time()
                 p = subprocess.run([sys.executable, __file__, "--child", case["name"], "--root", root, "--rep", str(rep)],
-                                   capture_output=True, text=True, timeout=240, cwd=str(REPO))
+                                   capture_output=True, text=True, timeout=240, cwd=str(REPO), encoding="utf-8",
+                                   errors="replace")
                 line = next((x for x in p.stdout.splitlines() if x.startswith("RESULT ")), None)
                 r = json.loads(line[7:]) if line else {"case": case["name"], "rep": rep, "root": root, "frames": [],
                                                        "errors": [f"child failed: {p.stderr.strip()[-300:]}"]}
@@ -423,16 +431,19 @@ def main() -> None:
                 g = grade(case, r)
                 print(f"{arm:6s} {case['name']:32s} rep {rep}: {'pass' if g['pass'] else 'FAIL'} "
                       f"{[k for k, v in g['checks'].items() if not v] or ''} ({r['seconds']}s)", flush=True)
-    old = json.loads(RAW.read_text(encoding="utf-8")) if RAW.is_file() else []   # (a later run of a case replaces it)
+    raw = dest.write(RAW)
+    old = json.loads(raw.read_text(encoding="utf-8")) if raw.is_file() else []   # (a later run of a case replaces it)
     keep = {(r["arm"], r["case"], r["rep"]) for r in results}
-    RAW.write_text(json.dumps([r for r in old if (r["arm"], r["case"], r["rep"]) not in keep] + results, indent=1),
+    raw.write_text(json.dumps([r for r in old if (r["arm"], r["case"], r["rep"]) not in keep] + results, indent=1),
                    encoding="utf-8")
     text = summarize(results, f"browser_dock: {len(results)} runs in {time.time() - started:.0f}s, "
                               f"{time.strftime('%Y-%m-%d %H:%M')}, Chrome via {sys.executable}")
-    SUMMARY.write_text(text + "\n", encoding="utf-8")
-    print("\n" + text)
+    summary = dest.write(SUMMARY)
+    summary.write_text(text + "\n", encoding="utf-8")
+    print("\n" + text + f"\n\nraw: {dest.where(raw)}   summary: {dest.where(summary)}")
     if a.e2e:
-        subprocess.run([sys.executable, str(HERE / "browser_dock_e2e.py"), "--repeat", str(a.repeat)], cwd=str(REPO))
+        where = ["--save-committed"] if a.save_committed else ["--out", str(dest.dir)]
+        subprocess.run([sys.executable, str(HERE / "browser_dock_e2e.py"), "--repeat", str(a.repeat), *where], cwd=str(REPO))
 
 
 if __name__ == "__main__":

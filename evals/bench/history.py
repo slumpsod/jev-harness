@@ -14,7 +14,7 @@ What it checks, over every session the workspace has:
   - what you get, as counts per category (the titles stay on your screen: the summary file holds counts only).
 The eval of how *right* the categories are, on labelled sessions, is evals/session_category_cases.py.
 
-Results: evals/bench/history_last_summary.txt (counts only) and evals/bench/runs/history/<time>/raw.json (git-ignored: it has
+Results: history_last_summary.txt (counts only; in workspace/evals/<backend>/bench/, see evals/_out.py) and evals/bench/runs/history/<time>/raw.json (git-ignored: it has
 your session titles).
 """
 from __future__ import annotations
@@ -31,10 +31,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "evals"))
 
 from jevh.config import load_config  # noqa: E402
 from jevh.history import EMPTY, MIXED, History  # noqa: E402
 from jevh.orchestrator import Harness  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 
 def copy_workspace(src: Path, dst: Path) -> None:
@@ -58,7 +60,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--config")
     ap.add_argument("--workspace", help="read this workspace's sessions instead of the config's")
+    _out.add_args(ap)
     a = ap.parse_args(argv)
+    dest = _out.Out.of(a)
     cfg = load_config(a.config)
     real = Path(a.workspace) if a.workspace else Path(cfg.workspace)
     tmp = Path(tempfile.mkdtemp(prefix="jevh-history-"))
@@ -134,7 +138,9 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = ROOT / "evals" / "bench" / "runs" / "history" / raw["started"]
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "raw.json").write_text(json.dumps(raw, indent=2), encoding="utf-8")
-    (ROOT / "evals" / "bench" / "history_last_summary.txt").write_text(text + "\n", encoding="utf-8")
+    summary = dest.write(ROOT / "evals" / "bench" / "history_last_summary.txt")
+    print(f"summary: {dest.where(summary)}   raw: {dest.where(run_dir / 'raw.json')}")
+    summary.write_text(text + "\n", encoding="utf-8")
     return 1 if failed else 0
 
 

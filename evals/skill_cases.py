@@ -29,6 +29,7 @@ from jevh.config import load_config  # noqa: E402
 from jevh.jev import Jev, decide_skills  # noqa: E402
 from jevh.personas import load_personas  # noqa: E402
 from jevh.skills import load_roster  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 # (id, expected skill or None, request, persona override for None cases, acceptable extras)
 CASES = [
@@ -212,16 +213,19 @@ def score(rows, fits_t, override, veto, k=1) -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     cache = Path(__file__).with_name("skill_raw.json")
     cfg = load_config()
     cur = (cfg.t("skill_fits"), cfg.t("skill_override"), cfg.t("skill_none_veto"), cfg.lim("max_skills"))
     if a.offline:
-        rows = json.loads(cache.read_text())
+        rows = json.loads(dest.read(cache).read_text(encoding="utf-8"))
     else:
         t = time.time()
         rows = run(cfg, load_personas(cfg.personas_dir), load_roster(cfg.skills_dirs))
-        cache.write_text(json.dumps(rows, indent=1))
+        dest.write(cache).write_text(json.dumps(rows, indent=1), encoding="utf-8")
+        print(f"raw answers saved to {dest.where(dest.write(cache))}")
         secs = sorted(r["secs"] for r in rows)
         print(f"{len(rows)} cases in {time.time() - t:.0f}s (median {secs[len(secs) // 2]:.2f}s per pick)")
     s = score(rows, *cur)

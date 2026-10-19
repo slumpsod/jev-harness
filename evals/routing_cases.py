@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from jevh.config import load_config  # noqa: E402
 from jevh.jev import Jev  # noqa: E402
 from jevh.personas import load_personas  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 D, DEV, FE, FIT, COMFY = "daily_assistant", "high_end_dev", "front_end_designer", "fitness_coach", "comfyui_manager"
 
@@ -103,20 +104,23 @@ def report(rows, thr: float, min_cx: float, verbose: bool = True) -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sweep", action="store_true")
-    ap.add_argument("--cache", default=str(Path(__file__).with_name("routing_raw.json")))
+    ap.add_argument("--cache", default=str(Path(__file__).with_name("routing_raw.json")),
+                    help="the raw answers file (default: the committed routing_raw.json, written to --out instead)")
     ap.add_argument("--offline", action="store_true", help="re-decide from the cache, no model calls")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     cfg = load_config()
     personas = load_personas(cfg.personas_dir)
     if a.offline:
-        rows = json.loads(Path(a.cache).read_text())
+        rows = json.loads(dest.read(a.cache).read_text(encoding="utf-8"))
     else:
         jev = Jev(cfg)
         t = time.time()
         rows = run(cfg, jev, personas)
-        Path(a.cache).write_text(json.dumps(rows, indent=1))
+        dest.write(a.cache).write_text(json.dumps(rows, indent=1), encoding="utf-8")
         print(f"{len(rows)} cases, {jev.client.calls} jev calls, {time.time() - t:.1f}s "
-              f"({cfg.jev.get('backend')})")
+              f"({cfg.jev.get('backend')}); raw answers saved to {dest.where(dest.write(a.cache))}")
     thr, min_cx = cfg.t("collab"), 0.5
     res = report(rows, thr, min_cx)
     print(f"route top-1 {res['route_acc']:.1%} | collab exact {res['collab_exact']:.1%} | "

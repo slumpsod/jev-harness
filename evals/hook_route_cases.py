@@ -30,6 +30,7 @@ from hook_route_data import ALL, HOLDOUT, KINDS, TUNING, Case  # noqa: E402
 
 from jevh.config import DEFAULT_THRESHOLDS  # noqa: E402
 from jevh.learn import HOOK_Q, hook_state  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = Path(__file__).with_name("hook_route_raw.json")
 THRESHOLDS = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.98, 0.99)
@@ -38,7 +39,7 @@ MARGIN = 0.05   # the recommended threshold sits at least this far above the hig
 
 # ---------------------------------------------------------------- scoring
 
-def run_live() -> dict:
+def run_live(path: Path | None = None) -> dict:
     from jevh.config import load_config
     from jevh.decide import SystemOneClient, noul
     cfg = load_config()
@@ -47,21 +48,23 @@ def run_live() -> dict:
     for case in ALL:
         scores[case.id] = c.ask(hook_state(case.task, case.log), {"q": noul(HOOK_Q)})["q"].noul
     raw = {"question": HOOK_Q, "scores": scores}
-    RAW.write_text(json.dumps(raw, indent=1), encoding="utf-8")
+    (path or RAW).write_text(json.dumps(raw, indent=1), encoding="utf-8")
     return raw
 
 
-def load_saved() -> dict:
+def load_saved(path: Path | None = None) -> dict:
     """The saved scores, or SystemExit saying why they can't be used (missing, or from other cases or
     another wording of the question: sweeping them would tune on something that no longer exists)."""
-    if not RAW.exists():
-        raise SystemExit(f"{RAW.name} not found: run `python evals/hook_route_cases.py` against a live Jev first.")
-    raw = json.loads(RAW.read_text(encoding="utf-8"))
+    path = path or RAW
+    if not path.exists():
+        raise SystemExit(f"{path.name} not found in {path.parent}: run `python evals/hook_route_cases.py` against a "
+                         "live Jev first (--save-committed to make its scores the committed ones).")
+    raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("question") != HOOK_Q:
-        raise SystemExit(f"{RAW.name} was scored with a different HOOK_Q: re-run live.")
+        raise SystemExit(f"{path.name} was scored with a different HOOK_Q: re-run live.")
     missing = sorted({c.id for c in ALL} - set(raw.get("scores", {})))
     if missing:
-        raise SystemExit(f"{RAW.name} has no scores for {', '.join(missing[:5])}"
+        raise SystemExit(f"{path.name} has no scores for {', '.join(missing[:5])}"
                          f"{' ...' if len(missing) > 5 else ''}: re-run live.")
     return raw
 
@@ -180,8 +183,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true", help="re-sweep the saved scores")
     ap.add_argument("--check", action="store_true", help="offline; exit 1 on a false positive at the configured threshold")
+    _out.add_args(ap)
     a = ap.parse_args()
-    raw = load_saved() if a.offline or a.check else run_live()
+    dest = _out.Out.of(a)
+    if a.offline or a.check:
+        raw = load_saved(dest.read(RAW))
+    else:
+        raw = run_live(dest.write(RAW))
+        print(f"raw scores saved to {dest.where(dest.write(RAW))}")
     if a.check:
         sys.exit(check(raw))
     report(raw)

@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from jevh.config import load_config  # noqa: E402
 from jevh.decide import SystemOneClient, choice, noul, score  # noqa: E402
 from jevh.personas import load_personas  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 D, DEV, FE, FIT, COMFY = "daily_assistant", "high_end_dev", "front_end_designer", "fitness_coach", "comfyui_manager"
 
@@ -120,15 +121,18 @@ def evaluate(rows, signal: str, thr: float) -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     cache = Path(__file__).with_name("tier_raw.json")
     cfg = load_config()
     if a.offline:
-        rows = json.loads(cache.read_text())
+        rows = json.loads(dest.read(cache).read_text(encoding="utf-8"))
     else:
         t = time.time()
         rows = run(cfg, load_personas(cfg.personas_dir))
-        cache.write_text(json.dumps(rows, indent=1))
+        dest.write(cache).write_text(json.dumps(rows, indent=1), encoding="utf-8")
+        print(f"raw answers saved to {dest.where(dest.write(cache))}")
         print(f"{len(rows)} cases in {time.time() - t:.0f}s")
     grids = {"score": [x / 10 for x in range(2, 20)], "can_fast": [x / 20 for x in range(1, 20)],
              "needs_deep": [x / 20 for x in range(1, 20)], "p_strong": [x / 20 for x in range(1, 20)]}

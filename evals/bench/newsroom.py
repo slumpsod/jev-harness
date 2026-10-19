@@ -64,7 +64,9 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
+sys.path.insert(0, str(ROOT / "evals"))
 
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 import yaml  # noqa: E402
 
 from jevh import newsroom as nr  # noqa: E402
@@ -575,10 +577,13 @@ def main() -> None:
     ap.add_argument("--pin", action="store_true", help="pin daily_assistant (skip routing); by default Jev routes, as for a user")
     ap.add_argument("--model", help="pin every persona to one model, e.g. lmstudio:qwen3.8-27b@q6_k (recommended)")
     ap.add_argument("--dry", action="store_true", help="plumbing check: fake Jev, scripted worker, no network for the sources stage")
-    ap.add_argument("--report", action="store_true", help="print the last run's summary")
+    ap.add_argument("--report", action="store_true", help="print the last run's summary (the committed one, or --out's)")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     if a.report:
-        print(SUMMARY.read_text(encoding="utf-8") if SUMMARY.exists() else "no runs yet")
+        last = dest.read(SUMMARY)
+        print(last.read_text(encoding="utf-8") if last.exists() else "no runs yet")
         return
     stamp = time.strftime("%Y%m%d-%H%M%S")
     stages = a.stage.split(",")
@@ -592,11 +597,12 @@ def main() -> None:
     if "dashboard" in stages:
         print("dashboard ...", flush=True)
         res["dashboard"] = run_dashboard(a, stamp)
-    RAW.write_text(json.dumps(res, indent=1, default=str), encoding="utf-8")
+    raw, summary = dest.write(RAW), dest.write(SUMMARY)
+    raw.write_text(json.dumps(res, indent=1, default=str), encoding="utf-8")
     text = summarize(res)
-    SUMMARY.write_text(text, encoding="utf-8")
+    summary.write_text(text, encoding="utf-8")
     print("\n" + text)
-    print(f"raw results: {RAW.name}   summary: {SUMMARY.name}")
+    print(f"raw results: {dest.where(raw)}   summary: {dest.where(summary)}")
 
 
 if __name__ == "__main__":

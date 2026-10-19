@@ -25,7 +25,8 @@ tasks must pass in both (the feature must not break what worked). Persona: daily
 
 Designed for: Jev = semif adapter (config jev.url), worker = Qwen3.8-27B on llama-server (config.local.yaml), a device
 with Playwright's Chromium installed for the browser task. Needs nothing secret. Results: runs/devices/<stamp>/raw.json
-(every turn: answer, checks, questions, device calls, usage) and devices_last_summary.txt beside this file.
+(every turn: answer, checks, questions, device calls, usage) and devices_last_summary.txt in workspace/evals/<backend>/bench/
+(--out DIR; --save-committed: the committed one beside this file; see evals/_out.py).
 """
 from __future__ import annotations
 
@@ -47,6 +48,9 @@ from typing import Callable
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
+
 RUNS = HERE / "runs" / "devices"
 SUMMARY = HERE / "devices_last_summary.txt"
 PERSONA = "daily_assistant"
@@ -440,12 +444,14 @@ def main() -> None:
                                                           "requests from the device and from the hub, told (new) or not (old)")
     ap.add_argument("--desktop", action="store_true", help="the desktop tool on the device (JevLab, Calculator); drives its "
                                                            "mouse and keyboard: nobody may use that computer meanwhile")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     globals()["LIMIT"] = a.limit
 
     if a.regrade:   # offline: the saved checks, with the through-the-device rule applied again (the sandbox is gone by now)
         path = (max(RUNS.glob("*/raw.json"), key=lambda p: p.stat().st_mtime) if a.regrade == "last" else Path(a.regrade))
-        records = json.loads(path.read_text(encoding="utf-8"))["records"]
+        records = json.loads(dest.read(path).read_text(encoding="utf-8"))["records"]
         for r in records:
             if r["passed"] and r["kind"] == "device" and r["task"] != "offline" and not r["device_calls"]:
                 r["passed"], r["why"] = False, r["why"] + " - but not through the device (the hub's own disk)"
@@ -524,7 +530,8 @@ def main() -> None:
                                                          indent=1, default=str), encoding="utf-8")
     text = summarize(records)
     print("\n" + text)
-    SUMMARY.write_text(text + f"\n\nraw: {out / 'raw.json'}\n", encoding="utf-8")
+    print(f"summary: {dest.where(dest.write(SUMMARY))}   raw: {dest.where(out / 'raw.json')}")
+    dest.write(SUMMARY).write_text(text + f"\n\nraw: {out / 'raw.json'}\n", encoding="utf-8")
     shutil.rmtree(Path.home() / ctx.rel / "hubside", ignore_errors=True)   # (--origin's folder on the hub)
     try:
         if a.desktop:

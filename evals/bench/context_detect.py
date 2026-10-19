@@ -18,7 +18,8 @@ What it cannot check without changing your LM Studio: that a model reloaded with
 covered by tests/test_context.py with a fake server; to see it live, reload a model with another context length in
 LM Studio and run `jevh context` again.
 
-Results: evals/bench/context_detect_last_summary.txt and evals/bench/runs/context_detect/<time>/raw.json.
+Results: context_detect_last_summary.txt in workspace/evals/<backend>/bench/ (--out DIR; --save-committed: the committed
+one beside this file; see evals/_out.py) and evals/bench/runs/context_detect/<time>/raw.json.
 """
 from __future__ import annotations
 
@@ -33,10 +34,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "evals"))
 
 from jevh import context as ctxwin  # noqa: E402
 from jevh.config import load_config  # noqa: E402
 from jevh.lmstudio import gate_for, info_from  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 
 def lms_ps() -> list[dict] | None:
@@ -45,7 +48,8 @@ def lms_ps() -> list[dict] | None:
     if not exe:
         return None
     try:
-        out = subprocess.run([exe, "ps", "--json"], capture_output=True, text=True, timeout=30, check=True).stdout
+        out = subprocess.run([exe, "ps", "--json"], capture_output=True, text=True, timeout=30, check=True,
+                             encoding="utf-8", errors="replace").stdout
         return json.loads(out)
     except (OSError, subprocess.SubprocessError, ValueError):
         return None
@@ -55,7 +59,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--config")
     ap.add_argument("--reps", type=int, default=10, help="questions asked to measure stability and cost (default 10)")
+    _out.add_args(ap)
     a = ap.parse_args(argv)
+    dest = _out.Out.of(a)
 
     cfg = load_config(a.config)
     ctxwin.configure(cfg)
@@ -149,7 +155,9 @@ def main(argv: list[str] | None = None) -> int:
     run_dir.mkdir(parents=True, exist_ok=True)
     raw["checks"] = checks
     (run_dir / "raw.json").write_text(json.dumps(raw, indent=2), encoding="utf-8")
-    (ROOT / "evals" / "bench" / "context_detect_last_summary.txt").write_text(text + f"\n\nraw results in {run_dir.relative_to(ROOT).as_posix()}\n", encoding="utf-8")
+    summary = dest.write(ROOT / "evals" / "bench" / "context_detect_last_summary.txt")
+    print(f"summary: {dest.where(summary)}   raw: {dest.where(run_dir / 'raw.json')}")
+    summary.write_text(text + f"\n\nraw results in {run_dir.relative_to(ROOT).as_posix()}\n", encoding="utf-8")
     return 1 if failed else 0
 
 

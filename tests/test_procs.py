@@ -19,7 +19,8 @@ TREE = ("import subprocess, sys, time\n"
 
 def _alive(pid: int) -> bool:
     if os.name == "nt":
-        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True).stdout
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True,
+                             encoding="utf-8", errors="replace").stdout
         return str(pid) in out
     try:
         os.kill(pid, 0)

@@ -28,8 +28,15 @@ be thorough:
 - **Run end to end as well.** Unit-style cases for each decision, plus full harness turns on real tasks
   when the feature touches the worker, the gate, hand-offs, tools or the dashboard.
 - **Be runnable and readable.** One command, a plain-text summary with pass rates and the failing cases
-  named, raw results saved beside it (`*_raw.json`), and a short note in the README's eval list saying
+  named, raw results saved (`*_raw.json`), and a short note in the README's eval list saying
   what it checks and how to run it. Nothing it needs may be secret or machine-specific.
+- **Save results through `evals/_out.py`, never over the committed ones.** Name each file by its committed
+  path beside the bench (`HERE / "x_raw.json"`), call `_out.add_args(ap)`, and write to `out.write(path)`
+  and re-sweep from `out.read(path)`. A live run then lands in `workspace/evals/<jev backend>/` (outside
+  git; `--out DIR` / `JEVH_EVAL_OUT` to choose), `--offline` re-sweeps the committed copy, and only
+  `--save-committed` replaces it: a run on another machine or backend must not rewrite the numbers the
+  README quotes, or dirty the checkout (`jevh update` would have to stash it). Commit a run's results on
+  purpose, with `--save-committed`, when they become the new reference.
 - **Say what you could not run.** If you could not run the bench yourself (you usually can't from the
   cloud), say so in the commit message and the PR, list the thresholds and numbers that are untuned
   guesses, and say what result would mean the feature is wrong. Never report numbers you did not

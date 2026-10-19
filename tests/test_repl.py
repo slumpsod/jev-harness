@@ -104,14 +104,27 @@ def test_a_lone_surrogate_in_the_output_does_not_kill_the_repl(tmp_path):
 def test_a_variable_too_big_to_snapshot_is_skipped_without_losing_the_rest(tmp_path):
     """The snapshot after every step pickled each variable in full before dropping the ones over 16 MB: a large one
     held a second copy in memory and could outlast the snapshot's time limit, which restarts the REPL and loses every
-    variable. It now stops pickling a variable once it passes the cap."""
+    variable. It now stops pickling a variable once it passes the cap.
+
+    What is checked is the work, not the clock: how far each pickle grew, counted in the REPL's own capped writer. This
+    test used to assert the snapshot took < 0.4 s (0.05 s capped, 0.67 s uncapped), and failed on a machine with a local
+    model on every core (issue #7); on one machine the same snapshot, repeated, took 0.05 s to 2.9 s."""
     with Repl(tmp_path / "w", tmp_path / "a", timeout=20) as r:
         r.run("small = [3, 1, 4]\nbig = [str(i) * 12 for i in range(3_000_000)]")   # ~150 MB as a pickle
-        t = time.time()
+        r.run("import sys\n"   # (names starting with _ and modules are never snapshotted)
+              "_srv = sys.modules['__main__']\n"   # the REPL server: jevh/repl/server.py
+              "_grew = []\n"
+              "def _counting(self, data, _write=_srv._Capped.write):\n"
+              "    _grew.append((self.cap, len(self.buf) + memoryview(data).nbytes))\n"
+              "    return _write(self, data)\n"
+              "_srv._Capped.write = _counting")
         info = r.snapshot(tmp_path / "state.pkl")
-        took = time.time() - t
         assert info["saved"] == ["small"] and "big" in info["skipped"], info
-        assert took < 0.4, took   # (measured: 0.05 s capped, 0.67 s when the whole 150 MB was pickled first)
+        peak, stopped, cap = eval(r.run("max((n for _, n in _grew), default=0), any(n > c for c, n in _grew), "
+                                        "_srv.MAX_VAR_BYTES")
+                                  .output.strip())
+        assert stopped                       # big's pickle reached the cap and was stopped there...
+        assert peak <= cap + 1024 * 1024     # ...one write past it, never the whole ~150 MB first
         assert r.run("len(big), small").output.strip() == "(3000000, [3, 1, 4])"   # nothing was lost
 
 

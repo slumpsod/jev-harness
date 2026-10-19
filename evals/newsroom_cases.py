@@ -1,7 +1,8 @@
 """Live eval of the three decisions Jev makes for the Newsroom (jevh/newsroom.py, docs/newsroom.md). Written in a cloud
 session, first run 2026-10-09 on semif (3 runs per case; results in docs/newsroom.md's status note): the tool pick and the routing
 fell below the targets below. Read the numbers against the targets; a target missed is a finding, not a bug in this file.
-Raw scores: newsroom_cases_raw.json (dev) and newsroom_cases_holdout_raw.json (--holdout), each re-swept by --offline.
+Raw scores: newsroom_cases_raw.json (dev) and newsroom_cases_holdout_raw.json (--holdout), each re-swept by --offline
+(a live run writes to workspace/evals/<backend>/; --offline re-sweeps the committed ones; see evals/_out.py).
 
   tool   Does Jev put the `newsroom` guide in the worker's prompt for "keep an eye on / track / alert me" requests, and
          NOT for the requests that look like them (a one-off "what's the news on X?", "follow up with Sam", "monitor my
@@ -56,6 +57,7 @@ from jevh.decide import noul  # noqa: E402
 from jevh.jev import Jev  # noqa: E402
 from jevh.personas import load_personas  # noqa: E402
 from jevh.tools import TOOLS  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = HERE / "newsroom_cases_raw.json"                       # one file per set: a live run starts from nothing, so one shared
 RAW_HOLDOUT = HERE / "newsroom_cases_holdout_raw.json"       # file lost the dev run when the held-out one was made, and
@@ -393,13 +395,17 @@ def main() -> None:
     ap.add_argument("--no-regress", action="store_true", help="skip the tool_cases.py regression requests")
     ap.add_argument("--export", metavar="FILE", help="write the items on your board to FILE for labelling, then stop")
     ap.add_argument("--labelled", metavar="FILE", help="score the about stage on your own labelled items")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     if a.export:
         return export_items(a.export)
     cfg = load_config()
     stages = {s.strip() for s in a.stage.split(",")}
     which, tool = tool_sets(a.holdout)
     raw_file, summary_file = (RAW_HOLDOUT, SUMMARY_HOLDOUT) if a.holdout else (RAW, SUMMARY)
+    if a.offline:
+        raw_file = dest.read(raw_file)
     raw = json.loads(raw_file.read_text(encoding="utf-8")) if a.offline and raw_file.exists() else {}
     out = Out()
     t0 = time.time()
@@ -426,6 +432,7 @@ def main() -> None:
             raw.setdefault("about", {})["labelled" if a.labelled else which] = collect_about(jev, cases, a.runs)
         raw["meta"] = {"jev": cfg.jev.get("backend"), "calls": jev.client.calls if hasattr(jev.client, "calls") else None,
                        "seconds": round(time.time() - t0, 1), "runs": a.runs, "when": time.strftime("%Y-%m-%d %H:%M")}
+        raw_file = dest.write(raw_file)
         raw_file.write_text(json.dumps(raw, indent=1), encoding="utf-8")
     meta = raw.get("meta") or {}
     out(f"newsroom decisions on Jev backend {meta.get('jev') or cfg.jev.get('backend')}, {meta.get('runs', a.runs)} run(s) per case, "
@@ -438,8 +445,9 @@ def main() -> None:
         key = "labelled" if a.labelled else which
         if raw.get("about", {}).get(key):
             report_about(out, raw["about"][key], cfg.t("newsroom_about"), key)
+    summary_file = dest.write(summary_file)
     summary_file.write_text("\n".join(out.lines) + "\n", encoding="utf-8")
-    print(f"\nraw scores: {raw_file.name}   summary: {summary_file.name}")
+    print(f"\nraw scores: {dest.where(raw_file)}   summary: {dest.where(summary_file)}")
 
 
 if __name__ == "__main__":

@@ -48,7 +48,8 @@ Set JEVH_HOME to use another folder. See docs/your-data.md in the checkout.
 
 
 def git(*args: str) -> str:
-    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                          check=True).stdout
 
 
 def changed_files() -> tuple[list[str], list[str]]:

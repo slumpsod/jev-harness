@@ -1,15 +1,23 @@
 """Build evals/bench/serve_compare_chart.html (one self-contained page) from the rows serve_compare.py saved.
 
-    python evals/bench/serve_compare_chart.py          # reads runs/serve_compare/rows.jsonl, writes the html beside this file
+    python evals/bench/serve_compare_chart.py          # reads runs/serve_compare/rows.jsonl, writes the html to
+                                                       # workspace/evals/<backend>/bench/ (--out DIR; --save-committed:
+                                                       # the committed one beside this file; see evals/_out.py)
 
 Offline: no server, no model. Re-run it after more rows land (the control section appears once control_nospec rows exist).
 """
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent.parent))
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
+
 ROWS = HERE / "runs" / "serve_compare" / "rows.jsonl"
 OUT = HERE / "serve_compare_chart.html"
 
@@ -182,7 +190,12 @@ panel($('p3'),'Time per task','minutes, lower is faster',id=>stats(id).min,1);
 
 
 def main() -> None:
-    rows = [json.loads(line) for line in ROWS.read_text(encoding="utf-8").splitlines()]
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--rows", default=str(ROWS), help="the rows to chart (default: this machine's runs/serve_compare/rows.jsonl)")
+    _out.add_args(ap)
+    a = ap.parse_args()
+    dest = _out.Out.of(a)
+    rows = [json.loads(line) for line in Path(a.rows).read_text(encoding="utf-8").splitlines()]
     keys = ("task", "kind", "config", "rep", "seconds", "output", "thinking", "passed", "total", "correct", "timed_out",
             "steps", "server")
     slim = lambda rs: [{k: r.get(k) for k in keys} for r in rs]   # noqa: E731
@@ -199,8 +212,9 @@ def main() -> None:
     meta = {"servers": servers, "nruns": len(main_rows), "ntasks": len({r["task"] for r in main_rows})}
     html = (TEMPLATE.replace("__ROWS__", json.dumps(slim(main_rows))).replace("__CTL__", json.dumps(slim(ctl_rows)))
             .replace("__META__", json.dumps(meta)))
-    OUT.write_text(html, encoding="utf-8")
-    print(f"wrote {OUT} ({len(rows)} rows)")
+    out = dest.write(OUT)
+    out.write_text(html, encoding="utf-8")
+    print(f"wrote {dest.where(out)} ({len(rows)} rows)")
 
 
 if __name__ == "__main__":

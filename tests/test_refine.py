@@ -1,7 +1,6 @@
 """Refinement: checkers, test generation, the matrix, the verdict and report, and the whole loop
 (on a throwaway git repo, with scripted models and a fake runner)."""
 import json
-import subprocess
 import time
 from pathlib import Path
 
@@ -16,6 +15,7 @@ from jevh.refine.loop import Refiner
 from jevh.refine.run_case import run_one
 
 from conftest import FakeSystemOne, ScriptedLLM, choice_ans, py
+from conftest import git as _git
 
 
 def judge(q, state):   # a fake Jev judge: says yes to plans that list days
@@ -253,7 +253,7 @@ def test_execute_runs_the_code_of_the_tree_it_is_given(tmp_path):
 # ---------------------------------------------------------------- the whole loop
 
 def git(repo, *args):
-    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout
+    return _git(None, "-C", str(repo), *args)   # (skips the test where git isn't installed)
 
 
 @pytest.fixture

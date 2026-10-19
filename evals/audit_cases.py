@@ -30,6 +30,7 @@ from jevh.audit import audit  # noqa: E402
 from jevh.config import load_config  # noqa: E402
 from jevh.llm import make_llm  # noqa: E402
 from jevh.personas import load_personas  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 CASES = Path(__file__).with_name("audit_cases.json")
 
@@ -63,11 +64,13 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model")
     ap.add_argument("--offline", action="store_true")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     cases = json.loads(CASES.read_text(encoding="utf-8"))
     raw = CASES.with_name(f"audit_cases_raw{'-' + a.model.split(':')[-1] if a.model else ''}.json")
     if a.offline:
-        rows = json.loads(raw.read_text(encoding="utf-8"))
+        rows = json.loads(dest.read(raw).read_text(encoding="utf-8"))
     else:
         cfg = load_config()
         llm = make_llm(block_for(cfg, a.model), cfg.providers)
@@ -78,7 +81,8 @@ def main() -> None:
                 v = audit(llm, c["request"], c["answer"], materialize(c, Path(d)), c["log"])
             rows.append({"id": c["id"], **v, "seconds": round(time.time() - started, 1)})
             print(f"  {c['label']:<5} -> {v['verdict']:<6} {rows[-1]['seconds']:>6.1f}s  {c['id']}", flush=True)
-        raw.write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
+        dest.write(raw).write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"raw verdicts saved to {dest.where(dest.write(raw))}")
     print()
     for c, r in zip(cases, rows):
         mark = "ok " if (r["verdict"] == "wrong") == (c["label"] == "wrong") and r["verdict"] != "unsure" else "-- "

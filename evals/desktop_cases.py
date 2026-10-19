@@ -19,7 +19,7 @@ Three ways to read the same pick cases, to show what Jev adds and what the desig
     python evals/desktop_cases.py -k calculator         # cases whose snapshot or goal contains this
 
 Needs the Jev adapter (config jev url/backend), not the worker model. Raw answers: desktop_cases_raw.json /
-desktop_cases_holdout_raw.json.
+desktop_cases_holdout_raw.json (a live run writes to workspace/evals/<backend>/; --offline re-sweeps the committed ones; see evals/_out.py).
 """
 from __future__ import annotations
 
@@ -33,6 +33,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 SNAPS = HERE / "desktop_snapshots"
 RAW = HERE / "desktop_cases_raw.json"
@@ -338,12 +340,18 @@ def main() -> None:
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--repeat", type=int, default=3)
     ap.add_argument("-k", default="")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if a.capture:
         return capture()
     cases, raw = (HOLDOUT, RAW_HOLDOUT) if a.holdout else (TUNE, RAW)
-    rows = json.loads(raw.read_text(encoding="utf-8")) if a.offline else run_live(cases, raw, a.repeat, a.k)
+    if a.offline:
+        rows = json.loads(dest.read(raw).read_text(encoding="utf-8"))
+    else:
+        rows = run_live(cases, dest.write(raw), a.repeat, a.k)
+        print(f"raw answers saved to {dest.where(dest.write(raw))}")
     report(rows)
 
 

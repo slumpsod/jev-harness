@@ -60,7 +60,7 @@ def tailscale_name() -> str | None:
     if not exe:
         return None
     try:
-        out = subprocess.run([exe, "status", "--json"], capture_output=True, text=True, timeout=10,
+        out = subprocess.run([exe, "status", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
         return (json.loads(out).get("Self") or {}).get("DNSName", "").rstrip(".") or None
     except (OSError, ValueError, subprocess.SubprocessError):
@@ -73,7 +73,7 @@ def tailscale_serve(port: int, https_port: int) -> str:
     if not exe:
         raise RuntimeError("Tailscale is not installed")
     r = subprocess.run([exe, "serve", "--bg", f"--https={https_port}", f"http://127.0.0.1:{port}"], capture_output=True,
-                       text=True, timeout=30, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                       text=True, encoding="utf-8", errors="replace", timeout=30, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip()[:300] or "tailscale serve failed")
     return f"{tailscale_name()}:{https_port}"

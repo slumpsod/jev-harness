@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from jevh.config import load_config  # noqa: E402
 from jevh.decide import SystemOneClient, noul  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = Path(__file__).with_name("verify_cases_raw.json")
 
@@ -225,14 +226,14 @@ def state(req, ans, arts, log):
     return {"request": req, "answer": ans, "artifacts": arts or "(none)", "work_log": log or "(no code was run)"}
 
 
-def run_live() -> list[dict]:
+def run_live(path: Path | None = None) -> list[dict]:
     cfg = load_config()
     c = SystemOneClient(cfg.jev["url"], cfg.jev["backend"], timeout=300)
     rows = []
     for req, ans, arts, log, _ in CASES:
         r = c.ask(state(req, ans, arts, log), {k: noul(q) for k, q in QUESTIONS.items()})
         rows.append({k: r[k].noul for k in QUESTIONS})
-    RAW.write_text(json.dumps(rows, indent=1), encoding="utf-8")
+    (path or RAW).write_text(json.dumps(rows, indent=1), encoding="utf-8")
     return rows
 
 
@@ -263,7 +264,7 @@ def shipped(rows, labels, cases=None, quiet: bool = False, evidence: list | None
     return caught, false
 
 
-def guard() -> None:
+def guard(dest: _out.Out | None = None) -> None:
     """One JSON line: the shipped gate on every saved set (tuning + both held-out), from the saved Jev scores.
     refine runs it on the old and the new code for a fix scored on gate bounces: a fix that makes the gate
     lenient must not pass as one that removed needless bounces. (Offline: a fix that rewords a Jev
@@ -272,6 +273,7 @@ def guard() -> None:
     for cases, raw, ev in ((CASES, RAW, None), (HOLDOUT, RAW.with_name("verify_holdout_raw.json"), None),
                            (HOLDOUT2, RAW.with_name("verify_holdout2_raw.json"), None),
                            (LIVE, RAW.with_name("verify_live_raw.json"), LIVE_EVIDENCE)):
+        raw = (dest or _out.Out()).read(raw)
         if not raw.is_file():
             continue
         rows = json.loads(raw.read_text(encoding="utf-8"))
@@ -290,9 +292,11 @@ def main() -> None:
     ap.add_argument("--holdout2", action="store_true")
     ap.add_argument("--guard", action="store_true", help="one JSON line: the shipped gate on every saved set")
     ap.add_argument("--live", action="store_true", help="real gate inputs from 2026-09-30 (verify_live_cases.json)")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     if a.guard:
-        return guard()
+        return guard(dest)
     global CASES, RAW
     evidence = None
     if a.holdout:
@@ -301,7 +305,11 @@ def main() -> None:
         CASES, RAW = HOLDOUT2, RAW.with_name("verify_holdout2_raw.json")
     if a.live:
         CASES, RAW, evidence = LIVE, RAW.with_name("verify_live_raw.json"), LIVE_EVIDENCE
-    rows = json.loads(RAW.read_text(encoding="utf-8")) if a.offline else run_live()
+    if a.offline:
+        rows = json.loads(dest.read(RAW).read_text(encoding="utf-8"))
+    else:
+        rows = run_live(dest.write(RAW))
+        print(f"raw scores saved to {dest.where(dest.write(RAW))}")
     labels = [c[4] for c in CASES]
     print("scores per case (label: claims delivers honest accurate):")
     for (req, ans, *_), lab, s in zip(CASES, labels, rows):
