@@ -662,3 +662,29 @@ def test_a_page_with_a_stale_token_reloads_itself_once(dashboard, browse):
         page.wait_for_timeout(1500)
         assert len(loads) == 1 and refusals["n"] >= 2
     browse(body)
+
+
+def test_make_an_account_sends_the_typed_name_and_shows_a_refusal(dashboard, cfg, browse):
+    """Issue #1: Create account read the form after the busy redraw had emptied it (every name was refused as blank),
+    and the refresh after the action wiped its error, so the button seemed to do nothing."""
+    from jevh.accounts import Accounts
+
+    def flow(page):
+        sent = []
+        page.on("request", lambda r: sent.append(r.post_data) if r.url.endswith("/api/accounts") and r.method == "POST" else None)
+        page.goto(dashboard)
+        page.wait_for_selector(".hello")
+        page.click('.rail [data-page="settings"]')
+        page.click('#setnav [data-sec="devices"]')
+        page.click('#p-devices [data-dv="form"][data-f="first"]')
+        page.fill('#p-devices [data-dvf="name"]', "alex")
+        page.fill('#p-devices [data-dvf="password"]', "short")
+        page.click('#p-devices [data-dv="create"]')
+        page.wait_for_selector("#p-devices :text('at least 8 characters')")      # the refusal is shown, not wiped
+        assert json.loads(sent[-1])["name"] == "alex"
+        page.fill('#p-devices [data-dvf="name"]', "alex")
+        page.fill('#p-devices [data-dvf="password"]', "correct horse")
+        page.click('#p-devices [data-dv="create"]')
+        page.wait_for_selector("#p-devices :text(\"Made alex's account\")")
+    browse(flow)
+    assert [u["name"] for u in Accounts(cfg.workspace / "accounts.db").users()] == ["alex"]
