@@ -26,6 +26,7 @@ import subprocess
 import queue
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import Future
@@ -426,7 +427,8 @@ def gpus() -> list[dict]:
     return data
 
 
-def probe(url: str, timeout: float = 2.0) -> dict:
+def probe(url: str, timeout: float = 2.0, any_answer: bool = False) -> dict:
+    """`any_answer`: any HTTP reply, an error status too, means the server is up (it is running and answering)."""
     t = time.time()
     try:
         with urllib.request.urlopen(url, timeout=timeout) as r:
@@ -436,6 +438,10 @@ def probe(url: str, timeout: float = 2.0) -> dict:
         except ValueError:
             pass
         return {"up": True, "ms": round((time.time() - t) * 1000), "info": body}
+    except urllib.error.HTTPError as e:
+        if any_answer:
+            return {"up": True, "ms": round((time.time() - t) * 1000), "info": f"HTTP {e.code}"}
+        return {"up": False, "error": f"HTTP {e.code}"}
     except Exception as e:  # noqa: BLE001
         return {"up": False, "error": str(getattr(e, "reason", e))[:200]}
 
@@ -1374,7 +1380,9 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             if row["up"] or row["in_use"]:   # (a server in the config that nothing uses and is not running: not news)
                 servers.append(row)
         out["servers"] = servers
-        out["jev_adapter"] = probe(h.cfg.jev.get("url", "http://127.0.0.1:33001").rstrip("/") + "/docs", 2.0)
+        # any HTTP answer from its root: /docs exists only on a FastAPI adapter (issue #6: another adapter that serves
+        # /v1/systemone showed as down), and the openjev adapter's /health checks every backend (~10 s with some off)
+        out["jev_adapter"] = probe(h.cfg.jev.get("url", "http://127.0.0.1:33001").rstrip("/") + "/", 2.0, any_answer=True)
         if h.cfg.jev.get("backend_health"):
             out["jev_backend"] = {"name": h.cfg.jev.get("backend"), **probe(h.cfg.jev["backend_health"], 2.0)}
         if h.cfg.tools.get("comfy_url"):

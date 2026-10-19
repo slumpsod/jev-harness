@@ -125,8 +125,27 @@ def _ask(question: str, options: list | None = None, secret: bool = False) -> st
     main = sys.modules.get("__main__")
     call = getattr(main, "_call", None)
     if call is None or not hasattr(main, "ask_user"):
-        return None
+        return _ask_terminal(question, options, secret)
     return str(call("ask_user", question, options, **({"secret": True} if secret else {})) or "")
+
+
+def _ask_terminal(question: str, options: list | None, secret: bool) -> str | None:
+    """Run by hand in a terminal (SETUP.md's "Or by hand"; issue #9: nango.setup() refused with "there is no user here to
+    ask"), ask there: a secret typed hidden (getpass), a choice by number or text. None when there is no terminal."""
+    try:
+        if not sys.stdin or not sys.stdin.isatty():
+            return None
+    except (AttributeError, ValueError):
+        return None
+    opts = [str(o) for o in options or []]
+    if secret:
+        import getpass
+        return getpass.getpass(f"{question} (typed hidden): ")
+    print(question)
+    for i, o in enumerate(opts, 1):
+        print(f"  {i}. {o}")
+    answer = input("> " if not opts else "Number or text: ").strip()
+    return opts[int(answer) - 1] if answer.isdigit() and 0 < int(answer) <= len(opts) else answer
 
 
 def _http(method: str, path: str, *, params: dict | None = None, body: Any = None,

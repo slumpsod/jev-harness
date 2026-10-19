@@ -117,3 +117,23 @@ def test_nango_is_offered_before_it_is_set_up_and_names_the_accounts(cfg, fake_n
     monkeypatch.delenv("NANGO_SECRET_KEY")   # not set up (no key anywhere): still offered, so "connect my Gmail" works
     h.turn("connect my Gmail", force="daily_assistant")
     assert "Nango isn't set up yet" in seen["t_nango"] and "t_web" in seen
+
+
+def test_run_by_hand_in_a_terminal_it_asks_there(monkeypatch):
+    """Issue #9: nango.setup() by hand refused with "there is no user here to ask"; in a terminal it now asks there,
+    a secret through getpass (hidden), a choice by number."""
+    import getpass
+    import io
+    from jevh.tools import nango
+    tty = io.StringIO()
+    tty.isatty = lambda: True
+    monkeypatch.setattr("sys.stdin", tty)
+    answers = iter(["2"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    monkeypatch.setattr(getpass, "getpass", lambda prompt="": "s3cret")
+    assert nango._ask("Which access?", ["read", "write"]) == "write"
+    assert nango._ask("Client secret?", secret=True) == "s3cret"
+    pipe = io.StringIO()
+    pipe.isatty = lambda: False
+    monkeypatch.setattr("sys.stdin", pipe)
+    assert nango._ask("anyone there?") is None                       # no terminal, no REPL: still nobody to ask

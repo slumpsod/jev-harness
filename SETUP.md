@@ -103,7 +103,9 @@ find the details and you type them on Nango's own page.
 ### Or by hand
 
 Everything above is also plain Python the assistant calls: `nango.status()`, `nango.start()`,
-`nango.guide(app)`, `nango.setup(app)`, `nango.connect_and_wait(app)`, `nango.test(app)`. And the
+`nango.guide(app)`, `nango.setup(app)`, `nango.connect_and_wait(app)`, `nango.test(app)`. You can call them
+yourself in a terminal (`python -c "from jevh.tools import nango; nango.setup('google-mail', access='write')"`):
+what they would ask you in the chat they ask in the terminal, a Client secret typed hidden. And the
 long way, to see what it does:
 
 **Nango on this machine** (Docker Desktop running):
