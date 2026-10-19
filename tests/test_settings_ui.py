@@ -101,7 +101,7 @@ def test_the_chat_glass_slider_previews_as_it_moves_and_saves_when_let_go(dashbo
     def flow(page):
         page.goto(dashboard)
         page.wait_for_selector(".hello")
-        page.click('#tabs [data-tab="settings"]')
+        page.click('.rail [data-page="settings"]')
         slider = page.locator("input[data-glass]")
         slider.wait_for()
         assert slider.input_value() == "10" and page.inner_text("#glass-val") == "10"
@@ -116,7 +116,7 @@ def test_the_chat_glass_slider_previews_as_it_moves_and_saves_when_let_go(dashbo
         if shots:
             page.locator("#p-settings .card", has=slider).screenshot(path=os.path.join(shots, "glass-85.png"))
         page.reload()
-        page.click('#tabs [data-tab="settings"]')
+        page.click('.rail [data-page="settings"]')
         page.locator("input[data-glass]").wait_for()
         assert page.input_value("input[data-glass]") == "85"
     browse(flow)
