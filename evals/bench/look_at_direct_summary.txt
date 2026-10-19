@@ -1,0 +1,9 @@
+look_at direct: 18 looks, 2026-10-19 16:48
+
+  intake_form_scan.png       3/3 read right; 1 look(s), avg 3.2s a look, 2.2k tokens
+  invoice_INV-scan.pdf       3/3 read right; 2 look(s), avg 3.5s a look, 4.5k tokens
+  IMG_4471.jpg               3/3 read right; 1 look(s), avg 2.7s a look, 2.1k tokens
+  screen.png                 3/3 read right; 1 look(s), avg 2.8s a look, 1.6k tokens
+  PXL_20261016_sticky.jpg    3/3 read right; 1 look(s), avg 3.0s a look, 2.2k tokens
+  lease_signed_scan.pdf      3/3 read right; 3 look(s), avg 4.1s a look, 6.8k tokens
+  total: 18/18

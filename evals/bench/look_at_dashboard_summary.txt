@@ -1,0 +1,15 @@
+look_at_dashboard: 6 runs, 2026-10-19 17:04, screenshots in C:\Users\Jedidiah\Projects\jev-harness\.claude\worktrees\talon-vision\evals\bench\runs\look_at_dashboard\20261019-165837
+
+  desktop_receipt  rep 0  pass  uploaded ok, thumbnail ok, file_in_request ok, used_look_at ok, correct ok, fits ok, no_page_errors ok  (45.8s)
+      answer: "It's from Corner Crow Bakery, and the total is 48.37 (the receipt prints bare numbers, so the currency symbol isn't shown)."
+  phone_form       rep 0  pass  uploaded ok, thumbnail ok, file_in_request ok, used_look_at ok, correct ok, fits ok, no_page_errors ok  (36.5s)
+      answer: 'Your policy number is HX-44721-B. (The form also shows group no. 88130, if you need that.)'
+  desktop_receipt  rep 1  pass  uploaded ok, thumbnail ok, file_in_request ok, used_look_at ok, correct ok, fits ok, no_page_errors ok  (50.5s)
+      answer: "The receipt is from Corner Crow Bakery. The total is 48.37 — no currency symbol is printed on the receipt, so I'm reporting it as a bare number. It checks out: sourdough loaf 7.50 + almond croissants x4 17.60 + oat milk latte 5.25 + birthday cake (8in) 14.00 = 44.35 (computed: 7.50+17.60+5.25+14.00)"
+  phone_form       rep 1  pass  uploaded ok, thumbnail ok, file_in_request ok, used_look_at ok, correct ok, fits ok, no_page_errors ok  (125.0s)
+      answer: 'The policy number on your intake form is HX-44721-B.'
+  desktop_receipt  rep 2  pass  uploaded ok, thumbnail ok, file_in_request ok, used_look_at ok, correct ok, fits ok, no_page_errors ok  (46.8s)
+      answer: "This receipt is from CORNER CROW BAKERY (22 Mill St, Bend OR, dated 10/14/2026 08:12). Total: 48.37 — no currency symbol is printed, so it's a bare number. The math checks out: Sourdough loaf 7.50 + Almond croissant x4 17.60 + Oat milk latte 5.25 + Birthday cake (8in) 14.00 + Tax 4.02 = 48.37."
+  phone_form       rep 2  pass  uploaded ok, thumbnail ok, file_in_request ok, used_look_at ok, correct ok, fits ok, no_page_errors ok  (46.8s)
+      answer: 'HX-44721-B'
+  total: 6/6
