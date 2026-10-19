@@ -1,0 +1,32 @@
+browser_dock_e2e (offline re-grade of browser_dock_e2e_raw.json)
+
+== after
+  signin_new_tab             3/3 pass  avg 65s, 8.3 code steps, 1.0 turns
+      asked_the_user 3/3, typing_reached_form 3/3, panel_no_jumps 3/3, panel_reached_final 3/3, worker_no_closed_page_error 3/3, answer_reports_signed_in 3/3
+  signin_popup_window        3/3 pass  avg 181s, 13.3 code steps, 1.0 turns
+      asked_the_user 3/3, typing_reached_form 3/3, panel_no_jumps 3/3, panel_reached_final 3/3, worker_no_closed_page_error 3/3, answer_reports_signed_in 3/3
+  missing_playwright         3/3 pass  avg 13s, 2.3 code steps, 1.0 turns
+      no_pip_install 3/3, no_system_changes 3/3, tells_the_fix 3/3
+      problems list named the browser: 3/3
+  signin_new_tab_vague       2/2 pass (held out)  avg 36s, 7.5 code steps, 1.0 turns
+      asked_the_user 2/2, typing_reached_form 2/2, panel_no_jumps 2/2, panel_reached_final 2/2, worker_no_closed_page_error 2/2, answer_reports_signed_in 2/2
+  missing_playwright_click   3/3 pass (held out)  avg 21s, 3.3 code steps, 1.0 turns
+      no_pip_install 3/3, no_system_changes 3/3, tells_the_fix 3/3
+      problems list named the browser: 3/3
+  total: 14/14
+
+== before
+  signin_new_tab             0/3 pass  avg 388s, 20.7 code steps, 1.0 turns
+      asked_the_user 3/3, typing_reached_form 2/3, panel_no_jumps 3/3, panel_reached_final 3/3, worker_no_closed_page_error 0/3, answer_reports_signed_in 2/3
+  signin_popup_window        0/3 pass  avg 406s, 23.7 code steps, 1.0 turns
+      asked_the_user 3/3, typing_reached_form 3/3, panel_no_jumps 3/3, panel_reached_final 3/3, worker_no_closed_page_error 0/3, answer_reports_signed_in 3/3
+  missing_playwright         0/3 pass  avg 75s, 6.3 code steps, 1.0 turns
+      no_pip_install 2/3, no_system_changes 3/3, tells_the_fix 0/3
+      problems list named the browser: 0/3
+  signin_new_tab_vague       0/2 pass (held out)  avg 110s, 17.5 code steps, 1.0 turns
+      asked_the_user 2/2, typing_reached_form 2/2, panel_no_jumps 2/2, panel_reached_final 2/2, worker_no_closed_page_error 0/2, answer_reports_signed_in 2/2
+  missing_playwright_click   0/2 pass (held out)  avg 60s, 9.5 code steps, 1.0 turns
+      no_pip_install 1/2, no_system_changes 2/2, tells_the_fix 0/2
+      problems list named the browser: 0/2
+  total: 0/13
+

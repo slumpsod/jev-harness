@@ -1,0 +1,49 @@
+browser_dock (offline re-grade of browser_dock_raw.json)
+
+== after (C:\Users\Jedidiah\Projects\jev-harness\.claude\worktrees\browser-dock)
+  popup_tab_signin                 3/3 pass
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 3/3, no_errors 3/3, typing_reached_form 3/3
+  popup_tab_signin_reattach        3/3 pass
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 3/3, no_errors 3/3, typing_reached_form 3/3, reattach_shows_page 3/3
+  popup_window_signin              3/3 pass
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 3/3, no_errors 3/3, typing_reached_form 3/3
+  same_tab_redirects               3/3 pass
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 3/3, no_errors 3/3, typing_reached_form 3/3
+  same_tab_redirects_reattach      3/3 pass
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 3/3, no_errors 3/3, typing_reached_form 3/3, reattach_shows_page 3/3
+  new_tab_then_next_turn           3/3 pass
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 3/3, no_errors 3/3, turn2_worker_on_page 3/3, turn2_panel_on_page 3/3
+  popup_window_signin_reattach     3/3 pass (held out)
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 3/3, no_errors 3/3, typing_reached_form 3/3, reattach_shows_page 3/3
+  user_closes_new_tab              3/3 pass (held out)
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 3/3, no_errors 3/3
+  target_blank_link_turn2          3/3 pass (held out)
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 3/3, no_errors 3/3, turn2_worker_on_page 3/3, turn2_panel_on_page 3/3
+  total: 27/27 (100%)
+
+== before (C:\Users\Jedidiah\AppData\Local\Temp\jevh-dock-before-dcef277)
+  popup_tab_signin                 0/3 pass  failing: no_errors, worker_follows, worker_url_at_once
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 0/3, worker_url_at_once 0/3, no_errors 0/3, typing_reached_form 3/3
+      error: worker observe: TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+  popup_tab_signin_reattach        0/3 pass  failing: no_errors, no_jumps, panel_ends_right, reattach_shows_page, typing_reached_form, worker_follows, worker_url_at_once  jump frames: 2 (to /start)
+      panel_showed_page 3/3, no_jumps 2/3, panel_ends_right 2/3, worker_follows 0/3, worker_url_at_once 0/3, no_errors 1/3, typing_reached_form 2/3, reattach_shows_page 2/3
+      error: worker observe: TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+  popup_window_signin              0/3 pass  failing: no_errors, worker_follows, worker_url_at_once
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 0/3, worker_url_at_once 0/3, no_errors 0/3, typing_reached_form 3/3
+      error: worker observe: TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+  same_tab_redirects               0/3 pass  failing: worker_url_at_once
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 0/3, no_errors 3/3, typing_reached_form 3/3
+  same_tab_redirects_reattach      0/3 pass  failing: worker_url_at_once
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 0/3, no_errors 3/3, typing_reached_form 3/3, reattach_shows_page 3/3
+  new_tab_then_next_turn           0/3 pass  failing: turn2_panel_on_page, turn2_worker_on_page, worker_url_at_once
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 0/3, no_errors 3/3, turn2_worker_on_page 2/3, turn2_panel_on_page 2/3
+  popup_window_signin_reattach     0/3 pass (held out)  failing: no_errors, no_jumps, panel_ends_right, reattach_shows_page, typing_reached_form, worker_follows, worker_url_at_once  jump frames: 60 (to /start)
+      panel_showed_page 3/3, no_jumps 2/3, panel_ends_right 2/3, worker_follows 0/3, worker_url_at_once 0/3, no_errors 1/3, typing_reached_form 2/3, reattach_shows_page 2/3
+      error: worker observe: TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+  user_closes_new_tab              0/3 pass (held out)  failing: no_errors, worker_follows, worker_url_at_once
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 0/3, worker_url_at_once 0/3, no_errors 0/3
+      error: worker observe: TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+  target_blank_link_turn2          0/3 pass (held out)  failing: worker_url_at_once
+      panel_showed_page 3/3, no_jumps 3/3, panel_ends_right 3/3, worker_follows 3/3, worker_url_at_once 0/3, no_errors 3/3, turn2_worker_on_page 3/3, turn2_panel_on_page 3/3
+  total: 0/27 (0%)
+

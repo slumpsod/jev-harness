@@ -548,6 +548,54 @@ def _alive(port: int) -> bool:
         return False
 
 
+def _target(page) -> tuple[str | None, str | None]:
+    """Chrome's id for the tab a Playwright page is, and the id of the tab that opened it (None: none did). Kept on the
+    page: neither changes when the tab navigates. (Playwright's page.opener() is no help here: on a fresh connection
+    it is None for a pop-up attached before its opener.)"""
+    got = getattr(page, "_jevh_target", None)
+    if got is None:
+        try:
+            cdp = page.context.new_cdp_session(page)
+            try:
+                info = cdp.send("Target.getTargetInfo")["targetInfo"]
+            finally:
+                cdp.detach()
+        except Exception:  # noqa: BLE001 - closing, or not a Chromium page
+            return None, None
+        got = page._jevh_target = (info["targetId"], info.get("openerId"))
+    return got if isinstance(got, tuple) else (got, None)
+
+
+def front_page(pages: list, port: int | None):
+    """Of `pages` (open Playwright pages of one browser), the tab the user is looking at. A pop-up (a tab or window a
+    page opened) is in front of its opener while it is open; past that, the one Chrome showed last: its /json/list puts
+    the tab shown most recently first. A connection's own page list is no guide: it is in no fixed order, and a fresh
+    one lists the first tab last (live: the user signed in to Facebook in a second tab, the dashboard's panel
+    reconnected after a picture failed mid-navigation, and it went back to the first tab - and so did the user's
+    typing). /json/list alone is not enough either: attaching to a browser whose pop-up is a window of its own can move
+    the opener to the top of it (evals/bench/browser_dock.py, held-out case). No port, or no answer: the last page."""
+    if not pages:
+        return None
+    if not port:
+        return pages[-1]
+    try:
+        order = [t["id"] for t in json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=2).read())
+                 if t.get("type") == "page"]
+    except (OSError, ValueError, KeyError, TypeError):
+        order = []
+    ids = [_target(p) for p in pages]
+    every = [(tid, opener, p) for (tid, opener), p in zip(ids, pages)]
+    if order:   # a pop-up that closed itself a moment ago: gone from Chrome's list before the page here hears of it
+        every = [x for x in every if x[0] in order] or every   # (live: browser.url() still gave the closed pop-up's)
+    openers = {opener for _, opener, _ in every if opener}
+    leaves = [(tid, p) for tid, _, p in every if tid not in openers] or [(tid, p) for tid, _, p in every]
+    by_id = {tid: p for tid, p in leaves if tid}
+    for tid in order:   # (a target with no page here, like a prerendered page, is passed over)
+        if tid in by_id:
+            return by_id[tid]
+    return leaves[-1][1]
+
+
 def close_kept(session_dir: str | Path, wait: float = 8) -> bool:
     """Close the docked Chrome a dashboard session kept open between turns (Hub.reset, the dashboard shutting down).
     Its tabs are closed over the debugging port, so Chrome exits the normal way and writes its cookies; if it is still
@@ -608,6 +656,8 @@ class Session:
     """One Chromium page plus the Jev loop. Module-level functions use a shared session."""
 
     def __init__(self, headed: bool | None = None, profile: str | None = None, jev=None, cap: int | None = None):
+        from jevh.tools import chromium_command, need, unavailable
+        need("browser")   # no Playwright here: say what fixes it, not "No module named 'playwright'"
         from playwright.sync_api import sync_playwright
         if jev is None:
             jev, default_cap = client_from_env()
@@ -640,22 +690,30 @@ class Session:
         if self.real and self.kept:
             port = self.debug_port   # the dashboard mirrors Chrome itself, not this process
         if not self.real:
-            if profile:
-                self.context = self._pw.chromium.launch_persistent_context(profile, headless=not window, viewport=viewport,
-                                                                           args=args)
-                self._browser = None
-            else:
-                self._browser = self._pw.chromium.launch(headless=not window, args=args)
-                self.context = self._browser.new_context(viewport=viewport)
+            try:
+                if profile:
+                    self.context = self._pw.chromium.launch_persistent_context(profile, headless=not window,
+                                                                               viewport=viewport, args=args)
+                    self._browser = None
+                else:
+                    self._browser = self._pw.chromium.launch(headless=not window, args=args)
+                    self.context = self._browser.new_context(viewport=viewport)
+            except Exception as e:  # noqa: BLE001
+                if "Executable doesn't exist" not in str(e):
+                    raise
+                self._pw.stop()   # (Playwright's own message asks for `playwright install`: the user runs it, not the worker)
+                raise unavailable("browser", "Playwright's own Chromium isn't installed", chromium_command()) from None
         name = f"chrome-{port}.json" if self.real and self.kept else f"{os.getpid()}.json"
         self._dock_file = Path(dock) / name if dock else None
         if self._dock_file:
             self._dock_file.parent.mkdir(parents=True, exist_ok=True)
             self._dock_file.write_text(json.dumps({"port": port, "pid": os.getpid(), "started": time.time()}))
         self.context.add_init_script(SAME_TAB_JS)
+        # where Chrome says which tab is in front (front_page): the tool and the dashboard's panel follow the same one
+        self._tabs_port = self.debug_port if self.real else (port or None)
         pages = [p for p in self.context.pages if not p.is_closed()]
-        # a kept browser: carry on in the tab the last turn left (the newest), not a fresh blank one
-        self.page = (pages[-1] if self.kept else pages[0]) if pages else self.context.new_page()
+        # a kept browser: carry on in the tab the last turn left (the one in front), not a fresh blank one
+        self.page = (front_page(pages, self._tabs_port) if self.kept else pages[0]) if pages else self.context.new_page()
         self.navs: list[str] = []   # the pages (main-frame documents) asked for since the last action
         # script errors on every page (test() reports them): uncaught exceptions and console.error
         self.js_errors: list[str] = []
@@ -851,9 +909,27 @@ class Session:
     def _choose(self, state, instructions, options, extra=None):
         return choose(self, state, instructions, options, self.cap, extra)
 
+    def _follow(self) -> None:
+        """Be on the page the user sees: a tab a link or a script opened, the opener again when a pop-up closed
+        itself (live: a sign-in pop-up closed after the user signed in, and the next browser.read() failed with
+        "Target page has been closed"), or the tab the user switched to in a watched browser."""
+        pages = [p for p in self.context.pages if not p.is_closed()]
+        if not pages:
+            self.page = self.context.new_page()
+        elif self._tabs_port:   # Chrome says which tab is in front (the dashboard's panel shows the same one)
+            self.page = front_page(pages, self._tabs_port)
+        elif self.page.is_closed():
+            opener = None
+            try:
+                opener = self.page.opener()
+            except Exception:  # noqa: BLE001 - gone with the page
+                pass
+            self.page = opener if opener is not None and not opener.is_closed() else pages[-1]
+        elif len(pages) > 1 and pages[-1] is not self.page:
+            self.page = pages[-1]  # a link opened a new tab: follow it
+
     def _settle(self) -> None:
-        if len(self.context.pages) > 1 and self.context.pages[-1] is not self.page:
-            self.page = self.context.pages[-1]  # a link opened a new tab: follow it
+        self._follow()
         for state, ms in (("domcontentloaded", 5000), ("networkidle", 800)):
             try:
                 self.page.wait_for_load_state(state, timeout=ms)
@@ -914,6 +990,7 @@ class Session:
     def goto(self, url: str) -> dict:
         if not re.match(r"^[a-z]+://", url):
             url = "https://" + url
+        self._follow()   # (live: after a sign-in pop-up closed itself, goto() went to the closed page and failed)
         self.refused, self.navs = [], []
         fixed, resp = None, None
         try:
@@ -1113,6 +1190,23 @@ class Session:
             return self._direct("pick", e, str(option))
         return self._direct("select", e, str(option))
 
+    def address(self) -> str:
+        """The address of the page the user sees now. Playwright's page.url (and which pages are closed) is only as new
+        as the last event it handled: with nothing called in between, it was still the start page's address after the
+        user had signed in in the panel (evals/bench/browser_dock.py). Each round trip to the driver handles some of what
+        came in (one got as far as the sign-in's last redirect): a few, until the address holds still."""
+        seen = None
+        for _ in range(6):
+            try:
+                self.page.wait_for_timeout(20)
+            except Exception:  # noqa: BLE001 - the page closed: _follow() finds the one in front
+                pass
+            self._follow()
+            if self.page.url == seen:
+                break
+            seen = self.page.url
+        return self.page.url
+
     def html(self, css: str | None = None, max_chars: int = 30000) -> str:
         """The page's HTML (or of each element matching `css`), for scraping what text doesn't show:
         ratings drawn as star icons (books.toscrape: class="star-rating Four"), links, attributes."""
@@ -1147,6 +1241,7 @@ class Session:
                 "note": CANVAS_NOTE if canvas else ""}
 
     def screenshot(self, name: str = "page.png", full_page: bool = False) -> str:
+        self._follow()
         ARTIFACTS.mkdir(parents=True, exist_ok=True)
         dest = ARTIFACTS / Path(name).name
         if dest.suffix.lower() not in (".png", ".jpg", ".jpeg"):
@@ -1883,7 +1978,7 @@ def screenshot(name: str = "page.png", full_page: bool = False) -> str:
 
 
 def url() -> str:
-    return _run(lambda s: s.page.url)
+    return _run(Session.address)
 
 
 def visible() -> bool:

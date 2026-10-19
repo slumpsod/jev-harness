@@ -218,6 +218,84 @@ def test_docked_browser_is_mirrored_and_takes_the_users_input(tmp_path, monkeypa
     assert not list(tmp_path.glob("*.json")) and dock.frame() is None
 
 
+def test_the_tab_in_front_is_the_one_chrome_showed_last(monkeypatch):
+    """A connection's page list is in no fixed order (a fresh one lists the first tab last): the panel and the tool
+    take the tab Chrome's /json/list puts first, passing over targets they have no page for."""
+    import io
+    import json
+    import jevh.tools.browser as browser
+
+    class P:
+        def __init__(self, tid, opener=None):
+            self._jevh_target = (tid, opener)
+    first, popup = P("A"), P("B")
+    listed = [{"id": "PRERENDER", "type": "page"}, {"id": "W", "type": "service_worker"}, {"id": "B", "type": "page"},
+              {"id": "A", "type": "page"}]
+    monkeypatch.setattr(browser.urllib.request, "urlopen", lambda url, timeout=0: io.BytesIO(json.dumps(listed).encode()))
+    assert browser.front_page([popup, first], 9222) is popup and browser.front_page([first, popup], 9222) is popup
+    assert browser.front_page([first, popup], None) is popup                 # no port: the last one, as before
+    assert browser.front_page([], 9222) is None
+    # a pop-up window is in front of its opener even when Chrome lists the opener first (attaching can do that)
+    win = P("C", opener="A")
+    listed[:] = [{"id": "A", "type": "page"}, {"id": "C", "type": "page"}]
+    assert browser.front_page([first, win], 9222) is win and browser.front_page([win, first], 9222) is win
+
+    def down(url, timeout=0):
+        raise OSError("refused")
+    monkeypatch.setattr(browser.urllib.request, "urlopen", down)
+    assert browser.front_page([popup, first], 9222) is first                 # Chrome not answering: the last one
+
+
+@pytest.mark.parametrize("real", ["1", "0"])
+def test_the_panel_and_the_tool_follow_a_sign_in_popup_and_its_opener(site, tmp_path, monkeypatch, real):
+    """Live (session 20261011-203023-3e47): signing in in a second tab, the panel went back to the first tab (it showed
+    whichever page its connection listed last, and reconnected after a picture failed mid-navigation); and once a
+    sign-in pop-up closes itself, the tool was left on the closed page. evals/bench/browser_dock.py is the live bench."""
+    from concurrent.futures import ThreadPoolExecutor
+    from jevh.tools.browser import find_chrome
+    from jevh.web.server import BrowserDock
+    if real == "1" and not find_chrome():
+        pytest.skip("no Chrome or Edge installed")
+    monkeypatch.setenv("JEVH_BROWSER_DOCK", str(tmp_path / "dock"))
+    monkeypatch.setenv("JEVH_BROWSER_REAL", real)
+    monkeypatch.setenv("JEVH_BROWSER_PAUSE", "0")
+    own = ThreadPoolExecutor(1)
+    run = lambda fn: own.submit(fn).result(90)  # noqa: E731
+    try:
+        s = run(lambda: Session(headed=True, jev=FakeSystemOne(), cap=16, profile=str(tmp_path / "profile")))
+    except Exception as e:  # noqa: BLE001 - no Chromium in this environment
+        pytest.skip(f"chromium unavailable: {e}")
+
+    def shows(dock, want, secs=10.0):
+        import time
+        end = time.monotonic() + secs
+        while time.monotonic() < end:
+            try:
+                f = dock.frame()
+            except Exception:  # noqa: BLE001 - a picture taken mid-navigation
+                f = None
+            if f and want in f["url"]:
+                return True
+            time.sleep(0.2)
+        return False
+    try:
+        run(lambda: s.goto(site + "popup_signin.html"))
+        dock = BrowserDock(lambda: tmp_path / "dock")
+        assert shows(dock, "popup_signin.html")
+        i = int(run(lambda: s.elements("Continue with Kettle ID"))[0].split("]")[0][1:])
+        assert "new tab" in run(lambda: s.click(i, allow_irreversible=True))["action"]
+        assert shows(dock, "popup_done.html")
+        again = BrowserDock(lambda: tmp_path / "dock")    # the panel connects afresh (a failed picture, a restart)
+        assert shows(again, "popup_done.html", 3)
+        assert again.send({"kind": "click", "x": 0.5, "y": 0.5})   # the user's click: the pop-up sends the opener on, closes
+        assert shows(again, "account.html?signed=1") and shows(dock, "account.html?signed=1")
+        assert run(s.address).endswith("account.html?signed=1")      # browser.url(), with no other call in between
+        assert run(lambda: s.observe()["url"]).endswith("account.html?signed=1")   # the tool is on the opener too
+    finally:
+        run(s.close)
+        own.shutdown()
+
+
 # -- live failures on real sites (evals/bench/browser_tasks.py), replayed on local pages -----------
 def picks(*labels: str, done_when: str = "never"):
     """Jev that acts on the first element whose description contains one of `labels` (in order),

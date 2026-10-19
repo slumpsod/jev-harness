@@ -1,5 +1,12 @@
 """A persona or skill that can't be used is skipped with a note instead of stopping the harness;
 your own folder (JEVH_HOME) is laid over the checkout's config, personas and skills."""
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
 from jevh.config import ROOT, load_config
 from jevh.jev import Jev
 from jevh.orchestrator import Harness
@@ -77,3 +84,43 @@ def test_no_home_folder_changes_nothing(tmp_path, monkeypatch):
     monkeypatch.setenv("JEVH_HOME", str(tmp_path / "missing"))
     c = load_config(ROOT / "config.yaml")
     assert c.home is None and c.workspace == ROOT / "workspace" and c.personas_dirs == [ROOT / "personas"]
+
+
+def test_a_tool_missing_its_packages_is_listed_with_the_command_that_fixes_it(cfg, monkeypatch):
+    """Live (session 20261009-201253-5345): the dashboard's Python had no Playwright; the worker found out mid-task and
+    pip-installed it into the harness's venv itself. Now the problems list says so at start, with the exact command."""
+    import jevh.tools as tools
+    real = importlib.util.find_spec
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a: None if name in ("playwright", "comtypes") else real(name, *a))
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne()))
+    probs = {p["name"]: p for p in h.problems() if p["kind"] == "tool"}
+    assert f'"{sys.executable}" -m pip install playwright' in probs["browser"]["error"]   # the Python the worker runs with
+    assert not probs["browser"]["skipped"] and "Browser panel" in probs["browser"]["error"]
+    assert ("desktop" in probs) == (sys.platform == "win32") and "web" not in probs
+    with pytest.raises(tools.ToolUnavailable, match="Don't install anything yourself.*-m pip install playwright"):
+        tools.need("browser")
+    from jevh.tools.browser import Session
+    with pytest.raises(tools.ToolUnavailable, match="the browser tool can't run on this machine yet"):
+        Session(headed=False, jev=FakeSystemOne())
+
+
+def test_bundled_chromium_is_looked_for_where_playwright_keeps_it(tmp_path, monkeypatch):
+    import jevh.tools as tools
+    import jevh.tools.browser as browser
+    pytest.importorskip("playwright")
+    monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(tmp_path))
+    monkeypatch.setattr(browser, "find_chrome", lambda: "chrome.exe")
+    assert tools.bundled_chromium_missing()
+    pkg = Path(importlib.util.find_spec("playwright").origin).parent / "driver" / "package"
+    rev = {b["name"]: b["revision"] for b in json.loads((pkg / "browsers.json").read_text(encoding="utf-8"))["browsers"]}
+    (tmp_path / f"chromium_headless_shell-{rev['chromium-headless-shell']}").mkdir()
+    assert not tools.bundled_chromium_missing()                  # (the user's Chrome covers a watched browser)
+    monkeypatch.setattr(browser, "find_chrome", lambda: None)
+    assert tools.bundled_chromium_missing()                      # no Chrome: a watched browser is Playwright's too
+    assert "-m playwright install chromium" in tools.chromium_command()
+
+
+def test_the_worker_asks_before_changing_this_computers_setup():
+    from jevh.worker import HOW_YOU_WORK
+    assert "installing into the harness's Python" in HOW_YOU_WORK and "registry" in HOW_YOU_WORK
+    assert "Docker volumes" in HOW_YOU_WORK
