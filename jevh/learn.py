@@ -105,6 +105,7 @@ class Learned:
 
 
 NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+TODAY_RE = re.compile(r"Today is [^.\n]*\.")   # the date line of the worker's system prompt (worker.build_system)
 COMMON = {"about", "after", "their", "there", "these", "which", "would", "could", "should", "found", "price",
           "information", "available", "current", "right", "other", "where", "while", "first", "please"}
 
@@ -162,8 +163,11 @@ def seen_text(transcript: list[dict[str, str]], task_idx: int | None = None) -> 
                          if m.get("role") == "user" and "(In your REPL:" in m.get("content", "")), None)
     start = task_idx if task_idx is not None else next(
         (i for i, m in enumerate(transcript) if m.get("role") == "user"), len(transcript))
-    return "\n".join(m.get("content", "") for i, m in enumerate(transcript)
-                     if m.get("role") in ("user", "tool") or (m.get("role") == "assistant" and i < start))
+    # the date the harness tells the worker is something it was shown (issue #3: "It's Friday, October 16" was sent back
+    # as a made-up 16 once any code had run)
+    told = [d for m in transcript[:1] if m.get("role") == "system" for d in TODAY_RE.findall(str(m.get("content", "")))]
+    return "\n".join(told + [m.get("content", "") for i, m in enumerate(transcript)
+                             if m.get("role") in ("user", "tool") or (m.get("role") == "assistant" and i < start)])
 
 
 def work_log(transcript: list[dict[str, str]], cap: int = 5000, answer: str | None = None) -> str:

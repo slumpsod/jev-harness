@@ -160,6 +160,24 @@ CASES += [
 ]
 
 
+def no_number_bounce(rec):
+    """Issue #3: a right answer from the date the worker is told, or from knowledge, must not be sent back over its numbers."""
+    bad = [b for b in rec["bounces"] if "appear in none" in b]
+    if not rec["answer"].strip():
+        return False, "no answer"
+    return (not bad, "no number bounce" if not bad else f"sent back: {bad[0][:120]}")
+
+
+CASES += [
+    Case("gate_hello_date", "gate", "lookalike", "hello! what's today's date? (and save a one-line note.txt saying hi first)",
+         no_number_bounce),
+    Case("gate_workout", "gate", "lookalike", "make me a simple 3 day beginner workout plan with sets, reps, rest times and "
+         "minutes of cardio, and save it to plan.md", no_number_bounce),
+    Case("gate_recipe", "gate", "lookalike", "give me a pancake recipe for 4 people with amounts and cooking times, and save "
+         "it as pancakes.md", no_number_bounce, holdout=True),
+]
+
+
 def resume_check(rec):
     files = rec.get("files") or {}
     want = {"a.txt": "alpha", "b.txt": "bravo", "c.txt": "charlie"}
@@ -306,6 +324,9 @@ def arm(stage: str, which: str):
                 st.enter_context(mock.patch.object(verify, "NUM", OLD_NUM))
                 st.enter_context(mock.patch.object(verify, "grounding", old_grounding))
                 st.enter_context(mock.patch.object(verify, "USER_FIRST", NEVER))
+                st.enter_context(mock.patch.object(verify, "FETCHED", re.compile(r"")))   # (issue #3: always checked)
+                from jevh import learn
+                st.enter_context(mock.patch.object(learn, "TODAY_RE", NEVER))
             elif stage == "resume":
                 st.enter_context(mock.patch.object(orchestrator.Harness, "_note_cut_off", lambda self: None))
             elif stage == "say":

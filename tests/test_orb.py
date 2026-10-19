@@ -221,3 +221,38 @@ def test_what_the_assistant_says_mid_task_pops_out_of_the_orb():
     done = {"busy": False, "told": {"seq": 9, "text": "On DESKTOP-AUIDSM2."},
             "last": {"id": 3, "message": "find the primes", "status": "done", "answer": "25,997 primes."}}
     assert c.update(done) is True and c.bubble["text"] == "25,997 primes."
+
+
+def test_the_app_says_when_its_dashboard_cannot_start_and_tries_again(cfg, monkeypatch, tmp_path):
+    """Issue #4: with the port still taken after a quit-and-relaunch, the app carried on with no dashboard and every later
+    launch was sent to it. Now _serve reports why, retries, and a later attempt starts it once the port is free."""
+    import socket
+    from jevh import app as appmod
+    from jevh.app import App, dashboard_up
+    monkeypatch.setattr(appmod, "RETRY_PAUSE", 0)                      # (the retries' pauses)
+    monkeypatch.setattr("jevh.config.load_config", lambda *a, **k: cfg)
+    blocker = socket.socket()
+    blocker.bind(("127.0.0.1", 0))
+    blocker.listen(1)
+    port = blocker.getsockname()[1]
+    a = App({"role": "hub", "port": port})
+    assert a._serve(port, []) is False and "in use" in a.serve_error
+    blocker.close()
+    assert a._serve(port, []) is True and dashboard_up(port)
+    a.server.should_exit = True
+
+
+def test_the_error_page_names_the_reason_and_offers_to_try_again():
+    from jevh.app import App
+    a = App({"role": "hub", "port": 8799})
+
+    class Window:
+        html = ""
+
+        def load_html(self, text):
+            self.html = text
+    a.window, a.serve_error = Window(), "port 8799 is in use by another program"
+    a._chrome_ready.set()
+    a.show_serve_error(8799)
+    assert "didn't start" in a.window.html and "port 8799 is in use" in a.window.html
+    assert "pywebview.api.retry_serve()" in a.window.html

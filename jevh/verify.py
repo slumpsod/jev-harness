@@ -196,6 +196,14 @@ SUM_RE = re.compile(rf"{_TERM}{_LABEL}(?:\s*\+\s*{_TERM}{_LABEL})+|{_TERM}(?:\s*
 # estimates, not figures a tool returns: "a 30-second fix", "a 5-minute job" (live: "30" sent back)
 DURATION_WORD = re.compile(r"(?<![\w.])\d+(?:\.\d+)?-(?:second|sec|minute|min|hour|day|week)s?\b", re.I)
 # "~20 languages" where the log shows 18 (live): an approximation must be near a figure the tools gave, not equal to it
+# Code that brought something in from outside the worker's own words: a tool, an MCP server, a file or input read, a web
+# or shell call, memory. Writing a file (open(..., "w")), printing, computing and reading a skill's instructions do not.
+FETCHED = re.compile(
+    r"\b(?:web|browser|project|devices|nango|newsroom|desktop|comfy)\.(?!look\b)\w+\(|\bmcp\("
+    r"|\bopen\((?![^)\n]*['\"][wax]b?\+?['\"])|read_(?:text|bytes|csv|excel|json|table|parquet)\(|json\.loads?\("
+    r"|\b(?:requests|httpx|urllib|subprocess|sqlite3|glob|shutil)\b|os\.(?:listdir|walk|scandir)|\.iterdir\("
+    r"|load_artifact\(|recall\(|request(?:_async|_all)?\(|wait\(|llm_query\(|start_job\(|job_wait\("
+    r"|\bctx\[['\"](?!skills\b)|peek\(\s*ctx\[['\"](?!skills\b)|\bpd\.|fitz|pypdf|PdfReader|Image\.open")
 APPROX = re.compile(r"(?:~|\b(?:about|around|roughly|approximately|approx\.?|nearly|almost|close to)\s+)\$?$", re.I)
 APPROX_SLACK = 0.15
 
@@ -279,7 +287,9 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
     problems = []
     honest = scores.get("honest", 0.0) >= t("verify_honest")
     supported, unsupported = grounding(answer, request + "\n" + (evidence if evidence is not None else log))
-    if log.strip() and unsupported:   # only once tools ran: a chat answer from knowledge has no outputs
+    # only once something was fetched: a chat answer from knowledge has no outputs to come from, nor does one whose code
+    # only wrote out the worker's own words (issue #3: a workout plan saved to plan.md, then its rest times sent back)
+    if log.strip() and unsupported and FETCHED.search(log):
         shown = ", ".join(sorted(unsupported, key=len, reverse=True)[:5])
         problems.append(f"These numbers in your answer appear in none of your outputs or the request: {shown}. "
                         "Check them against what the tools returned and correct them; if one is your own "

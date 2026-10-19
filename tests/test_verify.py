@@ -250,7 +250,10 @@ def test_bare_artifact_names_resolve_before_the_gate(cfg):
 def test_made_up_number_is_sent_back_and_a_bounced_fast_answer_escalates(cfg):
     """Live 2026-09-28 every turn ran on the fast tier. Now a fast-tier answer the gate sends
     back is retried on the persona's strong model; the number rule catches a fare no output showed."""
-    fast = ScriptedLLM([py("print('United $1,317  Delta $1,284')"), "The cheapest is United at $1,099."])
+    # (the fares are read in, as a search would bring them: printed from the worker's own literals they would be its own
+    # words, which the number rule leaves to the other checks - issue #3)
+    fast = ScriptedLLM([py("open('fares.txt', 'w').write('United $1,317  Delta $1,284')\nprint(open('fares.txt').read())"),
+                        "The cheapest is United at $1,099."])
     strong = ScriptedLLM(["The cheapest is Delta at $1,284."])
     base = answer_scores()
 
@@ -508,3 +511,27 @@ def test_grounding_counts_a_named_total_of_numbers_in_its_sentence():
     assert grounding("Attic ($1,090), wall ($740), air sealing ($690); also $2,520 for windows.", table)[1] == {"2,520"}
     # the total's terms must be numbers the tools gave
     assert grounding("Combined: $500 and $700, so $1,200 in all.", table)[1] == {"500", "700", "1,200"}
+
+
+def test_the_date_the_worker_is_told_counts_as_seen():
+    """Issue #3: "Hey! It's Friday, October 16." was sent back as a made-up 16 once any code had run."""
+    from jevh.learn import seen_text
+    from jevh.verify import grounding
+    transcript = [{"role": "system", "content": "You are Jed's assistant.\n\nToday is Friday, October 16, 2026. Work out "
+                                                "relative dates from it."},
+                  {"role": "user", "content": "hello\n\n(In your REPL:\n- ctx['skills']: dict)"},
+                  {"role": "tool", "content": "ok"}]
+    assert grounding("Hey! It's Friday, October 16.", seen_text(transcript, 1)) == ({"16"}, set())
+
+
+def test_knowledge_numbers_are_not_checked_when_the_code_fetched_nothing():
+    """Issue #3: a workout plan whose code only saved plan.md was sent back twice over its rest times."""
+    t = lambda name: 0.5   # noqa: E731
+    answer = "Day 1: squats 3x10, rest 30-45 seconds; 20 minutes of cardio; protein 1.6 g/kg."
+    wrote = "CODE:\nopen('plan.md', 'w').write(plan)\nprint('saved plan.md')\nOUTPUT: saved plan.md"
+    assert not any("appear in none" in p for p in answer_rules("make me a workout plan", answer, [], wrote, {}, t))
+    fetched = "CODE:\nprint(web.read('https://example.com/plan', 'rest times'))\nOUTPUT: rest 60 seconds"
+    assert any("appear in none" in p for p in answer_rules("make me a workout plan", answer, [], fetched, {}, t))
+    read_file = "CODE:\nrows = open('sales.csv').read()\nprint(len(rows))\nOUTPUT: 120"
+    assert any("appear in none" in p for p in answer_rules("sum my sales", "Total: 4,512 across 120 rows.", [],
+                                                           read_file, {}, t))

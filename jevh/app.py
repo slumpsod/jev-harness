@@ -17,6 +17,7 @@ again shows the window that is already open. Its settings are in <device home>/a
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import shutil
@@ -77,6 +78,19 @@ def tailscale_serve(port: int, https_port: int) -> str:
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip()[:300] or "tailscale serve failed")
     return f"{tailscale_name()}:{https_port}"
+
+
+RETRY_PAUSE = 2.0   # seconds between tries to start the dashboard on a port that is still taken
+
+
+def port_taken(port: int) -> bool:
+    """127.0.0.1:`port` can't be bound now (another listener holds it, or Windows hasn't released it yet)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            return True
+    return False
 
 
 def dashboard_up(port: int) -> bool:
@@ -195,6 +209,11 @@ class AppApi:
             return {"error": "already set up"}
         return {"tailscale": tailscale_name(), "has_models": (Path(__file__).resolve().parents[1] / "config.local.yaml").is_file()}
 
+    def retry_serve(self) -> dict:
+        """The "dashboard didn't start" page's Try again (App.show_serve_error)."""
+        threading.Thread(target=self._app.retry_serve, name="jevh-retry-serve", daemon=True).start()
+        return {"ok": True}
+
     def choose(self, role: str, hub: str = "", serve: bool = False, port: int = 8740) -> dict:
         if self._app.conf.get("role"):
             return {"error": "already set up (jevh app reset asks again)"}
@@ -292,9 +311,12 @@ class App:
         self.conf = conf
         if conf.get("role") == "hub":
             port = int(conf.get("port") or 8740)
-            if not dashboard_up(port):
-                self._serve(port, conf.get("allow_hosts") or [])
             self.home_url = f"http://127.0.0.1:{port}/"
+            if not dashboard_up(port) and not self._serve(port, conf.get("allow_hosts") or []):
+                # (issue #4: it used to carry on with no dashboard, and every later launch was sent to it)
+                self.show_serve_error(port)
+                self.refresh_tray()
+                return
         else:
             self.home_url = device_agent.hub_base(conf["hub"]) + "/"
             self.start_agent()
@@ -307,19 +329,59 @@ class App:
         self.make_bubble(first)
         self.refresh_tray()
 
-    def _serve(self, port: int, allow_hosts: list[str]) -> None:
+    def _serve(self, port: int, allow_hosts: list[str], tries: int = 4) -> bool:
+        """Start the dashboard on `port`: True once it answers. A port that is still taken is tried again for a few
+        seconds (Windows can hold a listener's port a moment after it closed: issue #4, a quit-and-relaunch came up with
+        no dashboard); `serve_error` says why it didn't start."""
         import uvicorn
 
         from .config import load_config
         from .web.__main__ import server_config
         from .web.server import create_app
-        app = create_app(load_config(), port=port, allow_hosts=allow_hosts)
-        self.server = uvicorn.Server(server_config(app, port))
-        threading.Thread(target=self.server.run, name="jevh-dashboard", daemon=True).start()
-        for _ in range(100):
-            if self.server.started:
-                return
-            time.sleep(0.1)
+        self.serve_error = ""
+        for attempt in range(tries):
+            if attempt:
+                time.sleep(RETRY_PAUSE)
+            if port_taken(port):
+                self.serve_error = f"port {port} is in use by another program"
+                continue
+            try:
+                app = create_app(load_config(), port=port, allow_hosts=allow_hosts)
+            except Exception as e:  # noqa: BLE001 - a broken config: no point retrying
+                self.serve_error = f"{type(e).__name__}: {e}"
+                return False
+            self.server = uvicorn.Server(server_config(app, port))
+            thread = threading.Thread(target=self.server.run, name="jevh-dashboard", daemon=True)
+            thread.start()
+            for _ in range(150):
+                if self.server.started:
+                    return True
+                if not thread.is_alive():
+                    break
+                time.sleep(0.1)
+            self.serve_error = (f"port {port} could not be opened" if not thread.is_alive()
+                                else f"the dashboard did not start within 15 s")
+            self.server.should_exit = True
+        return False
+
+    def show_serve_error(self, port: int) -> None:
+        """The window says the dashboard didn't start, and why, with a button that tries again (AppApi.retry_serve)."""
+        if self.window is None:
+            return
+        self._chrome_ready.wait(15)
+        reason = html.escape(getattr(self, "serve_error", "") or "it did not start")
+        self.window.load_html(
+            "<!doctype html><meta charset=utf-8><style>body{font:15px system-ui;margin:48px;color-scheme:light dark}"
+            "button{font:inherit;padding:8px 18px;margin-top:14px}code{font-size:13px}</style>"
+            f"<h2>The dashboard didn't start</h2><p>{reason}.</p><p>If another jev-harness dashboard or program is using "
+            f"port {port}, close it and try again (or change <code>port</code> in <code>{html.escape(str(conf_path()))}</code>)."
+            "</p><button onclick=\"this.disabled=true;this.textContent='Starting...';pywebview.api.retry_serve()\">Try again"
+            "</button>")
+
+    def retry_serve(self) -> None:
+        """(any thread) Start the dashboard again, after a failed start or when a later launch finds it down."""
+        if self.conf.get("role") == "hub":
+            self.begin(self.conf)
 
     # -- the agent (a device only)
     def start_agent(self, restart: bool = False) -> None:
@@ -421,6 +483,9 @@ class App:
             self.window.show()
             self.window.restore()
         self.main_shown()
+        # a later launch lands here: if this hub's dashboard is down, start it again rather than show an empty window
+        if self.conf.get("role") == "hub" and not dashboard_up(int(self.conf.get("port") or 8740)):
+            threading.Thread(target=self.retry_serve, name="jevh-retry-serve", daemon=True).start()
 
     # -- the window's own title bar (jevh/winchrome.py)
     def _install_chrome(self, reload: bool = False) -> None:

@@ -96,7 +96,7 @@ def test_a_bounced_final_gets_its_tool_result_then_the_problems(cfg):
             return choice_ans("high_end_dev", 0.9, q["criteria"])
         if k in scores:
             return noul_ans(scores[k])
-    llm = NativeLLM([call("print('Delta $1,284')\nfinal('Cheapest: $1,099')"),
+    llm = NativeLLM([call("open('f.txt', 'w').write('Delta $1,284')\nprint(open('f.txt').read())\nfinal('Cheapest: $1,099')"),
                      call("final('Cheapest: Delta at $1,284')", cid="c2")])
     r = harness(cfg, llm, rules).turn("cheapest fare?", force="high_end_dev")
     assert r.answer == "Cheapest: Delta at $1,284"
