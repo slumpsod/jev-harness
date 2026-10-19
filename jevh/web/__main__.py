@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> None:
     signin = app.state.hub.accounts.has_users()
     for h in a.allow_host:
         if signin:
-            print(f"  also from https://{h}/   (sign in; other computers pair in the Devices panel)")
+            print(f"  also from https://{h}/   (sign in; other computers pair in Settings, Devices)")
         else:
             print(f"  also from https://{h}/?key={app.state.access_key}   (keep this link private; it changes each launch)")
     if not a.no_browser:

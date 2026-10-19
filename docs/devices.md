@@ -113,7 +113,7 @@ You chose "full access, keep the confirmations":
 - **Pausing a device.** The tray icon, or `jevh device pause`, refuses every call and stops a running command. The tray
   icon shows a notice when the assistant starts using that computer, and **Activity** lists everything it did there,
   also kept in `~/.jevh-device/activity.jsonl`.
-- **Removing a device.** **Remove** in the Devices panel ends its key at once. `jevh device forget` deletes the key on
+- **Removing a device.** **Remove** in Settings, Devices ends its key at once. `jevh device forget` deletes the key on
   the device.
 - **What a device may ask the hub.** Only to show you a question, or to let the worker's model read a screenshot. A
   device cannot hand out tasks, read your memory or use your accounts.
@@ -127,7 +127,7 @@ something that runs what your assistant decides.
   tokens. Every account is an owner of the hub: there is one assistant, one memory and one set of devices.
 - A sign-in lasts 30 days from the last time you used that device or browser (each use starts the 30 days over), so a device you use never asks again. Changing a password signs that account out everywhere. Repeated wrong
   passwords or pairing codes from one address are refused for a few minutes.
-- **Making an account from another device: an invite link.** On the hub, **Invite to an account** in the Devices panel (or
+- **Making an account from another device: an invite link.** On the hub, **Invite to an account** in Settings, Devices (or
   `jevh users invite --hub https://<hub>.<tailnet>.ts.net:10000`) gives a one-time link. Anyone already signed in can make
   one too. Open it on any device, pick a name and a password there, and you're signed in. It works once, for 30 minutes,
   and nobody passes a password along. (Before any account exists, the dashboard's key link can also make the first one.)

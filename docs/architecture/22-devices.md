@@ -7,7 +7,7 @@ Files: `jevh/accounts.py` (accounts, sign-in sessions, devices, pairing codes; `
 connections, a worker's call), `jevh/devices/agent.py` (the device's side; `jevh device`), `jevh/devices/ops.py` (what a
 device does), `jevh/devices/wire.py` (the messages, files inside them), `jevh/tools/devices.py` (the worker's tool),
 `jevh/app.py` (`jevh app`: window, tray, agent), `jevh/web/server.py` (the guard, `/login`, `/auth/*`, `/api/devices*`,
-the WebSocket), `jevh/web/static/login.html`, the Devices panel in `index.html`. Tests: `tests/test_devices.py`. Live:
+the WebSocket), `jevh/web/static/login.html`, the Devices section of the Settings page in `index.html`. Tests: `tests/test_devices.py`. Live:
 `evals/devices_cases.py` (Jev's tool pick), `evals/bench/devices.py` (full turns).
 
 ## A call, end to end

@@ -292,6 +292,7 @@ input[type=checkbox]:checked::after { left: 17px; background: var(--accent); }
                display: grid; place-items: center; background: var(--warn); color: #1b1100; }
 .rbtn .count[hidden] { display: none; }
 .rail .grow { flex: 1; }
+.rsep { width: 22px; height: 1px; margin: 6px 0; background: var(--line2); flex: none; }
 [data-tip]::after { content: attr(data-tip); position: absolute; left: calc(100% + 12px); top: 50%; transform: translate(-4px, -50%); opacity: 0; pointer-events: none; white-space: nowrap;
                     font: 600 12px/1 var(--font-sans); padding: 7px 10px; border-radius: var(--r-sm); background: var(--text); color: var(--bg); z-index: 60; transition: opacity .15s, transform .15s var(--ease); }
 [data-tip]:hover::after { opacity: 1; transform: translate(0, -50%); transition-delay: .25s; }
@@ -491,6 +492,48 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 .panel#p-artifacts.on, .panel#p-review.on { display: flex; flex-direction: column; }
 .empty { color: var(--muted); padding: 40px 24px; text-align: center; }
 
+/* ---- full pages (Newsroom, Settings): one takes the place of the chat and its panel; "Chat" or Esc goes back ---- */
+.page { container: page / inline-size; flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.app:not([data-view="chat"]) .chatcol, .app:not([data-view="chat"]) .side { display: none; }
+.pagehead { display: flex; align-items: center; gap: 14px; padding: 12px 28px; min-height: 64px; flex: none; border-bottom: 1px solid var(--line); }
+.pagehead .back { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px 0 10px; border-radius: var(--pill); background: transparent; border-color: var(--line2); font-weight: 550; font-size: 13px; flex: none; }
+.pagehead .back svg { width: 16px; height: 16px; }
+.ptitle { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 4px 14px; flex-wrap: wrap; }
+.ptitle h1 { margin: 0; font: 650 21px/1.2 var(--font-display); letter-spacing: -.01em; outline: none; }
+.psub { font-size: 12.5px; color: var(--muted); min-width: 0; }
+.pageacts { display: flex; gap: 8px; align-items: center; flex: none; }
+.pageacts button { display: inline-flex; align-items: center; gap: 6px; height: 34px; border-radius: var(--pill); }
+.pageacts button svg { width: 15px; height: 15px; }
+.pagebody { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 28px 40px; }
+.pagewrap { max-width: 1680px; margin: 0 auto; }
+@container page (max-width: 1100px) { .psub { display: none; } }
+@container page (max-width: 560px) {
+  .pagehead { padding-inline: 14px; gap: 10px; } .pagebody { padding: 14px 14px 28px; }
+  .pagehead .back span, .pageacts .lbl { display: none; } .pagehead .back { padding: 0 10px; }
+  .pageacts button { padding: 0 11px; } .ptitle h1 { font-size: 19px; }
+}
+/* settings: one page, a section at a time */
+.setpage { display: grid; grid-template-columns: 210px minmax(0, 880px); gap: 36px; justify-content: center; align-items: start; }
+.setnav { position: sticky; top: 0; display: flex; flex-direction: column; gap: 2px; }
+.setnav button { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; text-align: left; border: 0; background: transparent; border-radius: var(--r-sm);
+                 color: var(--muted); font-weight: 550; font-size: 13.5px; }
+.setnav button:hover:not(:disabled) { background: var(--hover); color: var(--text); border: 0; }
+.setnav button[aria-selected="true"], .setnav button[aria-selected="true"]:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); }
+.setnav button span { flex: 1; min-width: 0; }
+.setnav .count { font-style: normal; font-size: 10.5px; font-weight: 700; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: grid; place-items: center; background: var(--warn); color: #1b1100; }
+.sechd { margin: 2px 0 16px; }
+.sechd h2 { margin: 0 0 3px; font: 650 18px/1.25 var(--font-display); }
+.sechd p { margin: 0; font-size: 13px; color: var(--muted); }
+@container page (max-width: 760px) {
+  .setpage { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .setnav { position: static; flex-direction: row; gap: 4px; overflow-x: auto; scrollbar-width: none; margin: 0 -2px; padding: 2px; }
+  .setnav::-webkit-scrollbar { display: none; }
+  .setnav button { width: auto; flex: none; padding: 7px 12px; border-radius: var(--pill); border: 1px solid var(--line); font-size: 13px; }
+  .setnav button[aria-selected="true"] { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .setnav button svg { display: none; }
+  .sechd { margin-bottom: 12px; } .sechd h2 { font-size: 17px; }
+}
+
 /* ---- shared panel pieces (inspector with its timeline, memory, review, status) ---- */
 .badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: var(--pill); background: var(--surface3); border: 1px solid var(--line); color: var(--text); }
 .badge.fast { background: color-mix(in srgb, var(--fast) 18%, transparent); border-color: color-mix(in srgb, var(--fast) 40%, transparent); color: var(--good-ink); }
@@ -644,12 +687,6 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
 
 /* newsroom */
 .nr { container-type: inline-size; }
-.nrbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
-.nrbar .grow { flex: 1; }
-.nrbar button { display: inline-flex; align-items: center; gap: 6px; }
-.nrbar button svg { width: 15px; height: 15px; }
-.nrbar .bellbtn.has { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
-.nrbar .bellbtn .n { font-style: normal; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--grad); color: var(--on-accent); }
 .nrnotes { margin-bottom: 14px; }
 .nrnote { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
 .nrnote:last-child { border-bottom: 0; }
@@ -765,7 +802,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
 
 /* Sumi-e */
 :root[data-theme="sumi"] .rail .logo .mark { display: none; } :root[data-theme="sumi"] .rail .logo .mark-alt { display: block; }
-:root[data-theme="sumi"] .who b, :root[data-theme="sumi"] .hello h2, :root[data-theme="sumi"] .sidehead h2 { font-weight: 600; letter-spacing: .04em; }
+:root[data-theme="sumi"] .who b, :root[data-theme="sumi"] .hello h2, :root[data-theme="sumi"] .sidehead h2, :root[data-theme="sumi"] .ptitle h1 { font-weight: 600; letter-spacing: .04em; }
 :root[data-theme="sumi"] .avatar { font-family: var(--font-jp); font-weight: 700; box-shadow: 0 0 0 1px rgba(255, 255, 255, .06) inset, 0 0 14px rgba(196, 81, 60, .22); }
 :root[data-theme="sumi"] .msg.user { box-shadow: none; border-radius: var(--r-sm); border-left: 2px solid var(--accent); }
 :root[data-theme="sumi"] .topbar { border-bottom: 1px solid transparent; background: linear-gradient(90deg, transparent, var(--line) 50%, transparent) bottom / 100% 1px no-repeat; }
@@ -790,11 +827,14 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
 :root[data-theme="paper"] .sendbtn { border-radius: 0; border: 1.5px solid var(--text); box-shadow: 2px 2px 0 var(--text); }
 :root[data-theme="paper"] .sendbtn:hover:not(:disabled) { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--text); filter: none; }
 :root[data-theme="paper"] .side { border-left-width: 2px; } :root[data-theme="paper"] .app[data-panel="open"] .side { border-left-color: var(--line2); }
-:root[data-theme="paper"] .sidehead { border-bottom: 2px solid var(--line2); }
+:root[data-theme="paper"] .sidehead, :root[data-theme="paper"] .pagehead { border-bottom: 2px solid var(--line2); }
+:root[data-theme="paper"] .ptitle h1, :root[data-theme="paper"] .sechd h2 { text-transform: uppercase; letter-spacing: .08em; font-size: 17px; }
+:root[data-theme="paper"] .setnav button { border-radius: 0; text-transform: uppercase; letter-spacing: .06em; font-size: 12px; }
+:root[data-theme="paper"] .setnav button[aria-selected="true"], :root[data-theme="paper"] .setnav button[aria-selected="true"]:hover:not(:disabled) { background: var(--text); color: var(--bg); }
 :root[data-theme="paper"] .sidehead h2, :root[data-theme="paper"] .card h3 { text-transform: uppercase; letter-spacing: .08em; font-size: 13.5px; }
 :root[data-theme="paper"] .card, :root[data-theme="paper"] .art, :root[data-theme="paper"] .preview { border-color: var(--line2); }
 :root[data-theme="paper"] .card { box-shadow: 3px 3px 0 var(--line); }
-:root[data-theme="paper"] button.primary, :root[data-theme="paper"] button.ghost, :root[data-theme="paper"] .ask .opts button, :root[data-theme="paper"] .card button, :root[data-theme="paper"] .rvrow button, :root[data-theme="paper"] .btnrow button, :root[data-theme="paper"] .chips button, :root[data-theme="paper"] .tfoot button {
+:root[data-theme="paper"] button.primary, :root[data-theme="paper"] button.ghost, :root[data-theme="paper"] .pagehead button, :root[data-theme="paper"] .ask .opts button, :root[data-theme="paper"] .card button, :root[data-theme="paper"] .rvrow button, :root[data-theme="paper"] .btnrow button, :root[data-theme="paper"] .chips button, :root[data-theme="paper"] .tfoot button {
   text-transform: uppercase; letter-spacing: .08em; font-size: 11.5px; font-weight: 700; border: 1.5px solid var(--text); background: var(--surface); color: var(--text); border-radius: 0; box-shadow: 2px 2px 0 var(--text); }
 :root[data-theme="paper"] button.primary, :root[data-theme="paper"] .chips button.on { background: var(--accent); color: var(--on-accent); }
 :root[data-theme="paper"] button.primary:hover:not(:disabled), :root[data-theme="paper"] button.ghost:hover:not(:disabled), :root[data-theme="paper"] .card button:hover:not(:disabled) { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--text); filter: none; }
@@ -831,7 +871,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
 
 /* Phosphor */
 :root[data-theme="phosphor"] body { letter-spacing: .005em; }
-:root[data-theme="phosphor"] .who b, :root[data-theme="phosphor"] .sidehead h2 { text-shadow: 0 0 8px rgba(61, 255, 134, .45); color: var(--accent); }
+:root[data-theme="phosphor"] .who b, :root[data-theme="phosphor"] .sidehead h2, :root[data-theme="phosphor"] .ptitle h1 { text-shadow: 0 0 8px rgba(61, 255, 134, .45); color: var(--accent); }
 :root[data-theme="phosphor"] .avatar { background: transparent; border: 1px solid var(--accent); color: var(--accent); box-shadow: var(--glow); }
 :root[data-theme="phosphor"] .msg.user { padding: 2px 0 2px 18px; border: 0; box-shadow: none; position: relative; align-self: stretch; max-width: none; color: #e8fff0; }
 :root[data-theme="phosphor"] .msg.user::before { content: ">"; position: absolute; left: 0; color: var(--accent); text-shadow: 0 0 8px rgba(61, 255, 134, .6); }
@@ -881,10 +921,12 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
   #tabs::-webkit-scrollbar { display: none; }
   .rbtn { flex: 1 0 34px; width: auto; min-width: 34px; max-width: 48px; height: 44px; }
   #tabs .rbtn.on::before { bottom: -6px; }
-  #appearbtn { flex: none; width: 44px; max-width: none; }
+  #appearbtn, #setbtn { flex: none; width: 44px; max-width: none; }
+  .rsep { display: none; }
   .app[data-panel="open"] .side { bottom: var(--rail-h); background: var(--bg); }   /* opaque: it covers the chat, which must not show through */
   .sidehead { padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
   .topbar { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  .pagehead { padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom: 10px; min-height: 0; }   /* (the notch) */
   .panel { padding: 14px 16px 24px; overscroll-behavior: contain; }
   .log { overscroll-behavior: contain; }
   /* one column: a list that is a grid row of a fixed-height panel shrinks to nothing, so let the panel scroll instead */
@@ -902,7 +944,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
   .cbar .cchip:not(.tog) { flex: 0 1 auto; min-width: 0; }
   .cbar .cchip select { min-width: 0; max-width: 100%; }
 }
-@media (max-width: 360px) { .rbtn { min-width: 28px; } #appearbtn { width: 36px; } }
+@media (max-width: 360px) { .rbtn { min-width: 28px; } #appearbtn, #setbtn { width: 36px; } }
 /* touch screens (any width): targets a finger can hit, and nothing that only appears on hover */
 @media (pointer: coarse) {
   button, a, select, summary, label { touch-action: manipulation; }
@@ -943,6 +985,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
   <symbol id="i-caret" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
   <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2"/></symbol>
@@ -976,7 +1019,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
   <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 2.8A3 3 0 0 0 5 14a3 3 0 0 0 4 4 3 3 0 0 0 3-1V5a2.5 2.5 0 0 0-3-1zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 2.8A3 3 0 0 1 19 14a3 3 0 0 1-4 4 3 3 0 0 1-3-1"/></symbol>
 </defs></svg>
 
-<div class="app" id="app" data-panel="closed">
+<div class="app" id="app" data-panel="closed" data-view="chat">
   <nav class="rail" aria-label="Dashboard sections">
     <div class="logo" aria-hidden="true">
       <svg class="mark" viewBox="0 0 40 40"><path d="M26 6v17a9 9 0 0 1-18 0" fill="none" stroke="url(#jg)" stroke-width="6" stroke-linecap="round"/></svg>
@@ -990,12 +1033,11 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
       <button class="rbtn" data-tab="history" data-tip="History: past sessions, sorted by Jev into the field each was about" aria-label="History"><svg class="ic"><use href="#i-history"/></svg></button>
       <button class="rbtn" data-tab="review" data-tip="Review: flagged sessions, a model's verdict" aria-label="Review"><svg class="ic"><use href="#i-flag"/></svg><i class="count" id="revcount" hidden></i></button>
       <button class="rbtn" data-tab="notebook" data-tip="Notebook: ideas and problems to come back to" aria-label="Notebook"><svg class="ic"><use href="#i-book"/></svg><i class="count" id="nbcount" hidden></i></button>
-      <button class="rbtn" data-tab="newsroom" data-tip="Newsroom: tiles that follow news and posts and notify you. Ask in the chat to add one" aria-label="Newsroom"><svg class="ic"><use href="#i-news"/></svg><i class="count" id="nrcount" hidden></i></button>
-      <button class="rbtn" data-tab="devices" data-tip="Devices: your other computers the assistant can use, and signing in" aria-label="Devices"><svg class="ic"><use href="#i-devices"/></svg></button>
-      <button class="rbtn" data-tab="settings" data-tip="Settings: model, quick model, web search" aria-label="Settings"><svg class="ic"><use href="#i-sliders"/></svg></button>
-      <button class="rbtn" data-tab="status" data-tip="Status and updates" aria-label="Status"><svg class="ic"><use href="#i-pulse"/></svg><i class="count" id="updcount" hidden></i></button>
+      <i class="rsep" aria-hidden="true"></i>
+      <button class="rbtn" data-page="newsroom" data-tip="Newsroom: tiles that follow news and posts and notify you. Ask in the chat to add one" aria-label="Newsroom"><svg class="ic"><use href="#i-news"/></svg><i class="count" id="nrcount" hidden></i></button>
     </div>
     <div class="grow"></div>
+    <button class="rbtn" data-page="settings" id="setbtn" data-tip="Settings: models and search, devices, status and updates" aria-label="Settings"><svg class="ic"><use href="#i-sliders"/></svg><i class="count" id="updcount" hidden></i></button>
     <button class="rbtn" id="appearbtn" data-tip="Appearance" aria-label="Appearance" aria-haspopup="dialog"><svg class="ic"><use href="#i-palette"/></svg></button>
   </nav>
 
@@ -1003,7 +1045,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
     <div class="topbar">
       <span class="sess" id="sess"></span>
       <span class="grow"></span>
-      <button class="stat" id="stat" type="button" title="The model server, Jev and ComfyUI: open Status" aria-label="Service status">
+      <button class="stat" id="stat" type="button" title="The model server, Jev and ComfyUI: open Status in Settings" aria-label="Service status">
         <i class="sdot" id="pill-lm"></i><i class="sdot" id="pill-jev"></i><i class="sdot" id="pill-comfy"></i><span id="statmodel"></span></button>
       <button type="button" class="flag" id="jotbtn" title="Jot down an idea or a problem (Notebook tab)"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">Jot</span></button>
       <button type="button" class="flag" id="flagbtn" title="Flag this session for review and say what went wrong"></button>
@@ -1070,12 +1112,44 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
         <input class="nbsearch" id="nbsearch" type="search" placeholder="Search the notebook" aria-label="Search the notebook">
         <div id="nblist"></div>
       </div>
-      <div class="panel" id="p-newsroom"><div class="nr" id="nr"></div></div>
-      <div class="panel" id="p-devices"></div>
-      <div class="panel" id="p-settings"></div>
-      <div class="panel" id="p-status"></div>
     </div>
   </aside>
+
+  <!-- full pages: each takes the place of the chat (and its panel) until you go back -->
+  <main class="page" id="page-newsroom" aria-labelledby="nrtitle" hidden>
+    <header class="pagehead">
+      <button type="button" class="back" data-back title="Back to the chat (Esc)"><svg class="ic"><use href="#i-back"/></svg><span>Chat</span></button>
+      <div class="ptitle"><h1 id="nrtitle" tabindex="-1">Newsroom</h1><span class="psub">Tiles that follow news and posts, and tell you when something new turns up</span></div>
+      <div class="pageacts" id="nracts"></div>
+    </header>
+    <div class="pagebody"><div class="pagewrap nr" id="nr"></div></div>
+  </main>
+  <main class="page" id="page-settings" aria-labelledby="settitle" hidden>
+    <header class="pagehead">
+      <button type="button" class="back" data-back title="Back to the chat (Esc)"><svg class="ic"><use href="#i-back"/></svg><span>Chat</span></button>
+      <div class="ptitle"><h1 id="settitle" tabindex="-1">Settings</h1><span class="psub">Saved on this machine, for every browser and the command line. Appearance stays in this browser.</span></div>
+    </header>
+    <div class="pagebody"><div class="pagewrap setpage">
+      <nav class="setnav" id="setnav" role="tablist" aria-label="Settings sections" aria-orientation="vertical">
+        <button type="button" role="tab" id="st-general" data-sec="general" aria-controls="sec-general"><svg class="ic"><use href="#i-sliders"/></svg><span>Models and search</span></button>
+        <button type="button" role="tab" id="st-devices" data-sec="devices" aria-controls="sec-devices"><svg class="ic"><use href="#i-devices"/></svg><span>Devices</span></button>
+        <button type="button" role="tab" id="st-status" data-sec="status" aria-controls="sec-status"><svg class="ic"><use href="#i-pulse"/></svg><span>Status</span></button>
+        <button type="button" role="tab" id="st-updates" data-sec="updates" aria-controls="sec-updates"><svg class="ic"><use href="#i-refresh"/></svg><span>Updates</span><i class="count" id="updcount2" hidden></i></button>
+      </nav>
+      <section class="setsec" id="sec-general" role="tabpanel" aria-labelledby="st-general" hidden>
+        <div class="sechd"><h2>Models and search</h2><p>The model every assistant runs on, where easy tasks go, and the engine behind web searches.</p></div>
+        <div id="p-settings"></div></section>
+      <section class="setsec" id="sec-devices" role="tabpanel" aria-labelledby="st-devices" hidden>
+        <div class="sechd"><h2>Devices</h2><p>Your other computers the assistant can use, and signing in from them.</p></div>
+        <div id="p-devices"></div></section>
+      <section class="setsec" id="sec-status" role="tabpanel" aria-labelledby="st-status" hidden>
+        <div class="sechd"><h2>Status</h2><p>The model servers, Jev, ComfyUI and the GPUs, checked every few seconds.</p></div>
+        <div id="p-status"></div></section>
+      <section class="setsec" id="sec-updates" role="tabpanel" aria-labelledby="st-updates" hidden>
+        <div class="sechd"><h2>Updates</h2><p>The harness version on disk, and new commits on GitHub.</p></div>
+        <div id="p-updates"></div></section>
+    </div></div>
+  </main>
 </div>
 
 <dialog class="dlg" id="flagdlg" aria-labelledby="flagh">
@@ -1179,7 +1253,7 @@ function md(src) {
 }
 
 // ---- state ----
-const S = { turns: new Map(), order: [], selected: null, lastSeq: 0, personas: {}, thresholds: {}, live: {}, tab: null, arts: [], artSel: null, open: new Map(), stick: true, queued: [] };
+const S = { turns: new Map(), order: [], selected: null, lastSeq: 0, personas: {}, thresholds: {}, live: {}, tab: null, view: "chat", back: null, arts: [], artSel: null, open: new Map(), stick: true, queued: [] };
 function turn(id) {
   if (!S.turns.has(id)) { S.turns.set(id, {id, tasks: new Map(), decisions: new Map(), activity: [], swaps: [], questions: new Map(), status: "running"}); S.order.push(id); }
   return S.turns.get(id);
@@ -1288,9 +1362,12 @@ function handle(e) {
 
 // a finished turn that made files opens them in the panel (only for turns that just happened, not for history replayed on load)
 async function afterTurn(t, e) {
-  const before = NR.data ? NR.data.widgets.length : null;
+  const before = NR.data ? new Set(NR.data.widgets.map((w) => w.id)) : null;
   refreshNewsroom().then(() => {   // a turn that added a widget shows the board, with the new tile on it
-    if (PR.autopanel && before != null && NR.data.widgets.length > before && Date.now() / 1000 - (e.ts || 0) < 30 && S.tab !== "newsroom") openPanel("newsroom");
+    const added = before ? NR.data.widgets.filter((w) => !before.has(w.id)).map((w) => w.id) : [];
+    if (!PR.autopanel || !added.length || Date.now() / 1000 - (e.ts || 0) >= 30) return;
+    if (S.view !== "newsroom") showPage("newsroom");
+    nrFlash(added);
   });
   await refreshArtifacts();
   const arts = t.artifacts || [];
@@ -2276,7 +2353,7 @@ $("p-notebook").addEventListener("keydown", (ev) => {
 });
 
 // ---- newsroom: tiles that follow news and posts, and notify you (jevh/newsroom.py) ----
-const NR = {data: null, rev: -1, editing: null, shown: {}, busy: new Set(), boot: Date.now(), notesOpen: false, notesTouched: false, kind: null, spin: false};
+const NR = {data: null, rev: -1, editing: null, shown: {}, busy: new Set(), boot: Date.now(), notesOpen: false, notesTouched: false, kind: null, spin: false, flash: new Set()};
 const NR_ICON = {news: "news", globe: "globe", rss: "news", box: "box", file: "file", x: "at"};
 const NR_EXAMPLES = [
   "Keep an eye on Nvidia news and tell me when they mention earnings",
@@ -2294,7 +2371,7 @@ async function refreshNewsroom(force = false) {
   try { d = await api(`/api/newsroom?rev=${force ? -1 : NR.rev}`); } catch { return; }
   if (d.unchanged) { nrBadge(d.unread_notes); return; }
   NR.data = d; NR.rev = d.rev; nrBadge(d.unread_notes);
-  if (S.tab === "newsroom" && !NR.editing) renderNewsroom();
+  if (S.view === "newsroom" && !NR.editing) renderNewsroom();
 }
 function nrBadge(n) { $("nrcount").textContent = n; $("nrcount").hidden = !n; }
 
@@ -2302,7 +2379,7 @@ function nrToast(note) {
   const t = document.createElement("div");
   t.className = "toast";
   t.innerHTML = `<b>${esc(note.title)}</b>${esc(note.body || note.why || "")}`;
-  t.addEventListener("click", () => { t.remove(); openPanel("newsroom"); });
+  t.addEventListener("click", () => { t.remove(); showPage("newsroom"); });
   $("toasts").appendChild(t);
   setTimeout(() => t.remove(), 9000);
   if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
@@ -2314,6 +2391,12 @@ function newsroomEvent(e) {   // alerts made before this page opened are in the 
   refreshNewsroom();
 }
 
+function nrFlash(ids) {   // the tiles a turn just added: brought into view, with a brief ring
+  ids.forEach((id) => NR.flash.add(id));
+  renderNewsroom();
+  const c = document.querySelector(`#nr [data-nrw="${ids[0]}"]`); if (c) c.scrollIntoView({block: "nearest"});
+  setTimeout(() => ids.forEach((id) => NR.flash.delete(id)), 1500);
+}
 function nrItem(it) {
   const u = safeUrl(it.url);
   return `<li class="nri ${it.read ? "" : "unread"}" data-nritem="${it.id}">${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(it.title)}</a>` : esc(it.title)}
@@ -2332,7 +2415,7 @@ function nrCard(w, i, count) {
       ${w.items.length ? `<ul class="nrlist">${w.items.slice(0, shown).map(nrItem).join("")}</ul>` : `<div class="kv">${w.error ? "" : "Nothing yet."}</div>`}
       ${w.items.length > shown ? `<button type="button" class="nrmore" data-nract="more">Show more</button>` : ""}
       ${w.unread ? `<button type="button" class="nrmore" data-nract="read">Mark all read</button>` : ""}`;
-  return `<section class="card nrw ${w.paused ? "paused" : ""}" data-size="${esc(w.size)}" data-nrw="${w.id}">
+  return `<section class="card nrw ${w.paused ? "paused" : ""} ${NR.flash.has(w.id) ? "flash" : ""}" data-size="${esc(w.size)}" data-nrw="${w.id}">
     <div class="nrh"><svg class="ic"><use href="#i-${NR_ICON[k.icon] || "news"}"/></svg><h3>${esc(w.title)}</h3>${w.unread ? `<i class="n" title="new items">${w.unread}</i>` : ""}
       <button type="button" class="iconbtn ${NR.busy.has(w.id) ? "spin" : ""}" data-nract="refresh" title="Look now" aria-label="Look now"><svg class="ic"><use href="#i-refresh"/></svg></button>
       <button type="button" class="iconbtn" data-nract="edit" title="Settings" aria-label="Widget settings"><svg class="ic"><use href="#i-pencil"/></svg></button></div>${body}</section>`;
@@ -2379,12 +2462,12 @@ function nrNotes(d) {
       : `<div class="kv">Nothing yet. A tile notifies you when a new item mentions the words you gave it.</div>`}</details>`;
 }
 function renderNewsroom() {
-  const d = NR.data; if (!d) { $("nr").innerHTML = '<div class="empty">Loading...</div>'; return; }
+  const d = NR.data; if (!d) { $("nracts").innerHTML = ""; $("nr").innerHTML = '<div class="empty">Loading...</div>'; return; }
   const can = "Notification" in window && Notification.permission === "default";
-  $("nr").innerHTML = `<div class="nrbar"><button type="button" class="primary" data-nract="add"><svg class="ic"><use href="#i-plus"/></svg>Add widget</button>
-      <button type="button" data-nract="refreshall" title="Look at every widget now"><svg class="ic"><use href="#i-refresh"/></svg>Refresh</button><span class="grow"></span>
-      ${can ? `<button type="button" data-nract="desktop" title="Also show alerts as desktop notifications while this tab is in the background">Desktop alerts</button>` : ""}</div>
-    ${d.running ? "" : '<p class="kv">Looking is switched off (newsroom.enabled in config.yaml): tiles show what they have.</p>'}
+  $("nracts").innerHTML = `${can ? `<button type="button" data-nract="desktop" title="Also show alerts as desktop notifications while this tab is in the background">${ico("bell")}<span class="lbl">Desktop alerts</span></button>` : ""}
+      <button type="button" data-nract="refreshall" title="Look at every widget now" aria-label="Refresh every widget">${ico("refresh")}<span class="lbl">Refresh</span></button>
+      <button type="button" class="primary" data-nract="add" aria-label="Add widget">${ico("plus")}<span class="lbl">Add widget</span></button>`;
+  $("nr").innerHTML = `${d.running ? "" : '<p class="kv">Looking is switched off (newsroom.enabled in config.yaml): tiles show what they have.</p>'}
     ${nrNotes(d)}
     ${d.widgets.length ? `<div class="nrgrid">${d.widgets.map((w, i) => nrCard(w, i, d.widgets.length)).join("")}</div>`
       : `<div class="empty" style="padding:24px 8px"><b>Your newsroom is empty.</b><br>Ask in the chat, and the assistant sets a widget up and tells you what it will notify you about:
@@ -2402,7 +2485,7 @@ function nrParamsFrom(f, k) {
   for (const p of k.params || []) { const el = f.querySelector(`[name=p_${p.name}]`); if (el) out[p.name] = el.type === "checkbox" ? el.checked : el.value.trim(); }
   return out;
 }
-$("p-newsroom").addEventListener("click", async (ev) => {
+$("page-newsroom").addEventListener("click", async (ev) => {
   const b = ev.target.closest("button[data-nract]");
   if (!b) {
     const a = ev.target.closest(".nri a"); if (a) { const id = Number(a.closest("[data-nritem]").dataset.nritem); nrPost("/api/newsroom/read", {item: id}).then(() => refreshNewsroom()); }
@@ -2412,7 +2495,7 @@ $("p-newsroom").addEventListener("click", async (ev) => {
   const w = id ? NR.data.widgets.find((x) => x.id === id) : null;
   try {
     if (act === "add") return nrOpenAdd();
-    if (act === "example") { $("input").value = b.textContent; fit(); $("input").focus(); return; }
+    if (act === "example") { showChat(); $("input").value = b.textContent; fit(); $("input").focus(); return; }
     if (act === "desktop") { await Notification.requestPermission(); renderNewsroom(); return; }
     if (act === "more") { NR.shown[id] = (NR.shown[id] || (w.size === "s" ? 5 : w.size === "l" ? 10 : 6)) + 10; renderNewsroom(); return; }
     if (act === "edit") { NR.editing = NR.editing === id ? null : id; renderNewsroom(); return; }
@@ -2432,8 +2515,8 @@ $("p-newsroom").addEventListener("click", async (ev) => {
   } catch (e) { alert(e.message); }
   await refreshNewsroom(true);
 });
-$("p-newsroom").addEventListener("toggle", (ev) => { if (ev.target.id === "nrnotes" && ev.isTrusted) { NR.notesOpen = ev.target.open; NR.notesTouched = true; } }, true);
-$("p-newsroom").addEventListener("submit", async (ev) => {
+$("page-newsroom").addEventListener("toggle", (ev) => { if (ev.target.id === "nrnotes" && ev.isTrusted) { NR.notesOpen = ev.target.open; NR.notesTouched = true; } }, true);
+$("page-newsroom").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const f = ev.target.closest("form[data-nrform]"); if (!f) return;
   const id = Number(f.dataset.nrform), w = NR.data.widgets.find((x) => x.id === id), k = nrKind(w.kind) || {};
@@ -2488,6 +2571,7 @@ const lmLoaded = (lm, short = false) => lm.loaded.map((k) => lm.contexts?.[k] ? 
 async function refreshStatus() {
   let st;
   try { st = await api("/api/status"); } catch (e) { return; }
+  S.status = st;
   const dot = (id, up, tip) => { const p = $(id); p.className = `sdot ${up ? "up" : "down"}`; p.title = tip; };
   const mine = (st.servers || []).find((s) => s.in_use);   // the harness's own model server, when it is not LM Studio
   dot("pill-lm", mine ? mine.up : st.lmstudio?.up, mine ? `llama.cpp (${mine.name}): ${mine.up ? `${mine.model || "?"}, ${Number(mine.context || 0).toLocaleString()} context` : "down"}`
@@ -2497,7 +2581,14 @@ async function refreshStatus() {
   // the model the harness runs on: a llama.cpp server when the config puts it there, else LM Studio's
   $("statmodel").textContent = mine ? (mine.up ? `${mine.model || mine.name} · ${mine.context ? kfmt(mine.context) : "?"}` : `${mine.name} down`)
     : st.lmstudio?.up ? (lmLoaded(st.lmstudio, true).join(", ") || "no model loaded") : "LM Studio down";
-  if (S.tab !== "status") return;
+  if (U.ran !== anyRunning() && setShown("updates")) renderUpdates();   // (Update is refused while a turn runs)
+  U.ran = anyRunning();
+  renderStatus();
+}
+function renderStatus() {
+  const st = S.status;
+  if (!setShown("status")) return;
+  if (!st) { $("p-status").innerHTML = '<div class="kv">checking...</div>'; return; }
   const svc = (name, s, extra = "") => `<div class="card"><h3>${name} <span class="badge ${s?.up ? "done" : "failed"}">${s?.up ? "up" : "down"}</span>${s?.ms != null ? `<span class="kv">${s.ms} ms</span>` : ""}</h3>${extra}${!s?.up && s?.error ? `<div class="kv">${esc(s.error)}</div>` : ""}</div>`;
   const gpus = (st.gpus || []).map((g) => `<div class="card gpu"><h3>GPU ${g.index} <span class="kv">${esc(g.name)}</span></h3>
     <div class="rings-row">${ring(g.used_mb / g.total_mb, "VRAM", pct(g.used_mb / g.total_mb))}${ring(g.util / 100, "Busy", `${g.util}%`)}</div>
@@ -2507,7 +2598,7 @@ async function refreshStatus() {
   const probCard = probs.length ? `<div class="card"><h3>Skipped add-ons <span class="badge failed">${probs.length}</span></h3>
     <div class="kv">These couldn't be used, so the harness runs without them. Fix the file and start a new session.</div>
     <table><tr><th>what</th><th>problem</th></tr>${probs.map((p) => `<tr><td><b>${esc(p.kind)}</b> ${esc(p.name)}${p.path ? `<div class="kv">${esc(p.path)}</div>` : ""}</td><td>${p.skipped ? "" : '<span class="badge">loaded</span> '}${esc(p.error)}</td></tr>`).join("")}</table></div>` : "";
-  $("p-status").innerHTML = `${versionCard()}${probCard}<div class="grid2">
+  $("p-status").innerHTML = `${probCard}<div class="grid2">
     ${(st.servers || []).map((s) => svc(`llama.cpp server <span class="kv">${esc(s.name)}</span>`, s, s.up && s.context ? `<div class="kv">serving: <b>${esc(s.model || "?")}</b> (${Number(s.context).toLocaleString()} context${s.slots ? `, ${s.slots} slots` : ""})</div>
       <div class="kv">${esc(s.file || "")}${s.build ? ` · ${esc(s.build)}` : ""}</div>` : `<div class="kv">${esc(s.url)}</div>`)
       .replace("</h3>", `${s.in_use ? '<span class="badge done">used by the harness</span>' : ""}</h3>`)).join("")}
@@ -2520,15 +2611,17 @@ async function refreshStatus() {
 }
 
 // ---- harness version: check GitHub, fast-forward to the latest (jevh/update.py) ----
-const U = {st: null, checking: false, updating: false, test: false, msg: "", err: ""};
+const U = {st: null, checking: false, updating: false, test: false, msg: "", err: "", ran: false};
+function renderUpdates() { if (setShown("updates")) $("p-updates").innerHTML = versionCard(); }
 async function refreshVersion(refresh = false) {
-  U.checking = true; if (S.tab === "status") refreshStatus();
+  U.checking = true; renderUpdates();
   try { U.st = await api(`/api/version${refresh ? "?refresh=1" : ""}`); U.err = ""; } catch (e) { U.err = e.message; }
   U.checking = false;
   const n = U.st && !U.st.error ? U.st.behind : 0;
-  $("updcount").textContent = n; $("updcount").hidden = !n || !!U.st.restart_needed;
-  $("updcount").title = `${n} update${n === 1 ? "" : "s"} on GitHub`;
-  if (S.tab === "status") refreshStatus();
+  for (const id of ["updcount", "updcount2"]) {   // on the rail's Settings button and on the Updates section
+    $(id).textContent = n; $(id).hidden = !n || !!U.st.restart_needed; $(id).title = `${n} update${n === 1 ? "" : "s"} on GitHub`;
+  }
+  renderUpdates();
 }
 function versionCard() {
   const v = U.st, busy = U.checking || U.updating;
@@ -2562,15 +2655,15 @@ function versionCard() {
   if (U.msg) body += `<div class="kv" style="margin-top:6px;white-space:pre-wrap">${esc(U.msg)}</div>`;
   return `<div class="card"><h3>Harness version ${btn}</h3>${body}</div>`;
 }
-$("p-status").addEventListener("change", async (ev) => {
+$("p-updates").addEventListener("change", async (ev) => {
   if (ev.target.id === "updtest") U.test = ev.target.checked;
   if (ev.target.id !== "updchannel") return;
-  U.checking = true; U.msg = ""; refreshStatus();
+  U.checking = true; U.msg = ""; renderUpdates();
   try { U.st = await api("/api/update/channel", {method: "POST", body: JSON.stringify({channel: ev.target.value})}); }
   catch (e) { U.msg = `Channel not changed: ${e.message}`; }
   U.checking = false; refreshVersion(false);
 });
-$("p-status").addEventListener("click", async (ev) => {
+$("p-updates").addEventListener("click", async (ev) => {
   const b = ev.target.closest("button[data-upd]"); if (!b || b.disabled) return;
   const act = b.dataset.upd;
   U.msg = "";
@@ -2578,7 +2671,7 @@ $("p-status").addEventListener("click", async (ev) => {
   const ask = act === "undo" ? `Go back to ${U.st.previous.sha}? Your edits are kept.`
     : `Update the harness to ${U.st.latest.sha}?${U.test ? " The tests run first (a few minutes)." : ""} Your edits are kept; if the new version doesn't work it's rolled back.`;
   if (!confirm(ask + " The dashboard keeps running the code it loaded until you restart it.")) return;
-  U.updating = true; refreshStatus();
+  U.updating = true; renderUpdates();
   try {
     const r = await api(act === "undo" ? "/api/update/undo" : "/api/update", {method: "POST", body: JSON.stringify({test: U.test})});
     U.msg = r.message;
@@ -2597,7 +2690,7 @@ function settingsDraft(d) {
 async function refreshSettings(fresh = false) {
   try { ST.data = await api(`/api/config${fresh ? "?fresh=1" : ""}`); ST.err = ""; } catch (e) { ST.err = e.message; }
   if (ST.data && !ST.draft) ST.draft = settingsDraft(ST.data);
-  if (S.tab === "settings") renderSettings();
+  if (setShown("general")) renderSettings();
 }
 function modelSelect(which, value, noneLabel, d, locked) {
   const known = new Set(d.options.models.map((m) => m.value));
@@ -2711,14 +2804,14 @@ $("p-settings").addEventListener("click", async (ev) => {
 // is that computer's own agent: the "This computer" card pairs it, pauses it and shows what it did.
 const DV = {me: null, data: null, code: null, invite: null, app: null, err: "", msg: "", form: null, busy: false};
 const appApi = () => (window.pywebview && window.pywebview.api) || null;
-window.addEventListener("pywebviewready", () => { if (S.tab === "devices") refreshDevices(); });
+window.addEventListener("pywebviewready", () => { if (setShown("devices")) refreshDevices(); });
 const ago = (ts) => { if (!ts) return "never"; const s = Date.now() / 1000 - ts;
   return s < 90 ? "just now" : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; };
 async function refreshDevices() {
   try { [DV.me, DV.data] = await Promise.all([api("/api/me"), api("/api/devices")]); DV.err = ""; } catch (e) { DV.err = e.message; }
   DV.app = null;
   if (appApi() && DV.me && !DV.me.local) { try { DV.app = await appApi().status(); } catch (e) { DV.app = {error: String(e)}; } }
-  if (S.tab === "devices") renderDevices();
+  if (setShown("devices")) renderDevices();
 }
 function renderDevices() {
   const el = $("p-devices"), me = DV.me, d = DV.data;
@@ -2750,7 +2843,7 @@ function renderDevices() {
   const pairing = c ? `<div class="card"><h3>Pair a computer</h3>
       <div class="devcode">${esc(c.code)}</div>
       <div class="kv">Works once, for ${Math.max(0, Math.round((c.expires - Date.now() / 1000) / 60))} minutes. On the other computer (with jev-harness installed, see docs/devices.md):</div>
-      <ol class="kv" style="margin:6px 0 0 18px;padding:0"><li>Open the app (<code>jevh app</code>), connect to <code>${esc(c.hubs[0])}</code>, sign in, then choose <b>Let the assistant use this computer</b> in this panel; or</li>
+      <ol class="kv" style="margin:6px 0 0 18px;padding:0"><li>Open the app (<code>jevh app</code>), connect to <code>${esc(c.hubs[0])}</code>, sign in, then choose <b>Let the assistant use this computer</b> in Settings, Devices; or</li>
       <li>in a terminal: <code>${esc(c.command)}</code> then <code>jevh device run</code>.</li></ol>
       <div class="setbar"><button data-dv="copycmd">Copy the command</button><button data-dv="hidecode">Done</button></div></div>` : "";
   const a = DV.app;
@@ -2800,24 +2893,21 @@ $("p-devices").addEventListener("click", async (ev) => {
 });
 
 // ---- the side panel: closed until you open a tab, the browser goes live, or an artifact is made ----
-const TITLES = {inspector: "Inspector", history: "History", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook", newsroom: "Newsroom", devices: "Devices", settings: "Settings", status: "Status"};
+const TITLES = {inspector: "Inspector", history: "History", artifacts: "Artifacts", memory: "Memory", browser: "Browser", review: "Review", notebook: "Notebook"};
 $("side").inert = true;
 function openPanel(tab) {
+  if (S.view !== "chat") showChat(false);   // a panel sits beside the chat: leave the page for it
   S.tab = tab;
   $("app").dataset.panel = "open"; $("side").inert = false;
   $("ptitle").textContent = TITLES[tab] || tab;
   document.querySelectorAll("#tabs .rbtn").forEach((x) => { const on = x.dataset.tab === tab; x.classList.toggle("on", on); x.setAttribute("aria-pressed", on); });
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("on", p.id === `p-${tab}`));
   if (tab === "artifacts") refreshArtifacts();
-  if (tab === "status") refreshStatus();
-  if (tab === "settings") refreshSettings(true);
-  if (tab === "devices") refreshDevices();
   if (tab === "memory") refreshMemory();
   if (tab === "history") refreshHistory();
   if (tab === "browser") paintBrowser();
   if (tab === "review") { refreshReviews(); refreshSessions(); }
   if (tab === "notebook") { renderNotebook(); refreshNotebook(); }
-  if (tab === "newsroom") { renderNewsroom(); refreshNewsroom(true); }
   render();
 }
 function closePanel() {
@@ -2825,12 +2915,67 @@ function closePanel() {
   $("app").dataset.panel = "closed"; $("side").inert = true;
   document.querySelectorAll("#tabs .rbtn").forEach((x) => { x.classList.remove("on"); x.setAttribute("aria-pressed", "false"); });
 }
-$("tabs").addEventListener("click", (ev) => {
-  const b = ev.target.closest("button[data-tab]"); if (!b) return;
-  if (S.tab === b.dataset.tab) closePanel(); else openPanel(b.dataset.tab);
+
+// ---- full pages: the Newsroom and Settings take the place of the chat (and its panel) until you go back ----
+// The chat is only hidden: a running turn goes on, and "Chat" (or Esc, or the page's rail button again) brings it back
+// where you left it, with the panel that was open.
+const PAGES = ["newsroom", "settings"];
+const SET = {sec: "general"};
+const setShown = (sec) => S.view === "settings" && SET.sec === sec;
+function showPage(page, sec) {
+  if (S.view === "chat") {
+    S.back = {tab: S.tab, top: $("log").scrollTop, end: atEnd($("log"))};
+    if (S.tab) closePanel();
+  }
+  S.view = page; $("app").dataset.view = page;
+  PAGES.forEach((p) => { $(`page-${p}`).hidden = p !== page; });
+  $("chat").inert = true;
+  document.querySelectorAll(".rail [data-page]").forEach((x) => { const on = x.dataset.page === page; x.classList.toggle("on", on); x.setAttribute("aria-pressed", on); });
+  if (page === "newsroom") { renderNewsroom(); refreshNewsroom(true); }
+  if (page === "settings") setSection(sec || SET.sec);
+  const h = $(page === "newsroom" ? "nrtitle" : "settitle");
+  if (!$(`page-${page}`).contains(document.activeElement)) h.focus({preventScroll: true});
+}
+function showChat(restore = true) {   // restore: reopen the panel that was open when the page was opened
+  if (S.view === "chat") return;
+  const was = S.view, back = S.back || {}, fromPage = $(`page-${was}`).contains(document.activeElement);
+  S.view = "chat"; $("app").dataset.view = "chat";
+  PAGES.forEach((p) => { $(`page-${p}`).hidden = true; });
+  $("chat").inert = false;
+  document.querySelectorAll(".rail [data-page]").forEach((x) => { x.classList.remove("on"); x.setAttribute("aria-pressed", "false"); });
+  renderChat(true);   // (what arrived while it was hidden), then back to where it was read
+  const log = $("log"); log.scrollTop = back.end || back.top == null ? log.scrollHeight : back.top;
+  if (restore && back.tab) openPanel(back.tab);
+  if (fromPage) document.querySelector(`.rail [data-page="${was}"]`).focus({preventScroll: true});
+}
+function setSection(sec) {
+  SET.sec = sec;
+  document.querySelectorAll("#setnav [role=tab]").forEach((b) => {
+    const on = b.dataset.sec === sec; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1;
+    $(b.getAttribute("aria-controls")).hidden = !on;
+  });
+  if (sec === "general") { renderSettings(); refreshSettings(true); }
+  if (sec === "devices") { if (DV.me) renderDevices(); refreshDevices(); }
+  if (sec === "status") { renderStatus(); refreshStatus(); }
+  if (sec === "updates") renderUpdates();
+}
+$("setnav").addEventListener("click", (ev) => { const b = ev.target.closest("[data-sec]"); if (b) setSection(b.dataset.sec); });
+$("setnav").addEventListener("keydown", (ev) => {   // a tab list: the arrow keys move between the sections
+  const tabs = [...$("setnav").querySelectorAll("[role=tab]")], i = tabs.indexOf(document.activeElement);
+  const step = {ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1}[ev.key];
+  const to = ev.key === "Home" ? 0 : ev.key === "End" ? tabs.length - 1 : step && i >= 0 ? (i + step + tabs.length) % tabs.length : null;
+  if (to == null) return;
+  ev.preventDefault(); setSection(tabs[to].dataset.sec); tabs[to].focus();
+});
+document.querySelectorAll(".page [data-back]").forEach((b) => b.addEventListener("click", () => showChat()));
+
+document.querySelector(".rail").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-tab], button[data-page]"); if (!b) return;
+  if (b.dataset.page) { if (S.view === b.dataset.page) showChat(); else showPage(b.dataset.page); return; }
+  if (S.view === "chat" && S.tab === b.dataset.tab) closePanel(); else openPanel(b.dataset.tab);
 });
 $("closepanel").addEventListener("click", closePanel);
-$("stat").addEventListener("click", () => openPanel("status"));
+$("stat").addEventListener("click", () => showPage("settings", "status"));
 $("wide").addEventListener("click", () => {
   const on = $("app").dataset.wide !== "on";
   $("app").dataset.wide = on ? "on" : "off";
@@ -2877,7 +3022,7 @@ function renderAppear() {
     <div class="asec"><div class="al">Layout</div>${segc("width")}<div style="height:8px"></div>${segc("density")}<div style="height:8px"></div>${segc("corners")}</div>
     <div class="asec"><div class="al">Tool calls in the chat</div>${segc("activity")}<div class="kv" style="margin-top:7px">${ACT_HINT[PR.activity]}</div></div>
     <div class="asec">${toggle("thinking", "Open live thinking", "Show the model's reasoning while it streams")}
-      ${toggle("autopanel", "Open the panel for you", "When the browser goes live, a file is made or a widget is added")}
+      ${toggle("autopanel", "Open panels and pages for you", "The browser when it goes live, a file a turn made, the Newsroom when a widget is added")}
       ${toggle("fx", "Visual effects", "Glass blur, glow and paper grain")}</div>
     <div class="afoot"><span>Saved in this browser</span><button type="button" data-areset>Reset</button></div>`;
   pop.scrollTop = keep;
@@ -2908,7 +3053,8 @@ addEventListener("resize", () => { if (!$("apppop").hidden) placeAppear(); });
 document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Escape") return;
   if (!$("apppop").hidden) return closeAppear();
-  if (S.tab && !ev.target.closest("input, textarea, select, dialog") && !S.popPinned) closePanel();
+  if (ev.target.closest("input, textarea, select, dialog") || S.popPinned) return;
+  if (S.view !== "chat") showChat(); else if (S.tab) closePanel();
 });
 
 // ---- wiring ----
@@ -3018,7 +3164,7 @@ async function refreshPersonas() {
   paintBrowser(); browserTick();
   refreshReviews(); refreshNotebook();
   refreshNewsroom(); setInterval(() => { if (!document.hidden) refreshNewsroom(); }, 20000);   // (the worker's tool writes the board from another process)
-  setInterval(() => { if (S.tab === "newsroom" && !NR.editing && NR.data) renderNewsroom(); }, 60000);   // ages tick on
+  setInterval(() => { if (S.view === "newsroom" && !NR.editing && NR.data) renderNewsroom(); }, 60000);   // ages tick on
   setInterval(() => { if (S.order.some((id) => S.turns.get(id).status === "running")) schedule(); }, 1000);
   setInterval(pollThinking, 2000);
   render();

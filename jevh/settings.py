@@ -1,4 +1,4 @@
-"""The dashboard's Settings tab: the few choices people actually change, without editing YAML.
+"""The dashboard's Settings page: the few choices people actually change, without editing YAML.
 
     Model         which model every assistant runs on (models.strong); "each assistant's own" leaves it to their files
     Quick model   the model easy tasks go to (models.fast); "off" always uses the main one
@@ -222,7 +222,7 @@ def _write(target: Path, layer: dict[str, Any]) -> None:
     fd, tmp = tempfile.mkstemp(prefix=".settings-", suffix=".tmp", dir=target.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write("# Saved by the dashboard's Settings tab (jevh/settings.py); laid over every config file. Delete it to go back.\n")
+            f.write("# Saved by the dashboard's Settings page (jevh/settings.py); laid over every config file. Delete it to go back.\n")
             yaml.safe_dump(layer, f, sort_keys=False, allow_unicode=True)
         try:
             os.chmod(tmp, 0o600)   # (it can hold an API key; on Windows this only drops the read-only flag)

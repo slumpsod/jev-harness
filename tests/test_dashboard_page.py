@@ -69,12 +69,12 @@ def test_the_page_is_made_for_phones():
 
 
 def test_the_panel_starts_closed():
-    assert '<div class="app" id="app" data-panel="closed">' in PAGE
+    assert '<div class="app" id="app" data-panel="closed" data-view="chat">' in PAGE
     assert "$(\"side\").inert = true" in PAGE
 
 
-def test_the_newsroom_tab_is_wired_and_its_icons_exist():
-    for part in ('data-tab="newsroom"', 'id="p-newsroom"', 'id="nrdlg"', 'id="toasts"', "/api/newsroom", 'e.kind === "newsroom_alert"'):
+def test_the_newsroom_page_is_wired_and_its_icons_exist():
+    for part in ('data-page="newsroom"', 'id="page-newsroom"', 'id="nrdlg"', 'id="toasts"', "/api/newsroom", 'e.kind === "newsroom_alert"'):
         assert part in PAGE, part
     icons = set(re.findall(r'<symbol id="i-([\w-]+)"', PAGE))
     mapped = set(re.findall(r'(?:^|[{,])\s*(?:\w+): "(\w+)"', re.search(r"const NR_ICON = \{(.*?)\};", SCRIPT, re.S).group(1)))

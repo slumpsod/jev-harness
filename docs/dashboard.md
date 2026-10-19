@@ -1,8 +1,25 @@
 # The dashboard's look
 
 `jevh dashboard` is one page, `jevh/web/static/index.html`: markup, styles and script together. This page covers
-what you can change from the browser, and how to add a theme for everyone. (What each panel shows is in the
-[README](../README.md#dashboard).)
+how it is laid out, what you can change from the browser, and how to add a theme for everyone. (What each panel shows is in
+the [README](../README.md#dashboard).)
+
+## Panels and pages
+
+The left rail (a bar along the bottom on a phone) opens two kinds of view:
+
+- **Panels** (Inspector, Artifacts, Memory, Browser, History, Review, Notebook) open beside the chat, which stays in view.
+  The same tab again, Esc or the X closes one.
+- **Pages** (Newsroom, below the rail's divider, and Settings, the sliders icon above Appearance) take the place of the chat
+  and its panel, so they can use the whole width: the Newsroom's tiles fill as many columns as fit (a Large tile takes two),
+  and Settings has its sections in a column of their own. **Chat** at the top of a page, Esc (outside a text field) or the
+  page's rail button again goes back to the chat as you left it, scrolled where you were, with the panel that was open. A
+  panel's tab also leaves the page. The chat is only hidden meanwhile: a running turn carries on.
+
+A turn that adds a Newsroom widget opens the Newsroom page with the new tile marked, as a turn that makes a file opens the
+Artifacts panel (switch both off with *Open panels and pages for you* in Appearance). In the page's script, `openPanel` and
+`closePanel` drive the panels and `showPage` and `showChat` the pages (`S.tab` is the open panel, `S.view` is `"chat"` or
+the page shown).
 
 ## Appearance
 
@@ -18,16 +35,26 @@ this browser (`localStorage`, key `jevh.ui`), not in `config.yaml`: they are abo
 | Layout | chat width Narrow, Medium or Wide; Cozy or Compact spacing; Sharp, Soft or Round corners (default: the theme's) |
 | Tool calls in the chat | **Compact** (one sentence, one click for steps), **Steps** (steps listed), **Verbatim** (every step opens with its code and output), **Hidden** (only a live status line) |
 | Open live thinking | show the model's reasoning, as plain text, while it streams, instead of a folded "Thinking" line with its last sentence |
-| Open the panel for you | open the side panel when the browser goes live, a turn makes a file or adds a Newsroom widget |
+| Open panels and pages for you | open the Browser panel when the browser goes live, Artifacts when a turn makes a file, and the Newsroom page when it adds a widget |
 | Visual effects | glass blur, glow and paper grain; off is flatter and lighter on a weak GPU |
 
 The panel's width is remembered when you drag its edge. The expand button next to the X makes it nearly full width.
 
 ## Settings
 
-The sliders icon opens **Settings**: the few choices that are easy to get wrong in YAML. Appearance is about this screen and
-stays in your browser; these belong to the harness, so they are saved on this machine and apply to every browser, the phone
-page and the command line.
+The sliders icon at the bottom of the rail opens the **Settings** page. Its sections (a list on the left; a row of buttons at
+the top on a phone; the arrow keys move between them) are:
+
+| Section | What is in it |
+|---|---|
+| Models and search | the choices below |
+| Devices | your other computers the assistant can use (pair one with a code, rename it, remove it), and signing in: accounts, invite links, passwords. In the desktop app on another computer, a "This computer" card. See [devices.md](devices.md). |
+| Status | each model server (LM Studio, a llama.cpp server), the Jev adapter and backend, ComfyUI, the GPUs, add-ons that were skipped, and LM Studio's model swaps. The three dots at the top of the chat show the same at a glance and open this section. |
+| Updates | the harness version on disk, the update channel, new commits on GitHub, **Update now** and **Undo update**. A count on the Settings icon (and on this section) says how many commits are new. |
+
+Settings opens on the section it was last on. **Models and search** holds the few choices that are easy to get wrong in YAML.
+Appearance is about this screen and stays in your browser; these belong to the harness, so they are saved on this machine and
+apply to every browser, the phone page and the command line.
 
 | Setting | What it does |
 |---|---|

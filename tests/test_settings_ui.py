@@ -1,4 +1,4 @@
-"""The Settings tab in a real browser: what it shows, that it only sends what changed, that an engine's own fields appear, that
+"""The Settings page's Models and search section in a real browser: what it shows, that it only sends what changed, that an engine's own fields appear, that
 Test and Save and Reset work, and that the key never comes back to the page. Skipped when Playwright's Chromium isn't installed."""
 import pytest
 import yaml
@@ -16,7 +16,7 @@ def dashboard(conf):
     yield from serve(conf, REPLIES)
 
 
-def test_the_settings_tab_picks_models_tries_a_search_and_saves_only_what_changed(dashboard, conf, fakes, browse):
+def test_the_settings_page_picks_models_tries_a_search_and_saves_only_what_changed(dashboard, conf, fakes, browse):
     srv = fakes(SEARX)
     browse(lambda page: _flow(page, dashboard, conf, srv))
 
@@ -28,8 +28,8 @@ def _flow(page, url, conf, srv):
     page.on("request", lambda r: posts.append(r.post_data) if r.method == "POST" and "/api/config" in r.url and "test" not in r.url else None)
     page.goto(url)
     page.wait_for_selector(".hello")
-    page.click('#tabs [data-tab="settings"]')
-    assert page.inner_text("#ptitle") == "Settings"
+    page.click('.rail [data-page="settings"]')
+    assert page.is_visible("#settitle") and page.is_visible("#sec-general") and not page.is_visible("#chat")
     page.wait_for_selector("#p-settings select[data-set=model]")
     # what is in force now: no main model (each assistant's own), the quick model from the config, DuckDuckGo
     assert page.input_value("select[data-set=model]") == "" and page.input_value("select[data-set=fast]") == "lmstudio:ornith"
@@ -67,7 +67,7 @@ def _flow(page, url, conf, srv):
     assert conf.models["strong"]["model"] == "qwen3.8-27b-q5" and not conf.models.get("fast")   # in force already
 
     page.reload()                                                                              # it is what the page shows next time
-    page.click('#tabs [data-tab="settings"]')
+    page.click('.rail [data-page="settings"]')
     page.wait_for_selector("select[data-set=model]")
     assert page.input_value("select[data-set=model]") == "llamacpp:qwen3.8-27b-q5" and page.input_value("select[data-set=fast]") == ""
     assert page.input_value("[data-set=url]") == srv.url

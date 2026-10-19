@@ -714,7 +714,7 @@ class Newsroom:
     # -- notifications -----------------------------------------------------------------------
     def notify(self, title: str, body: str = "", url: str = "", widget_id: int | None = None, item_id: int | None = None,
                why: str = "") -> dict:
-        """A notification for the user (the bell on the Newsroom tab, a toast, and a desktop notification if allowed)."""
+        """A notification for the user (the bell on the Newsroom page, a toast, and a desktop notification if allowed)."""
         title = str(title).strip()[:200]
         if not title:
             raise NewsroomError("a notification needs a title")

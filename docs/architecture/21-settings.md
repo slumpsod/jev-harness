@@ -1,12 +1,12 @@
 # 21. Settings: the few choices people change, saved as one more config layer
 
-The dashboard's **Settings** tab changes the model, the quick model and the web search engine without editing YAML. This page is
+The **Models and search** section of the dashboard's **Settings** page changes the model, the quick model and the web search engine without editing YAML. This page is
 what happens between the click and the next model call. User guide: [docs/dashboard.md](../dashboard.md#settings). Function names
 are given instead of line numbers: search for them.
 
 ```mermaid
 flowchart LR
-  TAB["Settings tab<br/>index.html: renderSettings, settingsChange"] -->|"POST /api/config<br/>(only what changed)"| API["web/server.py<br/>config_save"]
+  TAB["Settings page, Models and search<br/>index.html: renderSettings, settingsChange"] -->|"POST /api/config<br/>(only what changed)"| API["web/server.py<br/>config_save"]
   API -->|"holds Hub.busy: no turn can start"| SAVE["settings.save<br/>validate, merge into the saved layer"]
   SAVE -->|"atomic write, owner-only"| FILE[("workspace/settings.yaml")]
   SAVE --> RELOAD["settings.reload<br/>load_config again, copy models + search into cfg"]

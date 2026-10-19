@@ -1061,7 +1061,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         hub.newsroom.clear_notes()
         return {"ok": True}
 
-    # -- Settings tab: the model, the quick model and the web search engine (jevh/settings.py) ---------------------------
+    # -- Settings page: the model, the quick model and the web search engine (jevh/settings.py) ---------------------------
     def settings_payload(fresh: bool = False) -> dict:
         return {**usersettings.view(hub.cfg), "options": usersettings.model_options(hub.cfg, fresh=fresh),
                 "providers": usersettings.providers_view(), "model_override": hub.model_override,

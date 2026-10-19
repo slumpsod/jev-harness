@@ -41,7 +41,7 @@ The harness keeps your own things here, outside its code checkout, so updates ne
 - config.yaml   your settings, laid over the checkout's config.yaml (relative paths are relative to this folder)
 - personas/     your personas; one with a built-in persona's name replaces it
 - skills/       your skills (same rule), learned skills (skills/learned) and lesson notes (skills/_lessons)
-- workspace/    memory, failure log, reviews, notebook, newsroom, usage, sessions and settings.yaml (what the Settings tab saved)
+- workspace/    memory, failure log, reviews, notebook, newsroom, usage, sessions and settings.yaml (what the Settings page saved)
 
 Set JEVH_HOME to use another folder. See docs/your-data.md in the checkout.
 """

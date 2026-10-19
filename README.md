@@ -29,7 +29,7 @@ crosses between them, with Mermaid diagrams and `file:line` references.
 
 On a Mac, Linux, or with the hosted Jev instead of a local one: see [SETUP.md](SETUP.md). A machine's own
 settings (models, Jev, paths) go in `config.local.yaml`, laid over `config.yaml` and ignored by git. The model and the web search
-engine can also be changed from the dashboard's **Settings** tab (saved in `workspace/settings.yaml`, which wins over those files).
+engine can also be changed from the dashboard's **Settings** page (saved in `workspace/settings.yaml`, which wins over those files).
 
 The `jevh` command works from any folder once installed (see [the `jevh` command](#the-jevh-command)).
 
@@ -131,7 +131,7 @@ it from. Every command also still works as `python -m jevh.cli`, `python -m jevh
 ## Updating
 
 ```bash
-jevh update            # or /update in the chat, or the Harness version card in the dashboard's Status tab
+jevh update            # or /update in the chat, or the Harness version card in the dashboard's Settings, Updates
 jevh update --check    # only list what's new on GitHub
 jevh update --test     # also run the test suite on the new version; undo the update if it fails
 jevh update --undo     # back to the version before the last update (/update undo, or "Undo update")
@@ -162,7 +162,7 @@ An update either works or leaves everything as it was:
   way the older one can't read; `--restore-data` puts a snapshot back.
 - **A broken persona or skill is skipped.** One that can't be loaded (bad YAML, missing fields, an
   unknown model provider), or an MCP server that won't start, is left out with the reason (shown when
-  the CLI starts and in the dashboard's Status tab) instead of stopping the harness.
+  the CLI starts and in the dashboard's Settings, Status) instead of stopping the harness.
 
 The fewer of your own things live in the checkout, the less an update has to work around: see
 [Your things, outside the checkout](docs/your-data.md) (`jevh home move` does the moving).
@@ -264,12 +264,15 @@ jevh dashboard                     # http://127.0.0.1:8740/ opens in your browse
 jevh dashboard --no-browser --port 8740 --model lmstudio:ornith-1.5-35b-a3b
 ```
 
-The chat is the whole screen. Everything else is one click away on the left rail and opens beside the chat; the
-panel stays closed until you open a tab, the browser tool goes live, or a turn makes a file (then the Artifacts
-panel opens on it). Click the same tab again, press Esc, or use the X to close it; drag its edge to resize it.
+The chat is the whole screen. Everything else is one click away on the left rail. The **panels** (Inspector to
+Notebook) open beside the chat; a panel stays closed until you open a tab, the browser tool goes live, or a turn makes a
+file (then the Artifacts panel opens on it). Click the same tab again, press Esc, or use the X to close it; drag its edge
+to resize it. The **Newsroom** and **Settings** (below the divider, and at the bottom of the rail) are **pages**: one
+takes the place of the chat and its panel. **Chat** at its top, Esc or its rail button again goes back, to the chat as
+you left it and the panel that was open (a running turn carries on meanwhile).
 
 **On a phone** it becomes one screen: the chat fills it, the tabs move to a bar along the bottom, and a tab opens as a
-full-screen panel over the chat (the X at its top closes it). Controls are sized for a finger, text fields are 16px so
+full-screen panel over the chat (the X at its top closes it), or as its page (the arrow at its top goes back). Controls are sized for a finger, text fields are 16px so
 iOS doesn't zoom in when you tap them, and the notch and home bar are respected. It is tested down to a 320px-wide
 phone, in landscape, and on a tablet.
 
@@ -279,7 +282,12 @@ phone, in landscape, and on a tablet.
 - **Browser**: the worker's docked browser, live.
 - **History**: every past session, newest first, grouped by the category Jev put it in: the assistant whose field the whole conversation is about (the same kind of choice that routes a request, asked once per session in the background, about 0.1 s each), so a flask session sits under *High end dev* and a workout plan under *Fitness coach*. A session Jev is not sure of is listed under *No single field* with its likeliest categories as tags. Search as you type; click one to read it (conversation, files, cost, who worked on it) with Jev's odds for each category and an "Ask again". `history:` in `config.yaml`; [docs/architecture/18-session-history.md](docs/architecture/18-session-history.md).
 - **Review**: sessions flagged for review (see below), with their notes, a model's review and your verdict.
-- **Status**: the harness version, with new commits on GitHub and an Update button (a count on the tab when there are any); which model LM Studio has loaded (plus the gate's state), Jev adapter and semif health, ComfyUI, GPU memory, and the swap history.
+- **Newsroom** (a page): widgets that follow news and posts, laid out in a grid across the width (see Newsroom below).
+- **Settings** (a page, the sliders icon), in four sections: **Models and search** (see Settings below); **Devices** (your
+  other computers, and signing in); **Status**: which model LM Studio or a llama.cpp server has loaded (plus the gate's
+  state), Jev adapter and semif health, ComfyUI, GPU memory, add-ons that were skipped, and the swap history (the coloured
+  dots at the top of the chat open it); **Updates**: the harness version, with new commits on GitHub and an Update button (a
+  count on the Settings icon when there are any).
 
 **Tool calls are summarised, not dumped.** A turn that ran 31 steps says so in one plain sentence ("Searched the web
 3 times, looked at 6 files, edited 2 files and ran 4 commands · 1 failed"). Click it for one line per step
@@ -304,7 +312,7 @@ message shows in the turn with what became of it. On a phone the same box and th
 - It serves files only from the workspace. HTML artifacts get a CSP sandbox, so a generated page can't reach the dashboard.
 
 **Your other computers, and signing in:** a computer that runs `jevh app` (or `jevh device run`) and is paired in the
-**Devices** panel becomes one the assistant can use: its files, a shell, its screen, its browser and its apps ("what's in
+**Devices** section of Settings becomes one the assistant can use: its files, a shell, its screen, its browser and its apps ("what's in
 the Downloads folder on my laptop?"). Making an account there replaces the per-launch link below with a sign-in that lasts.
 Verified live across two computers, the desktop tool on the other one included (the app's window not yet); see [docs/devices.md](docs/devices.md).
 
@@ -330,12 +338,12 @@ work on it; overruling it with "not a failure" marks that row ignored. Flags and
 
 ### Newsroom
 
-A tab of widgets that follow things for you and tell you when something new turns up: posts from an X account, news on a
+A page of widgets that follow things for you and tell you when something new turns up: posts from an X account, news on a
 topic or a company, an RSS feed, a subreddit, a project's releases. **Ask in the chat** ("keep an eye on Nvidia news and tell
 me when they mention earnings"): the assistant adds the widget, looks once and says what will notify you. Widgets look again
 on their own timer while the dashboard runs; a new item that matches your keywords, or that Jev judges to be about what you
 asked, becomes a notification (the bell list, a toast, optionally a desktop notification). You can also add, edit, reorder and
-remove widgets by hand in the tab. **Partly verified** (live run 2026-10-09: the chat-to-widget-to-notification path works and
+remove widgets by hand on the page. **Partly verified** (live run 2026-10-09: the chat-to-widget-to-notification path works and
 lookalike requests leave the board alone; Jev offers the tool for only 50-65% of the requests that need it and routing sends
 about one in six elsewhere; reading X was not checked, and the web widget only on 2026-10-09 evening). See [docs/newsroom.md](docs/newsroom.md) (the
 numbers, what it follows, how alerts work, reading X, adding a source) and
@@ -343,7 +351,7 @@ numbers, what it follows, how alerts work, reading X, adding a source) and
 
 ### Settings
 
-A short tab for the choices people actually change: the **model** every assistant runs on, the **quick model** easy tasks go to,
+The first section of the **Settings** page holds the choices people actually change: the **model** every assistant runs on, the **quick model** easy tasks go to,
 and the **web search engine** (DuckDuckGo, your own SearXNG server, or Brave Search with a key; **Test search** tries it first).
 The model lists come from your local servers. A choice is saved in `workspace/settings.yaml`, applies from your next message, and
 wins over the config files, which are never rewritten; **Reset** goes back to them. See [docs/dashboard.md](docs/dashboard.md#settings)
@@ -680,7 +688,7 @@ missed pick costs one `help(name)`, not the capability. The Inspector shows the 
   model also filled and submitted the whole demoqa form and BlazeDemo's passenger details. Both miss
   play2048 (a canvas game) and Booking.com (its search button didn't take the chosen dates); every miss
   was reported as one, with where it stopped.
-- **devices**: the user's other computers, paired in the dashboard's Devices panel and connected to it (`jevh app` or
+- **devices**: the user's other computers, paired in the dashboard (Settings, Devices) and connected to it (`jevh app` or
   `jevh device run` on each; guide: [docs/devices.md](docs/devices.md), architecture:
   [docs/architecture/22-devices.md](docs/architecture/22-devices.md)). `pc = devices.get("laptop")`, then `pc.files.*`
   (list, find, read, write, move, copy, delete to the device's trash, `fetch` here, `send` there), `pc.sh(cmd)`,

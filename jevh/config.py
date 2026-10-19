@@ -5,7 +5,7 @@ Settings are laid on top of each other, last wins:
   <home>/config.yaml (your own folder outside the checkout: JEVH_HOME, default ~/.jevh, if it exists;
                       its relative paths are relative to that folder)
   config.local.yaml (next to config.yaml, ignored by git)
-  <workspace>/settings.yaml (what the dashboard's Settings tab saved: models and web search only; see jevh/settings.py)
+  <workspace>/settings.yaml (what the dashboard's Settings page saved: models and web search only; see jevh/settings.py)
 With a home folder, <home>/personas and <home>/skills are searched before the built-in ones, so a
 persona or skill of yours with the same name replaces the built-in one; learned skills go to
 <home>/skills. See docs/your-data.md.
@@ -100,12 +100,12 @@ def _expand(p: str, base: Path) -> str:
     return str(q if q.is_absolute() else base / q)
 
 
-SETTINGS_FILE = "settings.yaml"          # in the workspace: what the dashboard's Settings tab saved
+SETTINGS_FILE = "settings.yaml"          # in the workspace: what the dashboard's Settings page saved
 SETTINGS_KEYS = ("models", "search", "appearance")   # the only sections that file may set; anything else is ignored
 
 
 def read_settings(workspace: Path) -> dict[str, Any]:
-    """The Settings tab's saved choices (only SETTINGS_KEYS), or {} when there are none or the file cannot be read: a
+    """The Settings page's saved choices (only SETTINGS_KEYS), or {} when there are none or the file cannot be read: a
     hand-edited, half-written or locked settings file must never stop the harness from starting."""
     try:
         data = yaml.safe_load((Path(workspace) / SETTINGS_FILE).read_text(encoding="utf-8"))
@@ -117,7 +117,7 @@ def read_settings(workspace: Path) -> dict[str, Any]:
 
 
 def load_config(path: str | os.PathLike | None = None, settings_dir: str | os.PathLike | None = None) -> Config:
-    """`settings_dir`: where to read the Settings tab's saved file from, when that is not the configured workspace (a config
+    """`settings_dir`: where to read the Settings page's saved file from, when that is not the configured workspace (a config
     whose `workspace` was changed after loading: the settings are saved where the config now says, so they are read there)."""
     path = Path(path or os.environ.get("JEVH_CONFIG") or ROOT / "config.yaml")
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -143,7 +143,7 @@ def load_config(path: str | os.PathLike | None = None, settings_dir: str | os.Pa
         q = Path(os.path.expandvars(os.path.expanduser(p)))
         return q if q.is_absolute() else base / q
 
-    # what the dashboard's Settings tab saved (jevh/settings.py): last, so a choice made there wins over every file above
+    # what the dashboard's Settings page saved (jevh/settings.py): last, so a choice made there wins over every file above
     if not os.environ.get("JEVH_NO_LOCAL_CONFIG"):
         raw = merged(raw, read_settings(Path(settings_dir) if settings_dir else rel(raw.get("workspace", "workspace"))))
 
