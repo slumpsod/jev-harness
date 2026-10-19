@@ -85,7 +85,7 @@ read-back, the Enter check, "a modal dialog is open", and the safety gates.
 - **A dialog over a dialog**: the one underneath is disabled, and a UIA call into a disabled window can hang for minutes (one
   `elements()` call took 7 minutes). Windows owned through a chain of owners are found, and only the live (enabled) top one is read.
 - **When Jev does not pick the tool's guide** (7/10 held-out desktop requests were picked), the worker's prompt carries one line
-  pointing to `help(desktop)` and saying to use `do()`/`read()` rather than ctypes or `look()` (`ToolInfo.pointer`, `worker.build_system`).
+  pointing to `help(desktop)` and saying to use `do()`/`read()` rather than ctypes or `desktop.look()` (`ToolInfo.pointer`, `worker.build_system`).
   Without it a worker given "how many items are in JevLab's List tab?" read the tool's source code and used `look()` for 70 s.
 - **Foreground**: a window nobody can see can hold the foreground (live, `GameInputServiceWindow`, after the front app closed) and
   refuse `SetForegroundWindow`. `focus()` tries the plain call, an Alt tap, `AttachThreadInput`, `SwitchToThisWindow`, a click on a

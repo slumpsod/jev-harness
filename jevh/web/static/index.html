@@ -470,6 +470,23 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 .stopbtn { background: transparent; color: var(--bad-ink); border-color: color-mix(in srgb, var(--bad) 50%, transparent); }
 .stopbtn svg { fill: currentColor; stroke-width: 1.5; }
 .composer.busy #send:disabled { display: none; }
+/* files sent with a message: the composer's tray, and the thumbnails and chips in the chat */
+.attachbtn { padding: 0 7px; } .attachbtn svg.ic { width: 16px; height: 16px; }
+.atray { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px 0; }
+.aitem { position: relative; display: flex; align-items: center; gap: 6px; height: 56px; max-width: 220px; padding: 0 28px 0 8px; border: 1px solid var(--line2); border-radius: var(--r-sm); background: var(--surface2); font-size: 12px; color: var(--muted); }
+.aitem img { height: 44px; width: 44px; object-fit: cover; border-radius: 6px; flex: none; }
+.aitem .an { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; } .aitem .an small { display: block; color: var(--faint); }
+.aitem.uploading { opacity: .6; } .aitem.error { border-color: color-mix(in srgb, var(--bad) 60%, transparent); color: var(--bad-ink); }
+.aitem .arm { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); border-radius: 50%; }
+.aitem .arm:hover { background: var(--hover); color: var(--text); } .aitem .arm svg { width: 12px; height: 12px; }
+.composer.dropping .cbox { border-color: var(--accent); box-shadow: var(--shadow), 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent); }
+.attach { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; align-self: flex-end; max-width: min(88%, 640px); }
+.attach.insay, .attach.inhist { justify-content: flex-start; max-width: none; margin: 6px 0 2px; }
+.athumb { display: block; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--line2); background: var(--surface2); line-height: 0; }
+.athumb img { display: block; max-height: 160px; max-width: min(260px, 70vw); object-fit: contain; }
+.attach.insay .athumb img, .attach.inhist .athumb img { max-height: 90px; }
+.achip { display: inline-flex; align-items: center; gap: 6px; max-width: 260px; padding: 6px 10px; border: 1px solid var(--line2); border-radius: var(--pill); background: var(--surface); color: var(--text); font-size: 12.5px; text-decoration: none; }
+.achip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .achip svg.ic { width: 14px; height: 14px; flex: none; }
 .cfoot { display: flex; justify-content: center; font-size: 11px; color: var(--faint); margin-top: 8px; height: 14px; }
 
 /* ---- the panel: closed until a tab, the browser or an artifact needs it ---- */
@@ -982,6 +999,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
   <symbol id="i-devices" viewBox="0 0 24 24"><rect x="2.5" y="4" width="14" height="10" rx="1.8"/><path d="M6 18h7M9.5 14v4"/><rect x="16.5" y="9" width="5" height="11" rx="1.4"/><path d="M19 17.5h.01"/></symbol>
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></symbol>
   <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.6-2.1-.5-1.3.4-2.4 1.8-2.4H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.6" cy="11" r="1"/><circle cx="10.2" cy="7.4" r="1"/><circle cx="14.6" cy="7.4" r="1"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M20 11.5 12.4 19a5 5 0 0 1-7-7.1l8-8a3.3 3.3 0 0 1 4.7 4.7l-8 8a1.7 1.7 0 0 1-2.4-2.4L15.1 7"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
@@ -1055,8 +1073,11 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
     <form class="composer" id="form">
       <div class="queuebar" id="queuebar" hidden></div>
       <div class="cbox">
+        <div class="atray" id="atray" hidden></div>
         <textarea id="input" rows="1" aria-label="Message" placeholder="Message (Enter to send, Shift+Enter for a new line)"></textarea>
         <div class="cbar">
+          <button class="cchip attachbtn" id="attach" type="button" title="Attach images or files (you can also paste or drop them here)" aria-label="Attach files"><svg class="ic"><use href="#i-clip"/></svg></button>
+          <input type="file" id="afile" multiple hidden accept="image/*,application/pdf,.pdf,.txt,.md,.csv,.tsv,.json,.xml,.yaml,.yml,.log,.docx,.xlsx,.xls,.pptx,.odt,.ods,.rtf,.eml,.zip,.heic,.heif,.tif,.tiff">
           <label class="cchip" title="Which persona answers. Jev routes picks one for each message."><svg class="ic"><use href="#i-user"/></svg>
             <select id="pin" aria-label="Persona"><option value="">Jev routes</option></select><svg class="ic caret"><use href="#i-caret"/></svg></label>
           <label class="cchip" title="Which model tier to use. Jev decides unless you pin it."><svg class="ic"><use href="#i-bolt"/></svg>
@@ -1186,6 +1207,29 @@ const pct = (v) => `${Math.round((v || 0) * 100)}%`;
 const secs = (s) => s == null ? "" : s < 60 ? `${s.toFixed(1)}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
 const fileUrl = (p) => `/api/file?path=${encodeURIComponent(p)}&token=${encodeURIComponent(TOKEN)}`;
 const baseName = (p) => String(p).split(/[\\/]/).pop();
+// files sent with a message (jevh/web/uploads.py): the server adds a note naming them to the text; it is read back out here
+// to show them (a thumbnail for a picture, a chip for anything else) instead of the paths
+const ATTACH_RE = /\n*\[Attached by the user \(saved on this computer\):\n((?:- .+\n)+)\]\s*$/;
+const SHOWN_IMG = /\.(png|jpe?g|gif|webp|bmp)$/i;   // (what a browser draws: a TIFF or HEIC gets a chip)
+function splitAttach(text) {
+  const m = ATTACH_RE.exec(text || "");
+  if (!m) return {text: text || "", files: []};
+  const files = m[1].split("\n").filter((l) => l.startsWith("- ")).map((l) => l.slice(2).replace(/ \([^()]*\)$/, ""));
+  const own = text.slice(0, m.index);
+  return {text: /^\(No message: only the attached files?\.\)$/.test(own.trim()) ? "" : own, files};
+}
+const attachName = (p) => baseName(p).replace(/^\d{3}-/, "");
+const ATT = {items: [], n: 0, max: 10, maxBytes: 25 * 1024 * 1024};   // the composer's files (attachFiles)
+function attachHtml(files, cls = "") {
+  if (!files.length) return "";
+  return `<div class="attach ${cls}">${files.map((p) => SHOWN_IMG.test(p)
+    ? `<a class="athumb" href="${esc(fileUrl(p))}" target="_blank" rel="noopener" title="${esc(attachName(p))}"><img src="${esc(fileUrl(p))}" alt="${esc(attachName(p))}" loading="lazy"></a>`
+    : `<a class="achip" href="${esc(fileUrl(p))}" target="_blank" rel="noopener" title="${esc(attachName(p))}">${ico("file")}<span>${esc(attachName(p))}</span></a>`).join("")}</div>`;
+}
+function plainAttach(text) {   // one line for small places (the queue, a question's answer): the text, then "+ 2 files"
+  const a = splitAttach(text);
+  return a.text.trim() + (a.files.length ? `${a.text.trim() ? " " : ""}+ ${a.files.length} file${a.files.length > 1 ? "s" : ""}` : "");
+}
 
 // the dashboard restarted (each launch has a new API token): reload to get the new one - the sign-in survives it.
 // (at most once every 15 s: a page that still gets refused after reloading shows the error instead of looping)
@@ -1388,7 +1432,7 @@ function focusAnswer() { setTimeout(() => $("input").focus(), 0); }
 function renderQueue() {   // requests sent while a turn runs: they start by themselves, in this order
   const el = $("queuebar"), q = S.queued || [];
   el.hidden = !q.length;
-  el.innerHTML = q.length ? `<span>Waiting to run after this (${q.length}):</span>${q.map((x) => `<span class="qchip" title="${esc(x)}">${esc(x.length > 40 ? x.slice(0, 40) + "..." : x)}</span>`).join("")}` : "";
+  el.innerHTML = q.length ? `<span>Waiting to run after this (${q.length}):</span>${q.map((x) => plainAttach(x)).map((x) => `<span class="qchip" title="${esc(x)}">${esc(x.length > 40 ? x.slice(0, 40) + "..." : x)}</span>`).join("")}` : "";
 }
 function saidHtml(t) {   // what you said while it worked, what became of it, and what the assistant told you meanwhile (say())
   const told = (t.told || []).map((s) => ({...s, told: true}));
@@ -1396,7 +1440,8 @@ function saidHtml(t) {   // what you said while it worked, what became of it, an
     if (s.told) return `<div class="say told"><span class="saywho">${esc(s.persona || "assistant")}</span> <div class="toldtext">${md(s.text)}</div></div>`;
     const tag = s.outcome === "corrected" && s.replaces ? "swapping the task" : {corrected: "added to the task", queued: "queued for after", status: "quick reply", stopped: "stopped"}[s.outcome] || s.outcome;
     const reply = s.outcome === "status" ? `<div class="sayrep">${esc(s.aside || s.answer)}${!s.aside && s.asking ? ' <span class="saywait">(the task\'s own answer is coming...)</span>' : ""}</div>` : "";
-    return `<div class="say"><span class="saywho">You</span> ${esc(s.text)} <span class="saytag ${esc(s.outcome)}">${esc(tag)}</span>${reply}</div>`;
+    const sent = splitAttach(s.text);
+    return `<div class="say"><span class="saywho">You</span> ${esc(sent.text)}${attachHtml(sent.files, "insay")} <span class="saytag ${esc(s.outcome)}">${esc(tag)}</span>${reply}</div>`;
   }).join("");
 }
 function render() {
@@ -1404,7 +1449,7 @@ function render() {
   if (S.tab === "inspector") renderInspector();
   const busy = S.order.some((id) => S.turns.get(id).status === "running");
   const q = waitingQuestion();
-  $("send").disabled = false;   // a running turn hears you too (jevh/interject.py)
+  $("send").disabled = ATT.items.some((x) => x.state === "uploading");   // a running turn hears you too (jevh/interject.py)
   $("send").title = $("send").ariaLabel = q ? "Answer" : busy ? "Send to the running task" : "Send";
   $("form").classList.toggle("busy", busy && !q);
   $("stop").hidden = !busy;
@@ -1762,12 +1807,13 @@ function turnHtml(id) {
   const tier = root ? tierOf(t, root.id) : null, running = t.status === "running";
   const qs = [...t.questions.values()], waiting = qs.filter((q) => q.state === "waiting");
   const qa = qs.filter((q) => q.state !== "waiting").map((q) => `<div class="qa">${esc(q.persona)} asked: ${esc(q.question)} -
-      ${q.state === "answered" ? `you said: <b>${esc(q.answer)}</b>` : esc(q.state)}</div>`).join("");
+      ${q.state === "answered" ? `you said: <b>${esc(plainAttach(q.answer))}</b>` : esc(q.state)}</div>`).join("");
   const flagged = flaggedTurns().has(id);
   const arts = (t.artifacts || []).map((a) => `<a class="artlink" href="#" data-art="${esc(a)}">${ico("file")}${esc(baseName(a))}</a>`).join("");
   const usage = t.usage && t.usage.total ? `<span title="tokens and time for this turn">${esc(usageBrief(t.usage))}</span>` : "";
   const resume = t.checkpoint && !running ? `<button type="button" data-resume="${esc(t.checkpoint)}" title="Continue this task where it stopped: same working folder and files, fresh REPL">Resume this task</button>` : "";
-  return `<article class="turn" data-id="${id}"><div class="msg user">${esc(t.message || "")}</div>${t.origin ? `<div class="from" title="The computer this was written on: &quot;this computer&quot; means it">from ${esc(t.origin)}</div>` : ""}
+  const sent = splitAttach(t.message);
+  return `<article class="turn" data-id="${id}">${attachHtml(sent.files)}${sent.text || !sent.files.length ? `<div class="msg user">${esc(sent.text)}</div>` : ""}${t.origin ? `<div class="from" title="The computer this was written on: &quot;this computer&quot; means it">from ${esc(t.origin)}</div>` : ""}
     <div class="msg assistant ${S.selected === id ? "selected" : ""}" data-turn="${id}"><div class="avatar" title="Select this turn to inspect it: when each task ran and every decision Jev made">${esc((persona || "j").slice(0, 1))}</div>
       <div class="amain"><div class="who"><b>${esc(persona || "assistant")}</b>${tier ? `<span class="badge ${tier}">${tier}</span>` : ""}
         <span class="when">${t.started ? clock(t.started) : ""}${!running && t.seconds != null ? `${t.started ? " · " : ""}${secs(t.seconds)}` : ""}</span>
@@ -1990,13 +2036,13 @@ function renderHistoryDetail(el) {
     d.failures.length ? `${d.failures.length} failure${d.failures.length === 1 ? "" : "s"} logged` : "",
     d.usage && d.usage.total && d.usage.total.calls ? esc(usageBrief(d.usage)) : ""].filter(Boolean);
   el.innerHTML = `<div class="hhead"><button type="button" data-h="back">&larr; All sessions</button>${d.current ? "" : `<button type="button" class="primary" data-h="load" data-load="${esc(d.session)}" title="Carry on this session in the chat: your next message joins its conversation and its files">Resume this session</button>`}</div>
-    <h3 class="htitle">${esc(s.title || d.turns.length && d.turns[0].user || d.session)}</h3>
+    <h3 class="htitle">${esc(s.title || d.turns.length && plainAttach(d.turns[0].user) || d.session)}</h3>
     <div class="kv">${s.started ? esc(hwhen(s.started)) + " &middot; " : ""}${d.turns.length} turn${d.turns.length === 1 ? "" : "s"} &middot; ${esc(d.session)}${d.current ? " (this session)" : ""}</div>
     <div class="card" style="margin-top:12px"><h3>Category <span class="badge">${d.category ? esc(catName(d.category)) : "not sorted yet"}</span>${d.category && d.confidence ? `<span class="kv">Jev, ${pct(d.confidence)} sure</span>` : ""}
       <button type="button" data-h="recat1" title="Ask Jev again about this session">Ask again</button></h3>
       ${Object.keys(probs).length ? probRows(probs, d.category) : ""}${facts.length ? `<div class="kv" style="margin-top:8px">${facts.join(" &middot; ")}</div>` : ""}</div>
     ${d.artifacts.length ? `<div class="card"><h3>Files <span class="kv">${d.artifacts.length}</span></h3>${d.artifacts.map((a) => `<div><a href="${esc(fileUrl(a.path))}" target="_blank" rel="noopener">${esc(a.name)}</a> <span class="kv">${kfmt(a.size)}B</span></div>`).join("")}</div>` : ""}
-    ${d.turns.map((t) => `<div class="hturn"><div class="hu">${esc(t.user)}</div><div class="hmeta"><b>${esc(t.persona)}</b> <span class="kv">${esc(clock(t.ts))}</span></div><div class="answer">${md(t.assistant || "(no answer)")}</div></div>`).join("") || `<div class="empty">No conversation was kept for this session.</div>`}`;
+    ${d.turns.map((t) => `<div class="hturn"><div class="hu">${esc(splitAttach(t.user).text)}${attachHtml(splitAttach(t.user).files, "inhist")}</div><div class="hmeta"><b>${esc(t.persona)}</b> <span class="kv">${esc(clock(t.ts))}</span></div><div class="answer">${md(t.assistant || "(no answer)")}</div></div>`).join("") || `<div class="empty">No conversation was kept for this session.</div>`}`;
 }
 $("p-history").addEventListener("click", async (ev) => {
   const row = ev.target.closest("[data-session]"), btn = ev.target.closest("[data-h]");
@@ -3111,20 +3157,84 @@ $("p-artifacts").addEventListener("click", (ev) => {
 });
 const fit = () => { const i = $("input"); i.style.height = "auto"; i.style.height = `${Math.min(i.scrollHeight, 240)}px`; };
 $("input").addEventListener("input", fit);
+// ---- files sent with a message: the attach button, paste and drop upload each one at once (POST /api/upload, the
+// body is the file); the message then names the paths the server gave back (jevh/web/uploads.py)
+function renderTray() {
+  const el = $("atray");
+  el.hidden = !ATT.items.length;
+  el.innerHTML = ATT.items.map((it) => `<div class="aitem ${it.state}" data-aid="${it.id}" title="${esc(it.error || it.name)}">
+    ${it.url ? `<img src="${esc(it.url)}" alt="">` : ico("file")}<span class="an">${esc(it.name)}<small>${it.state === "uploading" ? "uploading..." : it.state === "error" ? esc(it.error) : esc(kfmt(it.size) + "B")}</small></span>
+    <button type="button" class="arm" data-arm="${it.id}" aria-label="Remove ${esc(it.name)}" title="Remove">${ico("close")}</button></div>`).join("");
+}
+async function uploadOne(it, file) {
+  try {
+    const r = await fetch(`/api/upload?name=${encodeURIComponent(it.name)}`, {method: "POST", body: file,
+      headers: {"X-Jevh-Token": TOKEN, "Content-Type": file.type || "application/octet-stream"}});
+    if (r.status === 401) location.replace("/login");
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { if (r.status === 403 && /bad token/.test(d.detail || "")) staleToken(); throw new Error(d.detail || r.statusText); }
+    it.path = d.path; it.state = "done";
+  } catch (e) { it.state = "error"; it.error = e.message; }
+  renderTray(); syncSend();
+}
+function attachFiles(list) {
+  for (const f of list) {
+    if (ATT.items.length >= ATT.max) { alert(`At most ${ATT.max} files with one message.`); break; }
+    const name = f.name && f.name !== "image.png" ? f.name : `pasted-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}.png`;
+    const it = {id: ++ATT.n, name, size: f.size, state: "uploading",
+                url: /^image\/(png|jpeg|gif|webp|bmp)$/.test(f.type) ? URL.createObjectURL(f) : null};
+    if (f.size > ATT.maxBytes) { it.state = "error"; it.error = "over 25 MB"; }
+    ATT.items.push(it);
+    if (it.state === "uploading") uploadOne(it, f);
+  }
+  renderTray(); syncSend();
+}
+function dropItem(id) {
+  const i = ATT.items.findIndex((x) => x.id === id);
+  if (i >= 0) { const [it] = ATT.items.splice(i, 1); if (it.url) URL.revokeObjectURL(it.url); }
+  renderTray(); syncSend();
+}
+function syncSend() { $("send").disabled = ATT.items.some((x) => x.state === "uploading"); }
+$("attach").addEventListener("click", () => $("afile").click());
+$("afile").addEventListener("change", () => { attachFiles([...$("afile").files]); $("afile").value = ""; });
+$("atray").addEventListener("click", (ev) => { const b = ev.target.closest("[data-arm]"); if (b) dropItem(Number(b.dataset.arm)); });
+$("input").addEventListener("paste", (ev) => {   // a screenshot pasted; text copied with a picture of it (Excel) stays text
+  const files = [...(ev.clipboardData && ev.clipboardData.files || [])];
+  if (files.length && !ev.clipboardData.getData("text/plain")) { ev.preventDefault(); attachFiles(files); }
+});
+{
+  const chat = $("chat"), hasFiles = (ev) => [...(ev.dataTransfer && ev.dataTransfer.types || [])].includes("Files");
+  let depth = 0;
+  chat.addEventListener("dragenter", (ev) => { if (hasFiles(ev)) { depth++; $("form").classList.add("dropping"); } });
+  chat.addEventListener("dragleave", (ev) => { if (hasFiles(ev) && --depth <= 0) { depth = 0; $("form").classList.remove("dropping"); } });
+  chat.addEventListener("dragover", (ev) => { if (hasFiles(ev)) { ev.preventDefault(); ev.dataTransfer.dropEffect = "copy"; } });
+  chat.addEventListener("drop", (ev) => {
+    if (!hasFiles(ev)) return;
+    ev.preventDefault(); depth = 0; $("form").classList.remove("dropping");
+    attachFiles([...ev.dataTransfer.files]);
+  });
+}
 $("form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  const message = $("input").value.trim(); if (!message) return;
-  $("input").value = ""; fit();
+  if (ATT.items.some((x) => x.state === "uploading")) return;   // (Send is off meanwhile; Enter comes here too)
+  const message = $("input").value.trim();
   const q = waitingQuestion();
+  const items = ATT.items.filter((x) => x.state === "done"), files = items.map((x) => x.path);
+  if (q && q.secret && files.length) { alert("Files can't go with a secret answer: answer first, then send them."); return; }
+  if (!message && !files.length) return;
+  const kept = ATT.items;
+  $("input").value = ""; fit(); ATT.items = []; renderTray();
+  const restore = () => { $("input").value = message; fit(); ATT.items = kept; renderTray(); syncSend(); };
   S.stick = true;
   try {
-    if (q) await api("/api/answer", {method: "POST", body: JSON.stringify({id: q.id, answer: message})});
+    if (q) await api("/api/answer", {method: "POST", body: JSON.stringify({id: q.id, answer: message, files})});
     else {
-      const r = await api("/api/chat", {method: "POST", body: JSON.stringify({message})});
+      const r = await api("/api/chat", {method: "POST", body: JSON.stringify({message, files})});
       const j = r && r.interjected;   // sent to the running task: its events draw the result
-      if (j && (j.outcome === "refused" || j.outcome === "empty")) { alert(j.reason || "nothing to send"); $("input").value = message; fit(); }
+      if (j && (j.outcome === "refused" || j.outcome === "empty")) { alert(j.reason || "nothing to send"); restore(); return; }
     }
-  } catch (e) { alert(e.message); $("input").value = message; fit(); }
+    kept.forEach((x) => { if (x.url) setTimeout(() => URL.revokeObjectURL(x.url), 60000); });
+  } catch (e) { alert(e.message); restore(); }
 });
 $("input").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $("form").requestSubmit(); } });
 $("tier").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({tier_mode: $("tier").value})}));

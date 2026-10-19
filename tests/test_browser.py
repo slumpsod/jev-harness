@@ -597,6 +597,9 @@ def test_see_image_sends_the_picture_the_way_each_provider_takes_it(tmp_path):
     claude = Claude()
     see_image(claude, str(img), "how many?")
     assert claude.content[0]["type"] == "image" and claude.content[0]["source"]["media_type"] == "image/png"
+    from jevh.usage import Metered   # as a worker has it: inside the usage meter (it went as an OpenAI image part)
+    see_image(Metered(claude, lambda *a, **k: None, lambda: {}, "strong", "claude"), str(img), "how many?")
+    assert claude.content[0]["type"] == "image"
 
 
 def test_a_search_the_site_throws_away_is_reported_as_blocked(session, site):

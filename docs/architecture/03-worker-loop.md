@@ -150,6 +150,7 @@ sequenceDiagram
 | `report_failure(what, detail)` | callback | `FailureWatch.report`: a `model` row in the failure log; the worker carries on ([11](11-failure-log.md)) |
 | `mcp(tool, **args)` | callback | `McpHub.call` (only tools the persona's `mcp` globs allow) |
 | `browser.look(q)` (through `_host`) | callback `look` | `see_image(llm, screenshot, q)`: the worker's own model looks at the image |
+| `look_at(path, question, pages)` | renders in the REPL, then callback `look` | an image file (turned upright, at most 1600 px) or each PDF page (PyMuPDF) goes to `see_image`; one answer per page; a model that takes no images is said plainly. An OCR package missing in a cell's error adds a line pointing at it |
 | `web`, `browser`, `project`, `nango`, `comfy` | in the REPL | see [08](08-tools.md) |
 
 ### Snapshot and restore

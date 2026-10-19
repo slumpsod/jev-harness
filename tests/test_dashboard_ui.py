@@ -688,3 +688,50 @@ def test_make_an_account_sends_the_typed_name_and_shows_a_refusal(dashboard, cfg
         page.wait_for_selector("#p-devices :text(\"Made alex's account\")")
     browse(flow)
     assert [u["name"] for u in Accounts(cfg.workspace / "accounts.db").users()] == ["alex"]
+
+
+def test_files_go_with_a_message_from_the_attach_button_paste_and_drop(dashboard, browse, tmp_path):
+    """Issue #5: the chat had no way to send a photo, a screenshot or a PDF (from the phone above all). The attach button
+    uploads at once, the tray shows what will go, and the turn shows the files: a thumbnail for a picture, a chip for a
+    PDF. At phone width the composer still fits."""
+    from PIL import Image
+    Image.new("RGB", (600, 400), "orange").save(tmp_path / "receipt.jpg")
+    (tmp_path / "form.pdf").write_bytes(b"%PDF-1.4\n%%EOF\n")
+    browse(lambda page: _attach(page, dashboard, tmp_path))
+
+
+def _attach(page, url, tmp_path):
+    for width in (390, 1400):   # (the phone first: a file the first turn makes opens the panel, which covers a phone's chat)
+        page.set_viewport_size({"width": width, "height": 860})
+        page.goto(url)
+        page.wait_for_selector(".hello")
+        page.set_input_files("#afile", [str(tmp_path / "receipt.jpg"), str(tmp_path / "form.pdf")])
+        page.wait_for_function("document.querySelectorAll('#atray .aitem.done').length === 2", timeout=10000)
+        assert page.locator("#atray .aitem img").count() == 1                   # the photo's own preview
+        assert page.evaluate("document.getElementById('send').getBoundingClientRect().right <= innerWidth")
+        assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
+        page.click("#atray .aitem:nth-child(2) .arm")                           # changed my mind about the PDF
+        assert page.locator("#atray .aitem").count() == 1
+        page.fill("#input", "what does this receipt say?")
+        page.keyboard.press("Enter")
+        page.wait_for_selector(".turn .attach .athumb img", timeout=10000)
+        assert page.is_hidden("#atray") and page.inner_text(".turn .msg.user") == "what does this receipt say?"
+        page.wait_for_function("document.querySelector('.turn .athumb img').naturalWidth === 600", timeout=10000)
+        page.wait_for_selector(".turn .answer", timeout=30000)
+        page.evaluate("api('/api/reset', {method: 'POST'})")   # (New session: under the panel the reply opened, on a phone)
+        page.wait_for_function("!document.querySelector('.turn')", timeout=10000)
+    # pasted (a screenshot) and dropped (a PDF): into the tray the same way
+    page.evaluate("""() => { const dt = new DataTransfer();
+        dt.items.add(new File([new Uint8Array([137, 80, 78, 71])], 'image.png', {type: 'image/png'}));
+        document.getElementById('input').dispatchEvent(new ClipboardEvent('paste', {clipboardData: dt, bubbles: true, cancelable: true})); }""")
+    page.evaluate("""() => { const dt = new DataTransfer();
+        dt.items.add(new File(['%PDF-1.4'], 'scan.pdf', {type: 'application/pdf'}));
+        const chat = document.getElementById('chat');
+        for (const k of ['dragenter', 'dragover', 'drop']) chat.dispatchEvent(new DragEvent(k, {dataTransfer: dt, bubbles: true, cancelable: true})); }""")
+    page.wait_for_function("document.querySelectorAll('#atray .aitem.done').length === 2", timeout=10000)
+    names = page.inner_text("#atray")
+    assert "pasted-" in names and "scan.pdf" in names
+    page.click("#send")                                                         # files alone, no text
+    page.wait_for_selector(".turn .attach .achip", timeout=10000)
+    assert "scan.pdf" in page.inner_text(".turn .attach") and page.locator(".turn .msg.user").count() == 0
+    assert not page.errors

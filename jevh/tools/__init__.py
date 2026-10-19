@@ -54,8 +54,8 @@ imported: use it, don't start Playwright/Selenium yourself.
   nothing - try another.
 - Seeing: browser.look(question) -> {answer, screenshot}: your own model looks at a screenshot. For what is
   drawn, not written - a canvas game board, a chart, a seat map. When a result's note says the page is
-  drawn on a canvas, its content is in no text or HTML: don't search for it there, look() at it (e.g.
-  look("the 2048 board as 4 rows of numbers, 0 for empty")) and act with press()/click(). A look takes
+  drawn on a canvas, its content is in no text or HTML: don't search for it there, browser.look() at it (e.g.
+  browser.look("the 2048 board as 4 rows of numbers, 0 for empty")) and act with press()/click(). A look takes
   ~40 s, so don't look after every move: plan several moves per look.
 - Buying or booking something the user asked for is the job, not something to decline: find it, choose
   it, fill in what you know (ask_user for names, dates or choices you don't have) and go up to payment.
@@ -76,7 +76,7 @@ imported: use it, don't start Playwright/Selenium yourself.
         "click its buttons, type in it, send a message in it, press its keyboard shortcuts (Ctrl+N), close its dialogs, "
         "list which apps are open",
         """desktop (Windows apps through UI Automation; you state outcomes, Jev picks the window and each control in
-~1s). It is already imported: use it, don't write ctypes/comtypes/pyautogui code and don't look() first.
+~1s). It is already imported: use it, don't write ctypes/comtypes/pyautogui code and don't desktop.look() first.
 - Start with what you need: desktop.windows() (what is open, front first; tabs=True adds browser tabs;
   `parked` = off-screen) or desktop.where("the claude code tab") (Jev picks the window/tab); desktop.open("notepad")
   starts an app ('calculator', 'explorer', a folder path) and waits for its window.
@@ -101,7 +101,7 @@ imported: use it, don't start Playwright/Selenium yourself.
   fill(i, text, replace=False) or a new window/tab (ctrl+n). "pressed Enter; the field emptied (sent)" means a message
   went; an autocomplete that takes the Enter is handled for you.""",
         pointer="desktop operates apps on the user's own computer (windows, clicks, typing, shortcuts, dialogs): for anything "
-                "in an app on their desktop, read help(desktop) first and use desktop.do()/read(), not ctypes or look(). Never repeat a password in your answer."),
+                "in an app on their desktop, read help(desktop) first and use desktop.do()/read(), not ctypes or desktop.look(). Never repeat a password in your answer."),
     # ({connected}: the names of the devices online, filled in by Harness._pick_tools. Measured on evals/devices_cases.py:
     # naming them and "is an app open on my laptop?" took the fire cases from 67% to 100% with no lookalike picked)
     "devices": ToolInfo(
@@ -122,7 +122,7 @@ imported. This computer (the hub) is not one of them: use the ordinary tools for
 - pc.sh(cmd, timeout=120, cwd=None, shell="powershell") -> {status, code, out}: a command there (PowerShell; shell="cmd"
   for cmd.exe). status needs_confirmation: the command deletes, kills or shuts down - ask_user first, then repeat with
   allow_irreversible=True.
-- pc.screenshot() -> a PNG path here: what its screen shows (look at it with llm_query only when you must).
+- pc.screenshot() -> a PNG path here: what its screen shows (look_at(path, question) when you must see it).
 - pc.browser and pc.desktop are the browser and desktop tools running on that computer, same functions and results:
   pc.browser.goto(url); pc.browser.do("one outcome", values={...}); pc.browser.read(question);
   pc.desktop.windows(); pc.desktop.do("open the List tab", window="JevLab"); pc.desktop.read(window=...).

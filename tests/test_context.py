@@ -420,7 +420,7 @@ def test_the_dashboard_status_lists_each_loaded_model_with_its_context(cfg, monk
     lm = Server()
     monkeypatch.setattr(server, "gate_for", lambda url: lm)
     monkeypatch.setattr(server, "gpus", lambda: [])
-    monkeypatch.setattr(server, "probe", lambda url, timeout=2.0: {"up": False})
+    monkeypatch.setattr(server, "probe", lambda url, timeout=2.0, **kw: {"up": False})
 
     def factory(on_event):
         return Harness(cfg, jev=Jev(cfg, FakeSystemOne(web_rules)), llm_factory=lambda p: ScriptedLLM([]), on_event=on_event)
