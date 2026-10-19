@@ -295,7 +295,10 @@ def grade(case: dict, r: dict) -> dict:
     installs = sum(not b.startswith("open:") for b in blocked) + len(INSTALL.findall(code))
     opened = sum(b.startswith("open:") for b in blocked)
     ocr = sum(bool(OCR.search(c)) for c in r.get("codes", []))
-    vision = bool(VISION.search(code))
+    # a model look: look_at() or a tool's look() - not a look_at() that read a PDF's text layer and looked at nothing
+    outs = r.get("outputs", [])
+    vision = any(VISION.search(c) and "read from the PDF's text layer" not in (outs[i] if i < len(outs) else "")
+                 for i, c in enumerate(r.get("codes", [])))
     if case["kind"] == "fire":
         checks = {"correct": correct, "no_install": installs == 0}
     else:

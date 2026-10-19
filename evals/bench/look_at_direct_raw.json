@@ -1,0 +1,407 @@
+[
+ {
+  "task": "intake_form_scan.png",
+  "rep": 0,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "Insurance policy number: HX-44721-B\nDate of birth: 03/14/1987\n",
+  "error": false,
+  "seconds": 5.6,
+  "looks": [
+   5.5
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 2080,
+   "output": 109,
+   "thinking": 77,
+   "seconds": 5.47,
+   "cost": 0.0,
+   "decode_seconds": 1.68,
+   "decode_tokens": 109
+  },
+  "arm": "new"
+ },
+ {
+  "task": "invoice_INV-scan.pdf",
+  "rep": 0,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "[Page 1 of 2]\nInvoice number: **INV-20931**\n\nTotal due: **Not shown on this page.** Page 1 lists only the four line-item amounts (312.00, 238.80, 96.50, 85.00) and ends with \"Continued on page 2\"; no total/total-due line appears here, so it can't be read from this page.\n\n[Page 2 of 2]\nInvoice number: INV-20931\nTotal due: $1,284.50\n",
+  "error": false,
+  "seconds": 12.3,
+  "looks": [
+   6.7,
+   4.3
+  ],
+  "usage": {
+   "calls": 2,
+   "input": 4166,
+   "output": 332,
+   "thinking": 209,
+   "seconds": 10.97,
+   "cost": 0.0,
+   "decode_seconds": 4.84,
+   "decode_tokens": 332
+  },
+  "arm": "new"
+ },
+ {
+  "task": "IMG_4471.jpg",
+  "rep": 0,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "The receipt is from **CORNER CROW BAKERY**, and the total is **48.37**.\n",
+  "error": false,
+  "seconds": 4.5,
+  "looks": [
+   4.3
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 2033,
+   "output": 81,
+   "thinking": 54,
+   "seconds": 4.32,
+   "cost": 0.0,
+   "decode_seconds": 1.32,
+   "decode_tokens": 81
+  },
+  "arm": "new"
+ },
+ {
+  "task": "screen.png",
+  "rep": 0,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "Blender 4.5 (shown in the application's menu bar: \"Blender 4.5 File Edit Render Window Help\").\n",
+  "error": false,
+  "seconds": 4.1,
+  "looks": [
+   4.0
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 1524,
+   "output": 111,
+   "thinking": 80,
+   "seconds": 3.97,
+   "cost": 0.0,
+   "decode_seconds": 1.77,
+   "decode_tokens": 111
+  },
+  "arm": "new"
+ },
+ {
+  "task": "PXL_20261016_sticky.jpg",
+  "rep": 0,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "Appointment: Thu 3:45pm\nNumber to call: 555-0182\n",
+  "error": false,
+  "seconds": 4.9,
+  "looks": [
+   4.8
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 2074,
+   "output": 118,
+   "thinking": 92,
+   "seconds": 4.79,
+   "cost": 0.0,
+   "decode_seconds": 1.77,
+   "decode_tokens": 118
+  },
+  "arm": "new"
+ },
+ {
+  "task": "lease_signed_scan.pdf",
+  "rep": 0,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "[Page 1 of 3]\nFrom page 1 of 3, neither the lease end date nor the monthly rent is shown. The page only displays the title \"RESIDENTIAL LEASE AGREEMENT,\" the landlord \"Halvorsen Properties (\"Landlord\"),\" the line \"and the Tenant named below,\" the premises \"2210 Alder Ave, Unit 4B,\" and the footer \"Page 1 of 3.\" No end date or rent amount is readable on this page.\n\n[Page 2 of 3]\nBased only on this page (page 2 of 3):\n\n- **Lease end date:** Not shown. The page only states the term *begins* August 1, 2026; no end date is given.\n- **Monthly rent:** Not shown. No rent amount or rental section appears on this page.\n\nThe only readable details are: \"1. TERM \u2014 The term begins August 1, 2026.\" and \"2. USE \u2014 The premises are for residential use only. No business may be run from them.\"\n\n[Page 3 of 3]\nPer the image: the lease ends on **July 31, 2027**, and the monthly rent is **$1,950** (due on the 1st).\n",
+  "error": false,
+  "seconds": 18.4,
+  "looks": [
+   6.1,
+   5.9,
+   5.1
+  ],
+  "usage": {
+   "calls": 3,
+   "input": 6252,
+   "output": 520,
+   "thinking": 259,
+   "seconds": 17.05,
+   "cost": 0.0,
+   "decode_seconds": 7.84,
+   "decode_tokens": 520
+  },
+  "arm": "new"
+ },
+ {
+  "task": "intake_form_scan.png",
+  "rep": 1,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "Insurance policy number: HX-44721-B\nDate of birth: 03/14/1987\n",
+  "error": false,
+  "seconds": 2.2,
+  "looks": [
+   2.0
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 2080,
+   "output": 116,
+   "thinking": 84,
+   "seconds": 2.03,
+   "cost": 0.0,
+   "decode_seconds": 1.6,
+   "decode_tokens": 116
+  },
+  "arm": "new"
+ },
+ {
+  "task": "invoice_INV-scan.pdf",
+  "rep": 1,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "[Page 1 of 2]\nInvoice number: **INV-20931** (labeled \"No. INV-20931\").\n\nTotal due: **Not shown on this page.** Page 1 lists only the line items (312.00, 238.80, 96.50, 85.00) and ends with \"Continued on page 2\"; no total/amount-due line appears here.\n\n[Page 2 of 2]\nInvoice number: INV-20931\nTotal due: $1,284.50\n",
+  "error": false,
+  "seconds": 6.8,
+  "looks": [
+   3.2,
+   2.4
+  ],
+  "usage": {
+   "calls": 2,
+   "input": 4166,
+   "output": 299,
+   "thinking": 174,
+   "seconds": 5.28,
+   "cost": 0.0,
+   "decode_seconds": 4.35,
+   "decode_tokens": 299
+  },
+  "arm": "new"
+ },
+ {
+  "task": "IMG_4471.jpg",
+  "rep": 1,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "The receipt is from **Corner Crow Bakery**, and the total is **48.37**.\n",
+  "error": false,
+  "seconds": 1.9,
+  "looks": [
+   1.8
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 2033,
+   "output": 77,
+   "thinking": 54,
+   "seconds": 1.77,
+   "cost": 0.0,
+   "decode_seconds": 1.23,
+   "decode_tokens": 77
+  },
+  "arm": "new"
+ },
+ {
+  "task": "screen.png",
+  "rep": 1,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "Blender (the menu bar in the video reads \"Blender 4.5\").\n",
+  "error": false,
+  "seconds": 2.3,
+  "looks": [
+   2.2
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 1524,
+   "output": 114,
+   "thinking": 93,
+   "seconds": 2.19,
+   "cost": 0.0,
+   "decode_seconds": 1.71,
+   "decode_tokens": 114
+  },
+  "arm": "new"
+ },
+ {
+  "task": "PXL_20261016_sticky.jpg",
+  "rep": 1,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "As written on the note: the appointment is **Thu 3:45pm** and the number to call is **555-0182**.\n",
+  "error": false,
+  "seconds": 2.7,
+  "looks": [
+   2.6
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 2074,
+   "output": 135,
+   "thinking": 98,
+   "seconds": 2.55,
+   "cost": 0.0,
+   "decode_seconds": 2.05,
+   "decode_tokens": 135
+  },
+  "arm": "new"
+ },
+ {
+  "task": "lease_signed_scan.pdf",
+  "rep": 1,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "[Page 1 of 3]\nThe lease end date and the monthly rent are **not shown on this page** \u2014 neither can be read. This page only contains the title (\"RESIDENTIAL LEASE AGREEMENT\"), the landlord name (Halvorsen Properties), the tenant reference (\"the Tenant named below\"), the premises address (2210 Alder Ave, Unit 4B), and the footer \"Page 1 of 3.\" No dates or dollar amounts appear here.\n\n[Page 2 of 3]\nBased only on what this page (Page 2 of 3) shows:\n\n- **Lease end date:** Not stated / cannot be read on this page. The TERM section only says \"The term begins August 1, 2026.\" No ending date appears.\n- **Monthly rent:** Not stated / cannot be read on this page. No rent amount appears anywhere on this page.\n\nThe only content shown is the TERM clause (begin date August 1, 2026) and the USE clause (residential use only; no business). Neither the end date nor the monthly rent is visible here.\n\n[Page 3 of 3]\nPer the image (page 3 of 3):\n\n- **Lease end date:** July 31, 2027 (\"This lease ends on July 31, 2027.\")\n- **Monthly rent:** $1,950 (\"Monthly rent: $1,950, due on the 1st.\")\n\nBoth values are clearly legible.\n",
+  "error": false,
+  "seconds": 11.7,
+  "looks": [
+   3.3,
+   4.2,
+   3.0
+  ],
+  "usage": {
+   "calls": 3,
+   "input": 6252,
+   "output": 594,
+   "thinking": 281,
+   "seconds": 10.36,
+   "cost": 0.0,
+   "decode_seconds": 9.04,
+   "decode_tokens": 594
+  },
+  "arm": "new"
+ },
+ {
+  "task": "intake_form_scan.png",
+  "rep": 2,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "Insurance policy number: HX-44721-B\nDate of birth: 03/14/1987\n",
+  "error": false,
+  "seconds": 2.2,
+  "looks": [
+   2.0
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 2080,
+   "output": 98,
+   "thinking": 66,
+   "seconds": 1.97,
+   "cost": 0.0,
+   "decode_seconds": 1.45,
+   "decode_tokens": 98
+  },
+  "arm": "new"
+ },
+ {
+  "task": "invoice_INV-scan.pdf",
+  "rep": 2,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "[Page 1 of 2]\nInvoice number: **INV-20931**\n\nTotal due: **not shown on this page** \u2014 page 1 lists only the line items and ends with \"Continued on page 2\"; there is no total-due line visible here.\n\n[Page 2 of 2]\nInvoice number: INV-20931\nTotal due: $1,284.50\n",
+  "error": false,
+  "seconds": 5.8,
+  "looks": [
+   2.8,
+   1.8
+  ],
+  "usage": {
+   "calls": 2,
+   "input": 4166,
+   "output": 240,
+   "thinking": 158,
+   "seconds": 4.55,
+   "cost": 0.0,
+   "decode_seconds": 3.68,
+   "decode_tokens": 240
+  },
+  "arm": "new"
+ },
+ {
+  "task": "IMG_4471.jpg",
+  "rep": 2,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "Shop: **CORNER CROW BAKERY**\nTotal: **48.37**\n",
+  "error": false,
+  "seconds": 2.0,
+  "looks": [
+   1.9
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 2033,
+   "output": 79,
+   "thinking": 55,
+   "seconds": 1.87,
+   "cost": 0.0,
+   "decode_seconds": 1.4,
+   "decode_tokens": 79
+  },
+  "arm": "new"
+ },
+ {
+  "task": "screen.png",
+  "rep": 2,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "Blender (the app window's menu bar reads \"Blender 4.5\", and the video title is \"Rendering a whole city in Blender - 4 hour timelapse\").\n",
+  "error": false,
+  "seconds": 2.4,
+  "looks": [
+   2.3
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 1524,
+   "output": 114,
+   "thinking": 73,
+   "seconds": 2.24,
+   "cost": 0.0,
+   "decode_seconds": 1.77,
+   "decode_tokens": 114
+  },
+  "arm": "new"
+ },
+ {
+  "task": "PXL_20261016_sticky.jpg",
+  "rep": 2,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "Appointment: Thu 3:45pm\nNumber to call: 555-0182\n",
+  "error": false,
+  "seconds": 1.8,
+  "looks": [
+   1.6
+  ],
+  "usage": {
+   "calls": 1,
+   "input": 2074,
+   "output": 78,
+   "thinking": 52,
+   "seconds": 1.63,
+   "cost": 0.0,
+   "decode_seconds": 1.13,
+   "decode_tokens": 78
+  },
+  "arm": "new"
+ },
+ {
+  "task": "lease_signed_scan.pdf",
+  "rep": 2,
+  "root": "C:\\Users\\Jedidiah\\Projects\\jev-harness\\.claude\\worktrees\\talon-vision",
+  "answer": "[Page 1 of 3]\nNot shown on this page. The image (Page 1 of 3) only displays the title \"RESIDENTIAL LEASE AGREEMENT,\" the landlord \"Halvorsen Properties,\" and \"Premises: 2210 Alder Ave, Unit 4B.\" No lease end date and no monthly rent amount appear anywhere on this page, so both can't be read from it.\n\n[Page 2 of 3]\nBased only on what this page (page 2 of 3) shows:\n\n- **Lease end date:** Not stated on this page. The TERM section only gives a start date \u2014 \"The term begins August 1, 2026.\" No end/termination date appears.\n- **Monthly rent:** Not stated on this page. No rent amount or label appears anywhere on this page.\n\nThe page contains only section 1 (TERM) and section 2 (USE); neither the end date nor the rent is readable here.\n\n[Page 3 of 3]\nAs shown on this page: the lease ends on **July 31, 2027**, and the monthly rent is **$1,950** (due on the 1st).\n",
+  "error": false,
+  "seconds": 10.9,
+  "looks": [
+   3.5,
+   3.7,
+   2.5
+  ],
+  "usage": {
+   "calls": 3,
+   "input": 6252,
+   "output": 536,
+   "thinking": 292,
+   "seconds": 9.62,
+   "cost": 0.0,
+   "decode_seconds": 8.2,
+   "decode_tokens": 536
+  },
+  "arm": "new"
+ }
+]

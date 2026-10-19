@@ -436,8 +436,9 @@ In the REPL:
 - say(text): tell the user something now and keep working - above all the answer to a question they
   send while you work (they see nothing of your thinking or code until you finish).
 - look_at(path, question=None, pages=None) -> str: your own model looks at an image or PDF file (a scan,
-  a photo, a receipt, a form, a screenshot) and answers; with no question it transcribes the text. For
-  documents, scans and photos use it - don't install OCR software (pytesseract, Tesseract, easyocr).
+  a photo, a receipt, a form, a screenshot) and answers; with no question it transcribes the text (a PDF
+  page with a text layer comes back as its text, no look). For documents, scans and photos use it - don't
+  install OCR software (pytesseract, Tesseract, easyocr).
 - final(answer, artifacts=None): finish.
 - Also there (help(name) shows how): start_job / job_status / job_wait (long commands in the
   background), recall / remember (past conversations; lasting facts about the user), llm_query

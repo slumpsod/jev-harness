@@ -186,6 +186,28 @@ def test_look_at_renders_each_pdf_page_and_labels_the_answers(tmp_path):
     assert max(seen[0]["size"]) == 1600
 
 
+def test_a_pdf_page_with_a_text_layer_comes_back_as_text_without_a_look(tmp_path):
+    """Live 2026-10-19 (evals/bench/look_at.py's lookalike): workers called look_at() on an invoice that has a text layer,
+    a model call for what the text gives exactly. Scanned pages of the same PDF are still looked at."""
+    fitz = pytest.importorskip("pymupdf")
+    pytest.importorskip("PIL")
+    doc = fitz.open()
+    doc.new_page().insert_text((72, 72), "INVOICE INV-20931  Larkspur Plumbing Supply  Total due: $1,284.50  " * 2)
+    doc.new_page()                                                 # page 2: a scan (no text layer)
+    doc.save(tmp_path / "mixed.pdf")
+    only_text = fitz.open()
+    only_text.new_page().insert_text((72, 72), "Total due: $1,284.50 on invoice INV-20931, Larkspur Plumbing Supply " * 2)
+    only_text.save(tmp_path / "text.pdf")
+    seen = []
+    with Repl(tmp_path / "w", tmp_path / "a", {"look": _looker(seen)}, timeout=30) as r:
+        out = r.run(f"print(look_at(r'{tmp_path / 'text.pdf'}'))").output
+        assert "text layer" in out and "$1,284.50" in out and not seen        # read, not looked at
+        out = r.run(f"print(look_at(r'{tmp_path / 'mixed.pdf'}'))").output
+        assert "Page 1 (its text layer)" in out and "INV-20931" in out and len(seen) == 1   # only the scanned page
+        r.run(f"look_at(r'{tmp_path / 'text.pdf'}', see=True)")
+        assert len(seen) == 2                                         # asked to see it: looked at
+
+
 def test_look_at_says_plainly_when_the_model_takes_no_images(tmp_path):
     Image = pytest.importorskip("PIL.Image")
     Image.new("RGB", (50, 50)).save(tmp_path / "a.png")

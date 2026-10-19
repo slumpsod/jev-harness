@@ -174,18 +174,49 @@ def _page_list(pages, count: int) -> list[int]:
     return wanted
 
 
-def look_at(path, question: str | None = None, pages=None) -> str:
+TEXT_LAYER = "(read from the PDF's text layer: no picture was needed; look_at(..., see=True) to look at the page)"
+TEXT_MIN = 80    # characters of a page's text layer for it to be read as text (a scan has none, or a few stray ones)
+
+
+def _text_pages(src: Path, pages) -> tuple[dict[int, str], list[int], int]:
+    """A PDF's pages that have a text layer: ({page: text}, the pages without one, page count)."""
+    try:
+        import pymupdf as fitz
+    except ImportError:
+        try:
+            import fitz
+        except ImportError:
+            return {}, [], 0
+    with fitz.open(str(src)) as doc:
+        count = doc.page_count
+        wanted = _page_list(pages, count)
+        texts = {n: doc[n - 1].get_text().strip() for n in wanted}
+    has = {n: t for n, t in texts.items() if len("".join(t.split())) >= TEXT_MIN}
+    return has, [n for n in wanted if n not in has], count
+
+
+def look_at(path, question: str | None = None, pages=None, see: bool = False) -> str:
     """Look at an image or PDF file with your own model: a scan, a photo, a receipt, a form, a screenshot, a chart.
     -> its answer (for several pages, one section per page). `question`: what to find out (default: transcribe all the
     text and describe the rest). `pages`: a PDF's or multi-page TIFF's pages to look at, from 1 (default: the first
-    12). Each picture is a model call (~10-60 s). A PDF with a text layer reads faster as text (pymupdf:
-    page.get_text()); look when that comes back empty or the question is about what is drawn."""
+    12). Each picture is a model call (~10-60 s). A PDF page that has a text layer comes back as its text, with no
+    model call (see=True looks at the picture anyway: for a chart, a stamp, a signature, a layout)."""
     src = Path(str(path)).expanduser()
     if not src.is_file():
         raise FileNotFoundError(f"look_at(): no file {str(path)!r}")
+    texts: dict[int, str] = {}
+    if src.suffix.lower() == ".pdf" and not see:
+        # (the bench's text-PDF lookalike: workers called look_at on an invoice with a text layer, a model call for what
+        # reading the text gives exactly)
+        texts, rest, count = _text_pages(src, pages)
+        if texts and not rest:
+            body = "\n\n".join(f"[Page {n} of {count}]\n{t[:8000]}" for n, t in texts.items())
+            return f"{TEXT_LAYER}\n{body}"
+        if texts:
+            pages = rest
     shots, note = _look_pages(src, pages)
     ask = question.strip() if question and str(question).strip() else LOOK_QUESTION
-    answers = []
+    answers = [(f"page {n} (its text layer)", t[:8000]) for n, t in texts.items()]   # (the scanned pages follow)
     for label, shot in shots:
         # "right away": asked plainly, Qwen 3.8 thought for 8k tokens over a 2048 board (browser.look); told to read it off,
         # it answered in ~600

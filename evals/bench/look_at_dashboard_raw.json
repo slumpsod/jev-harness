@@ -1,0 +1,152 @@
+[
+ {
+  "run": "desktop_receipt",
+  "rep": 0,
+  "errors": [],
+  "uploaded": true,
+  "thumbnail": true,
+  "seconds": 45.8,
+  "answer": "It's from Corner Crow Bakery, and the total is 48.37 (the receipt prints bare numbers, so the currency symbol isn't shown).",
+  "fits": true,
+  "message": "which shop is this receipt from and what was the total?\n\n[Attached by the user (saved on this computer):\n- C:\\Users\\Jedidiah\\AppData\\Local\\Temp\\jevh-lookat-dash-you6p8gi\\ws\\sessions\\20261019-165840-f4af\\uploads\\001-IMG_4471.jpg (image, 167 KB)\n]",
+  "session": "20261019-165840-f4af",
+  "used_look_at": true,
+  "grade": {
+   "checks": {
+    "uploaded": true,
+    "thumbnail": true,
+    "file_in_request": true,
+    "used_look_at": true,
+    "correct": true,
+    "fits": true,
+    "no_page_errors": true
+   },
+   "pass": true
+  }
+ },
+ {
+  "run": "phone_form",
+  "rep": 0,
+  "errors": [],
+  "uploaded": true,
+  "thumbnail": true,
+  "seconds": 36.5,
+  "answer": "Your policy number is HX-44721-B. (The form also shows group no. 88130, if you need that.)",
+  "fits": true,
+  "message": "what's the policy number on my form?\n\n[Attached by the user (saved on this computer):\n- C:\\Users\\Jedidiah\\AppData\\Local\\Temp\\jevh-lookat-dash-you6p8gi\\ws\\sessions\\20261019-165928-9f2f\\uploads\\001-intake_form_scan.png (image, 256 KB)\n]",
+  "session": "20261019-165928-9f2f",
+  "used_look_at": true,
+  "grade": {
+   "checks": {
+    "uploaded": true,
+    "thumbnail": true,
+    "file_in_request": true,
+    "used_look_at": true,
+    "correct": true,
+    "fits": true,
+    "no_page_errors": true
+   },
+   "pass": true
+  }
+ },
+ {
+  "run": "desktop_receipt",
+  "rep": 1,
+  "errors": [],
+  "uploaded": true,
+  "thumbnail": true,
+  "seconds": 50.5,
+  "answer": "The receipt is from Corner Crow Bakery. The total is 48.37 \u2014 no currency symbol is printed on the receipt, so I'm reporting it as a bare number. It checks out: sourdough loaf 7.50 + almond croissants x4 17.60 + oat milk latte 5.25 + birthday cake (8in) 14.00 = 44.35 (computed: 7.50+17.60+5.25+14.00), plus tax 4.02 = 48.37.",
+  "fits": true,
+  "message": "which shop is this receipt from and what was the total?\n\n[Attached by the user (saved on this computer):\n- C:\\Users\\Jedidiah\\AppData\\Local\\Temp\\jevh-lookat-dash-you6p8gi\\ws\\sessions\\20261019-170006-ae26\\uploads\\001-IMG_4471.jpg (image, 167 KB)\n]",
+  "session": "20261019-170006-ae26",
+  "used_look_at": true,
+  "grade": {
+   "checks": {
+    "uploaded": true,
+    "thumbnail": true,
+    "file_in_request": true,
+    "used_look_at": true,
+    "correct": true,
+    "fits": true,
+    "no_page_errors": true
+   },
+   "pass": true
+  }
+ },
+ {
+  "run": "phone_form",
+  "rep": 1,
+  "errors": [],
+  "uploaded": true,
+  "thumbnail": true,
+  "seconds": 125.0,
+  "answer": "The policy number on your intake form is HX-44721-B.",
+  "fits": true,
+  "message": "what's the policy number on my form?\n\n[Attached by the user (saved on this computer):\n- C:\\Users\\Jedidiah\\AppData\\Local\\Temp\\jevh-lookat-dash-you6p8gi\\ws\\sessions\\20261019-170059-b126\\uploads\\001-intake_form_scan.png (image, 256 KB)\n]",
+  "session": "20261019-170059-b126",
+  "used_look_at": true,
+  "grade": {
+   "checks": {
+    "uploaded": true,
+    "thumbnail": true,
+    "file_in_request": true,
+    "used_look_at": true,
+    "correct": true,
+    "fits": true,
+    "no_page_errors": true
+   },
+   "pass": true
+  }
+ },
+ {
+  "run": "desktop_receipt",
+  "rep": 2,
+  "errors": [],
+  "uploaded": true,
+  "thumbnail": true,
+  "seconds": 46.8,
+  "answer": "This receipt is from CORNER CROW BAKERY (22 Mill St, Bend OR, dated 10/14/2026 08:12). Total: 48.37 \u2014 no currency symbol is printed, so it's a bare number. The math checks out: Sourdough loaf 7.50 + Almond croissant x4 17.60 + Oat milk latte 5.25 + Birthday cake (8in) 14.00 + Tax 4.02 = 48.37.",
+  "fits": true,
+  "message": "which shop is this receipt from and what was the total?\n\n[Attached by the user (saved on this computer):\n- C:\\Users\\Jedidiah\\AppData\\Local\\Temp\\jevh-lookat-dash-you6p8gi\\ws\\sessions\\20261019-170306-6ead\\uploads\\001-IMG_4471.jpg (image, 167 KB)\n]",
+  "session": "20261019-170306-6ead",
+  "used_look_at": true,
+  "grade": {
+   "checks": {
+    "uploaded": true,
+    "thumbnail": true,
+    "file_in_request": true,
+    "used_look_at": true,
+    "correct": true,
+    "fits": true,
+    "no_page_errors": true
+   },
+   "pass": true
+  }
+ },
+ {
+  "run": "phone_form",
+  "rep": 2,
+  "errors": [],
+  "uploaded": true,
+  "thumbnail": true,
+  "seconds": 46.8,
+  "answer": "HX-44721-B",
+  "fits": true,
+  "message": "what's the policy number on my form?\n\n[Attached by the user (saved on this computer):\n- C:\\Users\\Jedidiah\\AppData\\Local\\Temp\\jevh-lookat-dash-you6p8gi\\ws\\sessions\\20261019-170354-2618\\uploads\\001-intake_form_scan.png (image, 256 KB)\n]",
+  "session": "20261019-170354-2618",
+  "used_look_at": true,
+  "grade": {
+   "checks": {
+    "uploaded": true,
+    "thumbnail": true,
+    "file_in_request": true,
+    "used_look_at": true,
+    "correct": true,
+    "fits": true,
+    "no_page_errors": true
+   },
+   "pass": true
+  }
+ }
+]
