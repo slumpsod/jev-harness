@@ -1,22 +1,88 @@
-long_horizon: 9 runs (base 3, at80 3, at80_all 3); window told to the harness: [24000]
+Compaction defaults, 2026-10-12..18: Qwen3.8 27B (llama-server, 76k, 2 slots shared with other work) + semif Jev.
+51 full harness turns on the rulebook task (18 memo pages -> policy.py, 80 hidden tests). Decision and reasoning:
+docs/architecture/05-stamina.md#compaction-defaults-2026-10. Solved, all groups: base (60%, as shipped before) 16/18,
+at80 9/9, at80_measure 5/6, at80_all 17/18. Every one of the 4 failures was the progress check stopping the run
+(two "same attempt repeating" strikes) before policy.py was written; 2 of them (base) came after compaction made the
+worker re-read pages, 2 (at80_measure dev, at80_all full window) before any compaction. 20 of 51 runs got at least
+one strike. Shipped: at80_all (compact_at 0.8 + measure + archive + note_tail + log_share 0.25).
 
-variant      runs  solved  tests% compacts reread after  steps   min  out k prefill s peak%win real/est dropped  err  t/o
--------------------------------------------------------------------------------------------------------------------------
-base            3   2/3       75%      5.7    4.7   4.7   45.0  10.1   26.9        81      91%     0.97    11.7    0    0
-at80            3   2/3       95%      2.3    1.0   1.0   36.7   9.1   25.4        50     104%     0.98     4.0    0    0
-at80_all        3   2/3       67%      3.3    0.0   0.0   28.7   8.2   22.5        61      86%     0.97     0.0    0    0
+long_horizon: 51 runs; code: before dcef277 13, dcef277 38
+
+== dev seeds, window told 24k
+variant      runs  solved  tests% compacts reread  steps   min  out k prefill s  cmp s peak%win real/est dropped stall  err  t/o
+--------------------------------------------------------------------------------------------------------------------------------
+base            9   7/9       78%      3.0    3.8   29.7   7.8   20.7        55     11      83%     1.03     3.1     2    0    0
+at80            9   9/9      100%      1.4    1.7   24.8  10.4   27.6        38      8     110%     1.16     0.9     0    0    0
+at80_measure    6   5/6       83%      2.5    1.7   25.0   6.9   22.8        46      8      75%     1.10     1.5     1    0    0
+at80_all        9   9/9      100%      3.9    1.2   29.6  10.2   26.8        73     12      80%     1.14     3.1     0    0    0
+
+== held-out seeds, window told 24k
+variant      runs  solved  tests% compacts reread  steps   min  out k prefill s  cmp s peak%win real/est dropped stall  err  t/o
+--------------------------------------------------------------------------------------------------------------------------------
+base            6   6/6      100%      3.5    6.0   31.7  11.4   26.2       126     13      93%     1.05     1.2     0    0    0
+at80_all        6   6/6      100%      3.3    2.3   31.0  12.1   26.0       147     15      79%     1.06     3.0     1    0    0
+
+== dev seeds, window told none (the server real 76k)
+variant      runs  solved  tests% compacts reread  steps   min  out k prefill s  cmp s peak%win real/est dropped stall  err  t/o
+--------------------------------------------------------------------------------------------------------------------------------
+base            3   3/3      100%      0.0    0.0   27.0   7.2   24.6        23      0      49%     1.08     0.0     0    0    0
+at80_all        3   2/3       67%      0.0    0.0   26.3   6.5   21.8        26      0      45%     1.07     0.0     1    0    0
 
 per run (RIGHT = every hidden test passed):
-  at80       s1 r1  RIGHT 81/81   23 steps   8.6 min  compactions 1 [19572->11557]  reread 0 (after compaction 0)
-  at80_all   s1 r1  RIGHT 81/81   30 steps   7.4 min  compactions 3 [20633->10679, 18174->13414, 18194->11384]  reread 0 (after compaction 0)
-  base       s1 r1  RIGHT 81/81   54 steps   9.7 min  compactions 8 [14581->7756, 15035->8504, 14636->8670, 14750->9310, 14792->10465]  reread 2 (after compaction 2)
-  at80       s2 r1  wrong 68/81   51 steps  10.8 min  compactions 4 [18133->7763, 18287->8617, 24572->14950, 18549->9381]  reread 1 (after compaction 1)
-  at80_all   s2 r1  wrong 0/1   30 steps   6.9 min  compactions 3 [18532->9871, 21033->12765, 18380->11448]  reread 0 (after compaction 0)
-  base       s2 r1  wrong 20/81   31 steps   8.1 min  compactions 3 [14442->8541, 14421->8178, 15702->11069]  reread 7 (after compaction 7)
-  at80       s3 r1  RIGHT 81/81   36 steps   8.0 min  compactions 2 [18190->8520, 22656->14281]  reread 2 (after compaction 2)
-  at80_all   s3 r1  RIGHT 81/81   26 steps  10.5 min  compactions 4 [18464->8923, 23795->15029, 25806->23143, 21875->15058]  reread 0 (after compaction 0)
-  base       s3 r1  RIGHT 81/81   50 steps  12.4 min  compactions 6 [14957->7723, 14722->8129, 16029->10042, 15943->10394, 14405->6842]  reread 5 (after compaction 5)
+  at80       s1 r1 24k  RIGHT 81/81   23 steps   8.6 min  compactions 1 [19572->11557]  reread 0
+  at80_all   s1 r1 24k  RIGHT 81/81   30 steps   7.4 min  compactions 3 [20633->10679, 18174->13414, 18194->11384]  reread 0
+  at80_measure s1 r1 24k  RIGHT 81/81   20 steps   6.9 min  compactions 2 [20950->12898, 19182->8943]  reread 1
+  base       s1 r1 24k  RIGHT 81/81   54 steps   9.7 min  compactions 8 [14581->7756, 15035->8504, 14636->8670, 14750->9310, 14792->10465]  reread 2
+  at80       s1 r2 24k  RIGHT 81/81   20 steps   9.5 min  compactions 2 [19266->12292, 18020->7919]  reread 0
+  at80_all   s1 r2 24k  RIGHT 81/81   15 steps   7.6 min  compactions 3 [18274->13590, 21345->13355, 20912->12330]  reread 0
+  at80_measure s1 r2 24k  wrong 0/1   17 steps   1.1 min  compactions 0 []  reread 0  STALL-STOPPED
+  base       s1 r2 24k  wrong 0/1   25 steps   2.4 min  compactions 2 [14543->8555, 14794->8358]  reread 8  STALL-STOPPED
+  at80       s1 r3 24k  RIGHT 81/81   13 steps   7.7 min  compactions 0 []  reread 0
+  at80_all   s1 r3 24k  RIGHT 81/81   37 steps   8.0 min  compactions 3 [19689->10410, 19279->10475, 19265->14218]  reread 4
+  base       s1 r3 24k  RIGHT 81/81   18 steps  14.4 min  compactions 1 [14844->6695]  reread 1
+  at80       s2 r1 24k  RIGHT 81/81   21 steps   8.1 min  compactions 1 [18026->6611]  reread 1
+  at80_all   s2 r1 24k  RIGHT 81/81   36 steps   9.8 min  compactions 3 [21308->10544, 21176->11891, 18389->12534]  reread 2
+  at80_measure s2 r1 24k  RIGHT 81/81   30 steps   8.0 min  compactions 3 [18632->9672, 18540->10715, 19023->11029]  reread 1
+  base       s2 r1 24k  RIGHT 81/81   20 steps   7.0 min  compactions 2 [17835->11135, 14475->6828]  reread 0
+  at80       s2 r2 24k  RIGHT 81/81   40 steps  12.0 min  compactions 2 [18554->7991, 18221->6965]  reread 1
+  at80_all   s2 r2 24k  RIGHT 81/81   39 steps  15.2 min  compactions 6 [19193->8039, 18255->10492, 18767->16551, 18409->13840, 21257->15553]  reread 0
+  at80_measure s2 r2 24k  RIGHT 81/81   23 steps   7.1 min  compactions 2 [18152->8631, 18237->10237]  reread 1
+  base       s2 r2 24k  wrong 0/1   17 steps   2.0 min  compactions 1 [14442->6984]  reread 2  STALL-STOPPED
+  at80       s2 r3 24k  RIGHT 81/81   36 steps  14.8 min  compactions 3 [18205->8869, 19997->13799, 18332->10460]  reread 7
+  at80_all   s2 r3 24k  RIGHT 81/81   20 steps   6.7 min  compactions 3 [18941->12728, 18481->15947, 18630->10437]  reread 0
+  base       s2 r3 24k  RIGHT 81/81   23 steps   7.5 min  compactions 2 [14850->8967, 14534->7460]  reread 1
+  at80       s3 r1 24k  RIGHT 81/81   27 steps  10.7 min  compactions 1 [18126->5598]  reread 4
+  at80_all   s3 r1 24k  RIGHT 81/81   43 steps  19.8 min  compactions 9 [18085->10892, 18172->10530, 18148->10687, 23228->16366, 20169->17934]  reread 5
+  at80_measure s3 r1 24k  RIGHT 81/81   23 steps   7.2 min  compactions 2 [18850->8899, 18962->10749]  reread 3
+  base       s3 r1 24k  RIGHT 81/81   37 steps   8.1 min  compactions 4 [14434->8675, 15115->8630, 16434->12509, 15119->8524]  reread 2
+  at80       s3 r2 24k  RIGHT 81/81   19 steps  11.8 min  compactions 1 [18196->6734]  reread 1
+  at80_all   s3 r2 24k  RIGHT 81/81   25 steps  11.1 min  compactions 3 [19984->10587, 20048->11606, 19582->14461]  reread 0
+  at80_measure s3 r2 24k  RIGHT 81/81   37 steps  11.0 min  compactions 6 [18510->9434, 20776->16599, 21150->13588, 20079->13783, 20322->13060]  reread 4
+  base       s3 r2 24k  RIGHT 81/81   38 steps  11.3 min  compactions 4 [15124->7887, 19809->12925, 14895->7885, 14550->7440]  reread 9
+  at80       s3 r3 24k  RIGHT 81/81   24 steps  10.0 min  compactions 2 [18040->4077, 18143->8861]  reread 1
+  at80_all   s3 r3 24k  RIGHT 81/81   21 steps   5.9 min  compactions 2 [18390->11237, 18147->10252]  reread 0
+  base       s3 r3 24k  RIGHT 81/81   35 steps   8.0 min  compactions 3 [14517->6636, 19667->13565, 16537->8693]  reread 9
+  at80_all   s1 r1 full wrong 0/1   17 steps   1.4 min  compactions 0 []  reread 0  STALL-STOPPED
+  base       s1 r1 full RIGHT 81/81   34 steps   9.0 min  compactions 0 []  reread 0
+  at80_all   s2 r1 full RIGHT 81/81   24 steps   8.9 min  compactions 0 []  reread 0
+  base       s2 r1 full RIGHT 81/81   19 steps   5.9 min  compactions 0 []  reread 0
+  at80_all   s3 r1 full RIGHT 81/81   38 steps   9.1 min  compactions 0 []  reread 0
+  base       s3 r1 full RIGHT 81/81   28 steps   6.6 min  compactions 0 []  reread 0
+  at80_all   s11 r1 24k  RIGHT 81/81   45 steps  21.8 min  compactions 5 [19294->10158, 20896->11802, 19027->14222, 19092->14677, 18020->11234]  reread 3
+  base       s11 r1 24k  RIGHT 81/81   45 steps  19.4 min  compactions 4 [14436->8318, 15543->8649, 15407->8527, 15410->9716]  reread 15
+  at80_all   s11 r2 24k  RIGHT 81/81   34 steps   6.3 min  compactions 3 [18772->9542, 19367->11684, 18860->11274]  reread 2
+  base       s11 r2 24k  RIGHT 81/81   32 steps   7.4 min  compactions 4 [14908->6180, 14887->9167, 18338->13357, 14484->7504]  reread 9
+  at80_all   s12 r1 24k  RIGHT 81/81   31 steps  16.6 min  compactions 3 [20309->10510, 18484->10175, 18875->13072]  reread 0
+  base       s12 r1 24k  RIGHT 81/81   23 steps  17.0 min  compactions 2 [18351->11628, 15891->8551]  reread 3
+  at80_all   s12 r2 24k  RIGHT 81/81   39 steps  11.5 min  compactions 5 [21434->10114, 22078->12085, 21272->19244, 19630->14810, 18498->13426]  reread 3
+  base       s12 r2 24k  RIGHT 81/81   17 steps   6.5 min  compactions 2 [15439->11625, 15005->8276]  reread 0
+  at80_all   s13 r1 24k  RIGHT 81/81   20 steps  10.1 min  compactions 2 [21002->10510, 18919->10958]  reread 3
+  base       s13 r1 24k  RIGHT 81/81   35 steps  10.1 min  compactions 4 [14648->8166, 15853->9658, 15646->10588, 15241->9000]  reread 2
+  at80_all   s13 r2 24k  RIGHT 81/81   17 steps   6.3 min  compactions 2 [18450->11236, 21268->10275]  reread 3  STALL-STOPPED
+  base       s13 r2 24k  RIGHT 81/81   38 steps   8.1 min  compactions 5 [15058->7649, 18325->11164, 18542->12605, 15917->13680, 14585->10292]  reread 7
 
-reread = a rule page opened again after the worker had read it; after = of those, the ones after the first
-compaction. real/est = the server's token count over the harness's estimate (3.2 chars a token); prefill s =
-time the server spent reading prompts. peak%win = the largest real prompt over the window the harness was told.
+reread = code blocks that opened the rule pages again after the first compaction (what condensing cost).
+real/est = the server's token count over the harness's estimate (3.2 chars a token); prefill s = time the
+server spent reading prompts; cmp s = time spent condensing (Jev scoring old steps; newer rows only).
+peak%win = the largest real prompt over the window the harness was told. stall = runs ended by the progress
+check (two 'same attempt repeating' strikes). dropped = log entries dropped to fit (max over the run).

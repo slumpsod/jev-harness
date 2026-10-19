@@ -80,21 +80,28 @@ flowchart LR
 
 ## What the harness does with it
 
-Older steps condense (compaction, [05](05-stamina.md)) once the estimated prompt passes the limit:
+Older steps condense (compaction, [05](05-stamina.md)) once the prompt passes the limit:
 
 ```
 room    = min(max_tokens, window / 2)        a quarter of the window if the model may think without limit (think: unlimited)
-compact = max(2048, min(window × compact_at, window − room))      compact_at = 0.6
+compact = max(2048, min(window × compact_at, window − room))      compact_at = 0.8 (0.6 until 2026-10-18)
 ```
 
-| window | reply (`max_tokens`) | condenses at |
-|---|---|---|
-| 100,096 (Qwen here) | 8,192 | **60,057** (the old hand-set 60,000) |
-| 262,144 | 8,192 | 157,286 |
-| 32,768 | 8,192 | 19,660 |
-| 16,384 | 8,192 | 8,192 (the reply's room binds before the share does) |
-| 100,096 | 65,536 | 50,048 (at most half the window is kept for a big reply) |
-| 4,096 | 8,192 | 2,048 (the floor: nothing the harness can run on) |
+| window | reply (`max_tokens`) | condenses at (0.8) | at the old 0.6 |
+|---|---|---|---|
+| 76,032 (Qwen on llama-server here) | unlimited thinking | **57,024** (the reply's quarter binds: 75%) | 45,619 |
+| 100,096 (Qwen in LM Studio) | 8,192 | 80,076 | 60,057 |
+| 262,144 | 8,192 | 209,715 | 157,286 |
+| 32,768 | 8,192 | 24,576 (the reply's room binds) | 19,660 |
+| 16,384 | 8,192 | 8,192 (the reply's room binds before the share does) | 8,192 |
+| 100,096 | 65,536 | 50,048 (at most half the window is kept for a big reply) | 50,048 |
+| 4,096 | 8,192 | 2,048 (the floor: nothing the harness can run on) | 2,048 |
+
+The prompt's size it is compared with is the server's own count (`context.measure`, on since 2026-10-18): the
+`input_tokens` of the last call, plus the characters added or removed since at the ratio that call showed. Before the
+first call of a task, and with `measure: false`, it is the old estimate, 3.2 characters a token, which leaves out the
+code inside native tool calls and is wrong for numbers and JSON: real sessions at 0.6 sent prompts of up to 91% of the
+window. 0.8 without `measure` is not safe (the live comparison: [05](05-stamina.md#compaction-defaults-2026-10)).
 
 - The limit is read every step, so a model reloaded with another context mid-task changes it from the next step, and a
   fast model that escalated to the strong one is judged by the strong model's window.
@@ -108,7 +115,7 @@ compact = max(2048, min(window × compact_at, window − room))      compact_at 
 ## Where it shows
 
 - `jevh context` (`--json`, `--model provider:model`): what LM Studio has loaded and what each model the config puts to work
-  will do. On this machine:
+  will do. On this machine (2026-10-04, when compact_at was 0.6; at 0.8 the Qwen line says 75,072):
 
   ```
   LM Studio 'lmstudio' at http://127.0.0.1:1234/v1
@@ -130,7 +137,8 @@ compact = max(2048, min(window × compact_at, window − room))      compact_at 
 - LM Studio's context length is for the whole model, shared by its parallel slots (its unified KV cache, the default):
   one request may use all of it. With that cache turned off, N slots get 1/N each, and LM Studio's answer does not say
   so. Set `context_length` to the per-slot number if you do that.
-- The prompt size is still the harness's estimate (3.2 characters per token), not the server's count.
+- The prompt size is the server's count of the previous prompt plus an estimate of what changed since (`context.measure`);
+  the first step of a task, and a server that reports no `input_tokens`, use the 3.2-characters-a-token estimate.
 - `context_length` in config changes what the harness assumes, not what LM Studio loads. A model the harness loads itself
   (a swap) gets LM Studio's default context for it, which `jevh context` shows once it is loaded.
 - Only the worker's compaction uses the window. Session review and refine send what they send (`max_tokens` 32768 and

@@ -30,9 +30,17 @@ Settings (config.yaml `context:`):
 
     context:
       detect: true       # ask LM Studio what each model is loaded with; false: never ask (limits.compact_tokens)
-      compact_at: 0.6    # older steps condense once the prompt is this share of the window (but the reply's room
+      compact_at: 0.8    # older steps condense once the prompt is this share of the window (but the reply's room
                          # is always kept: the window minus the model's max_tokens, a quarter if it may think freely)
+      measure: true      # the prompt's size is the server's own count of the last prompt (+ what changed since), not
+                         # 3.2 chars a token; needed for 0.8 (docs/architecture/05-stamina.md#compaction-defaults-2026-10)
+      archive: true      # condensed steps are saved in full in the task folder's history.md ([#n] in the log)
+      note_tail: true    # a condensed step's note keeps the end of a long output as well as its start
+      log_share: 0.25    # the progress log may use this share of the limit (0: the fixed PROGRESS_CHARS, 16,000 chars)
       min: 16384         # a window below this is flagged: the instructions and tools alone take several thousand tokens
+
+Until 2026-10-18 the shipped values were compact_at 0.6 and the other four off; evals/bench/long_horizon.py is the
+comparison that moved them.
 """
 from __future__ import annotations
 
@@ -41,8 +49,8 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-DEFAULTS = {"detect": True, "compact_at": 0.6, "min": 16384, "measure": False, "archive": False, "log_share": 0.0,
-            "note_tail": False}
+DEFAULTS = {"detect": True, "compact_at": 0.8, "min": 16384, "measure": True, "archive": True, "log_share": 0.25,
+            "note_tail": True}
 DETECT = {"on": True}   # context.detect, for servers that have no gate (llama.cpp): set by configure()
 _PROPS: dict[str, tuple[float, dict[str, Any] | None]] = {}   # server root -> (when asked, what it said)
 PROPS_TTL = 10.0

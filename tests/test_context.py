@@ -247,7 +247,7 @@ def test_older_steps_condense_at_a_share_of_the_window_that_leaves_the_reply_roo
 
 def test_a_known_window_sets_the_limit_and_an_unknown_one_leaves_compact_tokens():
     b = budget(QWEN, 8192, 60000, ctxwin.DEFAULTS)
-    assert (b.compact, b.window, b.source, b.max, b.parallel, b.warn) == (60057, 100096, "lmstudio", 262144, 2, "")
+    assert (b.compact, b.window, b.source, b.max, b.parallel, b.warn) == (80076, 100096, "lmstudio", 262144, 2, "")
     pending = budget(Window(None, "lmstudio", False, 262144), 8192, 60000, ctxwin.DEFAULTS)
     assert (pending.compact, pending.window, pending.loaded) == (60000, None, False)
 
@@ -261,7 +261,7 @@ def test_a_window_too_small_for_the_harness_is_flagged_with_what_to_do():
 
 def test_the_settings_are_the_shipped_ones_unless_changed():
     assert ctxwin.settings(None) == ctxwin.DEFAULTS == {
-        "detect": True, "compact_at": 0.6, "min": 16384, "measure": False, "archive": False, "log_share": 0.0, "note_tail": False}
+        "detect": True, "compact_at": 0.8, "min": 16384, "measure": True, "archive": True, "log_share": 0.25, "note_tail": True}
     assert ctxwin.settings({"context": {"compact_at": 0.5}})["compact_at"] == 0.5
     assert budget(QWEN, 8192, 60000, ctxwin.settings({"context": {"compact_at": 0.5}})).compact == 50048
 
@@ -291,7 +291,9 @@ def steps(n):
 def run(cfg, replies, window, **settings):
     events = []
     cfg.limits.update(keep_steps=2)
-    cfg.raw = {**cfg.raw, "context": {"min": 1000, **settings}}   # (a 6000-token window is not what is under test)
+    # (a 6000-token window is not what is under test; nor is `measure`: a scripted model's token count is a placeholder,
+    # so these size the prompt by the estimate)
+    cfg.raw = {**cfg.raw, "context": {"min": 1000, "measure": False, **settings}}
     llm = WindowLLM(replies, window)
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: llm,
                 on_event=lambda k, d: events.append((k, d)))
@@ -325,7 +327,7 @@ def test_a_model_not_loaded_yet_leaves_compact_tokens_and_says_so(cfg):
 
 def test_a_model_reloaded_with_a_smaller_context_mid_task_condenses_from_then_on(cfg):
     ctx, compacted, _ = run(cfg, steps(10), lambda llm: Window(100096 if len(llm.seen) < 4 else 6000, "lmstudio"))
-    assert [c["limit"] for c in ctx[:3]] == [60057] * 3 and ctx[-1]["limit"] == 3000
+    assert [c["limit"] for c in ctx[:3]] == [80076] * 3 and ctx[-1]["limit"] == 3000
     assert compacted and min(c["step"] for c in compacted) > 3        # nothing condensed while the window was big
 
 
@@ -340,9 +342,9 @@ def test_the_limit_follows_the_model_the_worker_uses_now(cfg):
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM([]))
     worker = SimpleNamespace(llm=WindowLLM([], QWEN))
     fn = h._budget_fn(worker)
-    assert fn().compact == 60057
+    assert fn().compact == 80076                                       # 80% of 100,096 (context.compact_at)
     worker.llm = WindowLLM([], Window(32768, "lmstudio"))              # the fast model escalated to the strong one
-    assert fn().compact == 19660
+    assert fn().compact == 24576                                       # 80% would leave less than its 8,192 reply
     worker.llm = ScriptedLLM([])                                       # a model nothing can be asked about
     assert fn() is None
 
@@ -360,7 +362,7 @@ def lm_studio(monkeypatch):
 def test_the_report_says_what_each_model_is_loaded_with_and_when_it_condenses(cfg, lm_studio):
     r = ctxwin.report(cfg)
     qwen = next(m for m in r["models"] if m["model"] == "lmstudio:qwen3.8-27b@q6_k")
-    assert (qwen["window"], qwen["source"], qwen["compact"], qwen["max"], qwen["parallel"]) == (100096, "lmstudio", 60057, 262144, 2)
+    assert (qwen["window"], qwen["source"], qwen["compact"], qwen["max"], qwen["parallel"]) == (100096, "lmstudio", 75072, 262144, 2)
     assert "high_end_dev" in qwen["used_by"]
     fast = next(m for m in r["models"] if m["model"] == "lmstudio:ornith-1.5-35b-a3b")
     assert fast["window"] is None and fast["loaded"] is False and fast["compact"] == cfg.lim("compact_tokens")
@@ -371,7 +373,7 @@ def test_the_report_says_what_each_model_is_loaded_with_and_when_it_condenses(cf
 def test_the_report_reads_as_plain_text(cfg, lm_studio):
     text = ctxwin.render(ctxwin.report(cfg))
     assert "qwen3.8-27b" in text and "loaded with   100,096" in text and "supports   262,144" in text
-    assert "window 100,096 (asked LM Studio)  -> condenses at 60,057" in text
+    assert "window 100,096 (asked LM Studio)  -> condenses at 75,072" in text   # (thinks freely: a quarter kept)
     assert "window not known: LM Studio has not loaded it yet  -> condenses at 60,000" in text
     assert "not loaded" in text
 
@@ -379,7 +381,7 @@ def test_the_report_reads_as_plain_text(cfg, lm_studio):
 def test_a_window_set_in_config_is_reported_as_such_and_beats_lm_studio(cfg, lm_studio):
     cfg.models["fast"] = {**cfg.models["fast"], "context_length": 32768}
     fast = next(m for m in ctxwin.report(cfg)["models"] if m["model"] == "lmstudio:ornith-1.5-35b-a3b")
-    assert (fast["window"], fast["source"], fast["compact"]) == (32768, "config", 19660)
+    assert (fast["window"], fast["source"], fast["compact"]) == (32768, "config", 24576)
     assert "(from config)" in ctxwin.render(ctxwin.report(cfg))
 
 
@@ -400,7 +402,7 @@ def test_an_lm_studio_that_is_down_is_a_line_not_a_traceback(cfg, lm_studio):
 
 def test_the_command_prints_text_or_json_and_can_look_at_one_model(lm_studio, capsys):
     assert ctxwin.main(["--config", str(ROOT / "config.yaml")]) == 0
-    assert "condenses at 60,057" in capsys.readouterr().out
+    assert "condenses at 75,072" in capsys.readouterr().out
     assert ctxwin.main(["--config", str(ROOT / "config.yaml"), "--json", "--model", "lmstudio:qwen3.8-27b@q6_k"]) == 0
     got = json.loads(capsys.readouterr().out)
     assert [m["window"] for m in got["models"]] == [100096] and got["models"][0]["used_by"] == ["(asked for)"]
