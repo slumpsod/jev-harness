@@ -6,6 +6,7 @@ sits in the REPL as `ctx[...]` and is only listed by name and size.
 """
 from __future__ import annotations
 
+import ast
 import inspect
 import json
 import os
@@ -50,7 +51,7 @@ def _step_outputs(messages: list[dict]) -> list[str]:
         if m["role"] == "assistant":
             if current is not None:
                 outs.append(current)
-            current = "" if (m.get("tool_calls") or CODE_RE.search(str(m.get("content", "")))) else None
+            current = "" if (m.get("tool_calls") or code_blocks(str(m.get("content", "")))) else None
         elif current is not None and m["role"] in ("tool", "user"):
             text = str(m.get("content", "")).split("\n\n[", 1)[0].replace("Output:\n", "", 1).strip()
             current += ("\n" if current else "") + text
@@ -112,7 +113,8 @@ CHARS_PER_TOKEN = 3.2      # conservative for code-heavy transcripts (context-si
 # in its cache, so the redirect costs the new tokens only.
 STEER_NOTE = ('[Message from the user, sent while you were working: "{text}"\n'
               "Take it into account from here on: if it changes what they want, follow it instead of the earlier "
-              "request. Your REPL variables and files are as you left them.]")
+              "request. If it asks you something, answer it now with say(\"...\") - they are waiting and see nothing "
+              "of your thinking - then carry on. Your REPL variables and files are as you left them.]")
 STEER_REPLACE = ('[Message from the user, sent while you were working: "{text}"\n'
                  "This replaces the request you were given: drop what you were doing for it, do this instead, and "
                  "hand over only what this asks for. Your REPL variables and files are as you left them.]")
@@ -158,6 +160,12 @@ RESUME_NOTE = ("[Resumed after an interruption. Your REPL was restarted, so vari
 RESTORED_NOTE = ("[Resumed after an interruption. Your REPL was restarted and its saved state brought back - "
                  "variables: {vars}; functions/classes: {defs}.{lost} Files in your working directory, the artifact "
                  "store and the project are as you left them. Continue the task from where you were.]")
+# A follow-up turn by the same assistant starts where the previous one left off (Worker.carry_from). Live 2026-10-12, a
+# chess game played over several turns: every move began "the helper module was lost - let me rebuild it", re-reading
+# the game's source and the board before it could play.
+CARRIED_NOTE = ("[This follows your previous turn. Its working folder is {dir} - the files you wrote there are still "
+                "there (use that path).{state}]")
+CARRIED_STATE = " Your REPL state from the end of that turn is back: variables: {vars}; functions/classes: {defs}.{lost}"
 TIMEOUT_RESTORED_NOTE = ("[timed out after {secs:.0f}s; the REPL was restarted and its state as of the end of your "
                          "previous step was brought back - variables: {vars}; functions/classes: {defs}.{lost} "
                          "Anything this block created or changed in memory is gone; files it wrote are still there.]")
@@ -167,6 +175,33 @@ HARVEST_MAX = 20            # files handed over from the worker's folder when it
 # web app's built page can be the deliverable; the HARVEST_MAX cap bounds what is copied from them)
 HARVEST_SKIP = {"node_modules", "bower_components", "site-packages", "venv", "env"}
 CODE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
+FENCE_RE = re.compile(r"```(python|py)?[ \t]*\n(.*?)```", re.DOTALL)
+
+
+def code_blocks(text: str, native: bool = False) -> list[str]:
+    """The code a reply's text asks to run: its ```python blocks, and a plain ``` block only when it is Python.
+    Live (2026-10-12, Qwen with native tools, a chess game): the reply "Made and verified:\n```\n1. b3 e5\n2. Bb2 Nf6..."
+    was run as code; its SyntaxError came back as the next user turn, and the model spent the rest of the session
+    answering "echo pastes" it took for the user's. With native tools the model acts by calling the python tool, so a
+    plain block in its text is part of what it says (a move list, a table, a command for the user); in text mode it
+    is code when it compiles and is more than a bare value."""
+    out = []
+    for tag, body in FENCE_RE.findall(text or ""):
+        if tag or (not native and _is_code(body)):
+            out.append(body)
+    return out
+
+
+def _is_code(body: str) -> bool:
+    try:
+        tree = ast.parse(body)
+    except (SyntaxError, ValueError):
+        return False
+    # "1, 2, 3", "Total: 5", a bare name: data that happens to parse, not something to run
+    return any(not (isinstance(n, ast.Expr) and isinstance(n.value, (ast.Constant, ast.Tuple, ast.Name)))
+               and not (isinstance(n, ast.AnnAssign) and n.value is None) for n in tree.body)
+
+
 # Some local models (seen: ornith in LM Studio) sometimes answer in their native tool-call
 # template instead of a fenced block: <tool_call><function=python><parameter=content>...
 TOOL_CALL_RE = re.compile(r"<function=python[^>]*>\s*<parameter=\w+>\s*(.*?)\s*(?:</parameter>|</function>|</tool_call>|\Z)",
@@ -177,7 +212,7 @@ OPEN_FENCE_RE = re.compile(r"```(?:python|py)[ \t]*\n")
 XML_CALL_RE = re.compile(r"<function=(\w+)>(.*?)(?:</function>|</tool_call>|\Z)", re.DOTALL)
 XML_PARAM_RE = re.compile(r"<parameter=(\w+)>\s*(.*?)\s*(?:</parameter>|(?=<parameter=)|\Z)", re.DOTALL)
 PRIMARY = {"web": "ask", "browser": "do", "project": "find", "comfy": "run"}   # a bare "question=" etc.
-REPL_CALLS = {"final", "ask_user", "recall", "remember", "request", "save_artifact", "load_artifact", "peek",
+REPL_CALLS = {"final", "ask_user", "say", "recall", "remember", "request", "save_artifact", "load_artifact", "peek",
               "report_failure"}
 
 
@@ -298,7 +333,7 @@ def msg_code(m: dict) -> list[str]:
     calls = [call_args(c.get("function", {}).get("arguments", "")) for c in m.get("tool_calls") or []]
     native = [a["code"] for a in calls if isinstance(a.get("code"), str)]
     text = str(m.get("content", ""))
-    return native + (CODE_RE.findall(text) or TOOL_CALL_RE.findall(text))
+    return native + (code_blocks(text, bool(native)) or TOOL_CALL_RE.findall(text))
 
 
 def is_output(m: dict) -> bool:
@@ -377,6 +412,8 @@ In the REPL:
     (save_artifact('report.csv', path='report.csv')) - never as data. load_artifact(ref).
 - ask_user(question, options=None) -> str: ask the user and wait (details only they know; confirm
   anything hard to undo, like an order, a payment, sending or deleting).
+- say(text): tell the user something now and keep working - above all the answer to a question they
+  send while you work (they see nothing of your thinking or code until you finish).
 - final(answer, artifacts=None): finish.
 - Also there (help(name) shows how): start_job / job_status / job_wait (long commands in the
   background), recall / remember (past conversations; lasting facts about the user), llm_query
@@ -447,8 +484,12 @@ def build_system(persona: Persona, skills: list[Skill], requestable: dict[str, s
     if persona.code:
         # (ARC bench, native tool: step 1 assumed Linux and walked '/' looking for a Windows path)
         pkgs = importable()
+        # (the computer's name: live 2026-10-12, asked "my laptop or the hub computer?" mid-task, workers answered "on your
+        # laptop" and "on your own computer" from nothing)
         parts.append(f"## Environment\nYour REPL runs Python {sys.version.split()[0]} on {platform.system()} "
-                     f"{platform.release()}. It starts in your private working folder, {WORKDIR_MARK}. Paths you "
+                     f"{platform.release()}, on the computer named {platform.node() or 'unknown'}"
+                     + ("" if where else " (unless told, you don't know which computer the user is on: don't guess)")
+                     + f". It starts in your private working folder, {WORKDIR_MARK}. Paths you "
                      f"are given are {'Windows' if os.name == 'nt' else 'POSIX'} paths you can open as-is."
                      + (f" Installed packages you can import: {', '.join(pkgs)} (and the standard library)."
                         if pkgs else "")
@@ -524,6 +565,7 @@ class Worker:
         # window (jevh/context.py). None, or a model nothing can be asked about: compact_tokens stands.
         self.budget: Callable[[], Any] | None = None
         self.checkpoint = checkpoint    # json of the conversation after every step (for resume)
+        self.carry_from: Path | None = None   # the previous turn's folder, when this turn follows up on it (_carry)
         self._task_idx = 0              # index of the task message (compaction rewrites everything after it)
         self._task_text = ""
         self._progress_log = ""         # a pre-Jev checkpoint's log (resume only); new logs are self._entries
@@ -534,6 +576,13 @@ class Worker:
         # (old step texts, where the work is now) -> P(the rest of the task needs each step); None = notes only
         self.step_value: Callable[[list[str], str], list[float]] | None = None
         self.keep_at = 0.8
+        # context settings (jevh/context.py; off = the behaviour before 2026-10-08), set by the harness
+        self.measure = False            # context.measure: size the prompt from the server's own token count, not 3.2 chars a token
+        self.archive = False            # context.archive: condensed steps are also saved in full in history.md
+        self.log_share = 0.0            # context.log_share: the progress log may use this share of the limit (0: PROGRESS_CHARS)
+        self.note_tail = False          # context.note_tail: a one-line note keeps the end of the output as well as its start
+        self._cal: tuple[int, int] | None = None   # (prompt tokens the server counted, chars of messages sent) for the last call
+        self._seq = 0                   # steps archived so far (the [#n] in the log and history.md)
         self.repl: Repl | None = None      # the orchestrator kills it when the user stops the turn
         # fast tier only: () -> the persona's strong model, swapped in when the gate sends work back
         self.escalate: Callable[[], LLM] | None = None
@@ -696,6 +745,7 @@ class Worker:
             comp = resume.get("compact")
             if comp:
                 self._entries, self._dropped = comp.get("entries", []), comp.get("dropped", 0)
+                self._seq = comp.get("seq", 0)
             else:
                 self._progress_log = resume.get("progress_log", "")
             # (the resume note goes in once the REPL state is restored: it says what came back)
@@ -713,6 +763,8 @@ class Worker:
             repl.set("ctx", ctx)
             if resume:
                 self._add_resume_note(messages, repl)
+            elif self.carry_from is not None:
+                self._carry(messages, repl)
             self._live = messages
             step = 0
             while step < self.limit:   # (a step spent hearing the user out raises the limit by one)
@@ -724,6 +776,7 @@ class Worker:
                 self._step = step
                 self._note("the model is writing its next step")
                 out = self._llm(messages)
+                self._calibrate(messages, out)
                 res.steps, res.input_tokens, res.output_tokens = (
                     step, res.input_tokens + out.input_tokens, res.output_tokens + out.output_tokens)
                 if getattr(out, "redirected", False) or self._steers_pending():
@@ -787,7 +840,7 @@ class Worker:
                         messages += self._replies(call_ids, note.strip("\n()") + self._steps_left_note(step))
                         continue
                 else:
-                    blocks = CODE_RE.findall(out.text) or TOOL_CALL_RE.findall(out.text)
+                    blocks = code_blocks(out.text, self.native) or TOOL_CALL_RE.findall(out.text)
                     if not blocks and "<function=" in out.text:
                         blocks, failed = translate_tool_calls(out.text, self.tools)
                         if blocks:
@@ -879,6 +932,8 @@ class Worker:
                               f"it to continue where it stopped]\n"
                               + messages[-2]["content"][-2000:])
                 res.stopped = "max_steps"
+            if res.stopped in ("final", "plain"):   # the state a follow-up turn starts from (carry_from)
+                self._snapshot()
         res.transcript = messages
         self._save(messages, res.steps, True, res.stopped)
         return res
@@ -923,7 +978,7 @@ class Worker:
                  "output": output}
         limit, window = self._limit()
         self.on_step("context", {"persona": self.persona.name, "step": step, "limit": limit,
-                                 "parts": {k: round(v / CHARS_PER_TOKEN) for k, v in chars.items()}, **window})
+                                 "parts": {k: round(v * self._per_char()) for k, v in chars.items()}, **window})
 
     def _compact(self, messages: list[dict], step: int) -> None:
         """Keep the conversation inside the model's context: past the compaction limit (a share of the
@@ -932,7 +987,7 @@ class Worker:
         Jev reads each old step: the ones the rest of the task still needs (values, names, sources,
         what failed and why) stay in full, the rest become one-line notes. No model call: a summary
         by the worker's model cost minutes on a thinking model and lost exact values."""
-        size = sum(_msg_chars(m) for m in messages) / CHARS_PER_TOKEN
+        size = self._tokens(messages)
         limit, _ = self._limit()
         if size <= limit:
             return
@@ -946,33 +1001,102 @@ class Worker:
         old, recent = body[:cut], body[cut:]
         if not old:
             return
+        per = self._per_char()
         old_chars = sum(_msg_chars(m) for m in old)
-        if old_chars / CHARS_PER_TOKEN < limit * 0.1:
+        if old_chars * per < limit * 0.1:
             return  # not enough old material to be worth condensing (e.g. a big system prompt)
         now = self._condense(recent)[-2000:]
-        new = [{"brief": self._condense(g), "full": self._full(g), "score": None, "keep": False}
-               for g in _steps(old)]
+        groups = _steps(old)
+        new = [{"brief": self._condense(g), "full": self._full(g), "score": None, "keep": False} for g in groups]
+        if self.archive:   # [#n]: the step's number in history.md, where it is kept in full
+            for i, e in enumerate(new):
+                e["n"] = self._seq + i + 1
+                e["brief"] = f"[#{e['n']}] " + e["brief"]
+                e["full"] = f"[#{e['n']}] " + e["full"]
         self._score(new, now)
         # Aim well under the limit (live: compacting only down to it re-triggered every step, and each
         # compaction rewrites the prompt's start, so the model server re-reads all of it). What the log
         # may use is what the target leaves after the system prompt, task and recent steps.
         rest = sum(_msg_chars(m) for m in messages[:self._task_idx] + recent) + len(self._task_text)
-        soft = max(MIN_FULL_LOG, int(limit * COMPACT_TARGET * CHARS_PER_TOKEN) - rest)
+        soft = max(MIN_FULL_LOG, int(limit * COMPACT_TARGET / per) - rest)
         entries = [dict(e) for e in self._entries] + new
-        dropped = self._fit(entries, now, soft)
+        dropped = self._fit(entries, now, soft, self._log_cap(limit))
         log_chars = len(_render(entries, self._dropped + dropped, self._progress_log))
         if log_chars > 0.9 * (old_chars + len(self._render_log())):
             return  # would barely save anything (live: all-needed steps in full grew the context)
         self._entries, self._dropped = entries, self._dropped + dropped
+        if self.archive:
+            self._save_history(groups)
         task_msg = {"role": "user", "content": self._task_text + "\n\n[Progress so far - earlier steps condensed to "
                     "save context (the ones still needed are kept in full); your REPL variables and files are "
-                    "intact:\n" + self._render_log() + "]"}
+                    "intact." + self._history_note() + "\n" + self._render_log() + "]"}
         before = int(size)
         messages[:] = messages[:self._task_idx] + [task_msg] + recent
-        after = int(sum(_msg_chars(m) for m in messages) / CHARS_PER_TOKEN)
+        after = int(self._tokens(messages))
         self.on_step("compact", {"persona": self.persona.name, "step": step, "tokens_before": before,
                                  "tokens_after": after, "full": sum(e["keep"] for e in self._entries),
                                  "notes": sum(not e["keep"] for e in self._entries), "dropped": self._dropped})
+
+    # -- sizing the prompt ---------------------------------------------------------------------------------
+    def _calibrate(self, messages: list[dict], out) -> None:
+        """After a call: remember how many tokens the server counted for the messages just sent."""
+        n = int(getattr(out, "input_tokens", 0) or 0)
+        if self.measure and n > 0:
+            self._cal = (n, sum(_msg_chars(m) for m in messages))
+
+    def _per_char(self) -> float:
+        """Tokens per character of conversation: the server's own count from the last call where it gave one
+        (`measure`), else the fixed estimate. Text, code and numbers differ by a factor of three or more (measured
+        2026-10-08 on Qwen: prose 4.5 chars a token, code 4.0, JSON 3.1, digit grids 1.0)."""
+        if self._cal and self._cal[1] > 0:
+            return min(max(self._cal[0] / self._cal[1], 0.1), 1.5)
+        return 1 / CHARS_PER_TOKEN
+
+    def _tokens(self, messages: list[dict]) -> float:
+        """The prompt's size in tokens: what the server counted last call, plus the messages added or removed since."""
+        chars = sum(_msg_chars(m) for m in messages)
+        if self._cal and self._cal[1] > 0:
+            return max(0.0, self._cal[0] + (chars - self._cal[1]) * self._per_char())
+        return chars / CHARS_PER_TOKEN
+
+    def _log_cap(self, limit: float) -> int:
+        """Chars the progress log may use: PROGRESS_CHARS, or (`log_share`) a share of the compaction limit."""
+        if self.log_share > 0:
+            return max(PROGRESS_CHARS, int(limit * self.log_share / self._per_char()))
+        return PROGRESS_CHARS
+
+    # -- the archive ---------------------------------------------------------------------------------------
+    def _history_path(self) -> Path:
+        return Path(self.workdir) / "history.md"
+
+    def _history_note(self) -> str:
+        if not self.archive:
+            return ""
+        return (f" Every earlier step is saved in full, in order, in {self._history_path()} (numbers match the [#n] "
+                "tags below): search or read that file with Python for an exact value, file content or error "
+                "before reading a file again or redoing work.")
+
+    def _save_history(self, groups: list[list[dict]]) -> None:
+        """Append the steps just condensed to history.md in full: the log keeps notes, this keeps everything."""
+        lines = []
+        for i, g in enumerate(groups):
+            thought, codes, outs = "", [], []
+            for m in g:
+                if m["role"] == "assistant":
+                    thought = (str(m.get("reasoning_content", "")) or CODE_RE.sub("", str(m.get("content", "")))).strip()
+                    codes += msg_code(m)
+                else:
+                    outs.append(str(m.get("content", "")).split("[Not accepted yet", 1)[0].replace("Output:\n", "", 1).strip())
+            lines.append(f"\n## [#{self._seq + i + 1}]\n"
+                         + (f"THOUGHT (end of it): ...{thought[-1500:]}\n" if thought else "")
+                         + "CODE:\n" + "\n".join(codes).strip() + "\nOUTPUT:\n" + "\n".join(outs).strip() + "\n")
+        try:
+            Path(self.workdir).mkdir(parents=True, exist_ok=True)
+            with open(self._history_path(), "a", encoding="utf-8") as f:
+                f.write("".join(lines))
+        except OSError:
+            pass   # a convenience: the log still has the notes
+        self._seq += len(groups)
 
     def _score(self, entries: list[dict], now: str, cached: bool = True) -> None:
         """Jev: does the rest of the task still need this step? (evals/compact_cases.py). A step
@@ -990,13 +1114,14 @@ class Worker:
             s = self._scores.get(e["full"])
             e["score"], e["keep"] = s, s is not None and s >= self.keep_at
 
-    def _fit(self, entries: list[dict], now: str, soft: int) -> int:
+    def _fit(self, entries: list[dict], now: str, soft: int, cap: int = 0) -> int:
         """Shrink the log in place: past `soft` chars, re-check the full steps against where the
         work is now and turn the least needed into notes; past PROGRESS_CHARS, also leave out the
         least needed notes (oldest first on ties). -> how many were left out."""
         def size():
             return sum(len(e["full"] if e["keep"] else e["brief"]) for e in entries)
-        limit = min(soft, PROGRESS_CHARS)
+        cap = cap or PROGRESS_CHARS
+        limit = min(soft, cap)
         if size() > limit:
             full = [e for e in entries if e["keep"]]
             self._score(full, now, cached=False)
@@ -1006,7 +1131,7 @@ class Worker:
                 e["keep"] = False
         dropped = 0
         for e in sorted(entries, key=lambda e: e["score"] or 0.0):
-            if size() <= PROGRESS_CHARS:
+            if size() <= cap:
                 break
             entries.remove(e)
             dropped += 1
@@ -1030,8 +1155,7 @@ class Worker:
         return ((f"THOUGHT: ...{thought[-FULL_THOUGHT:]}\n" if thought else "")
                 + f"CODE:\n{_clip_mid(code, FULL_CODE)}\nOUTPUT:\n{_clip_mid(out, FULL_OUT)}")
 
-    @staticmethod
-    def _condense(old: list[dict]) -> str:
+    def _condense(self, old: list[dict]) -> str:
         lines = []
         for m in old:
             text = str(m.get("content", ""))
@@ -1045,7 +1169,11 @@ class Worker:
                     lines.append("- ran: " + " | ".join(head[:8])[:600] + (" ..." if len(head) > 8 else ""))
             else:
                 out = text.split("[Not accepted yet", 1)[0].replace("Output:\n", "", 1).strip()
-                lines.append("  -> " + out[:400].replace("\n", " ") + (" ..." if len(out) > 400 else ""))
+                if self.note_tail and len(out) > 400:   # the start says what it is, the end what came of it
+                    out = out[:260] + " [...] " + out[-140:]
+                    lines.append("  -> " + out.replace("\n", " "))
+                else:
+                    lines.append("  -> " + out[:400].replace("\n", " ") + (" ..." if len(out) > 400 else ""))
         return "\n".join(lines) + "\n"
 
     def _stalled(self, messages: list[dict], step: int) -> bool:
@@ -1123,6 +1251,24 @@ class Worker:
             defs=", ".join(info.get("defs") or []) or "none",
             lost=f" Not restored (recreate them if needed): {', '.join(lost)}." if lost else "")
 
+    def _carry(self, messages: list[dict], repl) -> None:
+        """A follow-up turn: the previous turn's REPL state comes back, and the task message names its folder (the note
+        goes in the task text, so compaction keeps it)."""
+        prev = Path(self.carry_from)
+        state = prev / "repl_state.pkl"
+        info = repl.restore(state) if state.is_file() else {}
+        extra = ""
+        if info.get("restored") or info.get("defs"):
+            lost = info.get("failed") or []
+            extra = CARRIED_STATE.format(vars=", ".join(info.get("restored") or []) or "none",
+                                         defs=", ".join(info.get("defs") or []) or "none",
+                                         lost=f" Not brought back: {', '.join(lost)}." if lost else "")
+        note = "\n\n" + CARRIED_NOTE.format(dir=prev, state=extra)
+        self._task_text += note
+        if 0 < self._task_idx < len(messages):
+            messages[self._task_idx] = {**messages[self._task_idx],
+                                        "content": str(messages[self._task_idx]["content"]) + note}
+
     def _add_resume_note(self, messages: list[dict], repl) -> None:
         info = repl.restore(self._state_path) if self._state_path else {}
         if info.get("restored") or info.get("defs"):
@@ -1137,17 +1283,22 @@ class Worker:
         else:
             messages.append({"role": "user", "content": note})
 
+    def _snapshot(self) -> None:
+        if self.repl is None or self.checkpoint is None:
+            return
+        try:
+            self.checkpoint.parent.mkdir(parents=True, exist_ok=True)
+            self.repl.snapshot(self._state_path)
+        except Exception:  # noqa: BLE001 - a convenience; never fail the task over it
+            pass
+
     def _save(self, messages: list[dict], step: int, finished: bool, stopped: str | None = None) -> None:
         if self.checkpoint is None:
             return
-        if self.repl is not None and not finished:   # REPL variables too, so a resume keeps them
-            try:
-                self.checkpoint.parent.mkdir(parents=True, exist_ok=True)
-                self.repl.snapshot(self._state_path)
-            except Exception:  # noqa: BLE001 - a convenience; never fail the task over it
-                pass
+        if not finished:   # REPL variables too, so a resume keeps them
+            self._snapshot()
         data = {"version": 1, "persona": self.persona.name, "task_text": self._task_text, "task_idx": self._task_idx,
-                "progress_log": self._render_log(), "compact": {"entries": self._entries, "dropped": self._dropped},
+                "progress_log": self._render_log(), "compact": {"entries": self._entries, "dropped": self._dropped, "seq": self._seq},
                 "step": step, "finished": finished, "stopped": stopped,
                 "workdir": str(self.workdir), "saved": time.time(),
                 "messages": [m for m in messages if m["role"] != "system"]}

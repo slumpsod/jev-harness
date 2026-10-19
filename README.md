@@ -60,6 +60,9 @@ python evals/interject_cases.py        # a message sent while a task runs: a que
 python evals/bench/interject.py --model lmstudio:qwen3.8-27b@q6_k   # messages to a running task, live: redirect speed, the gate, quick reply, queue, Stop
                                          #   (--stage, --reps; --stage retry measures the pause before a retry; needs nothing else using the
                                          #   model; reads LM Studio's log for the server-side cost)
+python evals/bench/flagged.py          # fixes for the sessions flagged 2026-10-09..12, live, old vs new: a plain ``` block in a reply
+                                         #   run as code, false bounces from the answer gate (+ --stage replay on your failure log), a
+                                         #   cut-off turn and "continue", say() mid-task, "you're on another computer" (--stage, --holdout, --offline)
 python evals/learn_cases.py            # the three learning gates (fact / same fact / skill)
 python evals/hook_route_cases.py     # skill/hook router: "could a program check this?" (NOT TUNED yet: run it, then set route_hook)
 python evals/recall_cases.py 4         # memory reach when the history is buried under 160 newer turns
@@ -70,6 +73,7 @@ python evals/bench/context_detect.py   # context-length detection against the LM
 python evals/session_category_cases.py # does Jev put a whole session in the assistant whose field it is about (History tab; --holdout, --offline)
 python evals/bench/history.py          # the History tab's categories on your own sessions, on a read-only copy of them
 python evals/bench/serve_compare.py --report   # serving Qwen 3.8 27B with llama.cpp: 3 quant/speculation setups on full harness turns (ARC + hidden-test coding)
+python evals/bench/long_horizon.py --report    # long tasks and compaction: 60% vs 80% and the context.measure/archive/note_tail/log_share settings, live (--window 24000 --reps 3; --holdout; --mode headroom)
 python evals/button_intent_cases.py    # browser: a click the goal asked for vs one with a side effect
 python evals/expect_cases.py           # browser.test: does the page show the expected result
 python evals/find_cases.py             # project.find: does it point at where a question is answered
@@ -464,7 +468,11 @@ grew. Now:
   intact and a fresh REPL:
   - "Resume this task" under the answer in the dashboard;
   - `/resume` (or `/resume list`, `/resume 2`) in the CLI;
+  - just saying "continue" (or "keep going", "resume please") as the next message, when the session's last turn was cut off;
   - `Harness.resume()`.
+
+  A turn that never finished (a crash, a restart) is also remembered before the next turn, with the work it had done, so
+  "what did you get done?" or a follow-up knows about it.
 
 Live on uncapped Qwen, a multi-part job ("make tipcalc a proper package: CLI with an exact-cent
 breakdown, thorough tests, README") first crashed at step 2. That was a harness bug: a display
@@ -562,6 +570,7 @@ commands, never guessed from the words:
 |---|---|
 | a plain message ("actually check my calendar", "use km", "also write a haiku") | added to the task's prompt: the model's reply in progress is cut and asked for again with your message (the code it was writing never runs); code that is running is left alone and your message arrives with its output; a `final()` in flight is held until the worker has heard you. The step is not charged to its step limit. `/steer <text>` always adds, skipping the check below |
 | a **question about progress** ("how's it going?") | an instant line from the worker's state ("step 1 of up to 60: running code: import time; ..."), then the task's own model answers in its own words from what it has done so far, while the task carries on. Jev tells (one Choice call, ~0.4 s); `/btw <question>` or `/status` says so. Added to the prompt instead, a question could end the task with a status report |
+| any other question ("are you running it on my laptop or the hub?") | added to the prompt, and the worker answers it in the chat right away with `say()` while the task carries on (it shows in the turn as the assistant's) |
 | `/queue <text>` | held until the task ends, then runs as the next turn by itself, in order (shown above the message box) |
 | `/stop` | like the Stop button (which also drops what was queued, and puts it back in the message box) |
 

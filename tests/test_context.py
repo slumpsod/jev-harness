@@ -260,7 +260,8 @@ def test_a_window_too_small_for_the_harness_is_flagged_with_what_to_do():
 
 
 def test_the_settings_are_the_shipped_ones_unless_changed():
-    assert ctxwin.settings(None) == ctxwin.DEFAULTS == {"detect": True, "compact_at": 0.6, "min": 16384}
+    assert ctxwin.settings(None) == ctxwin.DEFAULTS == {
+        "detect": True, "compact_at": 0.6, "min": 16384, "measure": False, "archive": False, "log_share": 0.0, "note_tail": False}
     assert ctxwin.settings({"context": {"compact_at": 0.5}})["compact_at"] == 0.5
     assert budget(QWEN, 8192, 60000, ctxwin.settings({"context": {"compact_at": 0.5}})).compact == 50048
 

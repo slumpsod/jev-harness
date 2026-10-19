@@ -1,0 +1,22 @@
+long_horizon: 9 runs (base 3, at80 3, at80_all 3); window told to the harness: [24000]
+
+variant      runs  solved  tests% compacts reread after  steps   min  out k prefill s peak%win real/est dropped  err  t/o
+-------------------------------------------------------------------------------------------------------------------------
+base            3   2/3       75%      5.7    4.7   4.7   45.0  10.1   26.9        81      91%     0.97    11.7    0    0
+at80            3   2/3       95%      2.3    1.0   1.0   36.7   9.1   25.4        50     104%     0.98     4.0    0    0
+at80_all        3   2/3       67%      3.3    0.0   0.0   28.7   8.2   22.5        61      86%     0.97     0.0    0    0
+
+per run (RIGHT = every hidden test passed):
+  at80       s1 r1  RIGHT 81/81   23 steps   8.6 min  compactions 1 [19572->11557]  reread 0 (after compaction 0)
+  at80_all   s1 r1  RIGHT 81/81   30 steps   7.4 min  compactions 3 [20633->10679, 18174->13414, 18194->11384]  reread 0 (after compaction 0)
+  base       s1 r1  RIGHT 81/81   54 steps   9.7 min  compactions 8 [14581->7756, 15035->8504, 14636->8670, 14750->9310, 14792->10465]  reread 2 (after compaction 2)
+  at80       s2 r1  wrong 68/81   51 steps  10.8 min  compactions 4 [18133->7763, 18287->8617, 24572->14950, 18549->9381]  reread 1 (after compaction 1)
+  at80_all   s2 r1  wrong 0/1   30 steps   6.9 min  compactions 3 [18532->9871, 21033->12765, 18380->11448]  reread 0 (after compaction 0)
+  base       s2 r1  wrong 20/81   31 steps   8.1 min  compactions 3 [14442->8541, 14421->8178, 15702->11069]  reread 7 (after compaction 7)
+  at80       s3 r1  RIGHT 81/81   36 steps   8.0 min  compactions 2 [18190->8520, 22656->14281]  reread 2 (after compaction 2)
+  at80_all   s3 r1  RIGHT 81/81   26 steps  10.5 min  compactions 4 [18464->8923, 23795->15029, 25806->23143, 21875->15058]  reread 0 (after compaction 0)
+  base       s3 r1  RIGHT 81/81   50 steps  12.4 min  compactions 6 [14957->7723, 14722->8129, 16029->10042, 15943->10394, 14405->6842]  reread 5 (after compaction 5)
+
+reread = a rule page opened again after the worker had read it; after = of those, the ones after the first
+compaction. real/est = the server's token count over the harness's estimate (3.2 chars a token); prefill s =
+time the server spent reading prompts. peak%win = the largest real prompt over the window the harness was told.

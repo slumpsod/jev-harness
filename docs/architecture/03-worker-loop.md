@@ -24,7 +24,7 @@ flowchart TD
   INT -- yes --> PAUSE["replace reply, add pause note<br/>(testable / searching / repeating)<br/>worker.py:585-619"] --> LOOP
   INT -- no --> PARSE{"what came back?"}
   PARSE -- "native tool_calls" --> NT["call_to_code per call<br/>python→code, final→print(final(..)),<br/>web(search=q)→web.search(q)<br/>worker.py:623-637"]
-  PARSE -- "fenced python /<br/>tool_call text" --> FB["CODE_RE or TOOL_CALL_RE,<br/>XML calls translated<br/>worker.py:639-650"]
+  PARSE -- "fenced python /<br/>tool_call text" --> FB["code_blocks or TOOL_CALL_RE,<br/>XML calls translated<br/>worker.py:639-650"]
   PARSE -- "cut off at max_tokens /<br/>open fence" --> CUT["'work in smaller steps'<br/>worker.py:651"] --> LOOP
   PARSE -- "empty (only thinking)" --> EMP["'continue from your reasoning'<br/>worker.py:661"] --> LOOP
   PARSE -- "plain text, no code" --> PL["final() gate on the text<br/>worker.py:673"]
@@ -65,6 +65,11 @@ These are appended to the text the model gets back after running code (`worker.p
   message with the first call's id. Extra calls get "(ran together with the first call)"
   (`_replies`, `worker.py:1075`).
 - **Text mode**: one `user` message, `Output:\n…`.
+- **Which fenced blocks are code** (`code_blocks`): a block tagged `python`/`py` always runs. A plain ``` block runs
+  only in text mode, and only when it parses as Python and is more than a bare value; with native tools it is part of
+  what the model says. Live (2026-10-12, a chess game on Qwen with native tools): the reply "Made and verified:" with
+  the move list in a plain block was run, its SyntaxError came back as the next user turn, and the model spent the
+  rest of the session answering what it took for the user's "echo pastes".
 - On the last step of a stalled worker, the model is offered only the `final` tool
   (`worker.py:1024`).
 

@@ -109,3 +109,26 @@ sequenceDiagram
 
 Code: `_save` `worker.py:944`, `resumable` `orchestrator.py:291`, `resume` `orchestrator.py:311`,
 `_add_resume_note` `worker.py:930`, `snapshot` / `restore` `repl/server.py:292`, `:316`.
+
+### A turn that was cut off, and "continue"
+
+A turn the harness never finished (a crash, or the dashboard restarted under it) used to leave only its task folder: it
+was never remembered, so the next turn knew nothing of it. Live (2026-10-12, flagged session 10): "get REA running on
+this computer" died at step 42 with a restart, and the user's "continue" was answered by explaining the repo again.
+
+Before every new turn, `Harness._note_cut_off` looks at the session's last turn (`_last_cut_off`: its lead task's
+checkpoint, unfinished or stopped in `RESUMABLE`, not taken up since). One that never finished is remembered then, once
+(`noted` in its checkpoint), as `CUT_OFF_NOTE` ("this turn was cut off at step N ...") with the work it had done as the
+turn's notes, so routing, the follow-up check and the conversation the next worker sees all have it. If the new message
+only asks to carry on (`CONTINUE_RE`: "continue", "ok keep going", "resume please", "pick up where you left off"; not
+"continue with the calculator instead"), `turn()` resumes that task instead (`resume(path)`: its conversation, folder
+and REPL variables), with a `resuming` event. Bench: `evals/bench/flagged.py --stage resume`.
+
+### A follow-up turn starts where the last one left off
+
+Each turn's lead task gets its own folder and a fresh REPL. A follow-up by the same assistant (Jev's follow-up check said
+the message continues the conversation) now starts with the previous turn's REPL state restored (`Worker.carry_from`,
+`_carry`: the `repl_state.pkl` the worker snapshots after each step and, now, when it finishes) and the task message
+names that turn's folder (`CARRIED_NOTE`, in the task text so compaction keeps it). Live (2026-10-12, a chess game
+played over several turns, flagged session 8): every move began "the helper module was lost - let me rebuild it". A
+new topic still starts fresh. Bench: `evals/bench/flagged.py --stage carry`.

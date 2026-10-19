@@ -58,14 +58,22 @@ sequenceDiagram
 `server.origin_of` names the computer each chat message came from. Not through `tailscale serve`: the hub (`"here"`).
 Through it: the last `X-Forwarded-For` entry (the one tailscale appended; an earlier one could be the client's own), which
 is the hub when it is one of `this_machine_ips()`, else the device whose WebSocket came from that address
-(`DeviceHub.device_at`; `Link.ip` is recorded the same way when it connects), else None (a phone). `Hub.start_turn` sets
-`Harness.origin`, and the turn record carries it for the page ("from bilbo").
+(`DeviceHub.device_at`; `Link.ip` is recorded the same way when it connects), else `"elsewhere"` (a phone, or a computer
+that is not connected). `Hub.start_turn` sets `Harness.origin`, and the turn record carries it for the page ("from
+bilbo", "from another device").
 
 When the origin is a connected device, `run_task` adds the devices guide whatever Jev picked (Jev judges the words alone;
 "my Downloads" reads as a local request). Two lines then tell the worker where the user is: `_where_note` in the
 Environment section, and `_devices_note` after the guide. The first exists because, told only in the guide, a worker
 asked for "note.txt in my home folder" opened `~` with plain Python on the hub (live, 2026-10-12). From the hub the note
 says "this computer" is the hub; with no origin it says what it said before.
+
+The Environment line is there even when the worker can't reach the user's computer: from a phone or an unconnected
+computer ("elsewhere") it says the user doesn't see this computer's screen, and for a persona without the devices tool it
+says the user is on the device and nothing reaches it from here. Live (2026-10-12, flagged session 11): the hub ran with
+persona files from before the devices tool, and asked "did you open that on bilbo or the hub? because im on bilbo", the
+worker answered "Which one is DESKTOP-AUIDSM2?". With no device online `_devices_note` says so (it used to say
+"Connected now: ."). Bench: `evals/bench/flagged.py --stage where`.
 
 ## Design facts
 

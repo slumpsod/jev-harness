@@ -407,3 +407,170 @@ def test_bot_check_switch_reaches_the_browser_only_from_config(cfg, monkeypatch)
         h, _ = harness(cfg, [py("final('ok')")])
         h.turn("hello")
         assert seen[-1]["JEVH_BROWSER_BOT_CHECK"] == "1", on
+
+
+# -- context.measure / archive / log_share / note_tail (2026-10-08; evals/bench/long_horizon.py) -----------------------
+
+def with_context(cfg, **settings):
+    cfg.raw = {**cfg.raw, "context": {**(cfg.raw.get("context") or {}), **settings}}
+
+
+def test_archive_keeps_every_condensed_step_in_full_and_the_log_points_to_it(cfg):
+    with_context(cfg, archive=True)
+    h, llm = compact_harness(cfg, tail_steps(8), events=[], compact_tokens=3000, keep_steps=2)
+    r = h.turn("do a long job")
+    assert r.answer == "all done"
+    log = llm.seen[-1][1]["content"]
+    assert "[#1] " in log and "history.md" in log and "TAIL0" not in log      # the note lost the tail ...
+    saved = next(cfg.workspace.rglob("history.md")).read_text(encoding="utf-8")
+    assert "## [#1]" in saved and "TAIL0" in saved and saved.count("TAIL0") == 1   # ... the file has it, once
+
+
+def test_archive_off_writes_nothing(cfg):
+    h, llm = compact_harness(cfg, tail_steps(8), events=[], compact_tokens=3000, keep_steps=2)
+    h.turn("do a long job")
+    assert not list(cfg.workspace.rglob("history.md")) and "[#1]" not in llm.seen[-1][1]["content"]
+
+
+def test_a_note_keeps_the_end_of_a_long_output_when_asked(cfg):
+    with_context(cfg, note_tail=True)
+    h, llm = compact_harness(cfg, tail_steps(8), events=[], compact_tokens=3000, keep_steps=2)
+    assert h.turn("do a long job").answer == "all done"
+    log = llm.seen[-1][1]["content"]
+    assert "TAIL0" in log and "step 0 done" in log
+
+
+def test_log_share_lets_the_log_grow_past_the_fixed_budget(cfg, monkeypatch):
+    import jevh.worker as worker
+    monkeypatch.setattr(worker, "PROGRESS_CHARS", 3000)
+    with_context(cfg, log_share=0.9)
+    events = []
+    h, llm = compact_harness(cfg, tail_steps(12), needed=lambda s: True, events=events, compact_tokens=3000, keep_steps=2)
+    assert h.turn("do a long job").answer == "all done"
+    log = llm.seen[-1][1]["content"].split("[Progress so far", 1)[1]
+    assert len(log) > 3000 + 400                                   # more than the fixed budget allowed above
+    assert [d for k, d in events if k == "compact"][-1]["dropped"] == 0
+
+
+class CountingLLM(ScriptedLLM):
+    """A server that counts tokens at `chars_per_token` instead of the harness's 3.2."""
+    def __init__(self, replies, chars_per_token):
+        super().__init__(replies)
+        self.cpt = chars_per_token
+
+    def chat(self, messages):
+        r = super().chat(messages)
+        r.input_tokens = int(sum(len(str(m.get("content", ""))) for m in messages) / self.cpt)
+        return r
+
+
+def counting_harness(cfg, replies, cpt, **limits):
+    cfg.limits.update(limits)
+    llm = CountingLLM(replies, cpt)
+    h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules())), llm_factory=lambda p: llm, on_event=lambda k, d: None)
+    h.learning = False
+    return h, llm
+
+
+def test_measure_waits_for_text_the_server_counts_as_cheap_and_acts_on_text_it_counts_as_dear(cfg):
+    # same conversation, compaction limit 6000 tokens: at 8 chars a token the estimate (3.2) is far too high, so
+    # without `measure` the worker condenses early; with it, it waits. At 1 char a token it is the other way round.
+    big = steps(10, big=True)
+    def condensed(measure, cpt):
+        with_context(cfg, measure=measure)
+        h, llm = counting_harness(cfg, list(big), cpt, compact_tokens=6000, keep_steps=1)
+        h.turn("do a long job")
+        return sum("[Progress so far" in s[1]["content"] for s in llm.seen)
+    assert condensed(False, 8.0) > condensed(True, 8.0)
+    assert condensed(True, 1.0) > condensed(False, 1.0)
+
+
+class _Killed(BaseException):
+    """The dashboard's process dying mid-turn (a restart): nothing in the harness catches it."""
+
+
+def _killed_mid_turn(cfg, events=None):
+    """A turn that saves a file and a variable, then dies with the process at its third step."""
+    h, llm = harness(cfg, [py("open('notes.txt', 'w').write('node 24 installed')\ninstalled = ['node']\nprint('node ok')"),
+                           py("installed.append('rea')\nprint('rea ok')")], events=events)
+
+    def die(messages):
+        raise _Killed()
+    replies = llm.replies
+    llm.chat = lambda messages: _chat(llm, replies, messages, die)
+    try:
+        h.turn("get REA running on this computer")
+    except _Killed:
+        pass
+    return h, llm
+
+
+def _chat(llm, replies, messages, die):
+    from jevh.llm import LLMResult
+    llm.seen.append([dict(m) for m in messages])
+    if not replies:
+        die(messages)
+    return LLMResult(text=replies.pop(0), input_tokens=10, output_tokens=5, model="scripted")
+
+
+def test_a_turn_the_harness_never_finished_is_remembered_by_the_next_one(cfg):
+    """Live 2026-10-12: a turn died with a dashboard restart at step 42 and was never remembered; the user's next
+    message was answered as if it had never happened."""
+    h, _ = _killed_mid_turn(cfg)
+    h2, llm2 = harness(cfg, ["Node and REA are installed; next we pick a target."])
+    h2.session, h2.session_dir = h.session, h.session_dir        # the restarted dashboard, same session
+    h2.turn("so what did you get done?")
+    turns = h2.memory.session_turns(h2.session, 10)
+    assert [t.user for t in turns] == ["get REA running on this computer", "so what did you get done?"]
+    assert "cut off at step" in turns[0].assistant and "rea ok" in turns[0].notes
+    # what routing and the follow-up check read (the fake Jev here never calls a message a follow-up)
+    assert "get REA running on this computer" in h2.memory.recent_text(h2.session, 2)
+    h3, _ = harness(cfg, ["ok"])
+    h3.session, h3.session_dir = h.session, h.session_dir
+    h3.turn("thanks")
+    assert len(h3.memory.session_turns(h3.session, 10)) == 3      # remembered once, not again
+
+
+def test_continue_after_a_cut_off_turn_resumes_it_with_its_files_and_variables(cfg):
+    h, _ = _killed_mid_turn(cfg)
+    h2, llm2 = harness(cfg, [py("print(open('notes.txt').read(), installed)\nfinal('REA is running: ' + ', '.join(installed))")])
+    h2.session, h2.session_dir = h.session, h.session_dir
+    events = []
+    h2.on_event = lambda k, d: events.append((k, d))
+    r = h2.turn("ok continue")
+    assert r.answer == "REA is running: node, rea"                  # the same task, its REPL variables back
+    assert any(k == "resuming" for k, _ in events)
+    assert "rea ok" in "\n".join(str(m["content"]) for m in llm2.seen[0])   # its own conversation, not a new turn
+    # once it finished, "continue" is an ordinary message again
+    h2_llm_replies = ["Nothing is left to continue."]
+    llm2.replies = h2_llm_replies
+    assert h2.turn("continue").answer == "Nothing is left to continue."
+
+
+def test_continue_is_only_a_bare_request_to_carry_on():
+    from jevh.orchestrator import CONTINUE_RE
+    for yes in ["continue", "Continue.", "ok continue", "okay, keep going", "go ahead and finish it", "resume please",
+                "carry on where you left off", "pick up where you left off"]:
+        assert CONTINUE_RE.fullmatch(yes), yes
+    for no in ["continue with the calculator instead", "can you continue the story about Rome?", "go on to the next file",
+               "what happened?", "keep going but use npm"]:
+        assert not CONTINUE_RE.fullmatch(no), no
+
+
+def test_say_reaches_the_chat_mid_task_and_is_remembered_with_the_turn(cfg):
+    """Live 2026-10-12: "are you running it on bilbo or on the hub?" sent mid-task was answered only in the model's
+    thinking and its last reply; say() puts the answer in the chat while the task goes on."""
+    events = []
+    h, llm = harness(cfg, [py("say('On the hub (DESKTOP-AUIDSM2); Bilbo comes next.')\nprint('working')"),
+                           py("final('all set')")], events=events)
+    r = h.turn("set it up")
+    told = [d for k, d in events if k == "say"]
+    assert r.answer == "all set" and [d["text"] for d in told] == ["On the hub (DESKTOP-AUIDSM2); Bilbo comes next."]
+    assert told[0]["persona"] == "daily_assistant"
+    notes = h.memory.session_turns(h.session, 1)[0].notes
+    assert "Told the user while working" in notes and "Bilbo comes next" in notes
+
+
+def test_a_message_sent_mid_task_tells_the_worker_to_answer_it_with_say():
+    from jevh.worker import STEER_NOTE
+    assert "say(" in STEER_NOTE

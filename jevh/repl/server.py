@@ -167,6 +167,13 @@ def ask_user(question: str, options: list | None = None, secret: bool = False) -
     return _call("ask_user", question, options, secret=secret)
 
 
+def say(text: str) -> str:
+    """Tell the user something now, while you keep working: the answer to a question they sent while you work, or a
+    short heads-up. It reaches their chat at once; the task goes on. Not for the final answer (that is final())."""
+    _call("say", str(text))
+    return "(told the user)"
+
+
 def request(persona: str, task: str, inputs: list | None = None) -> dict:
     """Hand a sub-task to another assistant and wait. Returns {status, answer, artifacts}."""
     return _call("request", persona, task, inputs or [])
@@ -266,7 +273,7 @@ G: dict = {"__name__": "__main__", "ctx": {}, "peek": peek, "llm_query": llm_que
            "request": request, "request_async": request_async, "wait": wait, "request_all": request_all,
            "save_artifact": save_artifact, "load_artifact": load_artifact,
            "list_artifacts": list_artifacts, "final": final, "mcp": mcp, "recall": recall,
-           "remember": remember, "ask_user": ask_user, "start_job": start_job, "job_status": job_status,
+           "remember": remember, "ask_user": ask_user, "say": say, "start_job": start_job, "job_status": job_status,
            "job_wait": job_wait, "report_failure": report_failure}
 _BUILTINS = set(G)   # the harness's own helpers: never snapshotted (they come back with the REPL)
 

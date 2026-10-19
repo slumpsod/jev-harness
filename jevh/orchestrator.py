@@ -45,7 +45,7 @@ from .tools import nango
 from .tools import web as websearch
 from .usage import Metered, Usage
 from .verify import DELIVERABLE, Verifier, asks_for_secret
-from .worker import Worker, WorkerResult, build_system
+from .worker import FIRST_STEP_NUDGE, Worker, WorkerResult, build_system
 
 Event = Callable[[str, dict], None]
 RESUMABLE = {"max_steps", "stalled", "error", "cancelled"}
@@ -80,6 +80,18 @@ COMPACT_Q = ("Does `step` hold information that finishing `task` will use again,
 CIRCLES_Q = ("Is `work_log` repeating the same or nearly the same attempt and getting the same result, "
              "without learning anything new?")
 STOPPED_NOTE = "[stopped by the user before finishing]"
+ELSEWHERE = "elsewhere"   # Harness.origin: written on a device that is not connected (a phone), not on the hub
+# A turn the harness never finished (it crashed, or the dashboard was restarted under it) was never remembered, so the next
+# turn knew nothing of it: live 2026-10-12, "get REA running on this computer" died at step 42 with a restart, and the
+# user's "continue" was answered by explaining the repo again. The next turn now records it first (see _note_cut_off).
+CUT_OFF_NOTE = ("[this turn was cut off at step {step} before it finished ({why}): no answer reached the user. Its work "
+                "so far is below; \"continue\" picks the task up where it stopped.]")
+# a message that only asks to carry on: it resumes the last turn, when that one was cut off (see turn())
+CONTINUE_RE = re.compile(r"(?:(?:ok(?:ay)?|yes|yeah|yep|sure|alright|please|now|go ahead( and)?|so)[\s,.!]+)*"
+                         r"(?:continue|keep going|go on|carry on|resume|proceed|pick (?:it )?(?:back )?up(?: where you left off)?"
+                         r"|finish (?:it|that|up|the task|the job)|keep at it)"
+                         r"(?:[\s,]+(?:please|where you left off|from where you (?:stopped|left off)|with (?:it|that|the task)))*"
+                         r"[\s.!]*", re.I)
 
 
 def turn_notes(result: WorkerResult, cap: int = 2000) -> str:
@@ -276,6 +288,7 @@ class Harness:
         self._early: list[tuple[str, bool]] = []     # corrections (text, replaces) sent before the lead worker exists
         self._queue: list[str] = []                  # requests sent while a turn ran: they run after it
         self._said: list[str] = []                   # this turn's corrections (kept with the turn in memory)
+        self._told: list[str] = []                   # what workers told the user with say() this turn (likewise)
         self._goal = ""                               # the running turn's message (what a correction is judged against)
 
     def _tool_env(self) -> dict[str, str]:
@@ -327,12 +340,21 @@ class Harness:
                                      for n, e in self.mcp.errors.items()]
 
     def turn(self, message: str, force: str | None = None, resume: dict | None = None) -> TurnResult:
+        if resume is None:
+            last = self._note_cut_off()
+            if last is not None and CONTINUE_RE.fullmatch(message.strip()):
+                # "continue" after a turn that was cut off: that task, from its checkpoint (conversation, files, REPL
+                # variables), not a new turn that never saw it
+                self.on_event("resuming", {"task": last["task_text"].split("\n\n(In your REPL:")[0][:300],
+                                           "persona": last["persona"], "step": last.get("step")})
+                return self.resume(last["path"])
         self.learner.cancel.set()               # background learning yields the model to this turn
         self.turn_no += 1
         self._tl.turn, self._tl.persona, self._tl.task, self._tl.kind = self.turn_no, "", None, "llm"
         self._cancel = threading.Event()
         with self._ilock:
             self._phase, self._lead, self._lead_task, self._early, self._said = "preparing", None, None, [], []
+            self._told = []
             self._goal = message
         self._running = True
         try:
@@ -410,6 +432,56 @@ class Harness:
             return {}
 
     # -- resume ----------------------------------------------------------------------
+    def _last_cut_off(self) -> dict[str, Any] | None:
+        """This session's last turn, when its lead task was cut off (stopped, step limit, stalled, crashed, or the harness
+        restarted under it) and not taken up since: its checkpoint, with "path"."""
+        last = None
+        for d in self.session_dir.iterdir() if self.session_dir.is_dir() else []:
+            m = TASK_DIR.match(d.name)
+            if m and m[2] == "1" and (last is None or int(m[1]) > last[0]):
+                last = (int(m[1]), d)
+        ck = last[1] / "checkpoint.json" if last else None
+        try:
+            data = json.loads(ck.read_text(encoding="utf-8")) if ck and ck.is_file() else None
+        except (OSError, ValueError):
+            return None
+        if not data or data.get("resumed_by") or (data.get("finished") and data.get("stopped") not in RESUMABLE):
+            return None
+        return {**data, "path": str(ck)}
+
+    def _previous_folder(self, turn_no: int, persona: str) -> Path | None:
+        """The lead task folder of the session's turn before `turn_no`, when the same assistant did it (Worker.carry_from)."""
+        best = None
+        for d in self.session_dir.iterdir() if self.session_dir.is_dir() else []:
+            m = TASK_DIR.match(d.name)
+            if m and m[2] == "1" and int(m[1]) < turn_no and (best is None or int(m[1]) > best[0]):
+                best = (int(m[1]), d, m[3])
+        return best[1] if best and best[2] == persona else None
+
+    def _note_cut_off(self) -> dict[str, Any] | None:
+        """The last turn when it was cut off (_last_cut_off). One that never finished at all (a crash, a restart) was
+        never remembered: it is remembered now, with what it had done, so the conversation the next turn sees has it."""
+        last = self._last_cut_off()
+        if last is None or last.get("noted"):
+            return last
+        request = last.get("task_text", "").split("\n\n(In your REPL:")[0].split(FIRST_STEP_NUDGE)[0]
+        remembered = self.memory.session_turns(self.session, 1)   # (stopped, step limit: remembered when they ended)
+        if not (remembered and remembered[-1].user.strip()[:200] == request.strip()[:200]):
+            msgs = last.get("messages") or []
+            done = work_log([{"role": "system", "content": ""}, *msgs], cap=2000) if msgs else ""
+            why = last.get("stopped") or "the harness stopped or restarted while it ran"
+            self._remember(last.get("persona") or self.cfg.default_persona, request,
+                           CUT_OFF_NOTE.format(step=last.get("step") or 0, why=why), done or "(nothing was run yet)")
+        try:   # (once: the next turn must not remember it again)
+            ck = Path(last["path"])
+            saved = {k: v for k, v in last.items() if k != "path"}
+            tmp = ck.with_suffix(".tmp")
+            tmp.write_text(json.dumps({**saved, "noted": True}, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp, ck)
+        except OSError:
+            pass
+        return last
+
     def resumable(self, limit: int = 10) -> list[dict[str, Any]]:
         """Interrupted lead tasks (stopped, step limit, stalled, crashed or harness restarted), newest first."""
         out = []
@@ -508,10 +580,23 @@ class Harness:
         return w.status()
 
     def _said_notes(self) -> str:
-        """What the user added while the turn ran, for its memory record ("what did I tell you earlier?")."""
-        if not self._said:
-            return ""
-        return "\n[While this ran, the user also said: " + " | ".join(f'"{s[:300]}"' for s in self._said) + "]"
+        """What the user added while the turn ran, and what the assistant told them meanwhile (say()), for its memory
+        record ("what did I tell you earlier?")."""
+        out = ""
+        if self._said:
+            out += "\n[While this ran, the user also said: " + " | ".join(f'"{s[:300]}"' for s in self._said) + "]"
+        if self._told:
+            out += "\n[Told the user while working: " + " | ".join(f'"{s[:300]}"' for s in self._told) + "]"
+        return out
+
+    def _say(self, task: Task, persona: Persona, text: str) -> None:
+        """A worker's say(): a message for the user's chat now, while its task goes on (live 2026-10-12: asked "are you
+        running it on bilbo or on the hub?" mid-task, the worker could answer only in its thinking and its last reply)."""
+        text = str(text or "").strip()[:4000]
+        if not text:
+            return
+        self._told.append(text)
+        self.on_event("say", {"task": task, "persona": persona.name, "text": text})
 
     def interject(self, text: str, kind: str | None = None) -> dict[str, Any]:
         """A message the user sent while a turn runs. By default it is added to the running task's prompt, except a
@@ -848,7 +933,7 @@ class Harness:
         notes = {"nango": self._nango_summary()} if "nango" in tools.tools else {}
         if "devices" in persona.tools:   # (said with the guide or, when Jev did not pick it, with its pointer line)
             notes["devices"] = self._devices_note()
-        where = self._where_note() if "devices" in persona.tools else None
+        where = self._where_note("devices" in persona.tools)
         system = build_system(persona, picked, requestable, collab.suggested, tools.tools,
                               [catalog[k] for k in tools.mcp if k in catalog], tool_notes=notes, where=where)
         ctx = {"request": task.text, "memory": mem.kept, "inputs": task.inputs,
@@ -900,6 +985,7 @@ class Harness:
             "remember": lambda fact: self.learner.remember(str(fact), f"{self.session}/{persona.name}"),
             "ask_user": lambda question, options=None, secret=False: self._ask_user(task, persona, question,
                                                                                     options, secret),
+            "say": lambda text: self._say(task, persona, text),
             "report_failure": lambda what, detail="": self.failure_watch.report(task, what, detail),
         }
         workdir = Path(resume["workdir"]) if resume and resume.get("workdir") else \
@@ -918,7 +1004,12 @@ class Harness:
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
         worker.keep_reasoning = self.cfg.lim("keep_reasoning")
         worker.budget = self._budget_fn(worker)
+        cs = self.context_settings   # (jevh/context.py) how the prompt is sized and what compaction keeps
+        worker.measure, worker.archive = bool(cs.get("measure")), bool(cs.get("archive"))
+        worker.log_share, worker.note_tail = float(cs.get("log_share") or 0), bool(cs.get("note_tail"))
         worker.retry_delay = float(interject.settings(self.cfg.raw)["retry_delay"])
+        if task.parent is None and not resume and task.history:   # a follow-up: start where the last turn left off
+            worker.carry_from = self._previous_folder(turn_no, persona.name)
         worker.step_value, worker.keep_at = self._compact_fn(task), self.cfg.t("compact_keep")
         if self.cfg.lim("thinking_watch"):
             worker.thinking_watch = self._watch_fn(task)
@@ -1072,14 +1163,25 @@ class Harness:
             return None
         return next((n for n in self.devices_online() if n.lower() == str(o).lower()), None)
 
-    def _where_note(self) -> str | None:
+    def _where_note(self, can_reach: bool = True) -> str | None:
         """For the Environment section, when the user writes from another computer: that their things are there, and
         that this REPL is not. (Live, 2026-10-12: told only in the devices guide, a worker asked for "note.txt in my home
-        folder" from a device opened ~/... on the hub with plain Python.)"""
+        folder" from a device opened ~/... on the hub with plain Python.) `can_reach`: the persona has the devices tool.
+        Without it, or from a computer that is not connected (a phone), the worker is still told it is not in front of
+        the user: live 2026-10-12, asked "did you open that on bilbo or the hub? because im on bilbo", a worker without
+        the tool answered "Which one is DESKTOP-AUIDSM2?"."""
         o = self.origin_device()
-        if not o:
-            return None
         hub_name = getattr(self.devices, "here", "") or "the hub"
+        if not o:
+            if self.origin != ELSEWHERE:
+                return None
+            return (f"The user is writing from another device (a phone, or a computer not connected to this one), not on "
+                    f"this computer ({hub_name}): they don't see its screen. A page, window or file you open here shows "
+                    f"on {hub_name}, not in front of them - say so, and give them a link or the file instead.")
+        if not can_reach:
+            return (f"The user is writing from {o}, another of their computers - not on this computer ({hub_name}), and "
+                    f"you have no tool that acts on {o}. What you open, run or change happens on {hub_name}, where they "
+                    f"can't see it: say so plainly, and give them a link or the file instead.")
         return (f"The user is writing from {o}, another of their computers - not the one this REPL runs on. Their files, "
                 f"folders, apps and screen (\"my home folder\", \"my Downloads\", \"this computer\") are on {o}: reach them "
                 f"with devices.get({o!r}). Python's open() and os here, and the project, desktop and browser tools, see "
@@ -1090,6 +1192,8 @@ class Harness:
         computer" is - the one the user is writing on (Hub.start_turn's origin), when that is known."""
         names = ", ".join(self.devices_online())
         hub_name = getattr(self.devices, "here", "") or "the hub"
+        if not names:   # (it said "Connected now: ." with none online)
+            return f"No other computer is connected right now: everything you do happens on this one ({hub_name})."
         tools_here = "browser, desktop, project and start_job act on the hub"
         o = self.origin_device()
         if o:

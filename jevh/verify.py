@@ -19,6 +19,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import math
 import re
 import subprocess
 import zipfile
@@ -85,6 +86,10 @@ NUMBERS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "ei
 COUNTED = r"(?:images?|pictures?|photos?|logos?|variations?|versions?|options?|designs?|files?|pages?|icons?|drafts?)"
 PROMISE = re.compile(r"\bnext,? I(?:'ll| will)\b|\bI(?:'ll| will) (?:now |next |then )?(?:add|build|create|write|"
                      r"implement|continue|finish|start|make)\b|\bnext step(?:s)? (?:is|are|will be)\b", re.I)
+# "Reply "go" and I'll create the app", "once you've saved it, say "saved" and I'll finish": a turn may end waiting for
+# the user's word; that is not a promise left hanging (live 2026-10-12, both sent back)
+USER_FIRST = re.compile(r"\b(?:reply|say|answer|tell me|let me know|confirm|once you|when you|after you|as soon as you|"
+                        r"if you)\b", re.I)
 BROWSER_CLAIM = re.compile(r"\b(?:checked|tested|verified|opened|previewed|confirmed)\b[^.\n]{0,60}"
                            r"\b(?:browser|renders?|rendering|in chrome|on the page)\b", re.I)
 OPENED_FOR_USER = re.compile(r"\bnango\.(?:open_page|connect_and_wait|start)\(")
@@ -155,7 +160,8 @@ class Verdict:
     scores: dict[str, float] = field(default_factory=dict)     # Jev's answer-check nouls
 
 
-NUM = re.compile(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)(?:\s*(thousand|million|billion|trillion|[kKmMbB]n?)\b)?")
+# (".49": a price list printing "$.49 per sq ft" - live 2026-10-12, the gate sent back "$0.49" as made up)
+NUM = re.compile(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?|\.\d+)(?:\s*(thousand|million|billion|trillion|[kKmMbB]n?)\b)?")
 THOUSANDS = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?")
 SCALE = {"thousand": 1e3, "k": 1e3, "million": 1e6, "m": 1e6, "billion": 1e9, "b": 1e9, "bn": 1e9, "trillion": 1e12}
 
@@ -182,20 +188,84 @@ def _nums(text: str) -> list[tuple[str, float, float]]:
     return out
 
 
+# Sums and products the answer shows: "$2,000 (500+750+250+250+250)", "$2,800 ($2,000 insulation + $800 sealing)" - each
+# number may carry a label of up to three words. Live 2026-10-12: totals written out like this were sent back as made up.
+_TERM = r"\$?(?:\d[\d,]*(?:\.\d+)?|\.\d+)"
+_LABEL = r"(?:\s+[A-Za-z][\w-]*){0,3}"
+SUM_RE = re.compile(rf"{_TERM}{_LABEL}(?:\s*\+\s*{_TERM}{_LABEL})+|{_TERM}(?:\s*[x×*]\s*{_TERM})+")
+# estimates, not figures a tool returns: "a 30-second fix", "a 5-minute job" (live: "30" sent back)
+DURATION_WORD = re.compile(r"(?<![\w.])\d+(?:\.\d+)?-(?:second|sec|minute|min|hour|day|week)s?\b", re.I)
+# "~20 languages" where the log shows 18 (live): an approximation must be near a figure the tools gave, not equal to it
+APPROX = re.compile(r"(?:~|\b(?:about|around|roughly|approximately|approx\.?|nearly|almost|close to)\s+)\$?$", re.I)
+APPROX_SLACK = 0.15
+
+
+def _derived(answer: str, seen: list[float]) -> list[float]:
+    """Totals the answer works out in the open (SUM_RE) from numbers the tools gave, or from totals worked out the same
+    way: "2,800 (2,000 + 800)" counts once "2,000 (500 + 750 + 250 + 250 + 250)" does. One-digit terms count as given."""
+    def known(v: float, pool: list[float]) -> bool:
+        return any(abs(k - v) <= 1e-6 * max(1.0, abs(v)) for k in pool)
+    exprs = []
+    for m in SUM_RE.finditer(answer):
+        bare = re.sub(r"[A-Za-z][\w-]*", " ", m.group(0))
+        exprs.append((math.prod if re.search(r"[x×*]", bare) else sum, [v for _, v, _ in _nums(bare)]))
+    pool, out = list(seen), []
+    for _ in range(3):   # a total of totals: one pass per level
+        new = [f(terms) for f, terms in exprs if len(terms) >= 2 and all(t < 10 or known(t, pool) for t in terms)]
+        new = [v for v in new if not known(v, pool)]
+        if not new:
+            break
+        pool += new
+        out += new
+    return out
+
+
+# "Combined cap if you max out R-60 attic ($1,090), R-19 basement wall ($740) and air sealing ($690): $2,520" - a total
+# named as one, summing numbers in the same sentence without a "+" (live 2026-10-13, the flagged bench: sent back 2 of 6)
+TOTAL_WORD = re.compile(r"\b(?:total|combined|altogether|in all|sum|overall|together|max(?:imum)?|most|up to a)\b", re.I)
+SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z*])|\n+")
+
+
+def _sentence_totals(answer: str, seen: list[float]) -> list[float]:
+    """Numbers in a sentence that names a total and that equal the sum of 2-6 of that sentence's numbers the tools gave."""
+    from itertools import combinations
+    out = []
+    for sent in SENTENCE.split(answer):
+        if not TOTAL_WORD.search(sent):
+            continue
+        nums = [v for _, v, _ in _nums(sent)]
+        given = [v for v in nums if any(abs(s - v) <= 1e-6 * max(1.0, abs(v)) for s in seen)][:10]
+        for total in nums:
+            if any(abs(s - total) <= 1e-6 * max(1.0, abs(total)) for s in seen + out):
+                continue
+            terms = [g for g in given if g < total]
+            if any(abs(sum(c) - total) <= 1e-6 * max(1.0, total)
+                   for k in range(2, min(6, len(terms)) + 1) for c in combinations(terms, k)):
+                out.append(total)
+    return out
+
+
 def grounding(answer: str, evidence: str) -> tuple[set[str], set[str]]:
     """(supported, unsupported): the answer's numbers (2+ digits, not years) that do / don't
     appear anywhere in what the worker saw or was told. A price, fare, date or count the
     tools never returned is the typical made-up detail; plain code catches it reliably where
-    semif's 'accurate' question does not (evals/verify_evidence_cases.py)."""
+    semif's 'accurate' question does not (evals/verify_evidence_cases.py). A total the answer works out
+    in the open from such numbers counts (_derived), and so does an approximation ("~20") near one."""
     # printed dicts show newlines as "\n": "\n110 points" (a browser page line) is still 110
     seen = [v for _, v, _ in _nums(re.sub(r"\\[ntr]", " ", evidence))]
     supported, unsupported = set(), set()
     # an aspect ratio is a format, not a figure a tool returns (live: a "16:9 widescreen" deck was sent back)
-    for digits, value, slack in _nums(ASPECT.sub(" ", answer)):
-        year = re.fullmatch(r"(19|20)\d\d", digits) is not None   # "2026" yes, "$1,999" no
-        if len(digits.replace(",", "").replace(".", "")) < 2 or year:
-            continue
-        (supported if any(abs(s - value) <= slack for s in seen) else unsupported).add(digits)
+    text = DURATION_WORD.sub(" ", ASPECT.sub(" ", answer))
+    seen += _derived(text, seen)
+    seen += _sentence_totals(text, seen)
+    for m in NUM.finditer(text):
+        for digits, value, slack in _nums(m.group(0)):
+            year = re.fullmatch(r"(19|20)\d\d", digits) is not None   # "2026" yes, "$1,999" no
+            if len(digits.replace(",", "").replace(".", "")) < 2 or year:
+                continue
+            if APPROX.search(text[max(0, m.start() - 20):m.start()]):
+                slack = max(slack, abs(value) * APPROX_SLACK)
+            (supported if any(abs(s - value) <= slack for s in seen) else unsupported).add(digits)
     return supported, unsupported
 
 
@@ -213,7 +283,7 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
         shown = ", ".join(sorted(unsupported, key=len, reverse=True)[:5])
         problems.append(f"These numbers in your answer appear in none of your outputs or the request: {shown}. "
                         "Check them against what the tools returned and correct them; if one is your own "
-                        "arithmetic, compute it in code so the result is in the log.")
+                        "arithmetic, show it in the answer (\"$2,800 ($2,000 + $800)\") or compute it in code.")
     # Grounded numbers overrule 'accurate' only on a long log. There semif's 'accurate' stops telling right from
     # wrong (a real shop page: the right price 0.18, a wrong one 0.13), so 2+ numbers found in the outputs are
     # the better signal. On a short log 'accurate' does tell them apart (live set: wrong rows 0.13-0.53, right
@@ -264,7 +334,9 @@ def answer_rules(request: str, answer: str, artifacts: list[str], log: str,
         elif NANGO_PROMISE.search(answer):
             problems.append("Your answer says you'll do something with Nango next, but ending the reply ends your "
                             "turn. Do it now: call nango.setup(app) / nango.connect_and_wait(app) in code, then report.")
-    if PROMISE.search(answer) and not re.search(r"\?\s*$|want me to|shall I|should I", answer, re.I):
+    hanging = [m for m in PROMISE.finditer(answer)
+               if not USER_FIRST.search(answer[max(0, m.start() - 120):m.start()].split("\n")[-1])]
+    if hanging and not re.search(r"\?\s*$|want me to|shall I|should I", answer, re.I):
         problems.append("Your answer says you'll do more next, but final() ends the task. Do that work now, "
                         "or finish and say plainly what is left.")
     return problems

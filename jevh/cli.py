@@ -277,6 +277,11 @@ class Printer:
                 console.print(f"[cyan]  → {esc(data['answer'])}[/]")
             elif o == "stopped":
                 console.print("[yellow]  → stopping...[/]")
+        elif kind == "say":
+            console.print(f"[bold cyan]  {esc(data['persona'])}:[/] {esc(data['text'])}")
+        elif kind == "resuming":
+            console.print(f"[cyan]  continuing the turn that was cut off at step {data.get('step')}:[/] "
+                          f"{esc(data['task'][:120])}")
         elif kind == "aside" and data.get("source") == "model":
             console.print(f"[cyan]  → {esc(data['answer'])}[/] [dim]({data.get('seconds', 0)}s)[/]")
         elif kind == "queued":
