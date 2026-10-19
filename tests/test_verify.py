@@ -247,13 +247,13 @@ def test_bare_artifact_names_resolve_before_the_gate(cfg):
     assert {Path(a).name for a in r.artifacts} == {"page.html", "notes.md"}
 
 
-def test_made_up_number_is_sent_back_and_a_bounced_fast_answer_escalates(cfg):
+def test_made_up_number_is_sent_back_and_a_bounced_fast_answer_escalates(cfg, tmp_path):
     """Live 2026-09-28 every turn ran on the fast tier. Now a fast-tier answer the gate sends
     back is retried on the persona's strong model; the number rule catches a fare no output showed."""
-    # (the fares are read in, as a search would bring them: printed from the worker's own literals they would be its own
-    # words, which the number rule leaves to the other checks - issue #3)
-    fast = ScriptedLLM([py("open('fares.txt', 'w').write('United $1,317  Delta $1,284')\nprint(open('fares.txt').read())"),
-                        "The cheapest is United at $1,099."])
+    # (the fares are read in from a file the worker didn't write, as a search would bring them: printed from its own
+    # literals or files they would be its own words, which the number rule leaves to the other checks - issue #3)
+    (tmp_path / "fares.txt").write_text("United $1,317  Delta $1,284")
+    fast = ScriptedLLM([py(f"print(open(r'{tmp_path / 'fares.txt'}').read())"), "The cheapest is United at $1,099."])
     strong = ScriptedLLM(["The cheapest is Delta at $1,284."])
     base = answer_scores()
 

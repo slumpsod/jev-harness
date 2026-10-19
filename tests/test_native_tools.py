@@ -87,8 +87,9 @@ def test_work_log_reads_native_transcripts():
     assert "CODE:\nprint(41 + 1)" in log and "OUTPUT: 42" in log
 
 
-def test_a_bounced_final_gets_its_tool_result_then_the_problems(cfg):
+def test_a_bounced_final_gets_its_tool_result_then_the_problems(cfg, tmp_path):
     cfg.raw = {**cfg.raw, "verify": {"enabled": True, "max_bounces": 1, "render_html": False}}
+    (tmp_path / "f.txt").write_text("Delta $1,284")   # (a fare read in, not written by the worker: see test_verify)
     scores = {"claims": 0.05, "delivers": 0.95, "honest": 0.1, "accurate": 0.95}
 
     def rules(k, q, s):
@@ -96,7 +97,7 @@ def test_a_bounced_final_gets_its_tool_result_then_the_problems(cfg):
             return choice_ans("high_end_dev", 0.9, q["criteria"])
         if k in scores:
             return noul_ans(scores[k])
-    llm = NativeLLM([call("open('f.txt', 'w').write('Delta $1,284')\nprint(open('f.txt').read())\nfinal('Cheapest: $1,099')"),
+    llm = NativeLLM([call(f"print(open(r'{tmp_path / 'f.txt'}').read())\nfinal('Cheapest: $1,099')"),
                      call("final('Cheapest: Delta at $1,284')", cid="c2")])
     r = harness(cfg, llm, rules).turn("cheapest fare?", force="high_end_dev")
     assert r.answer == "Cheapest: Delta at $1,284"

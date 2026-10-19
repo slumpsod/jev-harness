@@ -211,6 +211,7 @@ FETCHED = re.compile(
 WROTE = re.compile(r"""open\(\s*['"]([^'"\n]+)['"]\s*,\s*['"][wax]|save_artifact\(\s*['"]([^'"\n]+)['"]"""
                    r"""|Path\(\s*['"]([^'"\n]+)['"]\s*\)\.write_(?:text|bytes)\(""")
 OWN_VAR = re.compile(r"""\b(\w+)\s*=\s*(?:save_artifact\(|['"]([^'"\n]+)['"]\s*$)""", re.M)
+WROTE_VAR = re.compile(r"""open\(\s*(\w+)\s*,\s*['"][wax]""")
 READ_ARG = re.compile(r"""open\(\s*(?:['"]([^'"\n]+)['"]|(\w+))""")
 
 
@@ -219,6 +220,7 @@ def fetched(log: str) -> bool:
     written = {Path(n).name.lower() for m in WROTE.finditer(log) for n in m.groups() if n}
     own_vars = {m.group(1) for m in OWN_VAR.finditer(log)
                 if m.group(2) is None or Path(m.group(2)).name.lower() in written}
+    own_vars |= set(WROTE_VAR.findall(log))
     for m in FETCHED.finditer(log):
         hit = m.group(0)
         if hit.startswith("open("):
