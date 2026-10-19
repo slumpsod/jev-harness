@@ -124,3 +124,14 @@ def test_the_worker_asks_before_changing_this_computers_setup():
     from jevh.worker import HOW_YOU_WORK
     assert "installing into the harness's Python" in HOW_YOU_WORK and "registry" in HOW_YOU_WORK
     assert "Docker volumes" in HOW_YOU_WORK
+
+
+def test_a_fix_command_names_the_console_python_when_the_app_runs_on_pythonw(tmp_path, monkeypatch):
+    """Live 2026-10-19: the app (pythonw.exe) suggested "pythonw.exe -m playwright install chromium", which shows nothing."""
+    import sys
+    from jevh.tools import chromium_command, fix_command
+    (tmp_path / "pythonw.exe").write_text("")
+    (tmp_path / "python.exe").write_text("")
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "pythonw.exe"))
+    assert chromium_command() == f'"{tmp_path / "python.exe"}" -m playwright install chromium'
+    assert fix_command(["playwright"]) == f'"{tmp_path / "python.exe"}" -m pip install playwright'

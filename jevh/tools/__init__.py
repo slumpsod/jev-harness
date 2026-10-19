@@ -234,9 +234,18 @@ def missing(tool: str) -> list[str]:
     return out
 
 
-def fix_command(packages: list[str]) -> str:
+def _console_python() -> str:
+    """The Python to type commands with: the app runs on pythonw.exe, which has no console (a command run with it shows
+    nothing), so its python.exe beside it."""
     import sys
-    return f'"{sys.executable}" -m pip install {" ".join(packages)}'
+    from pathlib import Path
+    exe = Path(sys.executable)
+    console = exe.with_name("python.exe") if exe.name.lower() == "pythonw.exe" else exe
+    return str(console if console.exists() else exe)
+
+
+def fix_command(packages: list[str]) -> str:
+    return f'"{_console_python()}" -m pip install {" ".join(packages)}'
 
 
 def unavailable(tool: str, why: str, command: str) -> ToolUnavailable:
@@ -298,8 +307,7 @@ def bundled_chromium_missing() -> bool:
 
 
 def chromium_command() -> str:
-    import sys
-    return f'"{sys.executable}" -m playwright install chromium'
+    return f'"{_console_python()}" -m playwright install chromium'
 
 
 def tool_problems(tools: set[str]) -> list[dict]:
