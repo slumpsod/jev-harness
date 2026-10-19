@@ -1,10 +1,10 @@
 # Jev harness configuration. Paths are relative to this file.
 
 jev:
-  url: http://127.0.0.1:33001     # openjev/systemone.py adapter
-  backend: semif                  # semif (4B, ~10GB on the 4080) | laya (1.7GB) | openjev
+  url: http://127.0.0.1:33001     # the System One adapter (openjev/systemone.py; openjev/README.md)
+  backend: semif                  # sent as the request's model: semif (openjev/semif_bridge.py, Qwen3.5-4B, ~9 GB)
   timeout: 300
-  backend_health: http://127.0.0.1:33003/health   # semif bridge; shown in the dashboard's Status tab
+  backend_health: http://127.0.0.1:33003/health   # the SemIf bridge (openjev/semif_bridge.py); shown in Settings > Status
 
 thresholds:
   route: 0.45          # persona choice confidence needed to switch persona

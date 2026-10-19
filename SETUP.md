@@ -151,7 +151,7 @@ Check: `jevh -c "what's on my calendar tomorrow?"`.
   signed into). Results land in `evals/bench/runs/browser/`.
 - **The code runs on your machine.** Workers execute Python in a separate process with no sandbox, and
   the browser acts on real websites. Watch what it does, and don't leave it running unattended.
-- **Not needed on a Mac:** the `openjev\*.bat` scripts in README (they start Jed's local Jev on Windows)
+- **Not needed with the hosted Jev:** the local Jev in `openjev/` (a GPU with ~10 GB free; see openjev/README.md)
   and ComfyUI (the `comfyui_manager` persona just reports that ComfyUI isn't running).
 - **Memory and learned skills** are written to `workspace/` and `skills/learned/` on your machine only.
 

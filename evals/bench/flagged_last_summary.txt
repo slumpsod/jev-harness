@@ -1,66 +1,19 @@
-flagged-session fixes, live (2026-10-13 09:20): 114 turns
-
-[fence]
-  fires      old dev     : 1/6 passed, median 77s, 3.2 code steps
-  fires      old held-out: 0/6 passed, median 176s, 5.8 code steps
-  fires      new dev     : 6/6 passed, median 16s, 0.3 code steps
-  fires      new held-out: 6/6 passed, median 13s, 0.2 code steps
-  regression old dev     : 6/6 passed, median 13s, 2.2 code steps
-  regression new dev     : 6/6 passed, median 13s, 2.2 code steps
-    fence_cmd          old: 0/3  new: 3/3
-    fence_haiku        old: 0/3  new: 3/3
-    fence_moves        old: 0/3  new: 3/3
-    fence_table        old: 1/3  new: 3/3
-    regress_count      old: 3/3  new: 3/3
-    regress_fib        old: 3/3  new: 3/3
+flagged-session fixes, live (2026-10-19 16:05): 30 turns
 
 [gate]
-  fires      old dev     : 3/3 passed, median 66s, 6.7 code steps, bounces 3
-  fires      old held-out: 3/3 passed, median 62s, 4.7 code steps, bounces 3
-  fires      new dev     : 3/3 passed, median 41s, 3.0 code steps, bounces 1
-  fires      new held-out: 3/3 passed, median 40s, 2.0 code steps, bounces 0
+  fires      old dev     : 3/3 passed, median 54s, 4.3 code steps, bounces 3
+  fires      old held-out: 3/3 passed, median 72s, 4.3 code steps, bounces 3
+  fires      new dev     : 3/3 passed, median 32s, 4.0 code steps, bounces 2
+  fires      new held-out: 3/3 passed, median 24s, 2.7 code steps, bounces 0
+  lookalike  old dev     : 0/6 passed, median 159s, 7.2 code steps, bounces 13
+  lookalike  old held-out: 0/3 passed, median 75s, 5.0 code steps, bounces 7
+  lookalike  new dev     : 5/6 passed, median 148s, 5.8 code steps, bounces 7
+  lookalike  new held-out: 3/3 passed, median 35s, 2.0 code steps, bounces 0
+    gate_hello_date    old: 0/3  new: 3/3
     gate_rebate        old: 3/3  new: 3/3
     gate_rebate_short  old: 3/3  new: 3/3
+    gate_recipe        old: 0/3  new: 3/3
+    gate_workout       old: 0/3  new: 2/3
 
-[resume]
-  fires      old dev     : 1/3 passed, median 498s, 20.3 code steps
-  fires      old held-out: 1/3 passed, median 84s, 9.7 code steps
-  fires      new dev     : 3/3 passed, median 39s, 7.3 code steps
-  fires      new held-out: 3/3 passed, median 51s, 5.0 code steps
-    cutoff_continue    old: 1/3  new: 3/3
-    cutoff_recall      old: 1/3  new: 3/3
-
-[say]
-  fires      old dev     : 0/3 passed, median 109s, 3.7 code steps
-  fires      old held-out: 3/3 passed, median 95s, 4.7 code steps, median answer 0s after the question
-  fires      new dev     : 3/3 passed, median 117s, 5.7 code steps, median answer 13s after the question
-  fires      new held-out: 3/3 passed, median 103s, 4.3 code steps, median answer 0s after the question
-  regression old dev     : 3/3 passed, median 73s, 4.3 code steps
-  regression new dev     : 3/3 passed, median 64s, 4.0 code steps
-    say_quiet          old: 3/3  new: 3/3
-    say_where          old: 0/3  new: 3/3
-    say_why            old: 3/3  new: 3/3
-
-[carry]
-  fires      old dev     : 0/3 passed, median 88s, 2.0 code steps
-  fires      old held-out: 0/3 passed, median 83s, 1.7 code steps
-  fires      new dev     : 3/3 passed, median 40s, 2.0 code steps
-  fires      new held-out: 3/3 passed, median 116s, 1.7 code steps
-    carry_ttt          old: 0/3  new: 3/3
-    carry_ttt2         old: 0/3  new: 3/3
-
-[where]
-  fires      old dev     : 1/6 passed, median 27s, 2.2 code steps
-  fires      old held-out: 0/3 passed, median 12s, 1.7 code steps
-  fires      new dev     : 6/6 passed, median 16s, 1.0 code steps
-  fires      new held-out: 3/3 passed, median 22s, 0.7 code steps
-  lookalike  old dev     : 3/3 passed, median 14s, 1.7 code steps
-  lookalike  new dev     : 3/3 passed, median 12s, 2.0 code steps
-    where_bilbo        old: 1/3  new: 3/3
-    where_bilbo_open   old: 0/3  new: 3/3
-    where_hub          old: 3/3  new: 3/3
-    where_phone        old: 0/3  new: 3/3
-
-[replay] 9 answers the gate sent back over numbers: the old rule flags 9, the new 8. Numbers the new rule no longer flags (check each is a fair pass):
-  #97: 612  (still flagged: 153, 90)
-  #122: 0.25, 0.48, 0.49, 0.53  (still flagged: -)
+new-arm failures:
+  gate_workout: sent back: These numbers in your answer appear in none of your outputs or the request: 2.5, 15, 40, 45, 20. Check them against what; '# 3-Day Beginner Full-Body Plan (Dumbbells Only)\n\nTrain **Mon / Wed / Fri** (rest days in between) for 3–4 weeks per block. Before every session: **5 min easy cardio** (walk, jog in place, bike) + 2–3 light ramp-up sets '

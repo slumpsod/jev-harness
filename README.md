@@ -1,7 +1,7 @@
 # jev-harness
 
-A lightweight multi-persona agent harness. A System One decision model (**Jev**:
-semif / laya / openjev behind `openjev/systemone.py`) is the gatekeeper for everything a worker model sees.
+A lightweight multi-persona agent harness. A System One decision model (**Jev**: run locally with
+[`openjev/`](openjev/README.md), or hosted) is the gatekeeper for everything a worker model sees.
 Workers (any LLM: LM Studio, llama.cpp, vLLM, Claude) see only the request plus what Jev lets through,
 and they act by writing Python in their own sandboxed REPL.
 
@@ -34,7 +34,7 @@ engine can also be changed from the dashboard's **Settings** page (saved in `wor
 The `jevh` command works from any folder once installed (see [the `jevh` command](#the-jevh-command)).
 
 ```bash
-openjev\start_systemone.bat          # adapter on :33001 (Jev); backend set in config.yaml
+openjev\start_semif.bat & openjev\start_systemone.bat   # the local Jev on :33003 + :33001 (openjev/README.md)
 jevh                                 # chat; /help for commands
 jevh dashboard                       # the dashboard (see Dashboard)
 jevh --as fitness_coach -c "plan my week"   # one-shot, pinned persona
