@@ -332,6 +332,8 @@ class BrowserDock:
 
     def _run(self) -> None:
         from playwright.sync_api import sync_playwright
+
+        from ..tools.browser import front_page
         pw = sync_playwright().start()
         browser, at, dead = None, None, set()   # dead: info files whose browser is gone (a killed worker)
         failed: dict = {}                       # attach attempts that failed, per info file: a slow Chrome gets a few tries
@@ -350,9 +352,13 @@ class BrowserDock:
                             if failed[info["key"]] >= 4:
                                 dead.add(info["key"])
                     pages = [p for c in browser.contexts for p in c.pages if not p.is_closed()] if info and browser else []
-                    fut.set_result(fn(pages[-1], info) if pages else None)   # the tool follows the newest tab too
+                    # the tab in front, as Chrome says (the tool follows the same one): never "the last one listed",
+                    # which after a reconnect was the first tab (jevh/tools/browser.py front_page)
+                    page = front_page(pages, int(info.get("port") or 0)) if pages else None
+                    fut.set_result(fn(page, info) if page is not None else None)
                 except Exception as e:  # noqa: BLE001
-                    browser = None
+                    if browser is not None and not browser.is_connected():
+                        browser = None   # (a picture that failed mid-navigation is no reason to attach again)
                     fut.set_exception(e)
         finally:
             pw.stop()

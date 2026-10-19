@@ -46,6 +46,8 @@ python evals/tier_cases.py             # live fast/strong tier accuracy + sweep
 python evals/tool_cases.py             # live tool-guide picking accuracy + sweep
 python evals/browser_cases.py --live   # Jev browser agent on a local test shop (+ Wikipedia)
 python evals/bench/browser_tasks.py      # 10 real-website tasks, full harness turns (flights, tickets, forms...)
+python evals/bench/browser_dock.py --arm both   # the dashboard's Browser panel and the tool follow sign-in pop-ups, new tabs, redirects, a pop-up that closes itself, a reconnect, the next turn (real Chrome, the real BrowserDock, local pages, no models; --holdout, --offline)
+python evals/bench/browser_dock_e2e.py   # full turns, live models: the bench signs in through the panel while the worker waits; and a Python with no Playwright (the worker must give the fix, not pip install); old vs new (--part, --holdout, --offline)
 python evals/bench/desktop_tasks.py --arm both --repeat 2   # desktop tool, 18 tasks on real Windows apps, old harness vs this one (drives the mouse and keyboard: don't use the machine)
 python evals/desktop_cases.py          # Jev's choice of control / done / gate on saved windows (--capture first; --holdout, --offline)
 python evals/newsroom_cases.py         # Newsroom (run 2026-10-09, below target on the tool pick and routing): Jev offers the tool for "keep an eye on..." and not for one-off lookups; routing old vs new; the `about` alert (--holdout, --offline, --runs, --export/--labelled)

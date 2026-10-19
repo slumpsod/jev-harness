@@ -40,7 +40,7 @@ from .notebook import Notebook
 from . import newsroom
 from .review import TASK_DIR, Reviewer
 from .skills import load_roster, parse_skill
-from .tools import TOOLS
+from .tools import TOOLS, tool_problems
 from .tools import nango
 from .tools import web as websearch
 from .usage import Metered, Usage
@@ -205,6 +205,9 @@ class Harness:
         # lesson notes: yours (the first skills folder) and any shipped with a skills folder
         self.lesson_dirs = [Path(d) / "_lessons" for d in self.cfg.skills_dirs]
         self.roster = load_roster(self.cfg.skills_dirs, self.lesson_dirs, self.load_problems)
+        # a tool a persona lists whose packages the worker's Python lacks: said here, with the command that fixes it,
+        # not found out by the worker mid-task (jevh/tools/__init__.py NEEDS)
+        self.load_problems += tool_problems({t for p in self.personas.values() for t in p.tools})
         self.memory = Memory(self.cfg.workspace / "memory")
         self.mcp = McpHub(self.cfg.mcp_servers)
         self.project: str | None = None             # the user's project folder, if one is open

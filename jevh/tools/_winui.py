@@ -136,6 +136,8 @@ class WinUI:
                 ctypes.windll.shcore.SetProcessDpiAwareness(2)
             except Exception:  # noqa: BLE001
                 pass
+        from jevh.tools import need
+        need("desktop")   # (a clear "tell the user to run ...", not "No module named 'comtypes'")
         import comtypes
         import comtypes.client
         comtypes.client.GetModule("UIAutomationCore.dll")

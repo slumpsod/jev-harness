@@ -380,6 +380,9 @@ def importable(names: list[str] = PACKAGES) -> list[str]:
 # Adapted from Prime Agent's REPL prompt: the REPL is where the model thinks, not just where it
 # runs a final program. ARC bench (live thinking files): Qwen misread a printed grid row and argued
 # about a "gap" for 18 KB, and spent 80 KB comparing two hypotheses it never ran.
+# "a change to this computer's setup" (live, session 20261009-201253-5345): a worker pip-installed Playwright into the
+# harness's venv, deleted NANGO_SECRET_KEY from the user's registry environment and ran `docker compose down -v` on
+# Nango's data, none of it asked.
 HOW_YOU_WORK = """\
 ## How you work
 You solve tasks with a persistent Python REPL: {act_intro} You see what it prints, errors, and the
@@ -405,7 +408,9 @@ In the REPL:
     file's content (str/bytes/JSON); to hand over a file you wrote, pass its name as path=
     (save_artifact('report.csv', path='report.csv')) - never as data. load_artifact(ref).
 - ask_user(question, options=None) -> str: ask the user and wait (details only they know; confirm
-  anything hard to undo, like an order, a payment, sending or deleting).
+  anything hard to undo, like an order, a payment, sending or deleting - or a change to this computer's
+  setup: installing into the harness's Python, editing environment variables or the registry, removing
+  Docker volumes).
 - say(text): tell the user something now and keep working - above all the answer to a question they
   send while you work (they see nothing of your thinking or code until you finish).
 - final(answer, artifacts=None): finish.

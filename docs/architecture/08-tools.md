@@ -78,6 +78,28 @@ refuses it, the fallback is the user's own browser (`open_page(url)`). `JEVH_BRO
 one found will not start (a profile already open in another Chrome, a root container). Headless runs (the evals, the
 final() gate's page check) are unchanged.
 
+**Which tab the panel shows, and the tool works on (2026-10-18).** Both take the same one (`tools/browser.py`
+`front_page`): a pop-up (a tab or window a page opened, by Chrome's `openerId`) is in front of its opener while it is
+open; among the rest, the tab Chrome showed last, which its `/json/list` puts first (the opener again when a pop-up
+closes itself; a pop-up gone from that list counts as closed even before Playwright hears of it). Each Playwright page is
+matched by its target id. A connection's own page list is no guide: it is in no fixed order, and a fresh connection
+lists the first tab last; `/json/list` alone isn't either, as attaching to a browser whose pop-up is a window of its own
+can move the opener to the top of it. The panel used to show "the
+last page listed" and reconnect after any failed picture (one taken mid-navigation fails), so signing in to Facebook in a
+second tab flipped it back to the first tab, and the user's typing went there too (session 20261011-203023-3e47); now it
+reconnects only when the connection is gone. The tool followed the newest tab but stayed on a pop-up that had closed
+itself ("Target page has been closed" on the next call), and a kept browser's next turn picked its tab by list order.
+`evals/bench/browser_dock.py` replays these on local pages with real Chrome and the real BrowserDock;
+`browser_dock_e2e.py` runs full turns where the bench signs in through the panel. Verified on local pages only, not yet
+on a real Facebook or Google sign-in.
+
+**A tool whose packages are missing** (`tools/__init__.py` `NEEDS`): at start the harness lists, in its problems (the
+dashboard's Status tab, the CLI's first lines), each tool a persona uses that the worker's Python can't import - Playwright
+for `browser` (and the dashboard's Browser panel), comtypes and Pillow for `desktop` - and Playwright's own Chromium when
+an unwatched browser would need it, each with the exact command (`"<that python>" -m pip install playwright`). Called
+anyway, the tool raises `ToolUnavailable`, which tells the worker not to install anything and to give the user the
+command (live, session 20261009-201253-5345: it pip-installed Playwright into the harness's venv itself).
+
 **Forms on big consoles (Google Cloud's consent screen, 2026-10-05).** A live Gmail setup showed what a `do()` over a
 long form needs, and `tests/test_browser.py` replays it on `evals/browser_site/consent.html`:
 

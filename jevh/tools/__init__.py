@@ -199,3 +199,121 @@ on a timer, so you only set them up). Use it to follow something over time; for 
         """comfy (ComfyUI): wf = comfy.load(name); comfy.find(wf, class_type); comfy.set(wf, {"node.input": v});
 comfy.seed(); paths = comfy.run(wf) -> saved artifacts. comfy.workflows() lists the available files."""),
 }
+
+
+# -- what a tool needs installed --------------------------------------------------------------------------------------
+# Python packages a tool imports, in the interpreter the worker's REPL runs with (the harness's own: repl/client.py
+# starts it with sys.executable). Live (session 20261009-201253-5345): the dashboard ran from a venv without Playwright,
+# browser.goto() failed with "No module named 'playwright'", and the worker pip-installed it into the harness's venv on
+# its own (and the dashboard's Browser panel, which needs it too, showed nothing). Harness.__init__ lists what is
+# missing with the command that fixes it; a tool that is called anyway says so (ToolUnavailable).
+NEEDS: dict[str, list[tuple[str, str]]] = {   # tool -> [(module, pip package)]
+    "browser": [("playwright", "playwright")],
+    "desktop": [("comtypes", "comtypes"), ("PIL", "pillow")],   # (Windows only: on other systems it says so itself)
+}
+
+
+class ToolUnavailable(RuntimeError):
+    """A tool can't run on this machine yet (a package or a browser is missing). The message says what fixes it."""
+
+
+def missing(tool: str) -> list[str]:
+    """The pip packages `tool` needs that this interpreter can't import."""
+    import importlib.util
+    import sys
+    if tool == "desktop" and sys.platform != "win32":
+        return []
+    out = []
+    for module, package in NEEDS.get(tool, []):
+        try:
+            found = importlib.util.find_spec(module) is not None
+        except (ImportError, ValueError):
+            found = False
+        if not found:
+            out.append(package)
+    return out
+
+
+def fix_command(packages: list[str]) -> str:
+    import sys
+    return f'"{sys.executable}" -m pip install {" ".join(packages)}'
+
+
+def unavailable(tool: str, why: str, command: str) -> ToolUnavailable:
+    """The error a worker sees: it must not change the harness's own environment itself (see `missing`)."""
+    # "put it in your answer": told only to "tell the user", a worker answered "playwright is missing" without the
+    # command (browser_dock_e2e, 1 of 7 runs)
+    return ToolUnavailable(f"the {tool} tool can't run on this machine yet: {why}. Don't install anything yourself; "
+                           f"put this command in your answer for the user to run, then restart the dashboard (or "
+                           f"jevh): {command}")
+
+
+def need(tool: str) -> None:
+    """Raise ToolUnavailable if `tool` is missing a package."""
+    gone = missing(tool)
+    if gone:
+        raise unavailable(tool, f"the Python the assistants run with has no {', '.join(gone)}", fix_command(gone))
+
+
+def bundled_chromium_missing() -> bool:
+    """Is the Chromium Playwright starts for an unwatched browser missing? (A watched one is the user's own Chrome,
+    when there is one.) Read from Playwright's browsers.json and its browsers folder; no browser is started."""
+    import importlib.util
+    import json
+    import os
+    import sys
+    from pathlib import Path
+    try:
+        spec = importlib.util.find_spec("playwright")
+    except (ImportError, ValueError):
+        return False   # (the package itself is missing: `missing` says so)
+    if spec is None or not spec.origin:
+        return False
+    pkg = Path(spec.origin).parent / "driver" / "package"
+    try:
+        browsers = {b["name"]: b for b in json.loads((pkg / "browsers.json").read_text(encoding="utf-8"))["browsers"]}
+    except (OSError, ValueError, KeyError, TypeError):
+        return False   # a layout this doesn't know: let Playwright say it
+    where = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+    if where == "0":
+        root = pkg / ".local-browsers"
+    elif where:
+        root = Path(where)
+    elif sys.platform == "win32":
+        root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "ms-playwright"
+    elif sys.platform == "darwin":
+        root = Path.home() / "Library" / "Caches" / "ms-playwright"
+    else:
+        root = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "ms-playwright"
+    from .browser import find_chrome
+    names = ["chromium-headless-shell"] + ([] if find_chrome() else ["chromium"])
+    for name in names:
+        b = browsers.get(name)
+        if not b:
+            continue
+        revs = {str(b.get("revision"))} | {str(r) for r in (b.get("revisionOverrides") or {}).values()}
+        if not any((root / f"{name.replace('-', '_')}-{r}").is_dir() for r in revs):
+            return True
+    return False
+
+
+def chromium_command() -> str:
+    import sys
+    return f'"{sys.executable}" -m playwright install chromium'
+
+
+def tool_problems(tools: set[str]) -> list[dict]:
+    """Harness.problems() entries for the tools in `tools` that can't run here, each with the command that fixes it."""
+    out = []
+    for tool in sorted(tools):
+        gone = missing(tool)
+        if gone:
+            out.append({"kind": "tool", "name": tool, "path": "", "skipped": False,
+                        "error": f"needs {', '.join(gone)}, which the Python the assistants run with doesn't have"
+                                 + (" (the dashboard's Browser panel needs it too)" if tool == "browser" else "")
+                                 + f": run {fix_command(gone)}"})
+        elif tool == "browser" and bundled_chromium_missing():
+            out.append({"kind": "tool", "name": tool, "path": "", "skipped": False,
+                        "error": "Playwright's own Chromium isn't installed (an unwatched browser runs in it; a watched one "
+                                 f"is your Chrome): run {chromium_command()}"})
+    return out
