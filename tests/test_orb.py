@@ -204,3 +204,20 @@ def test_the_glass_level_reaches_the_orb_with_the_conversation(cfg):
         return Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules)), llm_factory=lambda p: ScriptedLLM([]), on_event=on_event)
     c = TestClient(create_app(cfg, port=8740, harness_factory=factory, token="tok"), base_url="http://127.0.0.1:8740")
     assert c.get("/api/state", headers={"X-Jevh-Token": "tok"}).json()["appearance"] == {"orb_glass": 10}
+
+
+def test_what_the_assistant_says_mid_task_pops_out_of_the_orb():
+    """A worker's say() (an answer to a question sent while it works) shows in the bubble at once and stays there while
+    the task runs; the finished answer replaces it."""
+    from jevh.orb_chat import ChatState
+    c = ChatState()
+    running = {"busy": True, "last": {"id": 3, "message": "find the primes", "status": "running"}}
+    assert c.update({**running, "told": {"seq": 5, "text": "an old one"}}) is False      # the first look: not news
+    c.sent("which computer is this on?")
+    assert c.update({**running, "told": {"seq": 9, "text": "On DESKTOP-AUIDSM2.", "persona": "high_end_dev"}}) is True
+    assert c.bubble["text"] == "On DESKTOP-AUIDSM2." and c.bubble_open
+    assert c.update({**running, "told": {"seq": 9, "text": "On DESKTOP-AUIDSM2."}}) is False
+    assert c.bubble["text"] == "On DESKTOP-AUIDSM2."                                      # not swapped for "Working"
+    done = {"busy": False, "told": {"seq": 9, "text": "On DESKTOP-AUIDSM2."},
+            "last": {"id": 3, "message": "find the primes", "status": "done", "answer": "25,997 primes."}}
+    assert c.update(done) is True and c.bubble["text"] == "25,997 primes."

@@ -135,10 +135,10 @@ function computeMood() {
 }
 // the orb's own chat (jevh/orb.py draws a bar and speech bubbles): it is told the conversation's state, and sends through
 // this page (which holds the sign-in), with orbSend / orbAnswer / orbSeen below
-let reported = "";
+let reported = "", told = null;
 function report() {
   const st = state || {}, turns = st.turns || [], last = turns[turns.length - 1] || null, q = (st.questions || [])[0] || null;
-  const payload = {mood, busy: !!st.busy, glass: st.appearance ? st.appearance.orb_glass : undefined,
+  const payload = {mood, busy: !!st.busy, glass: st.appearance ? st.appearance.orb_glass : undefined, told,
     last: last && {id: last.id, message: last.message, answer: last.answer || "", status: last.status, persona: last.persona || ""},
     question: q && {id: q.id, question: q.question, options: q.options || [], secret: !!q.secret}};
   const text = JSON.stringify(payload);
@@ -165,7 +165,12 @@ function refresh() {   // (many events in a burst: one fetch)
 const WATCH = new Set(["turn_start", "turn_done", "turn_error", "question", "answered", "question_timeout", "reset", "queued", "aside", "appearance"]);
 function listen() {
   const es = new EventSource(`/api/events?since=${lastSeq}&token=${encodeURIComponent(TOKEN)}`);
-  es.onmessage = (m) => { const e = JSON.parse(m.data); lastSeq = Math.max(lastSeq, e.seq); if (WATCH.has(e.kind)) refresh(); };
+  es.onmessage = (m) => {
+    const e = JSON.parse(m.data); lastSeq = Math.max(lastSeq, e.seq);
+    // what the assistant tells you while a task runs (a worker's say()): the bubble shows it (jevh/orb_chat.py)
+    if (e.kind === "say") { told = {seq: e.seq, text: (e.data || {}).text || "", persona: (e.data || {}).persona || ""}; report(); }
+    if (WATCH.has(e.kind)) refresh();
+  };
   es.onerror = () => { es.close(); setTimeout(() => { refresh(); listen(); }, 3000); };
 }
 

@@ -155,9 +155,10 @@ rolling gently back and forth with a soft glow. **Click it** and a slim bar slid
 reply comes out of the orb as a speech bubble and stays until you close it (its cross), send the next message, or click
 somewhere else, which tucks the bar away too. A long reply scrolls with the mouse wheel; **Open in app** shows the whole
 conversation. When the assistant asks you something, the bubble shows the question with its options to click (or type
-the answer in the bar; a password is typed hidden). A reply that arrives while the bar is closed pops out by itself.
+the answer in the bar; a password is typed hidden). A reply that arrives while the bar is closed pops out by itself, and
+so does what the assistant tells you while it works (its `say()`, e.g. the answer to a question you sent mid-task).
 **Drag the orb** anywhere and it settles against the nearer side of the screen, and it stays where you put it next time.
-How see-through the bar and the bubbles are is **Chat glass** in the dashboard's Settings tab (0 solid, 100 very glassy;
+How see-through the bar and the bubbles are is **Chat glass** on the dashboard's Settings page (0 solid, 100 very glassy;
 10 until you change it): higher shows more of what is behind them, blurred like frosted glass. It is saved on the hub when you
 let go of the slider and reaches every signed-in computer's orb.
 

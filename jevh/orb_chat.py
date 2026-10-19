@@ -17,6 +17,7 @@ class ChatState:
         self.bubble: dict | None = None       # what the speech bubble says (orb_chat_art.draw_bubble's model)
         self.bubble_open = False
         self.shown_id: int | None = None      # the newest turn whose answer was shown (None: not known yet)
+        self.told_seq: int | None = None      # the newest say() message shown (None: not known yet)
         self.busy = False
 
     # ------------------------------------------------------------------ typing
@@ -105,7 +106,19 @@ class ChatState:
                 self.bubble_open = True
             return new
         self.question = None
+        told = state.get("told") or {}
+        if self.told_seq is None:   # (the first look: a message from before is not news)
+            self.told_seq = told.get("seq") or 0
+        if told.get("text") and (told.get("seq") or 0) > self.told_seq and (last.get("status") == "running" or self.busy):
+            # the assistant told you something while it works (say()): it pops out, and stays until the answer comes
+            self.told_seq = told["seq"]
+            self.bubble = {"kind": "reply", "text": told["text"], "you": self.awaiting or last.get("message"),
+                           "persona": told.get("persona"), "said": True}
+            self.bubble_open = True
+            return True
         if last.get("status") == "running" or self.busy:
+            if self.bubble and self.bubble.get("said"):
+                return False
             if self.awaiting is not None or (self.bubble and self.bubble.get("kind") == "waiting"):
                 who = last.get("persona") or ""
                 self.bubble = {"kind": "waiting", "status": f"Working ({who.replace('_', ' ')})" if who else "Working",
