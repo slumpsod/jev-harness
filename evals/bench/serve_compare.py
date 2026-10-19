@@ -16,10 +16,12 @@ the DFlash2 draft GGUF, a running Jev (config.yaml jev.url), and nothing else on
     python evals/bench/serve_compare.py --server C:/path/llama-server.exe --models-dir C:/path/models --dry
     python evals/bench/serve_compare.py --server ... --models-dir ... --coding 6 --arc 6
     python evals/bench/serve_compare.py --server ... --models-dir ... --holdout          # held-out ARC tasks
-    python evals/bench/serve_compare.py --report        # offline: re-read the saved rows, no server, no model
+    python evals/bench/serve_compare.py --report        # re-read this machine's saved rows, no server, no model
+    python evals/bench/serve_compare.py --offline       # the same for the committed raw rows
 
-Results: evals/bench/runs/serve_compare/rows.jsonl (resumable: a finished (task, config, rep) is never re-run),
-evals/bench/serve_compare_raw.json and serve_compare_summary.txt beside this file.
+Results: evals/bench/runs/serve_compare/rows.jsonl (resumable: a finished (task, config, rep) is never re-run), and
+serve_compare_raw.json + serve_compare_summary.txt in workspace/evals/<backend>/bench/ (--out DIR; --save-committed
+replaces the committed ones beside this file: see evals/_out.py).
 Local models vary run to run: use --reps 2+ before trusting a gap between two servers.
 """
 from __future__ import annotations
@@ -40,6 +42,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent.parent))
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RUNS = HERE / "runs" / "serve_compare"
 ROWS = RUNS / "rows.jsonl"
@@ -71,7 +75,7 @@ HELD_ARC = ["c48954c1", "e7639916", "15663ba9", "e66aafb8", "759f3fd3", "351d644
 
 def find_gpu(name: str) -> tuple[str, int]:
     """(uuid, index) of the single GPU whose name contains `name`; anything else is an error, never a guess."""
-    out = subprocess.run(["nvidia-smi", "-L"], capture_output=True, text=True, check=True).stdout
+    out = subprocess.run(["nvidia-smi", "-L"], capture_output=True, text=True, encoding="utf-8", errors="replace", check=True).stdout
     hits = [(m.group(3), int(m.group(1))) for m in re.finditer(r"GPU (\d+): (.*?) \(UUID: (GPU-[0-9a-f-]+)\)", out)
             if name.lower() in m.group(2).lower()]
     if len(hits) != 1:
@@ -81,7 +85,7 @@ def find_gpu(name: str) -> tuple[str, int]:
 
 def gpu_used_mib(index: int) -> int:
     out = subprocess.run(["nvidia-smi", "-i", str(index), "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-                         capture_output=True, text=True, check=True).stdout
+                         capture_output=True, text=True, encoding="utf-8", errors="replace", check=True).stdout
     return int(out.strip().split()[0])
 
 
@@ -184,7 +188,7 @@ def grade_coding(task: dict, ws: Path) -> dict:
         if not f.name.startswith("test_"):
             shutil.copy(f, hidden / f.name)
     p = subprocess.run([sys.executable, "-m", "pytest", "-q", "--tb=line", "-p", "no:cacheprovider", str(hidden)],
-                       capture_output=True, text=True, cwd=str(hidden), timeout=300)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(hidden), timeout=300)
     out = p.stdout + p.stderr
     passed = int((re.search(r"(\d+) passed", out) or [0, 0])[1])
     failed = int((re.search(r"(\d+) failed", out) or [0, 0])[1])
@@ -372,8 +376,14 @@ def main() -> None:
     ap.add_argument("--limit-code", type=float, default=15 * 60, help="seconds per coding task")
     ap.add_argument("--limit-arc", type=float, default=20 * 60, help="seconds per ARC task")
     ap.add_argument("--dry", action="store_true", help="show the plan and the server command lines, run nothing")
-    ap.add_argument("--report", "--offline", action="store_true", help="re-read saved rows and print the summary")
+    ap.add_argument("--report", action="store_true", help="re-read this machine's saved rows (runs/) and print the summary")
+    ap.add_argument("--offline", action="store_true", help="the summary of the committed raw rows (or --out's)")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
+    if a.offline:
+        print(report(json.loads(dest.read(RAW).read_text(encoding="utf-8"))))
+        return
     if a.report:
         print(report())
         return
@@ -428,8 +438,9 @@ def main() -> None:
             finally:
                 srv.stop()
     rows = load_rows()
-    RAW.write_text(json.dumps(rows, indent=1), encoding="utf-8")
-    SUMMARY.write_text(report(rows), encoding="utf-8")
+    dest.write(RAW).write_text(json.dumps(rows, indent=1), encoding="utf-8")
+    dest.write(SUMMARY).write_text(report(rows), encoding="utf-8")
+    print(f"raw: {dest.where(dest.write(RAW))}   summary: {dest.where(dest.write(SUMMARY))}")
     print("\n" + report(rows))
 
 

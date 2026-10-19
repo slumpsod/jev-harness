@@ -40,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from jevh.config import load_config  # noqa: E402
 from jevh.jev import Jev, decide_interject  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = Path(__file__).with_name("interject_cases_raw.json")
 KINDS = ("correction", "status", "separate", "stop")
@@ -427,10 +428,12 @@ def main() -> None:
     ap.add_argument("--real-fresh", action="store_true", help="only the held-out explanation-question / question-form-request cases")
     ap.add_argument("--real", action="store_true", help="only the explanation-question and question-form-request cases")
     ap.add_argument("--runs", type=int, default=1)
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     status_at = load_config().t("interject_status")
     if a.offline:
-        saved = json.loads(RAW.read_text(encoding="utf-8"))
+        saved = json.loads(dest.read(RAW).read_text(encoding="utf-8"))
     else:
         saved = {}
         if a.real_fresh:
@@ -443,8 +446,10 @@ def main() -> None:
             if not a.holdout:
                 saved["dev"] = run_live(DEV, a.runs)
             saved["held"] = run_live(HELD, a.runs)
-        old = json.loads(RAW.read_text(encoding="utf-8")) if RAW.exists() else {}
-        RAW.write_text(json.dumps({**old, **saved}, indent=1), encoding="utf-8")
+        raw = dest.write(RAW)   # (the sets this run did not ask stay as your last run left them)
+        old = json.loads(raw.read_text(encoding="utf-8")) if raw.exists() else {}
+        raw.write_text(json.dumps({**old, **saved}, indent=1), encoding="utf-8")
+        print(f"raw scores saved to {dest.where(raw)}")
     for name in ("dev", "held", "fresh", "real", "real_fresh"):
         if name in saved:
             report(name, saved[name], status_at)

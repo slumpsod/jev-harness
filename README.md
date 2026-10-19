@@ -74,8 +74,8 @@ python evals/compact_cases.py          # which earlier steps compaction must kee
 python evals/bench/context_detect.py   # context-length detection against the LM Studio here: read-only, vs `lms ps`
 python evals/session_category_cases.py # does Jev put a whole session in the assistant whose field it is about (History tab; --holdout, --offline)
 python evals/bench/history.py          # the History tab's categories on your own sessions, on a read-only copy of them
-python evals/bench/serve_compare.py --report   # serving Qwen 3.8 27B with llama.cpp: 3 quant/speculation setups on full harness turns (ARC + hidden-test coding)
-python evals/bench/long_horizon.py --report    # long tasks and compaction, live: 60% vs 80% and context.measure/archive/note_tail/log_share on full harness turns (18 rule pages -> policy.py, 80 hidden tests); 51 runs 2026-10-08..13 decided the shipped defaults (--window 24000 --reps 3; --holdout; --mode headroom)
+python evals/bench/serve_compare.py --report   # (--report: this machine's rows; --offline: the committed ones) serving Qwen 3.8 27B with llama.cpp: 3 quant/speculation setups on full harness turns (ARC + hidden-test coding)
+python evals/bench/long_horizon.py --report    # (--report: this machine's rows; --offline: the committed ones) long tasks and compaction, live: 60% vs 80% and context.measure/archive/note_tail/log_share on full harness turns (18 rule pages -> policy.py, 80 hidden tests); 51 runs 2026-10-08..13 decided the shipped defaults (--window 24000 --reps 3; --holdout; --mode headroom)
 python evals/button_intent_cases.py    # browser: a click the goal asked for vs one with a side effect
 python evals/expect_cases.py           # browser.test: does the page show the expected result
 python evals/find_cases.py             # project.find: does it point at where a question is answered
@@ -84,7 +84,11 @@ python evals/severity_cases.py         # a risky change: strong-model or fast-mo
 python evals/rule_cases.py             # does an edit break the project's AGENTS.md / CLAUDE.md rules
 python evals/search_cases.py           # a long think: searching theories, or checking one idea
 python evals/thinking_watch_cases.py   # when to pause a long think and test the idea in code
-# most evals take --holdout (the held-out cases) and/or --offline (re-sweep saved scores)
+# most evals take --holdout (the held-out cases) and/or --offline (re-sweep the committed raw scores)
+# where results go (every eval and bench, evals/_out.py): a live run writes its *_raw.json / *_summary.txt to
+#   workspace/evals/<jev backend>/ (outside git), never over the committed ones beside the eval; --out DIR (or
+#   JEVH_EVAL_OUT) picks the folder, and with --offline re-sweeps that folder (`--offline --out workspace/evals/semif`:
+#   your last run); --save-committed writes the committed files, for a run that should become the reference
 jevh failures                          # logged failures; `export out.jsonl` to study them
 jevh review                            # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
 jevh newsroom                          # the Newsroom board (widgets that follow news and posts; ask in the chat to add one)

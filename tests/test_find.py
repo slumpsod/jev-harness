@@ -1,9 +1,10 @@
 """project.find: keyword search + Jev -> exact locations; project files respect .gitignore."""
-import subprocess
 
 import pytest
 
 from jevh.tools import _pick, project
+
+from conftest import git
 
 APP = '''"""Orders app: routes, billing and the database."""
 import sqlite3
@@ -57,7 +58,7 @@ def use_jev(monkeypatch, prefer):
 
 
 def test_files_respect_gitignore_in_a_git_repo(proj):
-    subprocess.run(["git", "init", "-q"], cwd=proj, check=True)
+    git(proj, "init", "-q")   # (skips the test where git isn't installed)
     assert "workspace/run.log" not in list(project._files())
     assert "app/billing.py" in list(project._files())
     assert not any("workspace" in g for g in project.grep("refund"))
@@ -68,7 +69,7 @@ def test_without_git_everything_is_searched(proj):
 
 
 def test_find_returns_the_definition_and_read_opens_it(proj, monkeypatch):
-    subprocess.run(["git", "init", "-q"], cwd=proj, check=True)
+    git(proj, "init", "-q")   # (skips the test where git isn't installed)
     jev = use_jev(monkeypatch, "def refund")
     hits = project.find("where do we give money back to a customer?", k=2)
     assert hits[0].startswith("app/billing.py:10: def refund(order, amount):")

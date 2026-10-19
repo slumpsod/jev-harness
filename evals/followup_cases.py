@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from jevh.config import load_config  # noqa: E402
 from jevh.decide import SystemOneClient, noul  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = Path(__file__).with_name("followup_cases_raw.json")
 ASK = ("Quick question before I dive in - which country or state, and what kind of change: mail "
@@ -66,7 +67,8 @@ PHRASINGS = {
 }
 
 
-def run_live() -> dict:
+def run_live(path: Path | None = None) -> dict:
+    path = path or RAW
     cfg = load_config()
     c = SystemOneClient(cfg.jev["url"], cfg.jev["backend"], timeout=300)
     raw = {k: [] for k in PHRASINGS}
@@ -75,14 +77,21 @@ def run_live() -> dict:
         r = c.ask(state, {k: noul(q) for k, q in PHRASINGS.items()})
         for k in PHRASINGS:
             raw[k].append(r[k].noul)
-    RAW.write_text(json.dumps(raw, indent=1), encoding="utf-8")
+    path.write_text(json.dumps(raw, indent=1), encoding="utf-8")
     return raw
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
-    raw = json.loads(RAW.read_text(encoding="utf-8")) if ap.parse_args().offline else run_live()
+    _out.add_args(ap)
+    a = ap.parse_args()
+    dest = _out.Out.of(a)
+    if a.offline:
+        raw = json.loads(dest.read(RAW).read_text(encoding="utf-8"))
+    else:
+        raw = run_live(dest.write(RAW))
+        print(f"raw scores saved to {dest.where(dest.write(RAW))}")
     labels = [c[3] for c in CASES]
     for k, scores in raw.items():
         print(f"\n== {k}: {PHRASINGS[k]}")

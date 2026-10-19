@@ -60,7 +60,8 @@ class UpdateError(RuntimeError):
 def run(cmd: list[str], root: Path, timeout: float) -> subprocess.CompletedProcess:
     env = {**_IDENT, **os.environ, "GIT_TERMINAL_PROMPT": "0"}   # a private repo fails instead of waiting for a password
     try:
-        return subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=timeout, env=env,
+        return subprocess.run(cmd, cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              timeout=timeout, env=env,
                               creationflags=_NO_WINDOW)
     except FileNotFoundError:
         raise UpdateError(f"{cmd[0]} is not installed (or not on PATH)") from None

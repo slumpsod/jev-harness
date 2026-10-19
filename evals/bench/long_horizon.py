@@ -25,13 +25,14 @@ VARIANT (a set of settings; see VARIANTS) and seed, several repeats. For each ru
                                                                          # compaction happens after fewer steps; the
                                                                          # server really has 76k: no overflow risk)
     python evals/bench/long_horizon.py --holdout                         # seeds the variants were not tuned on
-    python evals/bench/long_horizon.py --report                          # offline: re-read saved rows (the --offline
-                                                                         # sweep of other evals), no model
+    python evals/bench/long_horizon.py --report                          # re-read this machine's saved rows, no model
+    python evals/bench/long_horizon.py --offline                         # the same for the committed raw rows
     python evals/bench/long_horizon.py --mode headroom                   # how full can a prompt get before a long
                                                                          # thinking reply stops fitting (real window)
 
-Results: evals/bench/runs/long_horizon/rows.jsonl (resumable: a finished (variant, seed, rep) is not re-run),
-evals/bench/long_horizon_raw.json and long_horizon_summary.txt beside this file.
+Results: evals/bench/runs/long_horizon/rows.jsonl (resumable: a finished (variant, seed, rep) is not re-run), and
+long_horizon_raw.json + long_horizon_summary.txt in workspace/evals/<backend>/bench/ (--out DIR; --save-committed
+replaces the committed ones beside this file: see evals/_out.py).
 Local models vary a lot from run to run: 1 rep says nothing about a gap of one task. Use --reps 3+.
 A run told another window (--window N, or none) gets its own row and folder (ws/<variant>__s<seed>__r<rep>__full ...).
 
@@ -54,6 +55,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent.parent))
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RUNS = HERE / "runs" / "long_horizon"
 ROWS = RUNS / "rows.jsonl"
@@ -104,7 +107,7 @@ def _rev() -> str:
     import subprocess
     try:
         return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=HERE, capture_output=True, text=True,
-                              timeout=10).stdout.strip()
+                              timeout=10, encoding="utf-8", errors="replace").stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return ""
 
@@ -411,9 +414,15 @@ def main() -> None:
     ap.add_argument("--limit", type=float, default=40 * 60, help="seconds per run")
     ap.add_argument("--shares", type=lambda s: [float(x) for x in s.split(",")], default=[0.5, 0.6, 0.7, 0.75, 0.8, 0.9])
     ap.add_argument("--dry", action="store_true")
-    ap.add_argument("--report", "--offline", action="store_true")
+    ap.add_argument("--report", action="store_true", help="the summary of this machine's saved rows (runs/), no model")
+    ap.add_argument("--offline", action="store_true", help="the summary of the committed raw rows (or --out's), no model")
     ap.add_argument("--regrade", action="store_true", help="grade every saved run's folder again (a grader fix) and update the rows")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
+    if a.offline:
+        print(report(json.loads(dest.read(RAW).read_text(encoding="utf-8"))))
+        return
     if a.regrade:
         import long_tasks
         rows = load_rows()
@@ -458,8 +467,9 @@ def main() -> None:
               f"{row['seconds'] / 60:.1f} min compactions {row['compactions']} reread {row['reread']}"
               f"{' ERR ' + str(row['error'])[:100] if row.get('error') else ''}", flush=True)
     rows = load_rows()
-    RAW.write_text(json.dumps(rows, indent=1), encoding="utf-8")
-    SUMMARY.write_text(report(rows), encoding="utf-8")
+    dest.write(RAW).write_text(json.dumps(rows, indent=1), encoding="utf-8")
+    dest.write(SUMMARY).write_text(report(rows), encoding="utf-8")
+    print(f"raw: {dest.where(dest.write(RAW))}   summary: {dest.where(dest.write(SUMMARY))}")
     print("\n" + report(rows))
 
 

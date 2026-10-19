@@ -29,7 +29,7 @@ two arms differ only in the fix:
 
 Designed for: worker = Qwen3.8-27B on llama-server (config.local.yaml, native tools), Jev = the semif adapter. Needs
 nothing secret; the browser cases need Playwright's Chromium. Results: runs/flagged/<stamp>/ (each run's workspace),
-flagged_raw.json and flagged_last_summary.txt beside this file.
+flagged_raw.json and flagged_last_summary.txt (a live run writes to workspace/evals/<backend>/; --offline re-sweeps the committed ones; see evals/_out.py).
 """
 from __future__ import annotations
 
@@ -50,6 +50,9 @@ from typing import Callable
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
+
 RUNS = HERE / "runs" / "flagged"
 RAW = HERE / "flagged_raw.json"
 SUMMARY = HERE / "flagged_last_summary.txt"
@@ -629,11 +632,14 @@ def main() -> int:
     ap.add_argument("--reps", type=int, default=3)
     ap.add_argument("--holdout", action="store_true", help="only the held-out cases")
     ap.add_argument("-k", default="", help="only cases whose name contains one of these (comma-separated)")
-    ap.add_argument("--offline", nargs="?", const=str(RAW), help="summarize saved results again")
+    ap.add_argument("--offline", nargs="?", const="", metavar="RAW.json",
+                    help="summarize saved results again (default: the committed flagged_raw.json, or --out's)")
     ap.add_argument("--failures", default=str(ROOT / "workspace" / "failures.db"), help="the failure log to replay")
+    _out.add_args(ap)
     a = ap.parse_args()
-    if a.offline:
-        data = json.loads(Path(a.offline).read_text(encoding="utf-8"))
+    dest = _out.Out.of(a)
+    if a.offline is not None:
+        data = json.loads((Path(a.offline) if a.offline else dest.read(RAW)).read_text(encoding="utf-8"))
         print(summarize([grade(r) for r in data["records"]], data.get("replay")))
         return 0
     stages = a.stage.split(",")
@@ -666,9 +672,10 @@ def main() -> int:
     print(text)
     if not records:   # (a replay-only run must not overwrite the last live results)
         return 0
-    RAW.write_text(json.dumps({"records": records, "replay": replayed}, indent=1, ensure_ascii=False, default=str),
-                   encoding="utf-8")
-    SUMMARY.write_text(text + "\n", encoding="utf-8")
+    dest.write(RAW).write_text(json.dumps({"records": records, "replay": replayed}, indent=1, ensure_ascii=False,
+                                          default=str), encoding="utf-8")
+    print(f"raw: {dest.where(dest.write(RAW))}   summary: {dest.where(dest.write(SUMMARY))}")
+    dest.write(SUMMARY).write_text(text + "\n", encoding="utf-8")
     return 0
 
 

@@ -413,7 +413,10 @@ def test_the_module_works_after_the_worker_started_playwright_itself(site, tmp_p
             "import jevh.tools.browser as browser\n"
             f"print(browser.goto({site + 'events.html'!r})['title'])\n"
             "browser.close()\n")
+    # utf-8/replace: the child's stderr carries what Playwright's driver (Node) and Chromium print, in UTF-8; decoded with
+    # Windows' code page (cp1252) a byte like 0x90 raised UnicodeDecodeError in subprocess's reader thread (issue #7)
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120,
+                         encoding="utf-8", errors="replace", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
                          cwd=str(Path(__file__).resolve().parent.parent))
     assert out.stdout.strip() == "Venue events", out.stderr[-800:]
 
@@ -927,7 +930,8 @@ def test_a_docked_browser_stays_open_between_the_turns_of_a_dashboard_session(tm
     sess = tmp_path / "20991231-000000-test"
     dock = sess / "browsers"
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-    t1 = subprocess.Popen([sys.executable, turn, str(dock), "1", site], stdout=subprocess.PIPE, text=True, env=env)
+    t1 = subprocess.Popen([sys.executable, turn, str(dock), "1", site], stdout=subprocess.PIPE, text=True, env=env,
+                          encoding="utf-8", errors="replace")
     try:
         first = t1.stdout.readline().split()
         if first[:2] != ["TURN1", "True"]:
@@ -943,7 +947,8 @@ def test_a_docked_browser_stays_open_between_the_turns_of_a_dashboard_session(tm
         assert _alive(port)                                                    # the browser outlived the task
         f = BrowserDock(lambda: dock).frame()
         assert f and f["url"].endswith("consent.html")                         # ...and the dashboard still shows it
-        out = subprocess.run([sys.executable, turn, str(dock), "2"], capture_output=True, text=True, env=env, timeout=120)
+        out = subprocess.run([sys.executable, turn, str(dock), "2"], capture_output=True, text=True, env=env, timeout=120,
+                             encoding="utf-8", errors="replace")
         assert out.stdout.split() == ["TURN2", "True", "consent.html", "kept", "across", "turns"], out.stderr[-600:]
         assert _alive(port)                                                    # a turn that ends normally leaves it too
     finally:

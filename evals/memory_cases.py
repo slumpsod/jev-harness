@@ -30,6 +30,7 @@ from jevh.config import load_config  # noqa: E402
 from jevh.decide import SystemOneClient, noul  # noqa: E402
 from jevh.jev import Jev, decide_memory  # noqa: E402
 from jevh.memory import Turn  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 HISTORY = [
     ("fitness_coach", "My current maxes: squat 140kg, bench 100kg, deadlift 180kg.", "Noted - I'll base your percentages on those."),
@@ -128,15 +129,18 @@ def report(name, results, top=5):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     cache = Path(__file__).with_name("memory_raw.json")
     cfg = load_config()
     if a.offline:
-        data = json.loads(cache.read_text())
+        data = json.loads(dest.read(cache).read_text(encoding="utf-8"))
     else:
         t = time.time()
         data = run(cfg)
-        cache.write_text(json.dumps(data, indent=1))
+        dest.write(cache).write_text(json.dumps(data, indent=1), encoding="utf-8")
+        print(f"raw answers saved to {dest.where(dest.write(cache))}")
         print(f"{len(CASES)} requests x {len(HISTORY)} snippets in {time.time() - t:.0f}s")
     for k, rows in data.items():
         secs = sorted(r["secs"] for r in rows)

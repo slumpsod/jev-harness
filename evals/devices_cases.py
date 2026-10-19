@@ -12,7 +12,8 @@ assistant's tools, the way `Harness._pick_tools` builds them: the devices descri
     python evals/devices_cases.py --repeat 5
 
 Designed for the semif Jev backend (the adapter at config jev.url, 4B System One model); any backend works.
-Raw scores: evals/devices_cases_raw.json (or _holdout_raw.json); summary printed and saved as evals/devices_cases_summary.txt.
+Raw scores: devices_cases_raw.json (or _holdout_raw.json); summary printed and saved as devices_cases_summary.txt
+(a live run writes to workspace/evals/<backend>/; --offline re-sweeps the committed ones; see evals/_out.py).
 
 A case is right when every needed tool is picked and nothing outside needed+either is. For `devices` what matters most:
 - fire: requests about another computer by name or as "my laptop / other PC" must pick devices;
@@ -36,6 +37,7 @@ from jevh.config import load_config  # noqa: E402
 from jevh.decide import SystemOneClient  # noqa: E402
 from jevh.jev import Jev  # noqa: E402
 from jevh.tools import TOOLS  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 HERE = Path(__file__).resolve().parent
 RAW = HERE / "devices_cases_raw.json"
@@ -195,14 +197,16 @@ def main() -> None:
     ap.add_argument("--holdout", action="store_true")
     ap.add_argument("--regression", action="store_true", help="also evals/tool_cases.py's cases, old vs new")
     ap.add_argument("--repeat", type=int, default=3)
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     path = RAW_HOLDOUT if a.holdout else RAW
     if a.offline:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw = json.loads(dest.read(path).read_text(encoding="utf-8"))
     else:
         sys.path.insert(0, str(HERE))
         raw = run_live(HOLDOUT if a.holdout else CASES, a.repeat, a.regression)
-        path.write_text(json.dumps(raw, indent=1), encoding="utf-8")
+        dest.write(path).write_text(json.dumps(raw, indent=1), encoding="utf-8")
     lines = [f"devices tool pick ({'held-out' if a.holdout else 'cases'}); config threshold {raw['threshold']}; "
              f"{raw.get('jev_calls', '?')} Jev calls, {raw.get('seconds', '?')} s"]
     lines += sweep(raw, raw["threshold"])
@@ -212,7 +216,9 @@ def main() -> None:
     text = "\n".join(lines)
     print(text)
     if not a.offline:
-        SUMMARY.with_name(SUMMARY.stem + ("_holdout" if a.holdout else "") + ".txt").write_text(text + "\n", encoding="utf-8")
+        summary = dest.write(SUMMARY.with_name(SUMMARY.stem + ("_holdout" if a.holdout else "") + ".txt"))
+        summary.write_text(text + "\n", encoding="utf-8")
+        print(f"raw scores: {dest.where(dest.write(path))}   summary: {dest.where(summary)}")
 
 
 if __name__ == "__main__":

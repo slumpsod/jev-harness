@@ -24,6 +24,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent))
+sys.path.insert(0, str(ROOT))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 CART = "localStorage.setItem('cart', JSON.stringify([{id:'blue-mug',name:'Blue ceramic mug',size:'Large',qty:1}]))"
 DONE = {"done", "likely_done"}
@@ -128,7 +130,9 @@ def main() -> None:
     ap.add_argument("--headed", action="store_true")
     ap.add_argument("-k", default="")
     ap.add_argument("--buttons", action="store_true", help="print Jev's scores for every button it checks")
+    _out.add_args(ap)
     args = ap.parse_args()
+    dest = _out.Out.of(args)
     if args.cloud:
         os.environ["JEVH_TOOLS_JEV"] = "cloud"
     from jevh.tools.browser import Session
@@ -176,8 +180,9 @@ def main() -> None:
     n = len(cases)
     print(f"\n{ok}/{n} correct, {false_done} false 'done', {t_all:.0f}s total, {t_all / max(n, 1):.1f}s per goal "
           f"({'cloud' if args.cloud else 'local ' + os.environ.get('JEVH_JEV_BACKEND', 'semif')})")
-    out = ROOT / f"browser_{'cloud' if args.cloud else 'local'}_results.json"
+    out = dest.write(ROOT / f"browser_{'cloud' if args.cloud else 'local'}_results.json")
     out.write_text(json.dumps(rows, indent=1), encoding="utf-8")
+    print(f"results saved to {dest.where(out)}")
 
 
 if __name__ == "__main__":

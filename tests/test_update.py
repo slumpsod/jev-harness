@@ -1,16 +1,15 @@
 """Updating the harness from GitHub (jevh/update.py), against a local bare repo standing in for GitHub."""
-import subprocess
-
 import pytest
 
 from jevh import update
 from jevh.cli import main as cli_main
 
+from conftest import git
 from test_web import BASE, auth, make_client
 
 
 def sh(cwd, *args):
-    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+    return git(cwd, *args).strip()   # (skips the test where git isn't installed)
 
 
 def commit(repo, name, text, msg):

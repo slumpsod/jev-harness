@@ -34,6 +34,7 @@ from jevh.config import load_config  # noqa: E402
 from jevh.history import MIXED, conversation, settings  # noqa: E402
 from jevh.jev import Jev  # noqa: E402
 from jevh.personas import load_personas  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = Path(__file__).with_name("session_category_cases_raw.json")
 DEV_, DAILY, FIT, DESIGN, COMFY = "high_end_dev", "daily_assistant", "fitness_coach", "front_end_designer", "comfyui_manager"
@@ -221,11 +222,13 @@ def main() -> None:
     ap.add_argument("--offline", action="store_true", help="re-sweep the saved raw scores")
     ap.add_argument("--holdout", action="store_true", help="only the held-out cases")
     ap.add_argument("--runs", type=int, default=1)
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     cfg = load_config()
     at = float(settings(cfg.raw)["min_confidence"])
     if a.offline:
-        saved = json.loads(RAW.read_text(encoding="utf-8"))
+        saved = json.loads(dest.read(RAW).read_text(encoding="utf-8"))
         sets = {k: v for k, v in saved.items() if not a.holdout or k == "held"}
     else:
         sets = {}
@@ -234,7 +237,8 @@ def main() -> None:
         sets["held"] = run_live(HELD, a.runs)
         if not a.holdout:
             sets["hard"] = run_live(HARD, a.runs)
-            RAW.write_text(json.dumps(sets, indent=1), encoding="utf-8")
+            dest.write(RAW).write_text(json.dumps(sets, indent=1), encoding="utf-8")
+            print(f"raw scores saved to {dest.where(dest.write(RAW))}")
     for name, rows in sets.items():
         report(name, rows, at)
         print("   sweep:")

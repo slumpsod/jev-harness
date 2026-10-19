@@ -760,7 +760,8 @@ class Session:
         try:
             args = [exe, *chrome_args(port, folder, (viewport["width"], viewport["height"] + 100), docked)]
             if self.kept:   # started outside this task's process tree, so ending the task leaves it open
-                out = subprocess.run([sys.executable, "-c", _DETACH, *args], capture_output=True, text=True, timeout=20)
+                out = subprocess.run([sys.executable, "-c", _DETACH, *args], capture_output=True, text=True, timeout=20,
+                                     encoding="utf-8", errors="replace")
                 self._kept_pid = int(out.stdout.split()[0])
             else:
                 self._proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

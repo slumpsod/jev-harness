@@ -62,6 +62,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "evals"))
 sys.path.insert(0, str(HERE))
 
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 import interject_cases as ic  # noqa: E402
 import lmstudio_log  # noqa: E402
 
@@ -432,12 +433,15 @@ def main() -> None:
     ap.add_argument("--stage", default=DEFAULT_STAGES, help="also: retry (not in the default run)")
     ap.add_argument("--reps", type=int, default=2)
     ap.add_argument("--model", help="pin every persona to one model, e.g. lmstudio:qwen3.8-27b@q6_k (recommended)")
-    ap.add_argument("--report", action="store_true", help="print the last run's summary")
+    ap.add_argument("--report", action="store_true", help="print the last run's summary (the committed one, or --out's)")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     if a.report:
-        print(SUMMARY.read_text(encoding="utf-8") if SUMMARY.exists() else "no runs yet")
+        last = dest.read(SUMMARY)
+        print(last.read_text(encoding="utf-8") if last.exists() else "no runs yet")
         return
-    summary = SUMMARY if a.stage == DEFAULT_STAGES else HERE / f"interject_{a.stage.replace(',', '_')}_summary.txt"
+    summary = dest.write(SUMMARY if a.stage == DEFAULT_STAGES else HERE / f"interject_{a.stage.replace(',', '_')}_summary.txt")
     stamp = time.strftime("%Y%m%d-%H%M%S")
     out = RUNS / stamp
     out.mkdir(parents=True, exist_ok=True)
@@ -466,7 +470,7 @@ def main() -> None:
     text = summarize(res)
     (out / "summary.txt").write_text(text, encoding="utf-8")
     summary.write_text(text, encoding="utf-8")
-    print("\n" + text)
+    print("\n" + text + f"\n\nsummary: {dest.where(summary)}")
 
 
 if __name__ == "__main__":

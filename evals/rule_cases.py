@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from jevh.config import load_config  # noqa: E402
 from jevh.decide import SystemOneClient, noul  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = Path(__file__).with_name("rule_cases_raw.json")
 NEW_FILES = {"scripts/dev_seed.py", "app/client_wrapper.py", "migrations/0012_order_total_numeric.py"}
@@ -194,9 +195,15 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--holdout", action="store_true")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     cases, raw = (HOLDOUT, RAW_HOLDOUT) if a.holdout else (CASES, RAW)
-    rows = json.loads(raw.read_text(encoding="utf-8")) if a.offline else run_live(cases, raw)
+    if a.offline:
+        rows = json.loads(dest.read(raw).read_text(encoding="utf-8"))
+    else:
+        rows = run_live(cases, dest.write(raw))
+        print(f"raw scores saved to {dest.where(dest.write(raw))}")
     report(cases, rows)
 
 

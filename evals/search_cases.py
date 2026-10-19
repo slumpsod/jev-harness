@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from jevh.config import load_config  # noqa: E402
 from jevh.decide import SystemOneClient, noul  # noqa: E402
 from jevh.orchestrator import TESTABLE_Q  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 DATA = Path(__file__).with_name("search_cases_data.json")
 RAW = {"tuning": Path(__file__).with_name("search_cases_raw.json"),
@@ -85,10 +86,16 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--holdout", action="store_true")
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     which = "holdout" if a.holdout else "tuning"
     cs = cases(which)
-    rows = json.loads(RAW[which].read_text(encoding="utf-8")) if a.offline else run_live(cs, RAW[which])
+    if a.offline:
+        rows = json.loads(dest.read(RAW[which]).read_text(encoding="utf-8"))
+    else:
+        rows = run_live(cs, dest.write(RAW[which]))
+        print(f"raw scores saved to {dest.where(dest.write(RAW[which]))}")
     report(cs, rows)
 
 

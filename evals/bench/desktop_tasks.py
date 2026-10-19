@@ -19,7 +19,8 @@ Each run is its own process (a crash or a hang ends that run, not the bench), ki
 
 Measured per run: pass (against ground truth), seconds, code steps, worker output tokens, Jev calls made inside tools, how
 often the worker wrote its own ctypes/comtypes/pyautogui code, and whether it used desktop.*. Results: runs/desktop/<stamp>/
-results.json (raw, with every check's inputs) and a plain-text summary beside this file.
+results.json (raw, with every check's inputs) and a plain-text summary in workspace/evals/<backend>/bench/ (--out DIR;
+--save-committed: the committed one beside this file; see evals/_out.py).
 """
 from __future__ import annotations
 
@@ -36,6 +37,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
+
 RUNS = HERE / "runs" / "desktop"
 SUMMARY = HERE / "desktop_tasks_last_summary.txt"
 FIXTURE = REPO / "evals" / "desktop_fixture"
@@ -554,7 +558,9 @@ def main() -> None:
     ap.add_argument("--child", action="store_true")
     ap.add_argument("--root")
     ap.add_argument("--spec")
+    _out.add_args(ap)
     args = ap.parse_args()
+    dest = _out.Out.of(args)
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if args.child:
         return run_child(args)
@@ -562,16 +568,16 @@ def main() -> None:
         paths = [Path(args.regrade)] if args.regrade else [Path(x) for x in args.report] or             [max(RUNS.glob("*/results.json"), key=lambda p: p.stat().st_mtime)]
         merged: dict[tuple, dict] = {}
         for path in paths:
-            for r in json.loads(path.read_text(encoding="utf-8")):
+            for r in json.loads(dest.read(path).read_text(encoding="utf-8")):
                 merged[(r["arm"], r["task"], r["rep"])] = r
         rows = [r for r in merged.values() if f"{r['task']}:{r['rep']}" not in args.drop and r["task"] not in args.drop]
         if args.regrade:
             rows = regrade(rows)
-            paths[0].write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
+            dest.write(paths[0]).write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
         text = summarize(rows)
         print(text)
         if args.report:
-            SUMMARY.write_text(text + "\n", encoding="utf-8")
+            dest.write(SUMMARY).write_text(text + "\n", encoding="utf-8")
         return
     LIMIT, PERSONA = args.limit, args.persona
     build_fixture()
@@ -592,8 +598,9 @@ def main() -> None:
                 rows.append(run_once(arm, roots[arm], task, rep, run_dir))
                 (run_dir / "results.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
     text = summarize(rows)
-    SUMMARY.write_text(text + "\n", encoding="utf-8")
-    print("\n" + text)
+    summary = dest.write(SUMMARY)
+    summary.write_text(text + "\n", encoding="utf-8")
+    print("\n" + text + f"\n\nresults: {dest.where(run_dir / 'results.json')}   summary: {dest.where(summary)}")
 
 
 if __name__ == "__main__":

@@ -21,7 +21,8 @@ Two parts, each before and after the fix:
 
 Needs: the worker model and Jev your config names (designed on Qwen3.8 27B on llama-server and local semif Jev), Chrome
 or Edge, and Playwright in the Python running this. The before arm is BEFORE_REF exported with `git archive` (with your
-config.local.yaml copied in). Raw: browser_dock_e2e_raw.json; summary: browser_dock_e2e_summary.txt.
+config.local.yaml copied in). Raw: browser_dock_e2e_raw.json; summary: browser_dock_e2e_summary.txt
+(a live run writes to workspace/evals/<backend>/; --offline re-sweeps the committed ones; see evals/_out.py).
 """
 from __future__ import annotations
 
@@ -40,6 +41,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 from browser_dock import BEFORE_REF, EMAIL, INPUT_AT, SECRET, Site, pq  # noqa: E402
 
 RAW = HERE / "browser_dock_e2e_raw.json"
@@ -295,20 +298,24 @@ def main() -> None:
     ap.add_argument("--child")
     ap.add_argument("--root")
     ap.add_argument("--rep", type=int, default=0)
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     if a.child:
         task = next(t for t in TASKS if t["name"] == a.child)
         print("RESULT " + json.dumps(child(task, a.root, a.rep), default=str))
         return
     if a.offline:
-        print(summarize(json.loads(RAW.read_text(encoding="utf-8")), f"browser_dock_e2e (offline re-grade of {RAW.name})"))
+        raw = dest.read(RAW)
+        print(summarize(json.loads(raw.read_text(encoding="utf-8")), f"browser_dock_e2e (offline re-grade of {dest.where(raw)})"))
         return
     tasks = [t for t in TASKS if bool(t.get("holdout")) == a.holdout and a.part in ("both", t["part"])]
     if a.k:
         tasks = [t for t in TASKS if any(k in t["name"] for k in a.k.split(","))]
     arms = [("before", export_before(BEFORE_REF)), ("after", str(REPO))]
     arms = [x for x in arms if a.arm in ("both", x[0])]
-    old = json.loads(RAW.read_text(encoding="utf-8")) if RAW.is_file() else []
+    raw = dest.write(RAW)   # (a later run of a task replaces it)
+    old = json.loads(raw.read_text(encoding="utf-8")) if raw.is_file() else []
     results = []
     for rep in range(a.repeat):
         for t in tasks:
@@ -330,11 +337,12 @@ def main() -> None:
                 print(f"       -> {'pass' if g['pass'] else 'FAIL'} {[k for k, v in g['checks'].items() if not v] or ''} "
                       f"({r.get('seconds')}s) {str(r.get('answer', ''))[:160]!r}", flush=True)
     keep = {(r["arm"], r["task"], r["rep"]) for r in results}
-    RAW.write_text(json.dumps([r for r in old if (r["arm"], r["task"], r["rep"]) not in keep] + results, indent=1,
+    raw.write_text(json.dumps([r for r in old if (r["arm"], r["task"], r["rep"]) not in keep] + results, indent=1,
                               default=str), encoding="utf-8")
     text = summarize(results, f"browser_dock_e2e: {len(results)} turns, {time.strftime('%Y-%m-%d %H:%M')}")
-    SUMMARY.write_text(text + "\n", encoding="utf-8")
-    print("\n" + text)
+    summary = dest.write(SUMMARY)
+    summary.write_text(text + "\n", encoding="utf-8")
+    print("\n" + text + f"\n\nraw: {dest.where(raw)}   summary: {dest.where(summary)}")
 
 
 if __name__ == "__main__":

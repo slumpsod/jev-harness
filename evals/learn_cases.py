@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from jevh.config import load_config  # noqa: E402
 from jevh.decide import SystemOneClient, noul  # noqa: E402
 from jevh.learn import FACT_Q, SAME_FACT_Q, SKILL_Q  # noqa: E402
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 RAW = Path(__file__).with_name("learn_cases_raw.json")
 
@@ -117,7 +118,8 @@ SKILLS = [  # (task, work log, worth a skill?)
 ]
 
 
-def run_live() -> dict:
+def run_live(path: Path | None = None) -> dict:
+    path = path or RAW
     cfg = load_config()
     c = SystemOneClient(cfg.jev["url"], cfg.jev["backend"], timeout=300)
     raw = {"facts": [], "same": [], "skills": []}
@@ -128,7 +130,7 @@ def run_live() -> dict:
                                  {"q": noul(SAME_FACT_Q.replace("`old_fact`", "`old_facts.f1`"))})["q"].noul)
     for task, log, _ in SKILLS:
         raw["skills"].append(c.ask({"task": task, "work_log": log}, {"q": noul(SKILL_Q)})["q"].noul)
-    RAW.write_text(json.dumps(raw, indent=1), encoding="utf-8")
+    path.write_text(json.dumps(raw, indent=1), encoding="utf-8")
     return raw
 
 
@@ -144,7 +146,14 @@ def sweep(name: str, scores: list[float], labels: list[bool]) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true")
-    raw = json.loads(RAW.read_text(encoding="utf-8")) if ap.parse_args().offline else run_live()
+    _out.add_args(ap)
+    a = ap.parse_args()
+    dest = _out.Out.of(a)
+    if a.offline:
+        raw = json.loads(dest.read(RAW).read_text(encoding="utf-8"))
+    else:
+        raw = run_live(dest.write(RAW))
+        print(f"raw scores saved to {dest.where(dest.write(RAW))}")
     sweep("fact: states a lasting fact", raw["facts"], [c[2] for c in FACTS])
     sweep("same_fact: retire the old fact", raw["same"], [c[2] for c in SAME])
     sweep("learn_skill: reusable procedure", raw["skills"], [c[2] for c in SKILLS])
