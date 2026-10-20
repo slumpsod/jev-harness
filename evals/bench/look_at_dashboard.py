@@ -31,6 +31,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 from look_at_files import FORM, RECEIPT, make  # noqa: E402
 
 RAW = HERE / "look_at_dashboard_raw.json"
@@ -132,7 +134,9 @@ def grade(run: dict, r: dict, ws: Path | None) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repeat", type=int, default=1)
+    _out.add_args(ap)
     a = ap.parse_args()
+    dest = _out.Out.of(a)
     from playwright.sync_api import sync_playwright
     stamp = time.strftime("%Y%m%d-%H%M%S")
     shots = HERE / "runs" / "look_at_dashboard" / stamp
@@ -163,8 +167,8 @@ def main() -> None:
         lines.append(f"      answer: {str(r.get('answer'))[:300]!r}")
     lines.append(f"  total: {ok}/{len(results)}")
     text = "\n".join(lines)
-    RAW.write_text(json.dumps(results, indent=1, default=str), encoding="utf-8")
-    SUMMARY.write_text(text + "\n", encoding="utf-8")
+    dest.write(RAW).write_text(json.dumps(results, indent=1, default=str), encoding="utf-8")
+    dest.write(SUMMARY).write_text(text + "\n", encoding="utf-8")
     print("\n" + text)
     shutil.rmtree(tmp, ignore_errors=True)
 

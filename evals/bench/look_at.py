@@ -36,7 +36,8 @@ or OCR. Reported per arm with rates, time, steps and model tokens.
 Needs: the worker model and Jev your config names (designed on Qwen3.8 27B with its vision projector on llama-server,
 and the local semif Jev), Pillow and PyMuPDF in the Python running this (it makes the files), and network access once
 to build the two venvs (%TEMP%/jevh-lookat-venv-old, -new). Raw: look_at_raw.json; summary: look_at_summary.txt
-(look_at_holdout_summary.txt, look_at_direct_summary.txt).
+(look_at_holdout_summary.txt, look_at_direct_summary.txt): a live run writes them to workspace/evals/<backend>/bench/,
+--offline re-grades the committed ones, --save-committed replaces those (evals/_out.py).
 """
 from __future__ import annotations
 
@@ -55,6 +56,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent))
+import _out  # noqa: E402  (evals/_out.py: where a run's results go)
 
 BEFORE_REF = "15cc4bd"          # origin/main before look_at
 PERSONA = "daily_assistant"
@@ -410,6 +413,7 @@ def main() -> None:
     ap.add_argument("--rep", type=int, default=0)
     ap.add_argument("--text")
     ap.add_argument("--path")
+    _out.add_args(ap)
     a = ap.parse_args()
     if a.child:
         case = next(c for c in CASES if c["name"] == a.child)
@@ -420,9 +424,11 @@ def main() -> None:
         print("RESULT " + json.dumps(child_direct(a.direct, q, a.root, a.rep, a.path), default=str))
         return
     split = "holdout" if a.holdout else "main"
+    dest = _out.Out.of(a)
     raw = RAW if a.part == "turns" else HERE / "look_at_direct_raw.json"
     summary = HERE / ("look_at_direct_summary.txt" if a.part == "direct" else f"look_at{'_holdout' if a.holdout else ''}_summary.txt")
     if a.offline:
+        raw = dest.read(raw)
         old = json.loads(raw.read_text(encoding="utf-8"))
         if a.part == "direct":
             print(summarize_direct(old, f"look_at direct (offline re-grade of {raw.name})"))
@@ -433,6 +439,7 @@ def main() -> None:
     sys.path.insert(0, str(HERE))
     from look_at_files import make
     files = make(FILES)
+    raw, summary = dest.write(raw), dest.write(summary)   # (a live run: outside git unless --save-committed)
     old = json.loads(raw.read_text(encoding="utf-8")) if raw.is_file() else []
     results = []
     if a.part == "direct":
