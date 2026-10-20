@@ -1,0 +1,15 @@
+look_at turns, holdout: 4 turns, 2026-10-19 18:06
+
+== old
+  sticky_note            fire      0/1 pass (held out)  correct 0/1, vision used 0/1, OCR tried 1/1 (2 steps), installs attempted 2, opened in an app 0
+      avg 360s, 40.0 code steps, 504.5k tokens, 80.0 model calls
+  lease_scan_page3       fire      0/1 pass (held out)  correct 1/1, vision used 0/1, OCR tried 1/1 (1 steps), installs attempted 2, opened in an app 0
+      avg 288s, 28.0 code steps, 386.2k tokens, 51.0 model calls
+  text_pdf_named_scan    lookalike 1/1 pass (held out)  correct 1/1, vision used 0/1, OCR tried 0/1 (0 steps), installs attempted 0, opened in an app 0
+      avg 35s, 6.0 code steps, 51.2k tokens, 29.0 model calls
+  notes_txt              lookalike 1/1 pass (held out)  correct 1/1, vision used 0/1, OCR tried 0/1 (0 steps), installs attempted 0, opened in an app 0
+      avg 17s, 2.0 code steps, 25.4k tokens, 22.0 model calls
+  total: 2/4 pass; per turn avg 175s, 19.0 code steps, 241.8k tokens, 45.5 model calls
+    FAIL sticky_note rep 0: correct, no_install - '[stopped by the user before finishing]'
+    FAIL lease_scan_page3 rep 0: no_install - 'Your lease ends July 31, 2027, and the monthly rent is $1,950 — the OCR\'d lease line reads "Monthly rent: $1 ,950, due on the 1st" (the spac'
+
