@@ -54,6 +54,7 @@ python evals/bench/desktop_tasks.py --arm both --repeat 2   # desktop tool, 18 t
 python evals/desktop_cases.py          # Jev's choice of control / done / gate on saved windows (--capture first; --holdout, --offline)
 python evals/newsroom_cases.py         # Newsroom (run 2026-10-09, below target on the tool pick and routing): Jev offers the tool for "keep an eye on..." and not for one-off lookups; routing old vs new; the `about` alert (--holdout, --offline, --runs, --export/--labelled)
 python evals/bench/newsroom.py         # Newsroom end to end (run 2026-10-09): real feeds, full turns old vs new, the dashboard path (--stage sources|turns|dashboard, --arm auto|both, --reps; no desktop tool in its workers; run with Nango off)
+python evals/bench/cron.py            # Cron jobs on live models (UNVERIFIED until run; see docs/architecture/23-cron.md): a job does its work in a session of its own with nobody to answer, Stop and the time limit, the timer starts a due job once even with two dashboards (--repeat, --holdout, --stage jobs|timer, --offline)
 python evals/devices_cases.py          # devices: does Jev give the worker the tool for "on my laptop" requests and not for lookalikes; old roster vs new (--regression adds tool_cases.py, --holdout, --offline, --repeat)
 python evals/bench/devices.py --origin --repeat 3   # "this computer" = the computer the message was written on: the same requests from a device and from the hub, the harness told where (new) or not (old); --holdout
 python evals/bench/devices.py --repeat 3   # devices end to end: full turns on live models with a device connected (files, shell, fetch, browser, the confirmation gate, lookalikes), old (no devices) vs new; --remote NAME for a real other computer
@@ -93,6 +94,7 @@ python evals/thinking_watch_cases.py   # when to pause a long think and test the
 #   your last run); --save-committed writes the committed files, for a run that should become the reference
 jevh failures                          # logged failures; `export out.jsonl` to study them
 jevh review                            # flagged sessions; `flag <session> "note"`, `run <id>` (a model's verdict)
+jevh cron                              # cron jobs (tasks done on a schedule): `add "name" "request" -s "weekdays at 8:30"`, `run`, `runs`, `pause`, `resume`, `rm`
 jevh newsroom                          # the Newsroom board (widgets that follow news and posts; ask in the chat to add one)
 jevh notebook                          # your notebook; `idea "..."`, `problem "..."`, `done <id>`, `-q words`
 ```
@@ -118,6 +120,7 @@ stops, `/steer <text>` always adds.
 | `jevh failures`, `jevh review` | the failure log, flagged sessions |
 | `jevh notebook` | your notebook of ideas and problems |
 | `jevh newsroom` | the Newsroom board from a terminal: `kinds`, `add`, `refresh`, `notes`, `rm` (see [docs/newsroom.md](docs/newsroom.md)) |
+| `jevh cron` | cron jobs from a terminal: `add`, `run`, `runs`, `pause`, `resume`, `rm` (see [docs/architecture/23-cron.md](docs/architecture/23-cron.md)) |
 | `jevh context` | the context window each model is loaded with, and where the harness will condense its steps |
 | `jevh app` | the desktop app: the dashboard in a window, a tray icon, and while it is minimized a floating orb you click to chat; on another computer, it also lets the assistant use it (see [docs/devices.md](docs/devices.md)) |
 | `jevh users` | accounts that sign in to the dashboard from other devices: `add`, `list`, `password`, `remove` |

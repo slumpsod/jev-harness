@@ -6,6 +6,7 @@
     jevh failures | jevh review                    # the failure log, flagged sessions
     jevh notebook                                  # your notebook of ideas and problems
     jevh newsroom                                  # the Newsroom: widgets that follow news and posts (docs/newsroom.md)
+    jevh cron                                      # cron jobs: tasks done on a schedule (docs/architecture/23-cron.md)
     jevh home [move]                               # move your own things out of the checkout
     jevh app                                       # the desktop app: the dashboard in a window, a tray icon (docs/devices.md)
     jevh users add|list|password|remove            # accounts that sign in to the dashboard from other devices
@@ -355,6 +356,8 @@ def subcommand(name: str):
         from .notebook import main
     elif name == "newsroom":
         from .newsroom import main
+    elif name == "cron":
+        from .cron import main
     elif name == "home":
         from .home import main
     elif name == "context":

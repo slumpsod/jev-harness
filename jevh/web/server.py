@@ -38,6 +38,7 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 
 from .. import context as ctxwin
+from .. import cron
 from .. import settings as usersettings
 from .. import newsroom as nr
 from .. import update as updater
@@ -129,6 +130,22 @@ class Hub:
         self.newsroom_runner = nr.Runner(
             self.newsroom, on_alerts=lambda notes: self.publish("newsroom_alert", {"notes": notes}),
             on_change=lambda: self.publish("newsroom", {"rev": self.newsroom.rev()}))
+        # cron jobs (jevh/cron.py): the page lists them; the runner starts each on its schedule, in a harness of its own
+        self.cron_cfg = cron.settings(cfg.raw)
+        self.cron = cron.CronJobs(cfg.workspace / "cron.db", self.cron_cfg)
+        self.cron_runner = cron.Runner(
+            self.cron, self._run_cron_job, ready=lambda: not self.busy.locked(),   # (not while a turn of the user's runs)
+            on_change=lambda: self.publish("cron", {"rev": self.cron.rev()}),
+            on_done=lambda job, run: self.publish("cron_done", {"job": job["name"], "id": job["id"], "status": run["status"],
+                                                               "error": run.get("error") or "", "answer": (run.get("answer") or "")[:200]}))
+
+    def _run_cron_job(self, job: dict, cancel: threading.Event, on_session) -> dict:
+        """Do one cron job on a harness of its own: a new session that is no part of the chat (History lists it)."""
+        def make(on_event):
+            h = self._factory(on_event)
+            h.devices = self.devices
+            return h
+        return cron.run_job(job, make, cancel, float(self.cron_cfg["timeout_minutes"]) * 60, on_session)
 
     def _adopt(self, harness) -> None:
         harness.browser_dock = True   # a watched browser shows in the Browser panel, not a window
@@ -471,8 +488,11 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         hub.devices.loop = hub.loop            # and calls to devices to their connections
         if hub.newsroom_cfg["enabled"]:
             hub.newsroom_runner.start()
+        if hub.cron_cfg["enabled"]:
+            hub.cron_runner.start()
         yield
         hub.newsroom_runner.stop()
+        hub.cron_runner.stop()
         try:   # the dashboard is going away: so is the browser the session kept open
             from ..tools.browser import close_kept
             await asyncio.to_thread(close_kept, Path(hub.harness.session_dir))
@@ -1099,6 +1119,85 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
     @app.post("/api/newsroom/notes/clear")
     async def newsroom_notes_clear() -> dict:
         hub.newsroom.clear_notes()
+        return {"ok": True}
+
+    # -- Cron jobs: tasks done on a schedule (jevh/cron.py) -----------------------------------------------------------
+    def cron_call(fn, *a, **kw):
+        try:
+            return fn(*a, **kw)
+        except cron.CronError as e:
+            raise HTTPException(400, str(e)) from None
+
+    def cron_persona(body: dict) -> str | None:
+        pin = body.get("persona") or None
+        if pin and pin not in hub.harness.personas:
+            raise HTTPException(400, f"no assistant called '{pin}'")
+        return pin
+
+    @app.get("/api/cron")
+    def cron_board(rev: int = -1) -> dict:
+        """The jobs. With `rev` equal to the current one, only says nothing changed (a page polls with it)."""
+        if rev == hub.cron.rev():
+            return {"rev": rev, "unchanged": True, "unseen": hub.cron.unseen()}
+        return {"rev": hub.cron.rev(), "jobs": hub.cron.jobs(), "unseen": hub.cron.unseen(), "running": hub.cron_cfg["enabled"],
+                "min_minutes": hub.cron_cfg["min_minutes"], "grace_minutes": hub.cron_cfg["grace_minutes"], "now": time.time()}
+
+    @app.post("/api/cron/check")
+    async def cron_check(request: Request) -> dict:
+        """What a schedule means and when it next runs (the form shows it as the schedule is typed)."""
+        body = await request.json()
+        text = cron_call(cron.check, str(body.get("schedule") or ""), int(hub.cron_cfg["min_minutes"]))
+        return {"schedule": text, "human": cron.describe(text), "next": cron.CronExpr(text).next_after(time.time())}
+
+    @app.post("/api/cron/add")
+    async def cron_add(request: Request) -> dict:
+        body = await request.json()
+        j = cron_call(hub.cron.add, body.get("name"), body.get("prompt"), body.get("schedule"), persona=cron_persona(body),
+                      enabled=body.get("enabled", True))
+        hub.publish("cron", {"rev": hub.cron.rev()})
+        return {"job": j}
+
+    @app.post("/api/cron/update")
+    async def cron_update(request: Request) -> dict:
+        body = await request.json()
+        change = {k: body[k] for k in ("name", "prompt", "schedule", "enabled") if k in body}
+        if "persona" in body:
+            change["persona"] = cron_persona(body)
+        j = cron_call(hub.cron.update, num(body, "id"), **change)
+        hub.publish("cron", {"rev": hub.cron.rev()})
+        return {"job": j}
+
+    @app.post("/api/cron/delete")
+    async def cron_delete(request: Request) -> dict:
+        body = await request.json()
+        jid = num(body, "id")
+        hub.cron_runner.stop_run(jid)
+        if not hub.cron.delete(jid):
+            raise HTTPException(404, "no such job")
+        hub.publish("cron", {"rev": hub.cron.rev()})
+        return {"ok": True}
+
+    @app.post("/api/cron/run")
+    async def cron_run(request: Request) -> dict:
+        """Run a job now (its schedule is left alone). It runs in the background; the page sees it start and end."""
+        body = await request.json()
+        return {"run": cron_call(hub.cron_runner.run_now, num(body, "id"))}
+
+    @app.post("/api/cron/stop")
+    async def cron_stop(request: Request) -> dict:
+        body = await request.json()
+        return {"stopped": hub.cron_runner.stop_run(num(body, "id"))}
+
+    @app.get("/api/cron/runs")
+    def cron_runs(id: int, limit: int = 20) -> dict:
+        cron_call(hub.cron.need, id)
+        return {"runs": hub.cron.runs(id, max(1, min(limit, 100)))}
+
+    @app.post("/api/cron/seen")
+    async def cron_seen(request: Request) -> dict:
+        body = await request.json() if await request.body() else {}
+        hub.cron.mark_seen(num(body, "id") if body.get("id") else None)
+        hub.publish("cron", {"rev": hub.cron.rev()})
         return {"ok": True}
 
     # -- Settings page: the model, the quick model and the web search engine (jevh/settings.py) ---------------------------

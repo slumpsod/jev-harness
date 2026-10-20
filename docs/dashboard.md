@@ -10,7 +10,7 @@ The left rail (a bar along the bottom on a phone) opens two kinds of view:
 
 - **Panels** (Inspector, Artifacts, Memory, Browser, History, Review, Notebook) open beside the chat, which stays in view.
   The same tab again, Esc or the X closes one.
-- **Pages** (Newsroom, below the rail's divider, and Settings, the sliders icon above Appearance) take the place of the chat
+- **Pages** (Newsroom and Cron, below the rail's divider, and Settings, the sliders icon above Appearance) take the place of the chat
   and its panel, so they can use the whole width: the Newsroom's tiles fill as many columns as fit (a Large tile takes two),
   and Settings has its sections in a column of their own. **Chat** at the top of a page, Esc (outside a text field) or the
   page's rail button again goes back to the chat as you left it, scrolled where you were, with the panel that was open. A
@@ -20,6 +20,19 @@ A turn that adds a Newsroom widget opens the Newsroom page with the new tile mar
 Artifacts panel (switch both off with *Open panels and pages for you* in Appearance). In the page's script, `openPanel` and
 `closePanel` drive the panels and `showPage` and `showChat` the pages (`S.tab` is the open panel, `S.view` is `"chat"` or
 the page shown).
+
+## Cron
+
+The clock icon below the divider opens **Cron**: jobs the assistant does on a schedule. **Add job** takes a name, what the assistant should do each
+time, and when: a cron expression (`30 8 * * 1-5`) or a phrase (`weekdays at 8:30`, `every 15 minutes`, `every monday at 2pm`, `monthly on the 1st`).
+The form says what it understood and when the job runs next as you type, and refuses a schedule faster than every 5 minutes. A job can be pinned to
+one assistant or left to Jev's routing.
+
+Each run is a turn of its own in a new session, so it never touches the chat; **Runs** on a job shows what each one did (the answer, how long, or
+why it failed) with **Open in chat** to carry on that session. **Run now** runs it at once without moving its schedule; **Stop** ends a run. A
+finished run shows a toast and puts a count on the rail's clock until you open the job's runs. Jobs only run while the dashboard is open; one
+whose time passed while it was closed (or while you were mid-turn for more than 10 minutes) is listed as *missed*, not run late. How it works:
+[architecture/23-cron.md](architecture/23-cron.md). The same from a terminal: `jevh cron`.
 
 ## Sending files
 

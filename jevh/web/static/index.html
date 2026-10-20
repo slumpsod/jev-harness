@@ -702,6 +702,33 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
   #p-settings .arow select, #p-settings .arow input, #p-devices .arow input { max-width: 100%; width: 100%; }
 }
 
+/* cron */
+.crgrid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); align-items: start; }
+.crc { margin: 0; padding: 12px 14px; min-width: 0; }
+.crc.paused { opacity: .72; }
+.crh { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.crh h3 { flex: 1; min-width: 0; margin: 0; font: 650 14px/1.3 var(--font-display); overflow-wrap: anywhere; }
+.crh .n { font-style: normal; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--grad); color: var(--on-accent); }
+.crwhen { font-size: 13px; } .crwhen code { font-size: 11.5px; color: var(--muted); margin-left: 6px; }
+.crstat { font-size: 12px; color: var(--muted); margin: 3px 0 6px; overflow-wrap: anywhere; } .crstat.err { color: var(--bad-ink); }
+.crprompt { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.crruns { margin-top: 8px; border-top: 1px solid var(--line); }
+.crrun { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; overflow-wrap: anywhere; }
+.crrun:last-child { border-bottom: 0; }
+.crrun .m { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: 11.5px; }
+.crrun pre { white-space: pre-wrap; margin: 6px 0 0; font: inherit; max-height: 220px; overflow: auto; }
+.crrun.unseen .m::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.badge.ok { background: var(--grad); border-color: transparent; color: var(--on-accent); }
+.badge.error, .badge.interrupted { background: color-mix(in srgb, var(--bad) 14%, transparent); border-color: color-mix(in srgb, var(--bad) 40%, transparent); color: var(--bad-ink); }
+.badge.queued, .badge.missed, .badge.skipped, .badge.off { background: var(--surface3); color: var(--muted); }
+.crdlg.dlg { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow: auto; }
+.crdlg form { display: grid; gap: 10px; }
+.crdlg.dlg form label { display: grid; gap: 4px; margin: 0; font-size: 12.5px; color: var(--muted); }
+.crdlg.dlg form label.inl { display: flex; align-items: center; gap: 8px; }
+.crdlg input[type=text], .crdlg select, .crdlg textarea { width: 100%; }
+.crdlg textarea { min-height: 96px; }
+.crsay { font-size: 12.5px; min-height: 1.4em; overflow-wrap: anywhere; } .crsay.err { color: var(--bad-ink); }
+.crex { display: flex; gap: 6px; flex-wrap: wrap; } .crex button { border-radius: var(--pill); font-size: 12px; padding: 3px 10px; text-align: left; }
 /* newsroom */
 .nr { container-type: inline-size; }
 .nrnotes { margin-bottom: 14px; }
@@ -1030,6 +1057,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
   <symbol id="i-type" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></symbol>
   <symbol id="i-news" viewBox="0 0 24 24"><path d="M5 4h11a2 2 0 0 1 2 2v13.5a1.5 1.5 0 0 0 3 0V9h-3M5 4v13.5A2.5 2.5 0 0 0 7.5 20H18M8.5 8h6M8.5 11.5h6M8.5 15h3.5"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.2L4 8.5M4 4v4.5h4.5M4 13a8 8 0 0 0 14.3 4.2l1.7-1.7M20 20v-4.5h-4.5"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15zM10 20.5a2 2 0 0 0 4 0"/></symbol>
@@ -1053,6 +1081,7 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
       <button class="rbtn" data-tab="notebook" data-tip="Notebook: ideas and problems to come back to" aria-label="Notebook"><svg class="ic"><use href="#i-book"/></svg><i class="count" id="nbcount" hidden></i></button>
       <i class="rsep" aria-hidden="true"></i>
       <button class="rbtn" data-page="newsroom" data-tip="Newsroom: tiles that follow news and posts and notify you. Ask in the chat to add one" aria-label="Newsroom"><svg class="ic"><use href="#i-news"/></svg><i class="count" id="nrcount" hidden></i></button>
+      <button class="rbtn" data-page="cron" data-tip="Cron: jobs the assistant does on a schedule" aria-label="Cron"><svg class="ic"><use href="#i-clock"/></svg><i class="count" id="crcount" hidden></i></button>
     </div>
     <div class="grow"></div>
     <button class="rbtn" data-page="settings" id="setbtn" data-tip="Settings: models and search, devices, status and updates" aria-label="Settings"><svg class="ic"><use href="#i-sliders"/></svg><i class="count" id="updcount" hidden></i></button>
@@ -1145,6 +1174,14 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
     </header>
     <div class="pagebody"><div class="pagewrap nr" id="nr"></div></div>
   </main>
+  <main class="page" id="page-cron" aria-labelledby="crtitle" hidden>
+    <header class="pagehead">
+      <button type="button" class="back" data-back title="Back to the chat (Esc)"><svg class="ic"><use href="#i-back"/></svg><span>Chat</span></button>
+      <div class="ptitle"><h1 id="crtitle" tabindex="-1">Cron</h1><span class="psub">Jobs the assistant does on a schedule, each in a session of its own</span></div>
+      <div class="pageacts" id="cracts"></div>
+    </header>
+    <div class="pagebody"><div class="pagewrap" id="cr"></div></div>
+  </main>
   <main class="page" id="page-settings" aria-labelledby="settitle" hidden>
     <header class="pagehead">
       <button type="button" class="back" data-back title="Back to the chat (Esc)"><svg class="ic"><use href="#i-back"/></svg><span>Chat</span></button>
@@ -1192,6 +1229,21 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
     <div id="nrfields"></div>
     <div class="rverr" id="nrerr" hidden></div>
     <div class="btnrow"><button type="button" id="nrcancel">Cancel</button><button class="primary" type="submit" id="nrok">Add widget</button></div>
+  </form>
+</dialog>
+<dialog class="dlg crdlg" id="crdlg" aria-labelledby="crdlgh">
+  <form id="crform" autocomplete="off">
+    <h3 id="crdlgh">Add a cron job</h3>
+    <label>Name <input type="text" name="name" maxlength="80" placeholder="Morning mail"></label>
+    <label>What should the assistant do each time? <textarea name="prompt" placeholder="Summarize my unread mail and list anything that needs a reply today"></textarea></label>
+    <label>When <input type="text" name="schedule" list="crwhens" placeholder="weekdays at 8:30, every 15 minutes, 30 8 * * 1-5"></label>
+    <datalist id="crwhens"><option value="every 30 minutes"><option value="hourly"><option value="daily at 9am"><option value="weekdays at 8:30"><option value="every monday at 9am"><option value="monthly on the 1st at 9am"></datalist>
+    <div class="crsay" id="crsay" aria-live="polite"></div>
+    <label>Assistant <select name="persona"></select></label>
+    <label class="inl"><input type="checkbox" name="enabled" checked> On: run it on schedule</label>
+    <div class="kv">Runs while the dashboard is open, in local time. A run waits while you are mid-turn, and nobody is there to answer its questions.</div>
+    <div class="rverr" id="crerr" hidden></div>
+    <div class="btnrow"><button type="button" id="crcancel">Cancel</button><button class="primary" type="submit" id="crok">Add job</button></div>
   </form>
 </dialog>
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
@@ -1319,6 +1371,7 @@ function handle(e) {
   if (e.kind === "reset") { S.turns.clear(); S.order = []; S.selected = null; S.live = {}; S.ctx = null; $("sess").textContent = `session ${d.session}`; S.open.clear(); S.stick = true; resetChat(); refreshReviews(); if (d.loaded) refreshArtifacts(); if (S.tab === "history") { H.open = null; H.detail = null; refreshHistory(); } return; }
   if (e.kind.startsWith("review_")) { reviewEvent(e.kind, d); return; }
   if (e.kind === "newsroom" || e.kind === "newsroom_alert") { newsroomEvent(e); return; }
+  if (e.kind === "cron" || e.kind === "cron_done") { cronEvent(e); return; }
   if (e.kind === "history") { if (S.tab === "history") refreshHistory(); return; }
   if (e.kind === "devices") { refreshDevices(); return; }
   if (e.turn == null) return;
@@ -2605,6 +2658,134 @@ $("nrform").addEventListener("submit", async (ev) => {
   await refreshNewsroom(true);
 });
 
+// ---- cron: jobs the assistant does on a schedule (jevh/cron.py) ----
+const CR = {data: null, rev: -1, open: new Set(), runs: {}, editing: null, busy: new Set(), boot: Date.now()};
+const crPost = (path, body) => api(path, {method: "POST", body: JSON.stringify(body || {})});
+const CR_EXAMPLES = ["Every weekday at 8:30, summarize my unread mail", "Every Sunday evening, check what changed in my projects this week", "Every hour, check that my server is up and tell me if not"];
+async function refreshCron(force = false) {
+  let d;
+  try { d = await api(`/api/cron?rev=${force ? -1 : CR.rev}`); } catch { return; }
+  crBadge(d.unseen);
+  if (d.unchanged) return;
+  CR.data = d; CR.rev = d.rev;
+  if (S.view === "cron" && !CR.editing) renderCron();
+  for (const id of CR.open) crLoadRuns(id);
+}
+function crBadge(n) { $("crcount").textContent = n; $("crcount").hidden = !n; }
+function cronEvent(e) {
+  const d = e.data || {};
+  if (e.kind === "cron_done" && e.ts * 1000 > CR.boot - 1500 && d.status !== "cancelled") {
+    const t = document.createElement("div"); t.className = "toast";
+    t.innerHTML = `<b>${esc(d.job)}: ${esc(d.status)}</b>${esc(d.error || d.answer || "")}`;
+    t.addEventListener("click", () => { t.remove(); showPage("cron"); });
+    $("toasts").appendChild(t); setTimeout(() => t.remove(), 9000);
+  }
+  refreshCron();
+}
+const crWhen = (ts) => { if (!ts) return ""; const d = new Date(ts * 1000), diff = ts - Date.now() / 1000;
+  const day = d.toLocaleDateString(undefined, {weekday: "short", day: "numeric", month: "short"}), hm = d.toLocaleTimeString(undefined, {hour: "numeric", minute: "2-digit"});
+  return diff > 0 && diff < 3600 ? `in ${Math.max(1, Math.round(diff / 60))} min` : new Date().toDateString() === d.toDateString() ? `today ${hm}` : `${day} ${hm}`; };
+const crDur = (s) => s >= 90 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`;
+function crCard(j) {
+  const last = j.last, state = j.running ? "running" : !j.enabled ? "off" : last ? last.status : "";
+  const stat = j.running ? "running now" : !j.enabled ? "paused" : `next ${crWhen(j.next_run)}`;
+  const lastLine = last ? `last: ${last.status}${last.finished ? " " + agoOf(last.finished) : ""}${last.seconds ? ` · ${crDur(last.seconds)}` : ""}${last.error ? ` · ${last.error}` : ""}` : "never run";
+  const open = CR.open.has(j.id), bad = last && ["error", "interrupted"].includes(last.status) && !j.running;
+  return `<section class="card crc ${j.enabled ? "" : "paused"}" data-crj="${j.id}">
+    <div class="crh">${ico("clock")}<h3>${esc(j.name)}</h3>${state ? `<span class="badge ${esc(state)}">${esc(state)}</span>` : ""}${j.unseen ? `<i class="n" title="runs you have not looked at">${j.unseen}</i>` : ""}</div>
+    <div class="crwhen">${esc(j.human)}<code>${esc(j.schedule)}</code></div>
+    <div class="crstat ${bad ? "err" : ""}">${esc(stat)} · ${esc(lastLine)}${j.persona ? ` · as ${esc(j.persona)}` : ""}</div>
+    <p class="crprompt">${esc(j.prompt)}</p>
+    <div class="rvrow">
+      ${j.running ? `<button type="button" data-cract="stop">Stop</button>` : `<button type="button" data-cract="run" ${CR.busy.has(j.id) ? "disabled" : ""}>Run now</button>`}
+      <button type="button" data-cract="toggle">${j.enabled ? "Pause" : "Resume"}</button>
+      <button type="button" data-cract="edit">Edit</button>
+      <button type="button" data-cract="delete">Delete</button><span class="grow"></span>
+      <button type="button" data-cract="runs" aria-expanded="${open}">${open ? "Hide runs" : "Runs"}</button></div>
+    ${open ? `<div class="crruns">${crRuns(j.id)}</div>` : ""}</section>`;
+}
+function crRuns(id) {
+  const runs = CR.runs[id]; if (!runs) return '<div class="kv" style="padding:8px 0">Loading...</div>';
+  if (!runs.length) return '<div class="kv" style="padding:8px 0">No runs yet.</div>';
+  return runs.map((r) => `<div class="crrun ${r.seen ? "" : "unseen"}" data-crrun="${r.id}"><div class="m"><span class="badge ${esc(r.status)}">${esc(r.status)}</span>
+      <span>${esc(new Date((r.started || r.due) * 1000).toLocaleString(undefined, {weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit"}))}</span>
+      ${r.seconds ? `<span>${crDur(r.seconds)}</span>` : ""}${r.trigger === "manual" ? "<span>run by hand</span>" : ""}<span class="grow"></span>
+      ${/^\d{8}-\d{6}-[0-9a-f]{4}$/.test(r.session || "") ? `<button type="button" data-cract="session" data-session="${esc(r.session)}" title="Carry on this run's session in the chat">Open in chat</button>` : ""}</div>
+      ${r.error ? `<pre class="rverr">${esc(r.error)}</pre>` : ""}${r.answer ? `<pre>${esc(r.answer)}</pre>` : ""}</div>`).join("");
+}
+async function crLoadRuns(id) {
+  try { CR.runs[id] = (await api(`/api/cron/runs?id=${id}&limit=20`)).runs; } catch { CR.runs[id] = []; }
+  if (S.view === "cron" && !CR.editing) renderCron();
+}
+function renderCron() {
+  const d = CR.data;
+  $("cracts").innerHTML = `<button type="button" class="primary" data-cract="add" aria-label="Add job">${ico("plus")}<span class="lbl">Add job</span></button>`;
+  if (!d) { $("cr").innerHTML = '<div class="empty">Loading...</div>'; return; }
+  const seen = d.unseen ? `<div class="rvrow" style="margin-bottom:10px"><button type="button" data-cract="seenall">Mark ${d.unseen} new run${d.unseen > 1 ? "s" : ""} as seen</button></div>` : "";
+  $("cr").innerHTML = `${d.running ? "" : '<p class="kv">Cron is switched off (cron.enabled in config.yaml): jobs are listed but do not run.</p>'}${seen}
+    ${d.jobs.length ? `<div class="crgrid">${d.jobs.map(crCard).join("")}</div>`
+      : `<div class="empty" style="padding:24px 8px"><b>No cron jobs yet.</b><br>A job is a request the assistant carries out on a schedule. Start from an example, or add your own:
+        <div class="crex" style="margin-top:8px">${CR_EXAMPLES.map((x) => `<button type="button" data-cract="example">${esc(x)}</button>`).join("")}</div></div>`}`;
+}
+function crOpenDialog(j, prompt) {
+  CR.editing = j ? j.id : 0;
+  const f = $("crform");
+  $("crdlgh").textContent = j ? "Edit cron job" : "Add a cron job"; $("crok").textContent = j ? "Save" : "Add job";
+  f.name.value = j ? j.name : ""; f.prompt.value = j ? j.prompt : (prompt || ""); f.schedule.value = j ? j.schedule : ""; f.enabled.checked = j ? j.enabled : true;
+  f.persona.innerHTML = `<option value="">Let Jev choose, as for any request</option>` + Object.entries(S.personas || {}).filter(([, p]) => !p.draft)
+    .map(([n]) => `<option value="${esc(n)}" ${j && j.persona === n ? "selected" : ""}>${esc(n)}</option>`).join("");
+  $("crerr").hidden = true; $("crsay").textContent = ""; $("crsay").className = "crsay"; $("crok").disabled = false;
+  if (j) crCheck();
+  $("crdlg").showModal(); f.name.focus();
+}
+let crTimer = null;
+function crCheck() {
+  clearTimeout(crTimer);
+  const text = $("crform").schedule.value.trim(), say = $("crsay");
+  if (!text) { say.textContent = ""; say.className = "crsay"; return; }
+  crTimer = setTimeout(async () => {
+    try {
+      const c = await crPost("/api/cron/check", {schedule: text}); if ($("crform").schedule.value.trim() !== text) return;
+      say.className = "crsay"; say.textContent = `${c.human} · next ${crWhen(c.next)}`;
+    } catch (e) { if ($("crform").schedule.value.trim() === text) { say.className = "crsay err"; say.textContent = e.message; } }
+  }, 250);
+}
+$("crform").schedule.addEventListener("input", crCheck);
+$("crcancel").addEventListener("click", () => $("crdlg").close());
+$("crdlg").addEventListener("close", () => { CR.editing = null; renderCron(); });
+$("crform").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const f = $("crform"); $("crerr").hidden = true; $("crok").disabled = true;
+  const body = {name: f.name.value, prompt: f.prompt.value, schedule: f.schedule.value, persona: f.persona.value || null, enabled: f.enabled.checked};
+  try {
+    if (CR.editing) await crPost("/api/cron/update", {id: CR.editing, ...body}); else await crPost("/api/cron/add", body);
+  } catch (e) { $("crerr").textContent = e.message; $("crerr").hidden = false; $("crok").disabled = false; return; }
+  $("crok").disabled = false; $("crdlg").close();
+  await refreshCron(true);
+});
+$("page-cron").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("button[data-cract]"); if (!b) return;
+  const act = b.dataset.cract, card = b.closest("[data-crj]"), id = card ? Number(card.dataset.crj) : null;
+  const j = id ? CR.data.jobs.find((x) => x.id === id) : null;
+  try {
+    if (act === "add") return crOpenDialog(null);
+    if (act === "example") return crOpenDialog(null, b.textContent);
+    if (act === "edit") return crOpenDialog(j);
+    if (act === "runs") {
+      if (CR.open.has(id)) CR.open.delete(id); else { CR.open.add(id); crLoadRuns(id); crPost("/api/cron/seen", {id}); }
+      renderCron(); return;
+    }
+    if (act === "session") { await api(`/api/history/${encodeURIComponent(b.dataset.session)}/load`, {method: "POST"}); showChat(false); return; }
+    if (act === "run") { CR.busy.add(id); renderCron(); await crPost("/api/cron/run", {id}); }
+    else if (act === "stop") await crPost("/api/cron/stop", {id});
+    else if (act === "toggle") await crPost("/api/cron/update", {id, enabled: !j.enabled});
+    else if (act === "delete") { if (!confirm(`Delete "${j.name}" and its runs?`)) return; await crPost("/api/cron/delete", {id}); CR.open.delete(id); }
+    else if (act === "seenall") await crPost("/api/cron/seen", {});
+  } catch (e) { alert(e.message); }
+  finally { CR.busy.clear(); }
+  await refreshCron(true);
+});
+
 // ---- status ----
 function ring(frac, label, value, size = 104) {
   const r = 40, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, frac || 0));
@@ -2969,7 +3150,7 @@ function closePanel() {
 // ---- full pages: the Newsroom and Settings take the place of the chat (and its panel) until you go back ----
 // The chat is only hidden: a running turn goes on, and "Chat" (or Esc, or the page's rail button again) brings it back
 // where you left it, with the panel that was open.
-const PAGES = ["newsroom", "settings"];
+const PAGES = ["newsroom", "cron", "settings"];
 const SET = {sec: "general"};
 const setShown = (sec) => S.view === "settings" && SET.sec === sec;
 function showPage(page, sec) {
@@ -2982,8 +3163,9 @@ function showPage(page, sec) {
   $("chat").inert = true;
   document.querySelectorAll(".rail [data-page]").forEach((x) => { const on = x.dataset.page === page; x.classList.toggle("on", on); x.setAttribute("aria-pressed", on); });
   if (page === "newsroom") { renderNewsroom(); refreshNewsroom(true); }
+  if (page === "cron") { renderCron(); refreshCron(true); }
   if (page === "settings") setSection(sec || SET.sec);
-  const h = $(page === "newsroom" ? "nrtitle" : "settitle");
+  const h = $({newsroom: "nrtitle", cron: "crtitle"}[page] || "settitle");
   if (!$(`page-${page}`).contains(document.activeElement)) h.focus({preventScroll: true});
 }
 function showChat(restore = true) {   // restore: reopen the panel that was open when the page was opened
@@ -3277,6 +3459,8 @@ async function refreshPersonas() {
   refreshVersion(); setInterval(() => refreshVersion(), 30 * 60 * 1000);
   paintBrowser(); browserTick();
   refreshReviews(); refreshNotebook();
+  refreshCron(); setInterval(() => { if (!document.hidden) refreshCron(); }, 15000);   // (another dashboard on this workspace, or the command line, may run jobs)
+  setInterval(() => { if (S.view === "cron" && !CR.editing && CR.data) renderCron(); }, 60000);
   refreshNewsroom(); setInterval(() => { if (!document.hidden) refreshNewsroom(); }, 20000);   // (the worker's tool writes the board from another process)
   setInterval(() => { if (S.view === "newsroom" && !NR.editing && NR.data) renderNewsroom(); }, 60000);   // ages tick on
   setInterval(() => { if (S.order.some((id) => S.turns.get(id).status === "running")) schedule(); }, 1000);

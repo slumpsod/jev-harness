@@ -120,6 +120,18 @@ newsroom:
   x_integration: ""      # the Nango integration for X, if its name isn't x / twitter
   allow_local: false     # true: a tile may follow a feed on this machine or network (blocked by default)
 
+# Cron jobs (jevh/cron.py, docs/architecture/23-cron.md): tasks the assistant does on a schedule, made on the dashboard's Cron page.
+# Each run is a turn of its own in a fresh session; the dashboard has to be running for jobs to start.
+# NOT VERIFIED on live models yet: run `python evals/bench/cron.py` (see docs/architecture/23-cron.md).
+cron:
+  enabled: true
+  tick: 20               # seconds between checks for jobs that are due
+  grace_minutes: 10      # a job whose time came while you were mid-turn waits this long; later than that the run is "missed"
+  min_minutes: 5         # the shortest time between two runs of one job
+  timeout_minutes: 60    # a run still going after this long is stopped
+  keep_runs: 30          # runs kept per job
+  max_jobs: 40
+
 learning: true                  # remember facts and learn skills after successful turns (jevh/learn.py)
 
 persona_creation:                # jevh/forge.py: a persona drafted when a request or a learned skill fits none
