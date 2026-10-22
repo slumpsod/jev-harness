@@ -164,3 +164,31 @@ def test_a_yes_no_answer_and_its_p_always_agree():
     assert light.parse('{"claims": {"answer": "no", "p": 0.9}}', q)["claims"]["noul"] == pytest.approx(0.1)   # confidence
     assert light.parse('{"claims": {"answer": "no", "p": 0.2}}', q)["claims"]["noul"] == pytest.approx(0.2)   # P(yes)
     assert light.parse('{"claims": {"answer": "yes", "p": 0.3}}', q)["claims"]["noul"] == pytest.approx(0.7)
+
+
+def test_a_handed_off_check_whose_model_is_down_falls_back_like_jev_down(cfg, tmp_path):
+    """The task's model unreachable or failing during a quick question: a Jev error the caller falls back on (reported
+    as an outage), not a model error that ends the turn; a Stop still stops."""
+    from jevh.errors import Cancelled
+    from jevh.llm import LLMError
+    from jevh.orchestrator import Harness
+    from conftest import ScriptedLLM
+
+    class Down(Talker):
+        def chat(self, messages, cancel=None, body_extra=None):
+            raise self.reply
+
+    jev = Jev(lit(cfg), FakeSystemOne())
+    jev.check_llm = lambda: Down(LLMError("qwen@http://127.0.0.1:8083/v1: unreachable"))
+    with pytest.raises(SystemOneError, match="could not answer"):
+        jev._ask("failure_check", {"request": "x"}, {"gave_up": noul("Gave up?")})
+    jev.check_llm = lambda: Down(Cancelled())
+    with pytest.raises(Cancelled):
+        jev._ask("failure_check", {"request": "x"}, {"gave_up": noul("Gave up?")})
+    cfg.workspace = tmp_path / "ws"
+    events = []
+    h = Harness(lit(cfg), jev=Jev(cfg, FakeSystemOne()), llm_factory=lambda p: ScriptedLLM(["ok"]),
+                on_event=lambda k, d: events.append(k))
+    h.jev.check_llm = lambda: Down(LLMError("unreachable"))
+    assert h._safe("verify", lambda: h.jev._ask("verify", {"request": "x"}, {"c": noul("?")}), "fb") == "fb"
+    assert "jev_error" in events
