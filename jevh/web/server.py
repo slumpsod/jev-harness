@@ -1510,7 +1510,11 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         # any HTTP answer from its root: /docs exists only on a FastAPI adapter (issue #6: another adapter that serves
         # /v1/systemone showed as down), and the openjev adapter's /health checks every backend (~10 s with some off)
         out["jev_adapter"] = probe(h.cfg.jev.get("url", "http://127.0.0.1:33001").rstrip("/") + "/", 2.0, any_answer=True)
-        if h.cfg.jev.get("backend_health"):
+        lite = h.jev.light if getattr(h.jev, "light", {}).get("mode") == "light" else None
+        if lite:   # light Jev (jevh/light.py): the small model's bridge is what answers
+            health = ((h.cfg.jev.get("light") or {}).get("health") or "http://127.0.0.1:33004/health")
+            out["jev_backend"] = {"name": f"{lite['backend']} (light, checks: {lite['checks']})", **probe(health, 2.0)}
+        elif h.cfg.jev.get("backend_health"):
             out["jev_backend"] = {"name": h.cfg.jev.get("backend"), **probe(h.cfg.jev["backend_health"], 2.0)}
         if h.cfg.tools.get("comfy_url"):
             out["comfyui"] = probe(str(h.cfg.tools["comfy_url"]).rstrip("/") + "/system_stats", 2.0)

@@ -86,7 +86,8 @@ choices with the same leader; latency is one request at a time on an RTX 3090.
 | semif (Qwen3.5-4B, bf16) | 8.7 GB peak | 0.22 s | - | routing 97.3%, failure check 7/7, learning gate 11/12 |
 | semif + flash-linear-attention | 8.7 GB | **0.16 s** | 99.9% / 97% | same model: not re-run |
 | semif 4-bit (`SEMIF_QUANT=4bit`) | **3.2 GB** | 0.39 s | 93% / 88% | routing 94.6%, failure check 4/7, learning gate 8/12 |
-| Laya, fine-tuned (`laya_bridge.py`) | **~2 GB, or CPU** | **0.03 s** (CPU 0.65 s) | 89% / 77% | routing 91.9%, failure check 3/7, learning gate 4/12 |
+| Laya-large, fine-tuned (`laya_bridge.py`) | **~2 GB, or CPU** | **0.03 s** (CPU 0.65 s) | 89% / 77% | routing 91.9%, failure check 3/7, learning gate 4/12 |
+| **Laya-multilingual v2** (the CPU checkpoint, 2026-10-22) | ~2 GB, or CPU | 0.035 s (CPU: ONNX int8 0.11 s, PyTorch 0.26 s) | 88% / 73% | routing 89.2%, collaborators 91.9% (semif 86.5%), memory recall 84%; strict gates handed off in light mode |
 | SemIf on Qwen3.5-2B / 0.8B | 3.5 / 1.4 GB | 0.11 / 0.17 s | 71% / 63%, 45% / 47% | not run |
 
 - **Faster, same answers:** install the linear-attention kernels into the bridge's environment (Windows:
@@ -94,6 +95,20 @@ choices with the same leader; latency is one request at a time on an RTX 3090.
   The "falling back to its reference PyTorch implementation" line in the bridge's log goes away.
 - **Less memory:** the 4-bit model and Laya both lose cases on the strict gates (the failure check and the learning
   gate fire at 0.85-0.9, where their confidence differs from semif's). Use them where memory matters more than those.
+
+### Light Jev (EXPERIMENTAL, UNVERIFIED)
+
+For a computer without a spare GPU: Settings > Decisions (Jev) > Light, or `jev.mode: light` in config.yaml. Laya, on
+the CPU, makes the decisions it was measured to make well (routing, skills, tools, memory, tier, collaborators,
+interjection); the answer, failure, progress, code-risk, follow-up and learning checks are handed off: to the task's
+own model as one quick question each ("Ask the task's model", the default) or skipped ("Off", as when Jev is down).
+`jevh/light.py` says which decision goes where.
+
+One short live run so far (`evals/bench/light_jev.py`, 6 tasks x 3 arms, 2026-10-22, Qwen3.8-27B worker, Laya v2 on the
+CPU, one repeat): full semif 5/6, light with the task's model 4/6, light with the checks off 3/6. The kept decisions
+matched semif; the misses were handed-off checks (a missing file the task's model did not log as a failure; with the
+checks off, a lasting fact not learned and a task left to run to the time limit). Turns were slower on that worker:
+mean 53 s full, 180 s light (the task's model), 151 s light (off). A smoke test, not a measurement.
 
 ### Laya (`laya_bridge.py`, UNVERIFIED)
 

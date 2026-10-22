@@ -3,6 +3,8 @@
     Model         which model every assistant runs on (models.strong); "each assistant's own" leaves it to their files
     Quick model   the model easy tasks go to (models.fast); "off" always uses the main one
     Web search    DuckDuckGo, SearXNG (your server's address) or Brave Search (an API key); `Test` tries it first
+    Jev           full (the System One model makes every decision) or light (UNVERIFIED: a small model that runs on a
+                  CPU makes the decisions it is good at; the rest go to the task's model, or are skipped: jevh/light.py)
     Chat glass    how see-through the desktop app's orb chat is (appearance.orb_glass, 0 solid to 100): saved at once,
                   on every computer signed in to this hub (the orb's chat page reads it with the conversation's state)
 
@@ -30,6 +32,7 @@ from typing import Any
 
 import yaml
 
+from . import light
 from .config import SETTINGS_FILE, Config, load_config, read_settings
 from .tools import web
 
@@ -60,7 +63,13 @@ def view(cfg: Config) -> dict[str, Any]:
     return {"model": _model_text(cfg.models.get("strong")), "fast": _model_text(cfg.models.get("fast")),
             "search": {"provider": str(s.get("provider") or "duckduckgo"), "searxng_url": str(s.get("searxng_url") or ""),
                        "brave_key": bool(s.get("brave_api_key") or os.environ.get("BRAVE_SEARCH_API_KEY"))},
-            "appearance": appearance(cfg), "file": str(path(cfg)), "saved": path(cfg).is_file()}
+            "appearance": appearance(cfg), "jev": jev_view(cfg), "file": str(path(cfg)), "saved": path(cfg).is_file()}
+
+
+def jev_view(cfg: Config) -> dict[str, str]:
+    """{mode: full|light, checks: worker|off}: light Jev and where its handed-off decisions go (jevh/light.py)."""
+    s = light.settings(cfg.jev)
+    return {"mode": s["mode"], "checks": s["checks"]}
 
 
 def appearance(cfg: Config) -> dict[str, int]:
@@ -169,8 +178,24 @@ def _clean_search(current: dict[str, Any], given: dict[str, Any]) -> dict[str, s
     return out
 
 
+def _clean_jev(current: dict[str, Any], given: dict[str, Any]) -> dict[str, Any]:
+    """Only jev.mode and jev.light.checks are the tab's: the addresses and backends stay in the config files."""
+    out = {k: v for k, v in current.items() if k in ("mode", "light")}
+    if "mode" in given:
+        mode = str(given["mode"] or "").strip().lower()
+        if mode not in ("full", "light"):
+            raise SettingsError("Jev: choose full or light")
+        out["mode"] = mode
+    if "checks" in given:
+        checks = str(given["checks"] or "").strip().lower()
+        if checks not in ("worker", "off"):
+            raise SettingsError("Light Jev's other checks: choose worker or off")
+        out["light"] = {"checks": checks}
+    return out
+
+
 def save(cfg: Config, change: dict[str, Any]) -> dict[str, Any]:
-    """Validate `change` ({model?, fast?, search?: {provider, searxng_url?, brave_api_key?}}), write it into the settings
+    """Validate `change` ({model?, fast?, search?: {provider, searxng_url?, brave_api_key?}, jev?: {mode?, checks?}}), write it into the settings
     file (keeping what was saved before for the parts not mentioned), and load it into `cfg`. -> view(cfg).
     SettingsError, with nothing written, when a choice cannot be saved."""
     layer = read_settings(cfg.workspace)
@@ -182,7 +207,9 @@ def save(cfg: Config, change: dict[str, Any]) -> dict[str, Any]:
         layer["models"] = models
     if isinstance(change.get("search"), dict):
         layer["search"] = _clean_search(layer.get("search") or {}, change["search"])
-    unknown = set(change) - {"model", "fast", "search"}
+    if isinstance(change.get("jev"), dict):
+        layer["jev"] = _clean_jev(layer.get("jev") if isinstance(layer.get("jev"), dict) else {}, change["jev"])
+    unknown = set(change) - {"model", "fast", "search", "jev"}
     if unknown:
         raise SettingsError(f"unknown setting: {', '.join(sorted(unknown))}")
     _write(path(cfg), layer)
@@ -243,7 +270,8 @@ def reload(cfg: Config) -> None:
     environment). Everything else in `cfg` stays as it is."""
     fresh = load_config(cfg.source, settings_dir=cfg.workspace)   # (the folder save() wrote to)
     cfg.models = fresh.models
-    for key in ("models", "search", "appearance"):
+    cfg.jev = fresh.jev
+    for key in ("models", "search", "appearance", "jev"):
         if fresh.raw.get(key) is None:
             cfg.raw.pop(key, None)
         else:

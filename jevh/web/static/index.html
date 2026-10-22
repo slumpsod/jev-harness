@@ -2907,12 +2907,13 @@ $("p-updates").addEventListener("click", async (ev) => {
   refreshVersion(false);
 });
 
-// ---- settings: the model, the quick model and the web search engine (jevh/settings.py) ----
+// ---- settings: the model, the quick model, light Jev and the web search engine (jevh/settings.py) ----
 // What is chosen here is saved in workspace/settings.yaml, which wins over the config files. Nothing is sent until Save.
 const ST = {data: null, draft: null, test: null, busy: false, msg: "", err: ""};
 const OTHER = "__other__";
 function settingsDraft(d) {
-  return {model: d.model, fast: d.fast, modelOther: "", fastOther: "", search: d.search.provider, url: d.search.searxng_url, key: ""};
+  return {model: d.model, fast: d.fast, modelOther: "", fastOther: "", search: d.search.provider, url: d.search.searxng_url, key: "",
+          jevMode: d.jev.mode, jevChecks: d.jev.checks};
 }
 async function refreshSettings(fresh = false) {
   try { ST.data = await api(`/api/config${fresh ? "?fresh=1" : ""}`); ST.err = ""; } catch (e) { ST.err = e.message; }
@@ -2942,6 +2943,18 @@ function renderSettings() {
       ${dr.model === OTHER && !lock ? other("model", dr.modelOther) : ""}
       <div class="arow"><span>Quick model<small>Easy tasks go here; hard ones keep the main model.</small></span>${modelSelect("fast", dr.fast, "Off", d, lock)}</div>
       ${dr.fast === OTHER && !lock ? other("fast", dr.fastOther) : ""}
+    </div>
+    <div class="card"><h3>Decisions (Jev)</h3>
+      <div class="arow"><span>Jev<small>Full: the System One model (semif, on a GPU) makes every decision. Light (experimental):
+        a small model that runs on the CPU (Laya) makes the decisions it is good at - routing, skills, tools, memory - and
+        hands off the rest.</small></span>
+        <select data-set="jevMode"><option value="full" ${dr.jevMode === "full" ? "selected" : ""}>Full</option>
+        <option value="light" ${dr.jevMode === "light" ? "selected" : ""}>Light (experimental)</option></select></div>
+      ${dr.jevMode === "light" ? `<div class="arow"><span>Its other checks<small>The answer, failure, progress, code-risk and
+        learning checks light Jev hands off. The task's model keeps them on but answers each as a quick question, which
+        is slower (and costs tokens on a hosted model); off skips them, as when Jev is down.</small></span>
+        <select data-set="jevChecks"><option value="worker" ${dr.jevChecks === "worker" ? "selected" : ""}>Ask the task's model</option>
+        <option value="off" ${dr.jevChecks === "off" ? "selected" : ""}>Off (fastest)</option></select></div>` : ""}
     </div>
     <div class="card"><h3>Web search</h3>
       <div class="arow"><span>Engine<small>${esc(prov.help)}</small></span>
@@ -2987,6 +3000,7 @@ function settingsChange() {   // only what differs from what is in force now
     change.search = {provider: dr.search, searxng_url: dr.url.trim()};
     if (dr.key) change.search.brave_api_key = dr.key.trim();
   }
+  if (dr.jevMode !== d.jev.mode || dr.jevChecks !== d.jev.checks) change.jev = {mode: dr.jevMode, checks: dr.jevChecks};
   return change;
 }
 async function settingsPost(path, body, done) {

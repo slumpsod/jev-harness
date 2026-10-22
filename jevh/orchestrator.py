@@ -23,7 +23,8 @@ from typing import Any, Callable
 from . import interject
 from .bus import Board, LimitError, Task
 from .config import Config, load_config
-from .decide import SystemOneError, noul
+from . import light
+from .decide import SystemOneClient, SystemOneError, noul
 from .errors import Cancelled
 from .failures import FailureLog, FailureWatch
 from .forge import Forge
@@ -267,6 +268,7 @@ class Harness:
         # a Stop ends the turn's Jev calls in flight (only the turn's: learning, the quick reply and the History tab keep
         # theirs). A thread that never said what it works for - the thinking watch's - is the turn's.
         self.jev.cancel_for = lambda: self._cancel if self._running and getattr(self._tl, "kind", "llm") == "llm" else None
+        self.jev.check_llm = self._check_llm   # light Jev mode: the model its handed-off decisions go to
         self.jev.on_call = lambda step, resp, n: self._record(
             kind="jev", model=resp.model, input_tokens=resp.input_tokens, seconds=resp.latency_s,
             persona=getattr(self._tl, "persona", ""), task=getattr(self._tl, "task", None))
@@ -306,7 +308,8 @@ class Harness:
             if self.cfg.tools.get(key) and name not in os.environ:
                 env[name] = str(self.cfg.tools[key])
         for name, value in (("JEVH_JEV_URL", self.cfg.jev.get("url", "http://127.0.0.1:33001")),
-                            ("JEVH_JEV_BACKEND", self.cfg.jev.get("backend", "semif"))):
+                            ("JEVH_JEV_BACKEND", self.jev.client.backend if isinstance(self.jev.client, SystemOneClient)
+                             else self.cfg.jev.get("backend", "semif"))):   # (light Jev: the tools ask the small model too)
             if name not in os.environ:
                 env[name] = str(value)
         env["JEVH_NANGO_DIR"] = str(self.cfg.workspace / "nango")   # the key/URL nango.start() keeps
@@ -320,7 +323,9 @@ class Harness:
         model client it has."""
         with self._llm_lock:
             self._llms.clear()      # (clients are built from cfg.models when first asked for)
-        self.tool_env = self._tool_env()
+        if hasattr(self.jev, "reload"):   # light Jev on or off (a stand-in Jev in tests may not have it)
+            self.jev.reload()
+        self.tool_env = self._tool_env()   # (after: the tools ask the backend light Jev uses)
         self._escalated = False
 
     def _nango_summary(self) -> str:
@@ -1335,6 +1340,13 @@ class Harness:
         return self._safe("tier", lambda: self.jev.pick_tier(task.jev_text, persona),
                           TierDecision("strong", None, "jev unavailable"))
 
+    def _check_llm(self) -> LLM:
+        """The model that answers the decisions light Jev hands off (jevh/light.py): the quick model when there is one,
+        else the model of the persona this thread works for (the default persona's after the turn)."""
+        name = getattr(self._tl, "persona", None) or self.current or self.cfg.default_persona
+        persona = self.personas.get(name) or self.personas[self.cfg.default_persona]
+        return self._llm(persona, "fast" if self.cfg.models.get("fast") else "strong")
+
     def _llm(self, persona: Persona, tier: str = "strong") -> LLM:
         key = (persona.name, tier)
         with self._llm_lock:  # parallel hand-offs may build the same persona's client at once
@@ -1374,6 +1386,8 @@ class Harness:
         cut a Jev call short - only without waiting for the call first."""
         try:
             return fn()
+        except light.Skipped:   # light Jev leaves this decision out on purpose: the fallback, and no outage to report
+            return fallback
         except SystemOneError as e:
             self.on_event("jev_error", {"step": step, "error": str(e)})
             return fallback

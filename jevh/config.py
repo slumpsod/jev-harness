@@ -43,6 +43,12 @@ class Config:
     source: Path | None = None                                     # the config.yaml this was loaded from (settings.reload)
 
     def t(self, name: str) -> float:
+        # light Jev (jevh/light.py) has thresholds of its own for the decisions its small model makes: its confidence is
+        # not semif's, which the thresholds below were tuned on
+        if str((self.jev or {}).get("mode") or "") == "light":
+            over = ((self.jev or {}).get("light") or {}).get("thresholds")
+            if isinstance(over, dict) and name in over:
+                return float(over[name])
         return float(self.thresholds[name] if name in self.thresholds else DEFAULT_THRESHOLDS[name])
 
     def lim(self, name: str) -> int:
@@ -101,7 +107,7 @@ def _expand(p: str, base: Path) -> str:
 
 
 SETTINGS_FILE = "settings.yaml"          # in the workspace: what the dashboard's Settings page saved
-SETTINGS_KEYS = ("models", "search", "appearance")   # the only sections that file may set; anything else is ignored
+SETTINGS_KEYS = ("models", "search", "appearance", "jev")   # the only sections that file may set; anything else is ignored
 
 
 def read_settings(workspace: Path) -> dict[str, Any]:
