@@ -20,6 +20,7 @@ import time
 from typing import Any, Callable, Mapping
 
 from .decide import Answer, Response, SystemOneError
+from .llm import LLMError
 
 
 class Skipped(SystemOneError):
@@ -166,7 +167,10 @@ def ask(llm, state: Any, questions: Mapping[str, Mapping[str, Any]], s: dict[str
         kwargs["body_extra"] = {"max_tokens": s["max_tokens"], **_no_thinking(llm), **s["extra"]}
     if ("cancel" in params or takes_any) and cancel is not None:
         kwargs["cancel"] = cancel
-    out = llm.chat([{"role": "user", "content": prompt(state, questions)}], **kwargs)
+    try:
+        out = llm.chat([{"role": "user", "content": prompt(state, questions)}], **kwargs)
+    except (LLMError, OSError) as e:   # the model down or failing: the caller falls back as when Jev is down (a Stop,
+        raise SystemOneError(f"the task's model could not answer Jev's questions: {e}") from e   # Cancelled, passes)
     raw = parse(getattr(out, "text", "") or "", questions)
     name = str(getattr(llm, "model", "") or "worker")
     return Response(model=f"worker:{name}", answers={k: Answer(id=k, kind=v["type"], raw=v) for k, v in raw.items()},
