@@ -5,6 +5,18 @@ jev:
   backend: semif                  # sent as the request's model: semif (openjev/semif_bridge.py, Qwen3.5-4B, ~9 GB)
   timeout: 300
   backend_health: http://127.0.0.1:33003/health   # the SemIf bridge (openjev/semif_bridge.py); shown in Settings > Status
+  mode: full                      # full: Jev makes every decision | light (UNVERIFIED): a small model that runs on a CPU (Laya,
+                                  #   openjev/laya_bridge.py) makes the decisions it was measured to make well, and the rest are
+                                  #   handed off (light.checks). The Settings tab sets both. jevh/light.py, openjev/README.md
+  light:
+    checks: worker                # the decisions light Jev hands off: worker (the task's model answers them as one quick question:
+                                  #   the checks stay on, each costs a model call) | off (skipped, as when Jev is down)
+    backend: laya                 # the request's model in light mode (openjev/systemone.py sends it to the Laya bridge)
+    health: http://127.0.0.1:33004/health   # the Laya bridge, shown in Settings > Status in light mode
+    thresholds: {}                # the small model's own thresholds for the decisions it keeps (names as in `thresholds:`)
+    # worker: [...] / off: [...]  # which decisions go where (defaults: jevh/light.py WORKER and OFF)
+    # max_tokens: 1500            # the quick question's reply budget
+    # extra: {chat_template_kwargs: {enable_thinking: false}}   # laid over that request: llama.cpp / vLLM, no thinking
 
 thresholds:
   route: 0.45          # persona choice confidence needed to switch persona

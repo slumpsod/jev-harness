@@ -61,6 +61,7 @@ python evals/bench/devices.py --repeat 3   # devices end to end: full turns on l
 python evals/bench/persona_creation.py   # persona creation, live: Jev checks, the writer, the gate, routing, full turns
                                          #   (--stage, --split dev|held, --reps, --budget/--resume for a runner with a time cap)
 python evals/bench/nango_setup.py        # connecting an account: a simulated user + the real local Nango (Docker), multi-turn
+python evals/bench/system_one_swap.py  # (UNVERIFIED) swapping Jev's model: every Jev-only eval on old (semif) vs new (laya), the new one replayed on the requests the evals sent the old one (--holdout: the half no model was trained on), latency (--stage, --evals, --offline; openjev/README.md "Smaller and faster")
 python evals/interject_cases.py        # a message sent while a task runs: a question about progress, or anything else (--holdout, --fresh, --offline)
 python evals/bench/interject.py --model lmstudio:qwen3.8-27b@q6_k   # messages to a running task, live: redirect speed, the gate, quick reply, queue, Stop
                                          #   (--stage, --reps; --stage retry measures the pause before a retry; needs nothing else using the

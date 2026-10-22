@@ -14,3 +14,6 @@ skills/_lessons/*
 !skills/_lessons/web-research-workflow.md
 .claude/*.lock
 evals/desktop_fixture/jevlab.exe
+
+# the Laya checkpoint for openjev/laya_bridge.py (~850 MB; see openjev/README.md "A smaller Jev")
+openjev/models/

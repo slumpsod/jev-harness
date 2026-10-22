@@ -10,6 +10,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
+from . import light
 from .config import Config
 from .decide import SystemOneClient, SystemOneError, choice, noul, score
 from .errors import Cancelled
@@ -207,8 +208,11 @@ class Jev:
         api_key = os.environ.get(key_env) if key_env else None
         if client is None and key_env and not api_key:
             raise RuntimeError(f"config jev.api_key_env: set the {key_env} environment variable to your Jev API key")
+        # light mode (jevh/light.py): a small model answers what it is good at, the rest goes to the worker or is skipped
+        self.light = light.settings(cfg.jev)
+        backend = self.light["backend"] if self.light["mode"] == "light" else cfg.jev.get("backend", "laya")
         self.client = client or SystemOneClient(cfg.jev.get("url", "http://127.0.0.1:33001"),
-                                                backend=cfg.jev.get("backend", "laya"),
+                                                backend=backend,
                                                 timeout=float(cfg.jev.get("timeout", 300)), api_key=api_key)
         self.choice_max = int(cfg.jev.get("choice_max", CHOICE_MAX))   # options per Choice the backend takes
         self.trace: list[dict[str, Any]] = []
@@ -216,19 +220,36 @@ class Jev:
         # () -> the cancel event of the work the calling thread does (the harness sets it: the running turn's Stop), or
         # None. A Stop then ends a Jev call in flight instead of waiting it out.
         self.cancel_for = None
+        # () -> the model that answers the decisions light mode hands to the worker (the harness sets it: the running
+        # task's own), or None: those decisions are then skipped
+        self.check_llm: light.LLMSource | None = None
         try:
             self._client_cancels = "cancel" in inspect.signature(self.client.ask).parameters
         except (TypeError, ValueError):
             self._client_cancels = False
 
+    def reload(self) -> None:
+        """Use cfg.jev as it is now (the Settings tab changed light mode): the next decision goes where it says."""
+        self.light = light.settings(self.cfg.jev)
+        if isinstance(self.client, SystemOneClient):
+            self.client.backend = (self.light["backend"] if self.light["mode"] == "light"
+                                   else self.cfg.jev.get("backend", "laya"))
+
     def _ask(self, step: str, state: Any, questions: dict) -> Any:
         cancel = self.cancel_for() if self.cancel_for is not None else None
         if cancel is not None and cancel.is_set():
             raise Cancelled("stopped by the user")
-        resp = (self.client.ask(state, questions, cancel=cancel) if cancel is not None and self._client_cancels
-                else self.client.ask(state, questions))
-        if self.on_call is not None:
-            self.on_call(step, resp, len(questions))
+        where = light.route(step, self.light)
+        if where != "jev":
+            llm = self.check_llm() if where == "worker" and self.check_llm is not None else None
+            if llm is None:   # every caller of a decision light mode hands off falls back as when Jev is down
+                raise light.Skipped(f"light Jev: {step} is not asked")
+            resp = light.ask(llm, state, questions, self.light, cancel)   # (the model call is metered as itself)
+        else:
+            resp = (self.client.ask(state, questions, cancel=cancel) if cancel is not None and self._client_cancels
+                    else self.client.ask(state, questions))
+            if self.on_call is not None:
+                self.on_call(step, resp, len(questions))
         self.trace.append({"step": step, "model": resp.model, "latency_s": round(resp.latency_s, 3),
                            "answers": {k: a.raw for k, a in resp.answers.items()}})
         return resp
