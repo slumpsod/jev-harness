@@ -10,7 +10,7 @@ backend that speaks the same format (point SEMIF_URL at it).
      "questions": {"billing":    {"type": "noul",   "instructions": "..."},
                    "department": {"type": "choice", "instructions": "...", "criteria": {"billing": "...", "tech": "..."}},
                    "urgency":    {"type": "score",  "instructions": "...", "criteria": ["low", "medium", "high"]}},
-     "model": "semif"}                                   (optional: semif is the only backend here)
+     "model": "semif"}                                   (optional: semif, the default, or laya)
     -> {"model": "...", "answers": {...}, "usage": {"input_tokens": N, "output_tokens": 0}}
 
 `state` may be text or structured data; `instructions` may be text or an object whose "question" is the question and
@@ -21,8 +21,11 @@ Run:
     python systemone.py                    # :33001, forwarding to the bridge on :33003
     python systemone.py --health           # the adapter's view of the bridge, as JSON
 
-Settings (environment): SEMIF_URL (http://127.0.0.1:33003), SYSTEMONE_HOST (127.0.0.1), SYSTEMONE_PORT (33001),
-SEMIF_TIMEOUT (seconds a request may take, 300).
+`"model": "laya"` goes to the Laya bridge instead (`laya_bridge.py`, port 33004): a small model trained on the harness's
+own decisions (config.yaml `jev.backend: laya`; README.md "A smaller Jev").
+
+Settings (environment): SEMIF_URL (http://127.0.0.1:33003), LAYA_URL (http://127.0.0.1:33004), SYSTEMONE_HOST
+(127.0.0.1), SYSTEMONE_PORT (33001), SEMIF_TIMEOUT (seconds a request may take, 300).
 """
 from __future__ import annotations
 
@@ -35,8 +38,9 @@ from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
 SEMIF_URL = os.environ.get("SEMIF_URL", "http://127.0.0.1:33003").rstrip("/")
+LAYA_URL = os.environ.get("LAYA_URL", "http://127.0.0.1:33004").rstrip("/")
 SEMIF_TIMEOUT = float(os.environ.get("SEMIF_TIMEOUT", "300"))
-BACKENDS = ("semif",)
+BACKENDS = ("semif", "laya")
 
 app = FastAPI(title="System One adapter (SemIf)")
 _client: httpx.AsyncClient | None = None
@@ -63,15 +67,19 @@ def _bridge() -> httpx.AsyncClient:
 
 @app.get("/health")
 async def health():
-    """Fast: the adapter, and whether the bridge answers (2 s at most)."""
-    try:
-        r = await _bridge().get(f"{SEMIF_URL}/health", timeout=2.0)
-        sh = r.json() if r.status_code == 200 else {}
-        semif = {"status": "up" if sh.get("status") == "up" else (sh.get("status") or f"http {r.status_code}"),
-                 "model": sh.get("model")}
-    except Exception as e:  # noqa: BLE001
-        semif = {"status": f"down: {type(e).__name__}: {e}"[:200]}
-    return {"adapter": "up", "default": "semif", "semif": semif, "semif_url": SEMIF_URL}
+    """Fast: the adapter, and whether each bridge answers (2 s at most). The Laya bridge is optional: down is normal when
+    the harness uses semif."""
+    async def probe(url: str) -> dict:
+        try:
+            r = await _bridge().get(f"{url}/health", timeout=2.0)
+            sh = r.json() if r.status_code == 200 else {}
+            return {"status": "up" if sh.get("status") == "up" else (sh.get("status") or f"http {r.status_code}"),
+                    "model": sh.get("model")}
+        except Exception as e:  # noqa: BLE001
+            return {"status": f"down: {type(e).__name__}: {e}"[:200]}
+    semif, laya = await asyncio.gather(probe(SEMIF_URL), probe(LAYA_URL))
+    return {"adapter": "up", "default": "semif", "semif": semif, "semif_url": SEMIF_URL, "laya": laya,
+            "laya_url": LAYA_URL}
 
 
 @app.post("/v1/systemone")
@@ -82,7 +90,8 @@ async def systemone(req: SystemOneRequest, request: Request):
     if not req.state or not str(req.state).strip():
         raise HTTPException(422, "state is required")
     body = {"state": req.state, "questions": {k: q.model_dump(exclude_none=True) for k, q in req.questions.items()}}
-    call = asyncio.create_task(_bridge().post(f"{SEMIF_URL}/v1/systemone", json=body))
+    url = SEMIF_URL if backend == "semif" else LAYA_URL
+    call = asyncio.create_task(_bridge().post(f"{url}/v1/systemone", json=body))
     while not call.done():
         if await request.is_disconnected():
             call.cancel()   # closes the connection: the bridge sees the disconnect and drops the work
@@ -91,15 +100,15 @@ async def systemone(req: SystemOneRequest, request: Request):
     try:
         r = call.result()
     except httpx.HTTPError as e:
-        raise HTTPException(503, f"semif bridge unreachable at {SEMIF_URL}: {e}") from None
+        raise HTTPException(503, f"{backend} bridge unreachable at {url}: {e}") from None
     if r.status_code != 200:
         raise HTTPException(r.status_code if r.status_code in (413, 422, 503) else 502,
-                            f"semif error {r.status_code}: {r.text[:300]}")
+                            f"{backend} error {r.status_code}: {r.text[:300]}")
     out = r.json()
     if not isinstance(out, dict) or "answers" not in out:
-        raise HTTPException(502, f"semif returned a malformed body: {str(out)[:200]}")
+        raise HTTPException(502, f"{backend} returned a malformed body: {str(out)[:200]}")
     usage = out.get("usage") or {}
-    return {"model": out.get("model") or "semif", "answers": out["answers"],
+    return {"model": out.get("model") or backend, "answers": out["answers"],
             "usage": {"input_tokens": usage.get("input_tokens", 0), "output_tokens": usage.get("output_tokens", 0)}}
 
 
@@ -115,7 +124,7 @@ def main():
     if a.health:
         print(json.dumps(asyncio.run(health()), indent=2))
         return
-    print(f"System One adapter on http://{a.host}:{a.port} -> SemIf bridge {SEMIF_URL}", flush=True)
+    print(f"System One adapter on http://{a.host}:{a.port} -> SemIf bridge {SEMIF_URL}, Laya bridge {LAYA_URL}", flush=True)
     uvicorn.run(app, host=a.host, port=a.port, log_level="warning")
 
 

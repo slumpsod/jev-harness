@@ -30,7 +30,8 @@ Serving
 Run (see README.md for the install):
     python semif_bridge.py                      # :33003; pick the GPU with CUDA_VISIBLE_DEVICES
 
-Settings (environment): SEMIF_HOST (127.0.0.1), SEMIF_PORT (33003), SEMIF_PREFIX_CACHE (1), SEMIF_MAX_TOKENS (12288),
+Settings (environment): SEMIF_HOST (127.0.0.1), SEMIF_PORT (33003), SEMIF_PREFIX_CACHE (1), SEMIF_QUANT (4bit: load in
+4-bit, ~3.2 GB), SEMIF_MAX_TOKENS (12288),
 SEMIF_SRC (a SemIf-OpenJev checkout's src/ folder, if semif_phase1 is not installed).
 """
 from __future__ import annotations
@@ -55,6 +56,7 @@ REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"   # the revision SemIf-Ope
 MAX_TOKENS = int(os.environ.get("SEMIF_MAX_TOKENS", "12288"))
 CHUNK = 16              # answer slots: A..P
 PREFIX_CACHE = os.environ.get("SEMIF_PREFIX_CACHE", "1") == "1"
+QUANT = os.environ.get("SEMIF_QUANT", "") == "4bit"   # 4-bit, UNVERIFIED (bitsandbytes; README.md "Smaller and faster")
 MIN_PREFIX = 256        # shared tokens worth caching
 # Longer inputs run in pieces of this many tokens through the cache. On the 4080 whole inputs peaked at 9.0 GB (2.6k
 # tokens), 11.7 GB (4.9k), 15.5 GB (7.1k, spilling into system RAM: 25 s) and 19.7 GB (8.9k: 55 s); in 2048-token pieces
@@ -83,7 +85,18 @@ def _load() -> None:
     print(f"loading {MODEL_ID}@{REVISION} ...", flush=True)
     t0 = time.time()
     core, _ = _semif()
-    _model, _tokenizer, _ = core.load_causal_model(MODEL_ID, REVISION, device="auto", dtype="bfloat16")
+    if QUANT:   # the same model in 4-bit (bitsandbytes nf4): ~3.2 GB instead of ~8.7 GB, answers move a little
+        import torch
+        import transformers
+        bnb = transformers.BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                                              bnb_4bit_compute_dtype=torch.bfloat16)
+        cfg = transformers.AutoConfig.from_pretrained(MODEL_ID, revision=REVISION).get_text_config()
+        _tokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_ID, revision=REVISION)
+        _model = transformers.Qwen3_5ForCausalLM.from_pretrained(MODEL_ID, revision=REVISION, config=cfg,
+                                                                 quantization_config=bnb, dtype=torch.bfloat16,
+                                                                 device_map={"": "cuda:0"}).eval()
+    else:
+        _model, _tokenizer, _ = core.load_causal_model(MODEL_ID, REVISION, device="auto", dtype="bfloat16")
     print(f"loaded in {time.time() - t0:.1f}s on {next(_model.parameters()).device}", flush=True)
 
 

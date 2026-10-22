@@ -95,8 +95,26 @@ def test_the_adapter_forwards_to_the_bridge(monkeypatch):
         assert r.json()["usage"] == {"input_tokens": 12, "output_tokens": 0}
         assert seen[0]["questions"]["urgent"] == {"type": "noul", "instructions": "Is it urgent?"}   # model not forwarded
         assert c.get("/health").json()["semif"]["status"] == "up"
-        assert c.post("/v1/systemone", json={"state": "x", "model": "laya", "questions": {}}).status_code == 422
+        assert c.post("/v1/systemone", json={"state": "x", "model": "nope", "questions": {}}).status_code == 422
     srv.shutdown()
+
+
+def test_the_adapter_sends_laya_requests_to_the_laya_bridge(monkeypatch):
+    from fastapi.testclient import TestClient
+    semif, seen_semif = fake_bridge()
+    laya, seen_laya = fake_bridge()
+    a = load("systemone")
+    monkeypatch.setattr(a, "SEMIF_URL", f"http://127.0.0.1:{semif.server_address[1]}")
+    monkeypatch.setattr(a, "LAYA_URL", f"http://127.0.0.1:{laya.server_address[1]}")
+    with TestClient(a.app) as c:
+        r = c.post("/v1/systemone", json={"state": "a ticket", "model": "laya",
+                                          "questions": {"urgent": {"type": "noul", "instructions": "Is it urgent?"}}})
+        assert r.status_code == 200 and r.json()["answers"]["urgent"]["noul"] == 0.9
+        assert len(seen_laya) == 1 and not seen_semif
+        h = c.get("/health").json()
+        assert h["semif"]["status"] == "up" and h["laya"]["status"] == "up"
+    semif.shutdown()
+    laya.shutdown()
 
 
 def test_the_adapter_says_when_the_bridge_is_down(monkeypatch):
@@ -111,3 +129,41 @@ def test_the_adapter_says_when_the_bridge_is_down(monkeypatch):
         assert c.get("/health").json()["semif"]["status"].startswith("down") and time.time() - t < 5
         r = c.post("/v1/systemone", json={"state": "x", "questions": {"q": {"type": "noul", "instructions": "?"}}})
         assert r.status_code == 503 and "unreachable" in r.json()["detail"]
+
+
+def test_the_laya_bridge_answers_in_the_harness_shape(monkeypatch):
+    """laya_bridge.py, with a stand-in for the Laya agent (no weights): the state goes in as the checkpoint was trained
+    on it, and each answer comes back in the shape decide.Answer reads."""
+    from fastapi.testclient import TestClient
+    b = load("laya_bridge")
+    seen = []
+
+    class Agent:
+        def predict(self, state, questions):
+            seen.append((state, questions))
+            return {"answers": {"urgent": {"noul": 0.8, "confidence": 0.3},
+                                "team": {"choice": "billing", "probabilities": {"billing": 0.7, "tech": 0.3}},
+                                "level": {"score": 1.2, "probabilities": {"0": 0.1, "1": 0.6, "2": 0.3}}},
+                    "usage": {"input_tokens": 40}}
+
+    monkeypatch.setattr(b, "_load", lambda: setattr(b, "_agent", Agent()))
+    with TestClient(b.app) as c:
+        for _ in range(50):
+            if c.get("/health").json()["status"] == "up":
+                break
+            time.sleep(0.05)
+        r = c.post("/v1/systemone", json={
+            "state": {"request": "refund me"}, "model": "laya",
+            "questions": {"urgent": {"type": "noul", "instructions": {"question": "Urgent?", "tool": "x"}},
+                          "team": {"type": "choice", "instructions": "Which team?",
+                                   "criteria": {"billing": "money", "tech": None}},
+                          "level": {"type": "score", "instructions": "How hard?", "criteria": ["a", "b", "c"]}}})
+        assert r.status_code == 200
+        a = r.json()["answers"]
+        assert a["urgent"]["noul"] == 0.8 and a["urgent"]["probabilities"] == {"yes": 0.8, "no": 0.2}
+        assert a["team"]["choice"] == "billing" and a["team"]["probabilities"]["tech"] == 0.3
+        assert a["level"]["score"] == 1.2 and a["level"]["confidence"] == 0.6
+        assert r.json()["usage"] == {"input_tokens": 40, "output_tokens": 0}
+    state, questions = seen[0]
+    assert state == json.dumps({"request": "refund me"}, indent=1)   # as the training data rendered it
+    assert questions["team"]["criteria"] == {"billing": "money", "tech": None}   # an option without a description stays
