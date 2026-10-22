@@ -167,3 +167,67 @@ def test_the_laya_bridge_answers_in_the_harness_shape(monkeypatch):
     state, questions = seen[0]
     assert state == json.dumps({"request": "refund me"}, indent=1)   # as the training data rendered it
     assert questions["team"]["criteria"] == {"billing": "money", "tech": None}   # an option without a description stays
+
+
+def test_the_laya_bridges_onnx_session_never_pads_a_row_past_the_local_attention_window():
+    """laya_bridge.Grouped (LAYA_ONNX): a batch whose rows differ in length by more than PAD_GAP tokens runs in groups,
+    each trimmed to its longest row, and the outputs come back in the batch's row order."""
+    np = pytest.importorskip("numpy")
+    b = load("laya_bridge")
+    lens = [300, 20, 290, 60, 25]
+    att = np.zeros((5, 300), dtype=np.int64)
+    for i, n in enumerate(lens):
+        att[i, :n] = 1
+    runs = []
+
+    class Session:
+        def run(self, names, inputs):
+            a = inputs["attention_mask"]
+            runs.append((a.shape[1], a.sum(axis=1).tolist()))
+            assert all(a.shape[1] - n <= b.PAD_GAP for n in a.sum(axis=1))   # no row padded past the gap
+            n = a.sum(axis=1)
+            return [np.stack([n, n * 2], axis=1).astype(np.float32), inputs["qtype"][:, None].astype(np.float32)]
+
+    inputs = {"input_ids": att * 7, "attention_mask": att, "marker_pos": np.zeros((5, 3), dtype=np.int64),
+              "marker_mask": np.ones((5, 3), dtype=bool), "qtype": np.arange(5)}
+    logits, act = b.Grouped(Session()).run(["logits", "act_logits"], inputs)
+    assert sorted(runs) == [(60, [60, 25, 20]), (300, [300, 290])]
+    assert logits[:, 0].tolist() == lens and act[:, 0].tolist() == [0, 1, 2, 3, 4]   # each row back in its place
+    runs.clear()
+    b.Grouped(Session()).run(["logits", "act_logits"], {**inputs, "attention_mask": att[[0, 2]],
+                                                        "input_ids": att[[0, 2]], "qtype": np.arange(2),
+                                                        "marker_pos": inputs["marker_pos"][:2],
+                                                        "marker_mask": inputs["marker_mask"][:2]})
+    assert runs == [(300, [300, 290])]                                                # close lengths: one run, as is
+
+
+def test_the_onnx_fix_gives_an_all_padding_attention_row_a_finite_softmax_and_leaves_the_rest(tmp_path):
+    """laya_onnx.fix: an attention layer's Where(mask, 0, -inf) mask gets -1e30 for -inf, so a row that is all padding
+    (all masked) no longer comes out NaN, every other row is unchanged, and the file is marked so the bridge batches it."""
+    onnx = pytest.importorskip("onnx")
+    ort = pytest.importorskip("onnxruntime")
+    np = pytest.importorskip("numpy")
+    from onnx import TensorProto, helper, numpy_helper
+    f32 = TensorProto.FLOAT
+    const = lambda name, v: helper.make_node("Constant", [], [name], name=name,
+                                             value=numpy_helper.from_array(np.array([v], dtype=np.float32), name))
+    g = helper.make_graph(
+        [const("/attn/zero", 0.0), const("/attn/neginf", -np.inf),
+         helper.make_node("Where", ["mask", "/attn/zero", "/attn/neginf"], ["m"], name="/encoder/layers.0/attn/Where"),
+         helper.make_node("Add", ["x", "m"], ["a"], name="/encoder/layers.0/attn/Add"),
+         helper.make_node("Softmax", ["a"], ["y"], name="/encoder/layers.0/attn/Softmax", axis=-1)],
+        "g", [helper.make_tensor_value_info("x", f32, [2, 3]),
+              helper.make_tensor_value_info("mask", TensorProto.BOOL, [2, 3])],
+        [helper.make_tensor_value_info("y", f32, [2, 3])])
+    src, dst = tmp_path / "m.onnx", tmp_path / "fixed.onnx"
+    onnx.save(helper.make_model(g, opset_imports=[helper.make_opsetid("", 18)], ir_version=8), src)
+    feed = {"x": np.array([[0.0, 1.0, 5.0], [2.0, 3.0, 4.0]], dtype=np.float32),
+            "mask": np.array([[True, True, False], [False, False, False]])}
+    before = ort.InferenceSession(str(src)).run(None, feed)[0]
+    assert np.isnan(before[1]).all()
+    assert load("laya_onnx").fix(str(src), str(dst)) == 1
+    s = ort.InferenceSession(str(dst))
+    after = s.run(None, feed)[0]
+    assert np.isfinite(after).all() and np.array_equal(after[0], before[0]) and after[0][2] == 0.0
+    assert s.get_modelmeta().custom_metadata_map["laya_nan_fix"] == "1"
+    assert load("laya_onnx").fix(str(dst)) == 0                              # a second run changes nothing

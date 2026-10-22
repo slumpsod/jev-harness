@@ -9,3 +9,5 @@ httpx>=0.27
 pydantic>=2
 # The Laya bridge (laya_bridge.py, optional: config jev.backend: laya)
 laya==0.4.13
+# its ONNX runtime (LAYA_ONNX, the fast CPU path)
+onnxruntime>=1.18

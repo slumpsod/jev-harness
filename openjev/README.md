@@ -87,7 +87,7 @@ choices with the same leader; latency is one request at a time on an RTX 3090.
 | semif + flash-linear-attention | 8.7 GB | **0.16 s** | 99.9% / 97% | same model: not re-run |
 | semif 4-bit (`SEMIF_QUANT=4bit`) | **3.2 GB** | 0.39 s | 93% / 88% | routing 94.6%, failure check 4/7, learning gate 8/12 |
 | Laya-large, fine-tuned (`laya_bridge.py`) | **~2 GB, or CPU** | **0.03 s** (CPU 0.65 s) | 89% / 77% | routing 91.9%, failure check 3/7, learning gate 4/12 |
-| **Laya-multilingual v2** (the CPU checkpoint, 2026-10-22) | ~2 GB, or CPU | 0.035 s (CPU: ONNX int8 0.11 s, PyTorch 0.26 s) | 88% / 73% | routing 89.2%, collaborators 91.9% (semif 86.5%), memory recall 84%; strict gates handed off in light mode |
+| **Laya-multilingual v2** (the CPU checkpoint, 2026-10-22) | ~2 GB, or CPU (~3.4 GB RAM) | 0.035 s (CPU 0.24 s) | 88% / 73% | routing 89.2%, collaborators 91.9% (semif 86.5%), memory recall 84%; strict gates handed off in light mode |
 | SemIf on Qwen3.5-2B / 0.8B | 3.5 / 1.4 GB | 0.11 / 0.17 s | 71% / 63%, 45% / 47% | not run |
 
 - **Faster, same answers:** install the linear-attention kernels into the bridge's environment (Windows:
@@ -142,6 +142,27 @@ on a slice it never trained on.
 |---|---|---|
 | `LAYA_CHECKPOINT` | openjev/models/laya-harness | the checkpoint folder |
 | `LAYA_DEVICE` | auto | cuda or cpu |
+| `LAYA_ONNX` | | an ONNX export of the checkpoint (a path, or a file name in the checkpoint folder): runs on the CPU through ONNX Runtime (`pip install onnxruntime`). Run `python laya_onnx.py FILE` on a fresh export once (needs `pip install onnx`): it fixes a NaN that Laya's ONNX runtime hits on batched questions. See "On the CPU" below before using it |
+| `LAYA_ONNX_ARENA` | 1 | 0: ONNX Runtime frees its working memory after each request (~1.7 GB RAM instead of ~2.9 GB, about 4x slower) |
 | `LAYA_THREADS` | 8 | CPU threads |
 | `LAYA_BRIDGE_PORT`, `LAYA_BRIDGE_HOST` | 33004, 127.0.0.1 | the bridge's address |
 | `LAYA_URL` (adapter) | http://127.0.0.1:33004 | where the adapter sends `"model": "laya"` |
+
+#### On the CPU (measured 2026-10-22, Laya v2, i7-14700K, 8 threads)
+
+PyTorch (the default) is the one to use. Through the bridge, 100 held-out harness requests one at a time:
+
+| runtime | per request (p50) | RAM after 100 requests | agreement with semif, yes/no / choice | harness evals |
+|---|---|---|---|---|
+| PyTorch (`LAYA_DEVICE=cpu`) | 0.24 s | 3.4 GB | 87.5% / 69.4% | as the GPU run (same answers) |
+| ONNX fp32 (`LAYA_ONNX`, fixed) | 0.25 s | 3.2 GB | 87.5% / 69.4% (same answers as PyTorch, within 1e-4) | same answers |
+| ONNX int8 (`LAYA_ONNX`, fixed) | 0.14 s | 2.9 GB | 85.1% / 66.1% | worse: collaborators 83.8% (91.9%), memory recall 74% (84%), desktop "done" 6/12 (12/12), devices recall 80% (93%), Newsroom 74% (87%) |
+
+- ONNX fp32 gives PyTorch's answers but is no faster through the bridge (0.19 s against 0.23 s in-process); int8 is
+  ~2x faster and loses real decisions (Laya's own notes say accurate int8 needs quantization-aware training).
+- An ONNX export straight from Laya's `export_onnx.py` returns NaN for about 1 in 7 requests with several questions of
+  different lengths (agreement 85.6% instead of 87.5%): run `laya_onnx.py` on it. The bridge runs an unfixed file
+  correctly but about twice as slowly, and says so in its log.
+- On a CPU with performance and efficiency cores (Intel 12th-14th gen), Windows sometimes runs the bridge on the
+  efficiency cores: the same requests then take 2-3x as long. Measured with the process kept on the performance cores.
+- RAM is ~2 GB at start (Python, PyTorch, the model) and grows to the figure above as the largest requests come in.
