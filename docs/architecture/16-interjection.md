@@ -142,6 +142,17 @@ on. `STEER_NOTE` tells the worker to answer a question that way; the guide lists
 above still answers questions about progress by itself. Bench: `evals/bench/flagged.py --stage say` (whether an answer
 reaches the chat before the task ends, and how fast; a run with no question counts say() chatter).
 
+What the worker writes **beside** a tool call reaches the chat too (`limits.narrate`, on by default). Live (2026-10-24,
+`evals/bench/flags_12_15_17.py --stage narrate`, 3 repeats): no measurable gain yet, 10/12 both arms, because on these
+cases Qwen3.8 Flash Next mostly sent the steps with say() itself; no cost either (no narrated message on the tasks with
+nothing for the user to do, and the answer never repeated in the chat). Flagged 2026-10-21: the click-by-click steps for the
+user ("open https://console.cloud.google.com/auth/clients ... click your Nango client") were written beside an
+`ask_user` call whose question said only "Paste the Client ID", and showed only in the thinking view. Now
+`Worker._narrate` sends that text (`worker.spoken()`: without the code that runs or any tool-call template) as a `say`
+event marked `narration: true`, which the dashboard shows in a lighter style. It is skipped beside `final()` (the
+answer follows) and when the same words repeat. A turn's memory notes keep the last four ("Said while working").
+`narrate: 0` puts it back in the thinking view only.
+
 ## The queue and Stop
 
 `/queue` appends to `Harness._queue`; `take_queued()` hands the next one to whoever runs

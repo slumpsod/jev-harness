@@ -75,6 +75,11 @@ limits:
   memory_search: 10             # + turns from ANY time that share words with the request (full-text index)
   memory_facts: 6               # + remembered facts that share words with the request
   follow_turns: 2               # a follow-up carries this session's last N turns as real conversation
+  follow_always: 1              # 1: every turn after the first is treated as a follow-up (the last turns, folder and
+                                # REPL go along); 0: only when Jev reads it as one (light Jev missed "go ahead and
+                                # continue", flagged session 2026-10-22; evals/bench/flags_12_15_17.py)
+  narrate: 1                    # 1: what the worker writes beside a tool call goes to the chat as it works (it held
+                                # links and click-by-click steps meant for the user); 0: only in the thinking view
   ask_timeout: 1800             # seconds a worker's ask_user() waits for the user before carrying on
   progress_every: 8             # every N steps Jev checks a long task isn't going in circles
   compact_tokens: 60000         # past this estimated size, older steps condense to a progress log. Only where the

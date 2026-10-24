@@ -103,6 +103,21 @@ def turn_notes(result: WorkerResult, cap: int = 2000) -> str:
     return log or "(no code or tools were run for this reply: it came from the conversation and the model itself)"
 
 
+NARRATED_KEPT = 4   # of what workers wrote beside their code, the last N go into the turn's memory record
+
+
+def _option_list(options: Any) -> list:
+    """ask_user's options as a list. A JSON list passed as one string ('["Yes", "No"]') is that list, and any other
+    string is one option: iterating it gave a button per character (live 2026-10-22)."""
+    if isinstance(options, str):
+        try:
+            parsed = json.loads(options)
+        except ValueError:
+            parsed = None
+        return parsed if isinstance(parsed, list) else [options] if options.strip() else []
+    return list(options or [])
+
+
 def _shielded(callback: Event) -> Event:
     """Events are for display. A bug in a UI's handler must never stop the work that emitted
     it (seen live: a printer's KeyError failed a long task at step 2)."""
@@ -294,6 +309,7 @@ class Harness:
         self._queue: list[str] = []                  # requests sent while a turn ran: they run after it
         self._said: list[str] = []                   # this turn's corrections (kept with the turn in memory)
         self._told: list[str] = []                   # what workers told the user with say() this turn (likewise)
+        self._narrated: list[str] = []               # what they wrote beside their code, shown in the chat (likewise)
         self._goal = ""                               # the running turn's message (what a correction is judged against)
 
     def _tool_env(self) -> dict[str, str]:
@@ -362,7 +378,7 @@ class Harness:
         self._cancel = threading.Event()
         with self._ilock:
             self._phase, self._lead, self._lead_task, self._early, self._said = "preparing", None, None, [], []
-            self._told = []
+            self._told, self._narrated = [], []
             self._goal = message
         self._running = True
         try:
@@ -395,6 +411,12 @@ class Harness:
                 RouteDecision(self.current or self.cfg.default_persona, 0.0, {}, None, "jev unavailable"))
         self.on_event("route", {"decision": route})
         root = self.board.open(None, "user", route.persona, message)
+        if recent and self.cfg.lim("follow_always") and not route.follows:
+            # every turn carries the last ones (limits.follow_always). Live 2026-10-22, light Jev: "could you also give
+            # me unlimited coins? but yeah go ahead and continue" was read as a new topic, and the worker, with none of
+            # the game it had been modding in front of it, went off to start Docker. A new topic only costs the
+            # worker a couple of turns it can ignore.
+            route.follows, route.reason = True, f"{route.reason}; follows (every turn carries the last ones)"
         if resume:  # continuing an interrupted task: its own conversation is the context
             route.follows = False
         if route.follows:  # the exchange this answers goes along as real context, not via the memory gate
@@ -595,6 +617,9 @@ class Harness:
             out += "\n[While this ran, the user also said: " + " | ".join(f'"{s[:300]}"' for s in self._said) + "]"
         if self._told:
             out += "\n[Told the user while working: " + " | ".join(f'"{s[:300]}"' for s in self._told) + "]"
+        if self._narrated:   # (the last few: a long task writes something beside most of its steps)
+            out += "\n[Said while working: " + " | ".join(
+                f'"{s[:300]}"' for s in self._narrated[-NARRATED_KEPT:]) + "]"
         return out
 
     def _say(self, task: Task, persona: Persona, text: str) -> None:
@@ -739,9 +764,10 @@ class Harness:
                   secret: bool = False) -> str:
         # a free-text question that asks for a password or key is asked hidden whatever the worker passed: the
         # answer would otherwise sit in the transcript, memory and logs (buttons: an approval, left alone)
+        options = _option_list(options)
         secret = bool(secret) or (not options and asks_for_secret(str(question)))
         q = PendingQuestion(f"q{next(self._qids)}", task.id, persona.name, str(question).strip(),
-                            [] if secret else [str(o) for o in (options or [])][:8], time.time(), secret=bool(secret))
+                            [] if secret else [str(o) for o in options][:8], time.time(), secret=bool(secret))
         with self._qlock:
             self._questions[q.id] = q
         self.on_event("question", {"task": task, "question": q.public()})
@@ -1011,6 +1037,7 @@ class Harness:
                         self._progress_fn(task), self.cfg.t("stall"), self.cfg.lim("progress_every"),
                         self.cfg.lim("compact_tokens"), self.cfg.lim("keep_steps"), task.checkpoint)
         worker.keep_reasoning = self.cfg.lim("keep_reasoning")
+        worker.narrate = bool(self.cfg.lim("narrate"))
         worker.budget = self._budget_fn(worker)
         cs = self.context_settings   # (jevh/context.py) how the prompt is sized and what compaction keeps
         worker.measure, worker.archive = bool(cs.get("measure")), bool(cs.get("archive"))
@@ -1139,6 +1166,11 @@ class Harness:
         if kind == "tool_usage":
             self._record(kind="jev_tools", model=str(self.cfg.jev.get("backend", "")), calls=data.get("calls", 0),
                          input_tokens=data.get("tokens", 0), seconds=data.get("seconds", 0.0))
+            return
+        if kind == "narrate":   # shown in the chat like say(); the memory keeps only the last few (_said_notes)
+            self._narrated.append(data["text"])
+            self.on_event("say", {"task": task, "persona": data.get("persona", task.to), "text": data["text"],
+                                  "narration": True})
             return
         self.on_event(kind, {**data, "task_id": task.id})
 

@@ -30,6 +30,7 @@ sequenceDiagram
     J-->>H: RouteDecision persona, confidence, probabilities, follows
   end
   H-->>UI: event route
+  Note over H: limits.follow_always (default 1): follows = True<br/>whenever the session has an earlier turn
   H->>B: open(None, "user", persona, message) - root Task
   opt route.follows
     H->>Mem: session_turns(session, follow_turns=2)
@@ -64,6 +65,16 @@ sequenceDiagram
 Otherwise take the pick if its confidence is `≥ 0.45`. Otherwise stay if `continues ≥ stick 0.55`.
 Otherwise use `default_persona`. If Jev is down, `_safe` (`orchestrator.py:728`) falls back to the
 current or default persona.
+
+**Every turn carries the last ones** (`limits.follow_always: 1`, the default since 2026-10-23): Jev's `follows` still
+steers the persona choice above, but the last `follow_turns` turns (with the previous turn's folder and REPL state)
+go along whatever it says. On light Jev (Laya), routing read "could you also give me unlimited coins? but yeah go
+ahead and continue" as a new topic (flagged 2026-10-22), and the worker, with nothing of the game it had been modding,
+went off to start Docker. On 68 real hand-labelled pairs the old rule dropped about 4% of follow-ups, and those were
+the turns the user flagged; it already carried most new topics anyway. The cost is a couple of turns of context on a new
+topic. `follow_always: 0` puts Jev's call back. Live (2026-10-24, Strata + Laya, `evals/bench/flags_12_15_17.py`, 3 repeats):
+two-turn follow-ups 15/15 new vs 13/15 old, new topics after a task 8/9 vs 7/9 (one new-arm answer offered to go back to
+the earlier topic at its end), about 3k more input tokens on a new topic's turn.
 
 ## Task setup: what `run_task` builds
 

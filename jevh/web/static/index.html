@@ -408,6 +408,7 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 .saytag.stopped { color: var(--bad-ink); border-color: color-mix(in srgb, var(--bad) 50%, transparent); }
 .sayrep { margin-top: 5px; color: var(--text); }
 .say.told { border-left-color: var(--accent); background: var(--surface); }
+.say.told.narr { border-left-color: var(--line2); } .say.told.narr .toldtext { color: var(--muted); }   /* written beside its code while it worked */
 .say.told .toldtext { margin-top: 3px; }
 .say.told .toldtext p:first-child { margin-top: 0; }
 .say.told .toldtext p:last-child { margin-bottom: 0; }
@@ -1422,7 +1423,7 @@ function handle(e) {
       break;
     }
     case "aside": { const it = [...(t.said || [])].reverse().find((x) => x.outcome === "status" && !x.aside); if (it) { it.aside = d.answer; it.source = d.source; it.seconds = d.seconds; } break; }
-    case "say": (t.told = t.told || []).push({ts: e.ts, text: d.text, persona: d.persona}); break;
+    case "say": (t.told = t.told || []).push({ts: e.ts, text: d.text, persona: d.persona, narration: !!d.narration}); break;
     case "resuming": t.activity.push({ts: e.ts, kind: "learn", text: `continuing the turn that was cut off at step ${d.step}: ${d.task}`}); break;
     case "steer": t.activity.push({ts: e.ts, kind: "learn", text: `${d.persona}: heard you at step ${d.step} - "${d.text}"`}); break;
     case "redirect": t.activity.push({ts: e.ts, kind: "warn", text: `${d.persona}: cut the model's reply at step ${d.step} to hear you (nothing in it ran)`}); break;
@@ -1490,7 +1491,7 @@ function renderQueue() {   // requests sent while a turn runs: they start by the
 function saidHtml(t) {   // what you said while it worked, what became of it, and what the assistant told you meanwhile (say())
   const told = (t.told || []).map((s) => ({...s, told: true}));
   return [...(t.said || []), ...told].sort((a, b) => (a.ts || 0) - (b.ts || 0)).map((s) => {
-    if (s.told) return `<div class="say told"><span class="saywho">${esc(s.persona || "assistant")}</span> <div class="toldtext">${md(s.text)}</div></div>`;
+    if (s.told) return `<div class="say told${s.narration ? " narr" : ""}"><span class="saywho">${esc(s.persona || "assistant")}</span> <div class="toldtext">${md(s.text)}</div></div>`;
     const tag = s.outcome === "corrected" && s.replaces ? "swapping the task" : {corrected: "added to the task", queued: "queued for after", status: "quick reply", stopped: "stopped"}[s.outcome] || s.outcome;
     const reply = s.outcome === "status" ? `<div class="sayrep">${esc(s.aside || s.answer)}${!s.aside && s.asking ? ' <span class="saywait">(the task\'s own answer is coming...)</span>' : ""}</div>` : "";
     const sent = splitAttach(s.text);
