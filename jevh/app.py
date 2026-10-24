@@ -294,6 +294,7 @@ class App:
         self.icon = None
         self.agent: device_agent.Agent | None = None
         self.server = None
+        self.server_thread = None
         self.home_url = ""
         self._last_notice = 0.0
         self._quitting = False
@@ -352,7 +353,7 @@ class App:
                 return False
             self.server = uvicorn.Server(server_config(app, port))
             app.state.stop, app.state.restart_cmd = self.quit, self.restart_cmd   # (/api/restart: the whole app starts again)
-            thread = threading.Thread(target=self.server.run, name="jevh-dashboard", daemon=True)
+            thread = self.server_thread = threading.Thread(target=self.server.run, name="jevh-dashboard", daemon=True)
             thread.start()
             for _ in range(150):
                 if self.server.started:
@@ -719,8 +720,14 @@ class App:
             self.server.should_exit = True
         if self.icon is not None:
             self.icon.stop()
-        if self.window is not None:
-            self.window.destroy()
+        # every window, the orb's hidden chat bubble too: while one is left, the GUI loop (webview.start) never returns and
+        # the process outlives Quit (and a restart had to end it)
+        for w in (self.bubble, self.window):
+            if w is not None:
+                try:
+                    w.destroy()
+                except Exception:  # noqa: BLE001 - already gone
+                    pass
 
     # -- running
     def run(self) -> None:
@@ -759,6 +766,8 @@ class App:
             threading.Thread(target=self.begin, args=(self.conf,), daemon=True).start()
         webview.start(private_mode=False, storage_path=str(device_home() / "webview"), icon=app_icon())
         self.quit()
+        if self.server_thread is not None:   # the dashboard's own way down (Newsroom, cron, a kept browser) before the exit
+            self.server_thread.join(10)
 
 
 GRIP = 5   # the resize border around the page, unscaled pixels

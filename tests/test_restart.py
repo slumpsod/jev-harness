@@ -163,6 +163,32 @@ def test_command_is_this_process_again():
     assert cmd[0] == sys.executable and cmd[1:] == sys.orig_argv[1:]
 
 
+def test_quit_closes_every_window_so_the_process_can_end():
+    """The orb's hidden chat bubble is a window too: left open, the GUI loop never returned, and the process outlived Quit
+    (a restart had to end it after 30 s, 2026-10-24)."""
+    from jevh import app as desktop
+    closed = []
+
+    class Win:
+        def __init__(self, name):
+            self.name = name
+
+        def destroy(self):
+            closed.append(self.name)
+
+    class Gone(Win):
+        def destroy(self):
+            raise RuntimeError("already closed")
+    a = desktop.App({"role": "hub"})
+    a.window, a.bubble = Win("main"), Win("bubble")
+    a.quit()
+    assert sorted(closed) == ["bubble", "main"]
+    a.window, a.bubble = Win("main"), Gone("bubble")   # (one already gone doesn't stop the rest)
+    closed.clear()
+    a.quit()
+    assert closed == ["main"]
+
+
 def test_the_app_comes_back_the_way_it_was(monkeypatch):
     from jevh import app as desktop
     monkeypatch.setattr(restart, "command", lambda: ["pythonw", "-m", "jevh", "app", "--hidden"])
