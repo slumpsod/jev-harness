@@ -3,7 +3,8 @@
     Model         which model every assistant runs on (models.strong); "each assistant's own" leaves it to their files
     Quick model   the model easy tasks go to (models.fast); "off" always uses the main one
     Web search    DuckDuckGo, SearXNG (your server's address) or Brave Search (an API key); `Test` tries it first
-    Thinking      how much the model thinks before it answers: auto (the model's own default), none, low, medium, high
+    Thinking      how much the model thinks before it answers: auto (the model's own default), none, low, medium, high.
+                  Chosen in the chat bar, not on the Settings page: saved at once, even while a turn runs (save_thinking)
     Jev           full (the System One model makes every decision) or light (UNVERIFIED: a small model that runs on a
                   CPU makes the decisions it is good at; the rest go to the task's model, or are skipped: jevh/light.py)
     Chat glass    how see-through the desktop app's orb chat is (appearance.orb_glass, 0 solid to 100): saved at once,
@@ -240,6 +241,19 @@ def save_appearance(cfg: Config, change: dict[str, Any]) -> dict[str, int]:
     _write(path(cfg), layer)
     reload(cfg)
     return appearance(cfg)
+
+
+def save_thinking(cfg: Config, level: Any) -> str:
+    """Save the thinking level at once (the chat bar's picker): it changes no model, only what the next client asks of it,
+    so it needs no Save and no idle hub. -> the level."""
+    level = str(level or "auto").strip().lower()
+    if level not in THINKING_LEVELS:
+        raise SettingsError(f"Thinking: choose one of {', '.join(THINKING_LEVELS)}")
+    layer = read_settings(cfg.workspace)
+    layer["thinking"] = {"level": level}
+    _write(path(cfg), layer)
+    reload(cfg)
+    return thinking_level(cfg.raw)
 
 
 def reset(cfg: Config) -> dict[str, Any]:

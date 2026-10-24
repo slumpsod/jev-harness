@@ -1,4 +1,4 @@
-"""The thinking level (config `thinking.level`, the Settings tab): what it puts in a model's request, that a model's own
+"""The thinking level (config `thinking.level`, the chat bar's picker): what it puts in a model's request, that a model's own
 setting wins, that the quick side questions still turn thinking off, and the Settings tab saving it. Live:
 evals/bench/thinking_level.py."""
 import json
@@ -110,7 +110,42 @@ def test_the_settings_tab_saves_the_level_and_reset_puts_auto_back(conf):
     assert st.reset(conf)["thinking"] == "auto"
 
 
-# ---------------------------------------------------------------- the selector, in a real browser
+# ---------------------------------------------------------------- the chat bar's picker: /api/config/thinking
+def test_the_picker_saves_even_while_a_turn_runs_and_tells_every_page(conf):
+    from test_web import BASE, auth, make_client
+    client, app = make_client(conf)
+    hub = app.state.hub
+    assert client.get("/api/state", headers=auth()).json()["thinking"] == "auto"
+    built = hub.harness._llm(hub.harness.personas[conf.default_persona])
+    hub.busy.acquire()   # (a turn is running)
+    try:
+        r = client.post("/api/config/thinking", json={"level": "Medium"}, headers=auth(Origin=BASE))
+    finally:
+        hub.busy.release()
+    assert r.status_code == 200 and r.json() == {"level": "medium"}
+    assert client.get("/api/state", headers=auth()).json()["thinking"] == "medium"
+    assert client.get("/api/config", headers=auth()).json()["thinking"] == "medium"
+    assert any(e["kind"] == "thinking" and e["data"] == {"level": "medium"} for e in hub.since(0))
+    # the next client is built with the new level; one already handed to a running task is left alone
+    assert hub.harness._llm(hub.harness.personas[conf.default_persona]) is not built
+    r = client.post("/api/config/thinking", json={"level": "extreme"}, headers=auth(Origin=BASE))
+    assert r.status_code == 400 and "choose one of" in r.json()["detail"]
+    assert client.post("/api/config/thinking", json={"level": "low"},
+                       headers=auth(Origin="https://evil.example")).status_code == 403
+    assert thinking_level(conf.raw) == "medium"
+
+
+def test_save_thinking_keeps_the_other_saved_choices(conf):
+    st.save(conf, {"model": None})
+    before = (conf.workspace / SETTINGS_FILE).read_text(encoding="utf-8")
+    assert st.save_thinking(conf, "none") == "none"
+    after = (conf.workspace / SETTINGS_FILE).read_text(encoding="utf-8")
+    assert "level: none" in after and "models:" in before and "models:" in after
+    with pytest.raises(st.SettingsError):
+        st.save_thinking(conf, "max")
+
+
+# ---------------------------------------------------------------- the picker, in a real browser
 pytest.importorskip("playwright.sync_api")
 pytest.importorskip("uvicorn")
 from test_dashboard_ui import REPLIES, browse, serve  # noqa: E402,F401
@@ -121,24 +156,26 @@ def dashboard(conf):
     yield from serve(conf, REPLIES)
 
 
-def test_the_settings_tab_has_a_thinking_selector_that_saves(dashboard, conf, browse):
+def test_the_chat_bar_has_a_thinking_picker_that_saves_at_once(dashboard, conf, browse):
     def flow(page):
         page.goto(dashboard)
         page.wait_for_selector(".hello")
-        page.click('.rail [data-page="settings"]')
-        page.wait_for_selector("#p-settings select[data-set=thinking]")
-        assert page.input_value("select[data-set=thinking]") == "auto"
-        assert page.eval_on_selector_all("select[data-set=thinking] option", "els => els.map(e => e.value)") == \
-            ["auto", "none", "low", "medium", "high"]
+        assert page.input_value("#thinking") == "auto"
+        assert page.eval_on_selector_all("#thinking option", "els => els.map(e => e.value)") ==             ["auto", "none", "low", "medium", "high"]
         sent = []
-        page.on("request", lambda r: sent.append(r.post_data) if r.method == "POST" and r.url.endswith("/api/config") else None)
-        page.select_option("select[data-set=thinking]", "medium")
-        page.click('[data-set-act="save"]')
-        page.wait_for_function("document.getElementById('set-msg').textContent.startsWith('Saved')")
-        assert json.loads(sent[-1]) == {"thinking": "medium"}                     # only what changed
+        page.on("request", lambda r: sent.append(r.post_data) if r.method == "POST" and r.url.endswith("/api/config/thinking") else None)
+        page.select_option("#thinking", "medium")                                  # no Save button: it is saved now
+        page.wait_for_function("document.getElementById('thinking').dataset.saved === 'medium'")
+        assert json.loads(sent[-1]) == {"level": "medium"}
         assert "level: medium" in (conf.workspace / SETTINGS_FILE).read_text(encoding="utf-8")
         page.reload()
+        page.wait_for_selector(".hello")
+        assert page.input_value("#thinking") == "medium"
+        # chosen on another device: this page's picker follows (the `thinking` event)
+        page.evaluate("fetch('/api/config/thinking', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Jevh-Token': TOKEN}, body: JSON.stringify({level: 'low'})})")
+        page.wait_for_function("document.getElementById('thinking').value === 'low'")
+        # and it is no longer on the Settings page
         page.click('.rail [data-page="settings"]')
-        page.wait_for_selector("#p-settings select[data-set=thinking]")
-        assert page.input_value("select[data-set=thinking]") == "medium"
+        page.wait_for_selector("#p-settings select[data-set=model]")
+        assert page.query_selector("#p-settings select[data-set=thinking]") is None
     browse(flow)

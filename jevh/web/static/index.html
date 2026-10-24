@@ -442,7 +442,7 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 #input::placeholder { color: var(--faint); }
 #input.secret { -webkit-text-security: disc; }
 .cbar { display: flex; align-items: center; gap: 2px; padding: 4px 8px 8px 8px; flex-wrap: nowrap; min-width: 0; }
-.cbar .grow { flex: 1; }
+.cbar .grow { flex: 1; } .cbar .cbreak { display: none; }
 .cchip { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; flex: none; border-radius: var(--pill); border: 1px solid transparent; font-size: 12.5px; color: var(--muted);
          cursor: pointer; transition: background .15s, color .15s, border-color .15s; background: transparent; }
 .cchip:hover { background: var(--hover); color: var(--text); }
@@ -940,8 +940,8 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
 :root[data-theme="phosphor"] .hello .mark { border-radius: 0; }
 
 /* the conversation column adapts to its own width: opening the panel narrows it */
-@container chat (max-width: 800px) { .topbar .lbl, .topbar .sess, .stat span { display: none; } button.flag, button.ghost { padding: 0 9px; } .cchip.proj { display: none; } }
-@container chat (max-width: 520px) { .tps { display: none; } .ctx .rt { display: none; } .cchip { padding: 0 6px; } .cchip select { max-width: 96px; } .cchip:has(select) > svg.ic:first-child { display: none; } }
+@container chat (max-width: 800px) { .topbar .lbl, .topbar .sess, .stat span { display: none; } button.flag, button.ghost { padding: 0 9px; } .cchip.proj, .cchip.tog .lbl { display: none; } }
+@container chat (max-width: 520px) { .tps { display: none; } .ctx .rt { display: none; } .cchip { padding: 0 6px; } .cchip select { max-width: 96px; } .cchip:has(select) > svg.ic:first-child { display: none; } .cchip.think > svg.ic:first-child { display: inline-block; } }
 @container chat (max-width: 600px) { .cchip.tog .lbl { display: none; } .topbar { padding-inline: 14px; } .log-inner { padding-inline: 18px; } .composer { padding-inline: 14px; } }
 
 /* ======================================================================
@@ -995,9 +995,13 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
   #wide { display: none; }
   .app[data-panel="open"] .chatcol { min-width: 0; }   /* (the 1100px rule's 340px is wider than a small phone) */
   .panel select, .card select { max-width: 100%; }
-  /* the composer's chips shrink (with an ellipsis) so the send button never leaves the screen */
+  /* the composer's chips shrink (with an ellipsis) so the send button never leaves the screen; two rows: the persona and
+     the tier, then thinking, Watch browser, the context ring and Send */
+  .cbar { flex-wrap: wrap; row-gap: 2px; }
   .cbar .cchip:not(.tog) { flex: 0 1 auto; min-width: 0; }
   .cbar .cchip select { min-width: 0; max-width: 100%; }
+  .cbar .cbreak { display: block; flex-basis: 100%; height: 0; }
+  .cbar .cchip.think, .cbar .cchip.tog { order: 1; } .cbar .grow, .cbar .tps, .cbar .ctx, .cbar .stopbtn, .cbar .sendbtn { order: 2; }
 }
 @media (max-width: 360px) { .rbtn { min-width: 28px; } #appearbtn, #setbtn { width: 36px; } }
 /* touch screens (any width): targets a finger can hit, and nothing that only appears on hover */
@@ -1122,6 +1126,9 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
             <select id="pin" aria-label="Persona"><option value="">Jev routes</option></select><svg class="ic caret"><use href="#i-caret"/></svg></label>
           <label class="cchip" title="Which model tier to use. Jev decides unless you pin it."><svg class="ic"><use href="#i-bolt"/></svg>
             <select id="tier" aria-label="Model tier"><option value="auto">Jev decides</option><option value="fast">fast</option><option value="strong">strong</option></select><svg class="ic caret"><use href="#i-caret"/></svg></label>
+          <label class="cchip think" title="Thinking: how long the model thinks before it answers. Less is faster; more helps hard problems. Auto leaves it to the model (Qwen on Strata thinks the most). Saved at once, for every device; a task already running keeps its level."><svg class="ic"><use href="#i-brain"/></svg>
+            <select id="thinking" aria-label="Thinking level"><option value="auto">auto</option><option value="none">none</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select><svg class="ic caret"><use href="#i-caret"/></svg></label>
+          <span class="cbreak" aria-hidden="true"></span>
           <label class="cchip tog" title="Show the browser tool in the Browser panel, with the element Jev picks outlined before each action - click and type into it to take over. Applies from the next task."><svg class="ic"><use href="#i-browser"/></svg><span class="lbl">Watch browser</span> <input type="checkbox" id="watch"></label>
           <label class="cchip proj" title="A folder the project tool may read, edit and run commands in (dev and designer). Empty = none."><svg class="ic"><use href="#i-folder"/></svg>
             <input id="project" placeholder="Project folder" aria-label="Project folder"></label>
@@ -1385,6 +1392,7 @@ function handle(e) {
   if (e.kind === "cron" || e.kind === "cron_done") { cronEvent(e); return; }
   if (e.kind === "history") { if (S.tab === "history") refreshHistory(); return; }
   if (e.kind === "devices") { refreshDevices(); return; }
+  if (e.kind === "thinking") { $("thinking").value = $("thinking").dataset.saved = d.level; return; }   // (chosen here or on another device)
   if (e.turn == null) return;
   const t = turn(e.turn);
   if (d.task) upsertTask(t, d.task);
@@ -2963,10 +2971,9 @@ async function restartHarness() {
 // What is chosen here is saved in workspace/settings.yaml, which wins over the config files. Nothing is sent until Save.
 const ST = {data: null, draft: null, test: null, busy: false, msg: "", err: ""};
 const OTHER = "__other__";
-const THINKING = [["auto", "Auto (the model's default)"], ["none", "None"], ["low", "Low"], ["medium", "Medium"], ["high", "High"]];
 function settingsDraft(d) {
   return {model: d.model, fast: d.fast, modelOther: "", fastOther: "", search: d.search.provider, url: d.search.searxng_url, key: "",
-          jevMode: d.jev.mode, jevChecks: d.jev.checks, thinking: d.thinking || "auto"};
+          jevMode: d.jev.mode, jevChecks: d.jev.checks};
 }
 async function refreshSettings(fresh = false) {
   try { ST.data = await api(`/api/config${fresh ? "?fresh=1" : ""}`); ST.err = ""; } catch (e) { ST.err = e.message; }
@@ -2996,9 +3003,6 @@ function renderSettings() {
       ${dr.model === OTHER && !lock ? other("model", dr.modelOther) : ""}
       <div class="arow"><span>Quick model<small>Easy tasks go here; hard ones keep the main model.</small></span>${modelSelect("fast", dr.fast, "Off", d, lock)}</div>
       ${dr.fast === OTHER && !lock ? other("fast", dr.fastOther) : ""}
-      <div class="arow"><span>Thinking<small>How long the model thinks before it answers. Less is faster; more helps hard
-        problems. Auto leaves it to the model (Qwen on Strata thinks at its most).</small></span>
-        <select data-set="thinking">${THINKING.map(([v, l]) => `<option value="${v}" ${v === dr.thinking ? "selected" : ""}>${l}</option>`).join("")}</select></div>
     </div>
     <div class="card"><h3>Decisions (Jev)</h3>
       <div class="arow"><span>Jev<small>Full: the System One model (semif, on a GPU) makes every decision. Light (experimental):
@@ -3057,7 +3061,6 @@ function settingsChange() {   // only what differs from what is in force now
     if (dr.key) change.search.brave_api_key = dr.key.trim();
   }
   if (dr.jevMode !== d.jev.mode || dr.jevChecks !== d.jev.checks) change.jev = {mode: dr.jevMode, checks: dr.jevChecks};
-  if (dr.thinking !== (d.thinking || "auto")) change.thinking = dr.thinking;
   return change;
 }
 async function settingsPost(path, body, done) {
@@ -3491,6 +3494,11 @@ $("form").addEventListener("submit", async (ev) => {
 });
 $("input").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $("form").requestSubmit(); } });
 $("tier").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({tier_mode: $("tier").value})}));
+$("thinking").addEventListener("change", async () => {
+  const el = $("thinking"), was = el.dataset.saved || "auto";
+  try { el.dataset.saved = (await api("/api/config/thinking", {method: "POST", body: JSON.stringify({level: el.value})})).level; }
+  catch (e) { el.value = was; alert(`Thinking level not changed: ${e.message}`); }
+});
 $("watch").addEventListener("change", () => api("/api/settings", {method: "POST", body: JSON.stringify({watch_browser: $("watch").checked})}));
 $("pin").addEventListener("change", () => { resetChat(); api("/api/settings", {method: "POST", body: JSON.stringify({pin: $("pin").value || null})}); });
 $("stop").addEventListener("click", async () => { $("stop").disabled = true; try { await api("/api/cancel", {method: "POST"}); } finally { $("stop").disabled = false; } });
@@ -3520,6 +3528,7 @@ async function refreshPersonas() {
   S.personas = st.personas; S.thresholds = st.thresholds || {}; S.queued = st.queued || [];
   $("sess").textContent = `session ${st.session}`;
   $("tier").value = st.tier_mode;
+  $("thinking").value = $("thinking").dataset.saved = st.thinking || "auto";
   await refreshPersonas();
   $("pin").value = st.pin || "";
   $("project").value = st.project || "";

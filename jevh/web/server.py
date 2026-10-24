@@ -47,6 +47,7 @@ from ..bus import jsonable, task_json
 from ..config import Config, load_config
 from ..interject import KINDS
 from ..interject import parse as parse_command
+from ..llm import thinking_level
 from ..lmstudio import gate_for
 from ..orchestrator import ELSEWHERE, Harness
 from ..history import History
@@ -786,7 +787,8 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                                  "fast_ok": p.fast_ok, "draft": p.draft} for n, p in h.personas.items()},
                 "skills": len(h.roster), "turns": hub.turns, "last_seq": hub.seq, "project": h.project,
                 "watch_browser": h.watch_browser, "questions": h.pending_questions(), "queued": h.queued(),
-                "thresholds": h.cfg.thresholds, "problems": h.problems(), "appearance": usersettings.appearance(h.cfg)}
+                "thresholds": h.cfg.thresholds, "problems": h.problems(), "appearance": usersettings.appearance(h.cfg),
+                "thinking": thinking_level(h.cfg.raw)}
 
     @app.post("/api/upload")
     async def upload(request: Request, name: str = "") -> dict:
@@ -1281,6 +1283,20 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             raise HTTPException(400, str(e)) from None
         hub.publish("appearance", out)
         return {"appearance": out}
+
+    @app.post("/api/config/thinking")
+    async def config_thinking(request: Request) -> dict:
+        """The chat bar's Thinking picker: saved at once, even while a turn runs (a task already running keeps its level;
+        the next task or hand-off uses the new one). Every open page and phone hears of it (a `thinking` event)."""
+        body = await request.json()
+        try:
+            level = await asyncio.to_thread(usersettings.save_thinking, hub.cfg,
+                                            body.get("level") if isinstance(body, dict) else None)
+        except usersettings.SettingsError as e:
+            raise HTTPException(400, str(e)) from None
+        hub.harness.reload_thinking()
+        hub.publish("thinking", {"level": level})
+        return {"level": level}
 
     @app.post("/api/config/test-search")
     async def config_test_search(request: Request) -> dict:
