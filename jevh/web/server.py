@@ -41,6 +41,7 @@ from .. import context as ctxwin
 from .. import cron
 from .. import settings as usersettings
 from .. import newsroom as nr
+from .. import restart as restarter
 from .. import update as updater
 from ..bus import jsonable, task_json
 from ..config import Config, load_config
@@ -207,6 +208,15 @@ class Hub:
         with self._lock:
             self._subs.append(q)
         return q
+
+    def end_streams(self) -> None:
+        """(on the event loop) End every open event stream now, as falling behind does: the server is going down (a
+        restart), and a stream never ends by itself, so it would hold the way down up for the whole grace period."""
+        with self._lock:
+            subs = list(self._subs)
+        for q in subs:
+            q.behind = True
+            self._offer(q, {"seq": -1})   # (wakes it; it is never sent)
 
     def since(self, seq: int) -> list[dict]:
         """The kept events after `seq`. (Under the lock: a worker thread trimming the list meanwhile made a copy taken
@@ -1546,7 +1556,16 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         """This checkout against its GitHub branch. Asks GitHub at most every 10 minutes unless refresh."""
         if refresh or version_cache["data"] is None or time.time() - version_cache["ts"] > 600:
             version_cache.update(ts=time.time(), data=updater.check(fetch=True))
-        return {**version_cache["data"], "restart_needed": hub.updated}
+        return {**version_cache["data"], **restart_state()}
+
+    def restart_state() -> dict:
+        """Whether the code on disk is not what this server runs: after an update here (hub.updated), or one made outside
+        it (`jevh update`, a git pull or merge); and whether it can start itself again (/api/restart)."""
+        need = hub.updated
+        disk = ((version_cache["data"] or {}).get("current") or {}).get("sha")
+        if need is None and running and disk and disk != running:
+            need = {"from": running, "to": disk, "undone": False, "deps_changed": False, "deps_note": ""}
+        return {"restart_needed": need, "running": running, "can_restart": getattr(app.state, "stop", None) is not None}
 
     def updating(fn):
         """Run an update/undo with no turn running (and none starting); the server keeps its loaded code."""
@@ -1563,7 +1582,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                 "from": running, "to": r["to"], "undone": bool(r.get("undone")),
                 "deps_changed": r["deps_changed"], "deps_note": r["deps_note"]}
         version_cache.update(ts=time.time(), data=updater.check(fetch=False))
-        return {**r, "message": updater.done(r), "restart_needed": hub.updated}
+        return {**r, "message": updater.done(r), **restart_state()}
 
     @app.post("/api/update")
     async def update(request: Request) -> dict:
@@ -1582,11 +1601,36 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
             updater.set_channel(was)
             raise HTTPException(400, st["error"])
         version_cache.update(ts=time.time(), data=st)
-        return {**st, "restart_needed": hub.updated}
+        return {**st, **restart_state()}
 
     @app.post("/api/update/undo")
     async def update_undo() -> dict:
         return await asyncio.to_thread(updating, updater.undo)
+
+    @app.post("/api/restart")
+    async def restart() -> dict:
+        """Start again on the code on disk (Settings, Updates: Restart now). A helper process (jevh/restart.py) waits for this
+        one to exit and runs its command line again; the page waits for the new server and reloads. Not while a turn or a
+        scheduled job runs: `busy` is kept from here on, so none starts while it goes down."""
+        stop = getattr(app.state, "stop", None)
+        if stop is None:
+            raise HTTPException(501, "This dashboard can't restart itself: stop it and start it again.")
+        if not hub.busy.acquire(blocking=False):
+            raise HTTPException(409, "wait for the running turn to finish")
+        try:
+            if hub.cron.running():
+                raise HTTPException(409, "a scheduled job is running: wait for it to finish")
+            cmd = getattr(app.state, "restart_cmd", None)
+            restarter.schedule(port, hub.cfg.workspace / "restart.log", cmd() if callable(cmd) else cmd)
+        except HTTPException:
+            hub.busy.release()
+            raise
+        except Exception as e:  # noqa: BLE001
+            hub.busy.release()
+            raise HTTPException(500, f"couldn't restart: {type(e).__name__}: {e}") from None
+        threading.Timer(0.5, stop).start()   # (once this answer is on its way)
+        asyncio.get_running_loop().call_later(0.8, hub.end_streams)   # (after: a page must not reconnect to this server)
+        return {"ok": True, "log": str(hub.cfg.workspace / "restart.log")}
 
     @app.get("/api/artifacts")
     def artifacts() -> list[dict]:

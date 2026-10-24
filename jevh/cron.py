@@ -525,6 +525,10 @@ class CronJobs:
     def active(self, job_id: int) -> bool:
         return bool(self._all("SELECT 1 FROM runs WHERE job_id=? AND status IN ('queued','running') LIMIT 1", (job_id,)))
 
+    def running(self) -> int:
+        """How many runs are going now (a restart waits for them)."""
+        return self._all("SELECT COUNT(*) FROM runs WHERE status='running'")[0][0]
+
     def mark_seen(self, job_id: int | None = None) -> None:
         self._run("UPDATE runs SET seen=1 WHERE seen=0" + (" AND job_id=?" if job_id else ""), (job_id,) if job_id else ())
 

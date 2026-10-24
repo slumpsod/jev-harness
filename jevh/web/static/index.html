@@ -2865,7 +2865,7 @@ function renderStatus() {
 }
 
 // ---- harness version: check GitHub, fast-forward to the latest (jevh/update.py) ----
-const U = {st: null, checking: false, updating: false, test: false, msg: "", err: "", ran: false};
+const U = {st: null, checking: false, updating: false, restarting: false, test: false, msg: "", err: "", ran: false};
 function renderUpdates() { if (setShown("updates")) $("p-updates").innerHTML = versionCard(); }
 async function refreshVersion(refresh = false) {
   U.checking = true; renderUpdates();
@@ -2878,7 +2878,7 @@ async function refreshVersion(refresh = false) {
   renderUpdates();
 }
 function versionCard() {
-  const v = U.st, busy = U.checking || U.updating;
+  const v = U.st, busy = U.checking || U.updating || U.restarting;
   const btn = `<button data-upd="check" ${busy ? "disabled" : ""}>${U.checking ? "Checking..." : "Check for updates"}</button>`;
   if (!v) return `<div class="card"><h3>Harness version ${btn}</h3><div class="kv">${U.err ? esc(U.err) : "checking GitHub..."}</div></div>`;
   const c = (x) => x ? `<code>${esc(x.sha)}</code> ${esc(x.date)} · ${esc(x.subject)}` : "-";
@@ -2889,7 +2889,9 @@ function versionCard() {
     + (v.branch ? `<div class="kv">branch ${esc(v.branch)}${v.upstream ? ` → ${esc(v.upstream)}` : ""}</div>` : "")
     + (v.channels && v.channels.length ? `<div class="kv" style="margin-top:4px">channel <select id="updchannel" ${busy ? "disabled" : ""} title="stable only gets versions whose tests passed on GitHub; main gets every change as it lands">${v.channels.map((c) => `<option ${c === v.channel ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></div>` : "");
   const R = v.restart_needed;
-  if (R) body += `<div class="kv" style="color:var(--warn-ink);margin-top:6px"><b>${R.undone ? "Went back" : "Updated"} to ${esc(R.to)}.</b> Restart the dashboard (Ctrl+C, then <code>jevh dashboard</code>) to load it.${R.deps_note ? ` ${esc(R.deps_note)}.` : ""}</div>`;
+  if (R) body += `<div class="kv" style="color:var(--warn-ink);margin-top:6px"><b>${R.undone ? "Went back" : "Updated"} to ${esc(R.to)}</b> (running ${esc(R.from || "?")}).
+    ${v.can_restart ? "Restart the harness to load it." : "Restart the dashboard (Ctrl+C, then <code>jevh dashboard</code>) to load it."}${R.deps_note ? ` ${esc(R.deps_note)}.` : ""}</div>`
+    + (v.can_restart ? `<div style="margin-top:8px"><button data-upd="restart" ${blocked ? "disabled" : ""} title="${why || "Stop the harness and start it again on the code on disk; this page reconnects by itself"}">${U.restarting ? "Restarting..." : "Restart now"}</button></div>` : "");
   if (v.error) body += warn(esc(v.error));
   else if (!v.behind) body += `<div class="kv" style="margin-top:6px"><span class="badge done">up to date</span></div>`;
   else {
@@ -2922,6 +2924,7 @@ $("p-updates").addEventListener("click", async (ev) => {
   const act = b.dataset.upd;
   U.msg = "";
   if (act === "check") return refreshVersion(true);
+  if (act === "restart") return restartHarness();
   const ask = act === "undo" ? `Go back to ${U.st.previous.sha}? Your edits are kept.`
     : `Update the harness to ${U.st.latest.sha}?${U.test ? " The tests run first (a few minutes)." : ""} Your edits are kept; if the new version doesn't work it's rolled back.`;
   if (!confirm(ask + " The dashboard keeps running the code it loaded until you restart it.")) return;
@@ -2933,6 +2936,28 @@ $("p-updates").addEventListener("click", async (ev) => {
   U.updating = false;
   refreshVersion(false);
 });
+
+// Restart now: the server starts a helper that runs it again once it has exited (jevh/restart.py). The page waits for it
+// to go down and come back (a new launch has a new token, so it reloads), or says where to look if it doesn't.
+async function restartHarness() {
+  if (!confirm("Restart the harness now, to run the updated code? It takes a few seconds; this page reconnects by itself."
+    + (window.pywebview ? " The app's window closes and opens again." : ""))) return;
+  U.restarting = true; renderUpdates();
+  let log = "";
+  try { log = (await api("/api/restart", {method: "POST"})).log; }
+  catch (e) { U.restarting = false; U.msg = `Restart failed: ${e.message}`; return renderUpdates(); }
+  // the old server still takes this page's token; the new one refuses it (or the sign-in page answers): it's back
+  const back = () => fetch("/api/version", {cache: "no-store", redirect: "manual", headers: {"X-Jevh-Token": TOKEN}})
+    .then((r) => !r.ok, () => false);
+  const t0 = Date.now();
+  while (Date.now() - t0 < 120000) {
+    await new Promise((r) => setTimeout(r, 700));
+    if (await back()) return location.reload();
+  }
+  U.restarting = false;
+  U.msg = `The harness didn't come back within 2 minutes. What happened is in ${log}.`;
+  renderUpdates();
+}
 
 // ---- settings: the model, the quick model, light Jev and the web search engine (jevh/settings.py) ----
 // What is chosen here is saved in workspace/settings.yaml, which wins over the config files. Nothing is sent until Save.

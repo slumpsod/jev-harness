@@ -191,8 +191,9 @@ The fewer of your own things live in the checkout, the less an update has to wor
 
 Copies stay in git as `refs/jevh/pre-update` (the old version) and `refs/jevh/pre-update-edits` (your
 edits, `git stash apply refs/jevh/pre-update-edits`). Local commits that aren't on GitHub stop the update
-(`git pull` merges them). Restart the CLI or dashboard afterwards to load the new code. The dashboard
-won't update during a turn.
+(`git pull` merges them). Restart the CLI or dashboard afterwards to load the new code: in the dashboard, **Restart now**
+in Settings, Updates does it (also after a `jevh update` or `git pull` made in a terminal). The dashboard won't update or
+restart during a turn.
 
 ## Adding things
 
@@ -308,8 +309,8 @@ phone, in landscape, and on a tablet.
 - **Settings** (a page, the sliders icon), in four sections: **Models and search** (see Settings below); **Devices** (your
   other computers, and signing in); **Status**: which model LM Studio or a llama.cpp server has loaded (plus the gate's
   state), Jev adapter and semif health, ComfyUI, GPU memory, add-ons that were skipped, and the swap history (the coloured
-  dots at the top of the chat open it); **Updates**: the harness version, with new commits on GitHub and an Update button (a
-  count on the Settings icon when there are any).
+  dots at the top of the chat open it); **Updates**: the harness version, with new commits on GitHub, an Update button (a
+  count on the Settings icon when there are any) and, once the code on disk is newer than what runs, Restart now.
 
 **Tool calls are summarised, not dumped.** A turn that ran 31 steps says so in one plain sentence ("Searched the web
 3 times, looked at 6 files, edited 2 files and ran 4 commands · 1 failed"). Click it for one line per step

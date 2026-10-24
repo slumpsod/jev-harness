@@ -78,7 +78,7 @@ the top on a phone; the arrow keys move between them) are:
 | Models and search | the choices below |
 | Devices | your other computers the assistant can use (pair one with a code, rename it, remove it), and signing in: accounts, invite links, passwords. In the desktop app on another computer, a "This computer" card. See [devices.md](devices.md). |
 | Status | each model server (LM Studio, a llama.cpp server), the Jev adapter and backend, ComfyUI, the GPUs, add-ons that were skipped, and LM Studio's model swaps. The three dots at the top of the chat show the same at a glance and open this section. |
-| Updates | the harness version on disk, the update channel, new commits on GitHub, **Update now** and **Undo update**. A count on the Settings icon (and on this section) says how many commits are new. |
+| Updates | the harness version on disk, the update channel, new commits on GitHub, **Update now** and **Undo update**. A count on the Settings icon (and on this section) says how many commits are new. Once the code on disk is not what is running (an update or undo here, or `jevh update`, a `git pull` or a merge in a terminal), **Restart now** starts the harness again on it: see below. |
 
 Settings opens on the section it was last on. **Models and search** holds the few choices that are easy to get wrong in YAML.
 Appearance is about this screen and stays in your browser; these belong to the harness, so they are saved on this machine and
@@ -100,6 +100,23 @@ They are saved in `workspace/settings.yaml`, which is read last: a choice made h
 `~/.jevh/config.yaml` and `config.local.yaml`, and those files (and their comments) are never rewritten. Only `models`, `thinking`,
 `search` and `appearance` are read from it. It can hold a Brave key, so it is created readable by your user account only, and the page is never
 sent the key back (it says "saved"). A dashboard started with `--model` ignores the two model choices, and says so.
+
+### Restart now
+
+An update changes the files, but the running harness keeps the code it loaded. **Restart now** (`POST /api/restart`) loads
+the new code without a terminal: the dashboard starts a small helper (`python -m jevh.restart`, `jevh/restart.py`) that
+waits for the dashboard's process to exit (and ends it if it hasn't within 30 s), waits for the port to free, then runs the
+same command line again, in the same folder with the same environment. The page waits for it to come back and reloads
+(sign-ins survive it; the chat replays as after any restart). It is refused while a turn or a scheduled job runs, and no
+turn can start once it has begun.
+
+- In the **desktop app** the whole app restarts: its window closes and opens again (in the tray if that is where it was).
+- **`jevh dashboard` in a terminal** comes back in a new console window (Windows). Started hidden, or on Linux or macOS, it
+  comes back in the background, its output in `workspace/restart-output.log` (the last restart's). `workspace/restart.log`
+  says what each restart did and how long the old process took to exit: usually under a second, longer while a request is
+  still running (the Status section's probes can take 15 s), since the server finishes what it is doing first.
+- A dashboard served some other way (a test client, an embedding) says it can't restart itself, and the card keeps the
+  manual instructions.
 
 ## How tool calls become a sentence
 
