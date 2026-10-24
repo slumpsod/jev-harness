@@ -1,0 +1,95 @@
+(The run: 2026-10-24 10:16-11:36, Qwen3.8-Flash-Next IQ3_S on Strata, light Jev; 3 repeats. Turns regraded after it: the first
+grader skipped every file under a folder named "thinking" - this worktree - and the held-out split is every third case.
+The low/medium turn failures are real: "63,245,986" is F(39), an off-by-one in the model's code; one medium reply gave the
+prime list without the sum. On Strata, high is xhigh, the same as auto.)
+
+Thinking levels, live (2026-10-24 11:37)
+
+[questions] one call per question; per level: passed, median seconds, median thinking tokens
+  dev:
+    auto    24/24      5.7s  think     218
+    none     8/24      0.8s  think       0
+    low     24/24      4.3s  think     196
+    medium  23/24      4.0s  think     236
+    high    24/24      5.4s  think     204
+  held-out:
+    auto    12/12      3.7s  think     138
+    none     8/12      0.6s  think       0
+    low     12/12      3.6s  think     152
+    medium  12/12      2.9s  think     166
+    high    11/12      3.6s  think     156
+    none vs auto: -20 passed, median time 16% of auto's
+    low vs auto: +0 passed, median time 89% of auto's
+    medium vs auto: -1 passed, median time 85% of auto's
+    high vs auto: -1 passed, median time 95% of auto's
+    by case (passed per level auto/none/low/medium/high):
+      ages       3/3  1/3  3/3  3/3  3/3
+      binary     3/3  0/3  3/3  3/3  3/3
+      clock      3/3  2/3  3/3  3/3  3/3
+      code       3/3  0/3  3/3  3/3  3/3
+      dates      3/3  3/3  3/3  3/3  3/3
+      insulate   3/3  0/3  3/3  3/3  3/3
+      overlap    3/3  3/3  3/3  3/3  2/3
+      pens       3/3  0/3  3/3  2/3  3/3
+      percent    3/3  1/3  3/3  3/3  3/3
+      series     3/3  3/3  3/3  3/3  3/3
+      trains     3/3  0/3  3/3  3/3  3/3
+      weighing   3/3  3/3  3/3  3/3  3/3
+
+[turns] full harness turns; per level: passed, median seconds, median thinking tokens, median model calls
+  dev:
+    auto    18/18     33.0s  think     168  calls  5.0
+    none    17/18     21.5s  think       0  calls  4.5
+    low     15/18     23.6s  think      87  calls  4.0
+    medium  15/18     22.2s  think      83  calls  4.0
+    high    18/18     28.9s  think     124  calls  5.0
+  held-out:
+    auto     6/6      52.5s  think     177  calls  6.0
+    none     6/6      30.2s  think       0  calls  6.0
+    low      6/6      35.0s  think     146  calls  5.5
+    medium   6/6      31.2s  think      74  calls  5.0
+    high     6/6      61.2s  think     265  calls  8.5
+    none vs auto: -1 passed, median time 68% of auto's
+    low vs auto: -3 passed, median time 75% of auto's
+    medium vs auto: -3 passed, median time 68% of auto's
+    high vs auto: +0 passed, median time 88% of auto's
+    by case (passed per level auto/none/low/medium/high):
+      bugfix     3/3  3/3  3/3  3/3  3/3
+      csvfix     3/3  3/3  3/3  3/3  3/3
+      fib_sha    3/3  2/3  0/3  1/3  3/3
+      landlord   3/3  3/3  3/3  3/3  3/3
+      primes     3/3  3/3  3/3  2/3  3/3
+      rebate     3/3  3/3  3/3  3/3  3/3
+      rev        3/3  3/3  3/3  3/3  3/3
+      schedule   3/3  3/3  3/3  3/3  3/3
+
+failures:
+  questions pens none rep 1: wrong: '$8.75'
+  questions trains none rep 1: wrong: '13:40'
+  questions ages none rep 1: wrong: '36'
+  questions code none rep 1: wrong: '36'
+  questions insulate none rep 1: wrong: '$1,723.68'
+  questions percent none rep 1: wrong: '+12.5%'
+  questions binary none rep 1: wrong: '6'
+  questions pens none rep 2: wrong: '$4.75'
+  questions trains none rep 2: wrong: '13:45'
+  questions ages none rep 2: wrong: '36'
+  questions code none rep 2: wrong: '7'
+  questions insulate none rep 2: wrong: '$1,773.20'
+  questions percent none rep 2: wrong: '+12.5'
+  questions binary none rep 2: wrong: '6'
+  questions overlap high rep 2: wrong: '8'
+  questions pens none rep 3: wrong: '$4.75'
+  questions pens medium rep 3: wrong: '$0.75'
+  questions trains none rep 3: wrong: '13:45'
+  questions code none rep 3: wrong: '36'
+  questions insulate none rep 3: wrong: '$1,337'
+  questions clock none rep 3: wrong: '120'
+  questions binary none rep 3: wrong: '6'
+  turns fib_sha low rep 1: the answer lacks '102334155'
+  turns fib_sha medium rep 1: the answer lacks '102334155'
+  turns fib_sha none rep 2: the answer lacks '102334155'
+  turns fib_sha low rep 2: the answer lacks '102334155'
+  turns fib_sha medium rep 2: the answer lacks '102334155'
+  turns primes medium rep 2: the answer lacks '30007'
+  turns fib_sha low rep 3: the answer lacks '102334155'

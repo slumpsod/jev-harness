@@ -31,7 +31,7 @@ from .forge import Forge
 from .jev import (CollabDecision, Jev, MemoryDecision, RouteDecision, SkillDecision, TierDecision, ToolDecision,
                   decide_interject)
 from .learn import Learner, seen_text, work_log
-from .llm import LLM, make_llm, see_image
+from .llm import LLM, make_llm, see_image, thinking_level, with_thinking
 from . import context as ctxwin
 from .lmstudio import gate_for
 from .mcp import McpHub
@@ -1383,7 +1383,9 @@ class Harness:
         key = (persona.name, tier)
         with self._llm_lock:  # parallel hand-offs may build the same persona's client at once
             if key not in self._llms:
-                llm = self._llm_factory(replace(persona, model=self._model_cfg(persona, tier)))
+                # (the thinking level chosen in Settings is laid over every model block that sets none of its own)
+                block = with_thinking(self._model_cfg(persona, tier), thinking_level(self.cfg.raw), self.cfg.providers)
+                llm = self._llm_factory(replace(persona, model=block))
                 for target in (llm, getattr(llm, "fallback", None)):
                     if target is not None and hasattr(target, "on_progress"):
                         target.on_progress = lambda n, thinking=0, tps=0.0, name=persona.name: self.on_event(
