@@ -136,6 +136,10 @@ newsroom:
                          # else the X_BEARER_TOKEN environment variable, else an X account connected in Nango
   x_integration: ""      # the Nango integration for X, if its name isn't x / twitter
   allow_local: false     # true: a tile may follow a feed on this machine or network (blocked by default)
+  summary: true          # a short summary of what the last look found at the top of each tile, with its sources (notebook
+                         # #17); written between your turns by the quick model (else the default persona's), one at a time
+  summary_items: 10      # the newest items a summary is written from
+  summary_tokens: 700    # its reply budget
 
 # Cron jobs (jevh/cron.py, docs/architecture/23-cron.md): tasks the assistant does on a schedule, made on the dashboard's Cron page.
 # Each run is a turn of its own in a fresh session; the dashboard has to be running for jobs to start.

@@ -59,7 +59,8 @@ SIZES = ("s", "m", "l")         # a tile: one column (headlines only), one colum
 FIELD_CAPS = {"title": 300, "url": 1000, "source": 120, "summary": 600, "author": 120}
 
 DEFAULTS = {"about_threshold": 0.7, "enabled": True, "tick": 30, "min_minutes": 5, "default_minutes": 30, "keep_items": 100,
-            "max_widgets": 40, "x_feed": "", "x_integration": "", "allow_local": False}
+            "max_widgets": 40, "x_feed": "", "x_integration": "", "allow_local": False,
+            "summary": True, "summary_items": 10, "summary_tokens": 700}
 
 
 def settings(raw: dict | None) -> dict:
@@ -573,6 +574,11 @@ class Newsroom:
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value INTEGER);
             INSERT OR IGNORE INTO meta VALUES('rev', 0);
         """)
+        # (added 2026-10-24: a board made before has no summary columns)
+        cols = {r[1] for r in self.db.execute("PRAGMA table_info(widgets)")}
+        for col, decl in (("summary", "TEXT DEFAULT ''"), ("summary_wanted", "INTEGER DEFAULT 0")):
+            if col not in cols:
+                self.db.execute(f"ALTER TABLE widgets ADD COLUMN {col} {decl}")
         self.db.commit()
 
     # -- plumbing ----------------------------------------------------------------------------
@@ -599,6 +605,11 @@ class Newsroom:
         d["params"] = json.loads(d["params"] or "{}")
         d["alert"] = json.loads(d["alert"] or "{}")
         d["paused"] = bool(d["paused"])
+        try:
+            d["summary"] = json.loads(d.get("summary") or "null")
+        except ValueError:
+            d["summary"] = None
+        d["summary_wanted"] = bool(d.get("summary_wanted"))
         return d
 
     # -- widgets -----------------------------------------------------------------------------
@@ -665,7 +676,7 @@ class Newsroom:
             new = clean_params(w["kind"], {**w["params"], **params})
             if new != w["params"]:
                 sets["params"] = json.dumps(new)
-                sets.update(last_look=None, last_ok=None, error="", fails=0)
+                sets.update(last_look=None, last_ok=None, error="", fails=0, summary="", summary_wanted=0)
                 if title is None and w["title"] == KINDS[w["kind"]].title(w["params"]):
                     sets["title"] = KINDS[w["kind"]].title(new)[:120]
                 self._run("DELETE FROM items WHERE widget_id=?", (wid,), commit=False)
@@ -791,6 +802,10 @@ class Newsroom:
             self.db.execute("DELETE FROM items WHERE widget_id=? AND id NOT IN (SELECT id FROM items WHERE widget_id=? "
                             "ORDER BY COALESCE(published, first_seen) DESC, id DESC LIMIT ?)", (wid, wid, keep))
             self.db.execute("UPDATE widgets SET last_look=?, last_ok=?, error='', fails=0 WHERE id=?", (now, now, wid))
+            # the summary at the top of the tile is written again when the look found something (or there is none yet);
+            # the dashboard's Summarizer writes it, between turns (a worker's first look, in its REPL, only asks for it)
+            if self.cfg["summary"] and (fresh or (found and not w.get("summary"))):
+                self.db.execute("UPDATE widgets SET summary_wanted=1 WHERE id=?", (wid,))
             self.db.execute("UPDATE meta SET value=value+1 WHERE key='rev'")
             self.db.commit()
         fresh.reverse()
@@ -829,6 +844,25 @@ class Newsroom:
                             "VALUES (?,?,?,?,?,?,?,?,?)", (wid, it["uid"], it["title"], it["url"], it["source"], it["published"],
                                                            it["summary"], it["author"], n))
         return [it for it, _ in keep]
+
+    # -- summaries ---------------------------------------------------------------------------
+    def summaries_wanted(self) -> list[int]:
+        """Tiles whose summary is to be written (again), in board order."""
+        return [r["id"] for r in self._all("SELECT id FROM widgets WHERE summary_wanted=1 AND paused=0 ORDER BY pos, id")]
+
+    def write_summary(self, wid: int, write: Callable[[dict, list[dict]], dict]) -> dict | None:
+        """Write one tile's summary with `write(widget, items) -> {text, sources}` (summarize_with, given a model) from its
+        newest `summary_items` items, and keep it. None: nothing to summarize (the request is dropped)."""
+        w = self.widget(wid)
+        items = self.items(wid, int(self.cfg["summary_items"])) if w else []
+        if not w or not items:
+            self._run("UPDATE widgets SET summary_wanted=0 WHERE id=?", (wid,), touch=False)
+            return None
+        out = {**write(w, items), "ts": time.time(), "items": len(items)}
+        # (a look that came in meanwhile asked again: the next pass writes it from the newer items)
+        self._run("UPDATE widgets SET summary=?, summary_wanted=CASE WHEN last_ok>? THEN 1 ELSE 0 END WHERE id=?",
+                  (json.dumps(out), w["last_ok"] or 0, wid))
+        return out
 
     def refresh_due(self, now: float | None = None, workers: int = 3) -> list[dict]:
         ids = self.due(now)
@@ -879,6 +913,115 @@ class Runner:
 
     def stop(self) -> None:
         self._stop.set()
+
+
+# ---------------------------------------------------------------- the summary at the top of a tile
+SUMMARY_PROMPT = """You write the short summary at the top of a news tile on the user's dashboard.
+The tile follows: {follows}
+Below are the newest items its last look found, numbered.
+
+Say in 2 to 4 short sentences what they report: the main developments, plainly, so the user knows what happened without
+opening every link. Use only what the titles and snippets say: no facts from elsewhere, no guesses, no advice. After each
+sentence put the numbers of the items it comes from in brackets, like [1] or [2][5]. If the items have little in common,
+cover the two or three most notable. Reply with the summary only.
+
+{items}"""
+CITE = re.compile(r"\[(\d{1,2})\]")
+
+
+def summary_prompt(w: dict, items: list[dict]) -> str:
+    follows = f"{w['title']} ({KINDS[w['kind']].label if w['kind'] in KINDS else w['kind']}: " + \
+        ", ".join(f"{k}={v}" for k, v in (w.get("params") or {}).items()) + ")"
+    lines = []
+    for n, it in enumerate(items, 1):
+        when = ago(it.get("published") or it.get("first_seen"))
+        head = " · ".join(x for x in (it.get("source") or "", when) if x)
+        snippet = (it.get("summary") or "").strip()
+        lines.append(f"[{n}] {it['title']}" + (f" ({head})" if head else "") + (f"\n    {snippet[:400]}" if snippet else ""))
+    return SUMMARY_PROMPT.format(follows=follows, items="\n".join(lines))
+
+
+def parse_summary(text: str, items: list[dict]) -> dict:
+    """{text, sources}: the summary without a model's leftovers, and the items it cites, numbered as in the text (an
+    answer that cites nothing lists every item it was given). A number that names no item is dropped from the text."""
+    text = re.sub(r"<think>.*?</think>", "", str(text or ""), flags=re.S).strip()
+    text = re.sub(r"^(?:summary|here(?:'s| is) the summary)\s*[:\-]\s*", "", text, flags=re.I).strip().strip('"')
+    if not text:
+        raise NewsroomError("the model wrote no summary")
+    text = CITE.sub(lambda m: m.group(0) if 1 <= int(m.group(1)) <= len(items) else "", text)
+    cited = sorted({int(n) for n in CITE.findall(text)})
+    keep = cited or list(range(1, len(items) + 1))
+    return {"text": text[:1500],
+            "sources": [{"n": n, "title": items[n - 1]["title"], "url": items[n - 1].get("url") or "",
+                         "source": items[n - 1].get("source") or ""} for n in keep]}
+
+
+def summarize_with(llm: Any, w: dict, items: list[dict], max_tokens: int = 700) -> dict:
+    """A tile's summary from `llm` (any model with .chat(messages)): one short call, thinking off on a local server."""
+    import inspect
+    kwargs: dict[str, Any] = {}
+    try:
+        params = inspect.signature(llm.chat).parameters
+    except (TypeError, ValueError):
+        params = {}
+    if "body_extra" in params or any(p.kind == p.VAR_KEYWORD for p in params.values()):
+        from .light import _no_thinking
+        kwargs["body_extra"] = {"max_tokens": int(max_tokens), **_no_thinking(llm)}
+    out = llm.chat([{"role": "user", "content": summary_prompt(w, items)}], **kwargs)
+    return parse_summary(getattr(out, "text", "") or "", items)
+
+
+class Summarizer:
+    """Writes the tiles' summaries, one at a time, on a thread of its own - only while `ready()` (the dashboard: no turn of
+    the user's is running). A local model serves one request at a time: live 2026-10-21, a check that ran after a turn
+    held it, and the user's next message waited 6 minutes for its first token. `write(widget, items) -> {text, sources}`."""
+
+    def __init__(self, room: Newsroom, write: Callable[[dict, list[dict]], dict], ready: Callable[[], bool] | None = None,
+                 on_change: Callable[[], None] | None = None, tick: float = 5.0):
+        self.room, self.write, self.ready, self.on_change, self.tick = room, write, ready or (lambda: True), on_change, tick
+        self._stop, self._wake = threading.Event(), threading.Event()
+        self._thread: threading.Thread | None = None
+        self.errors: dict[int, str] = {}   # tile -> why its last summary failed (it is tried again after its next look)
+
+    def once(self) -> int:
+        """Write the summaries that are wanted while ready() holds; -> how many were written."""
+        done = 0
+        for wid in self.room.summaries_wanted():
+            if self._stop.is_set() or not self.ready():
+                break
+            try:
+                if self.room.write_summary(wid, self.write) is not None:
+                    done += 1
+                self.errors.pop(wid, None)
+            except Exception as e:  # noqa: BLE001 - the model down or failing: no summary this time, the items still show
+                self.errors[wid] = f"{type(e).__name__}: {e}"[:300]
+                self.room._run("UPDATE widgets SET summary_wanted=0 WHERE id=?", (wid,), touch=False)
+            if self.on_change:
+                self.on_change()
+        return done
+
+    def wake(self) -> None:
+        self._wake.set()
+
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop.clear()
+
+        def loop() -> None:
+            while not self._stop.is_set():
+                try:
+                    self.once()
+                except Exception:  # noqa: BLE001 - never let the loop die
+                    pass
+                self._wake.wait(self.tick)
+                self._wake.clear()
+        self._thread = threading.Thread(target=loop, name="newsroom-summaries", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._wake.set()
 
 
 def default_path() -> Path:
@@ -959,6 +1102,11 @@ def main(argv: list[str] | None = None) -> int:
         elif a.action == "rm":
             print("removed" if a.rest and room.delete_widget(int(a.rest[0])) else "no such widget")
         elif a.action == "items":
+            w = room.widget(int(a.rest[0]))
+            if w and (w.get("summary") or {}).get("text"):   # the summary of the last look, then its sources
+                s = w["summary"]
+                print(f"Summary ({ago(s['ts'])}): {s['text']}\nSources:")
+                print("\n".join(f"  [{x['n']}] {x['title'][:80]}  {x['url']}" for x in s.get("sources") or []) + "\n")
             for it in room.items(int(a.rest[0]), 20):
                 print(f"{ago(it['published'] or it['first_seen']):>9}  {it['source'][:22]:<22} {it['title'][:90]}")
         else:

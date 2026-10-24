@@ -79,6 +79,28 @@ phone push.
 Widgets are refreshed **while the dashboard is running** (`jevh dashboard`). With it closed they keep what they have; the
 next start catches up (one look per widget, then its own timer). `jevh newsroom refresh` does one pass by hand.
 
+## The summary on each tile
+
+Each tile opens with **a few sentences on what its last look found**, and ends with a **Sources** list: the items the
+summary was written from, as links (notebook #17, 2026-10-23). Every sentence carries the numbers of the items it comes
+from (`[2][5]`), and each number links to that item. The summary is written from the tile's 10 newest items
+(`summary_items`), only from what their titles and snippets say.
+
+It is written again whenever a look finds something new, and stays as it is when a look finds nothing. The dashboard's
+`Summarizer` writes it, one tile at a time, with the model light Jev's checks use (the quick model, else the default
+persona's; usage shows it as `newsroom`). It **only starts a summary when no turn of yours is running**: a local model
+serves one request at a time, and a background call at the wrong moment delays your next message (flag #13,
+2026-10-21). A worker that adds a tile from the chat makes its first look in its own process; that look only asks for a
+summary, and the dashboard writes it. If the model is down, the tile shows its items without a summary, and the next look
+tries again. `jevh newsroom items ID` prints the summary and its sources above the items. Code: `summary_prompt`,
+`parse_summary`, `summarize_with` and `Summarizer` in `jevh/newsroom.py`; `Hub._summarize` in `jevh/web/server.py`.
+
+Live, 2026-10-24 (Qwen3.8-Flash-Next on Strata, smoke run only: one repeat of a few cases): summaries of real items
+from the board, a GitHub feed and a prompt-injection headline all passed. Each took about 5 s, with thinking off. A
+chat turn sent while a summary was being written took +1.7 s (16.0 s vs 17.7 s). Through the dashboard, the summary
+was on the board 6 s after the tile was added. **The full bench** (`python evals/bench/newsroom_summary.py`, about 40
+minutes) **has not run yet.**
+
 ## Settings (config.yaml `newsroom:`)
 
 | Key | Default | |
@@ -89,6 +111,7 @@ next start catches up (one look per widget, then its own timer). `jevh newsroom 
 | `keep_items` / `max_widgets` | 100 / 40 | per widget / on the board |
 | `x_feed`, `x_integration` | empty | reading X, below |
 | `allow_local` | false | true: a widget may follow a feed on this machine or network |
+| `summary` / `summary_items` / `summary_tokens` | true / 10 / 700 | the summary on each tile, the items it reads, its reply budget |
 
 A widget whose source fails shows the error and is tried less and less often (doubling, up to 6 hours), then recovers by
 itself. `thresholds.newsroom_about` (0.70) is how sure Jev must be that an item is *about* what you asked.

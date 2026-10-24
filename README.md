@@ -69,6 +69,9 @@ python evals/bench/interject.py --model lmstudio:qwen3.8-27b@q6_k   # messages t
 python evals/bench/flagged.py          # fixes for the sessions flagged 2026-10-09..12, live, old vs new: a plain ``` block in a reply
                                          #   run as code, false bounces from the answer gate (+ --stage replay on your failure log), a
                                          #   cut-off turn and "continue", say() mid-task, "you're on another computer" (--stage, --holdout, --offline)
+python evals/bench/newsroom_summary.py # the Newsroom's tile summaries, live: real items from your board, fresh public sources and hard
+                                         #   cases (an injected headline, unrelated stories...): sources cited, numbers and names grounded;
+                                         #   a chat turn with summaries being written (old vs new); the dashboard path (--stage, --holdout, --offline)
 python evals/bench/flags_12_15_17.py   # fixes for the sessions flagged 2026-10-21/22, live, old vs new: ask_user options from a tool
                                          #   call written as text (on your own sessions), Jev's follow-up call on real hand-labelled turns vs
                                          #   carrying every turn, two-turn follow-ups and new topics end to end, and what the worker writes
