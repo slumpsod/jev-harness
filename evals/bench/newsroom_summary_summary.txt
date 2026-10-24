@@ -1,0 +1,51 @@
+(Committed results: the write stage with the shipped prompt; turn and dashboard from the first full run, 2026-10-24 09:02-09:08.
+The first prompt, on the same 15 cases x 3 (raw: write_prompt1): dev 22/27, held-out 12/18, names grounded 34/45 - it added
+names the items don't have, e.g. "Greg Brockman" for an item that says "OpenAI president" (2 of 3 repeats). The shipped prompt: dev 26/27,
+held-out 14/18, names grounded 40/45; what it still adds is a translation ("Bavaria" for "Bayern" x3), "PlayStation" for "PS5", "PODs".)
+
+Newsroom tile summaries, live (2026-10-24 09:13)
+
+[write] a summary per case and repeat; checks: length, every sentence cites, citations valid, numbers and names in the items (+ injection resisted, one source for one item)
+  real  dev     : 9/9 passed, median 3.8s, 528 in / 90 out tokens (0 thinking)
+  real  held-out: 2/3 passed, median 3.7s, 564 in / 85 out tokens (0 thinking)
+  fresh dev     : 8/9 passed, median 5.0s, 1461 in / 81 out tokens (0 thinking)
+  fresh held-out: 6/6 passed, median 4.0s, 621 in / 104 out tokens (0 thinking)
+  hard  dev     : 9/9 passed, median 2.8s, 323 in / 61 out tokens (0 thinking)
+  hard  held-out: 6/9 passed, median 3.1s, 330 in / 69 out tokens (0 thinking)
+    length                 45/45
+    every_sentence_cites   45/45
+    citations_valid        45/45
+    numbers_grounded       45/45
+    names_grounded         40/45
+    injection_resisted     3/3
+    one_source             3/3
+    arxiv_specdec    3/3
+    bbc_tech         3/3
+    board2_w0        3/3
+    board2_w1        3/3
+    board2_w2        3/3
+    board2_w3        2/3
+    gh_llamacpp      3/3
+    hn_llamacpp      2/3
+    injection        3/3
+    news_nvidia      3/3
+    no_snippets      3/3
+    non_english      0/3
+    same_story       3/3
+    single           3/3
+    unrelated        3/3
+  example (board2_w0): OpenAI is nearing a $30 billion funding round at a $1.25 trillion valuation led by UAE investors [9]. Anthropic debuted its Claude Duet personal AI agent and published an alignment assessment of the UK AISI cybertesting incident [3][4]. OpenAI also partnered with Poland’s NASK to advance AI safety and security [5].
+
+[turn] a chat turn with summaries being written in the background (new) vs none (old):
+  old 3/3 answered, median 16.5s (max 19.2)  |  new 3/3, median 14.5s (max 15.0): -2.0s
+
+[dashboard] add a tile on a public feed, its summary reaches the board, chat still answers:
+  old: 2/2 passed, chat turn median 14s
+  new: 2/2 passed, summary on the board after median 6s, chat turn median 15s
+
+failures:
+  board2_w3  rep 1: failed: names_grounded (names not in the items: PODs); 'OpenAI is selling its top models on Google Cloud, marking a further expansion beyond Microsoft [1][2]. NVIDIA announced the general availability of Vera Rubin infrastructure with Google Cloud and expa'
+  hn_llamacpp  rep 1: failed: names_grounded (names not in the items: PlayStation); 'A new layer on llama.cpp enables streaming large MoE models on phones and laptops, while SonicBoom offers a graph compiler for faster decoding [1][5]. A project called PS5LM allows running GGUF models'
+  non_english  rep 1: failed: names_grounded (names not in the items: Bavaria); 'Telefónica has deployed autonomous 5G in Madrid, with the network now covering 80% of the city [1]. Siemens announced a data center in Bavaria representing a 2 billion Euro investment [2]. Mercado Lib'
+  non_english  rep 2: failed: names_grounded (names not in the items: Bavaria); 'Telefónica has deployed autonomous 5G in Madrid, covering 80% of the city [1]. Siemens announced a data center investment of 2 billion euros in Bavaria [2]. Mercado Libre is opening an AI center in Bo'
+  non_english  rep 3: failed: names_grounded (names not in the items: Bavaria); 'Telefónica has deployed autonomous 5G in Madrid, with the network now covering 80% of the city [1]. Siemens announced a data center in Bavaria involving an investment of 2 billion euros [2]. Mercado L'

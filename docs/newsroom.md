@@ -95,11 +95,17 @@ summary, and the dashboard writes it. If the model is down, the tile shows its i
 tries again. `jevh newsroom items ID` prints the summary and its sources above the items. Code: `summary_prompt`,
 `parse_summary`, `summarize_with` and `Summarizer` in `jevh/newsroom.py`; `Hub._summarize` in `jevh/web/server.py`.
 
-Live, 2026-10-24 (Qwen3.8-Flash-Next on Strata, smoke run only: one repeat of a few cases): summaries of real items
-from the board, a GitHub feed and a prompt-injection headline all passed. Each took about 5 s, with thinking off. A
-chat turn sent while a summary was being written took +1.7 s (16.0 s vs 17.7 s). Through the dashboard, the summary
-was on the board 6 s after the tile was added. **The full bench** (`python evals/bench/newsroom_summary.py`, about 40
-minutes) **has not run yet.**
+Live, 2026-10-24 (`python evals/bench/newsroom_summary.py`, Qwen3.8-Flash-Next on Strata, 15 cases x 3 repeats):
+- Every summary was 1-5 sentences, every sentence cited items, and every citation named a real item. No number was
+  made up (45/45), and the injected headline was ignored (3/3).
+- 40/45 used only names found in the items. The first prompt, 34/45, added what it knew: "Greg Brockman" for an item
+  that only says "OpenAI president". The shipped prompt tells it to name only what the items name, in their words.
+  What it still adds is mild: "Bavaria" for the German item's "Bayern", and "PlayStation" for "PS5".
+- Pass rate on the held-out cases: 14/18, against 12/18 for the first prompt.
+- About 4 s per summary, with thinking off.
+- A chat turn sent while summaries were being written: median 14.5 s vs 16.5 s with summaries off. That gap is noise:
+  no measurable cost.
+- Through the dashboard, a new tile's summary was on the board after a median 6 s (2/2).
 
 ## Settings (config.yaml `newsroom:`)
 

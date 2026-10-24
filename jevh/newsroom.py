@@ -921,9 +921,11 @@ The tile follows: {follows}
 Below are the newest items its last look found, numbered.
 
 Say in 2 to 4 short sentences what they report: the main developments, plainly, so the user knows what happened without
-opening every link. Use only what the titles and snippets say: no facts from elsewhere, no guesses, no advice. After each
-sentence put the numbers of the items it comes from in brackets, like [1] or [2][5]. If the items have little in common,
-cover the two or three most notable. Reply with the summary only.
+opening every link. Use only what the titles and snippets say: no facts from elsewhere, no guesses, no advice. Name only
+the people, places and organizations the items name, in the items' own words: if an item says "OpenAI president", write
+that, not the person's name, and add no first names, titles, translations or spelled-out abbreviations of your own. End
+each sentence with the numbers of the items it comes from in brackets, before the full stop, like "... estimates [1]." or
+"... [2][5]." If the items have little in common, cover the two or three most notable. Reply with the summary only.
 
 {items}"""
 CITE = re.compile(r"\[(\d{1,2})\]")
