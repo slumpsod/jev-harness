@@ -142,6 +142,7 @@ def test_memory_gating_keeps_other_personas_out(cfg):
         if k.startswith("m"):
             return noul_ans(0.9 if "fastapi" in q["instructions"]["snippet"] else 0.05)
 
+    cfg.limits["follow_always"] = 0   # (on, the last two turns go along as conversation whoever answered them)
     scripts = {"fitness_coach": ["Squat 3x5 at 100kg."] * 3, "high_end_dev": ["Use a dependency.", "ok"]}
     h, llms = harness(cfg, rules, scripts)
     h.turn("what should I squat today")
@@ -510,6 +511,7 @@ def test_follow_up_sees_what_the_last_answer_was_based_on(cfg):
 
 
 def test_new_topic_starts_clean(cfg):
+    cfg.limits["follow_always"] = 0   # Jev's own reading of the message decides
     llm = ScriptedLLM(["plan...", "Salt Lake City."])
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(followup_rules(0.05, 0.1))), llm_factory=lambda p: llm)
     h.learning = False
@@ -579,6 +581,7 @@ def test_a_follow_up_turn_starts_with_the_last_turns_repl_state_and_folder(cfg):
 
 
 def test_a_new_topic_starts_with_a_fresh_repl(cfg):
+    cfg.limits["follow_always"] = 0
     llm = ScriptedLLM([py("board = 1\nfinal('ok')"), py("final(str('board' in globals()))")])
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(followup_rules(0.05, 0.05))), llm_factory=lambda p: llm)
     h.learning = False

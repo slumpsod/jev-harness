@@ -408,6 +408,7 @@ button.stline:hover:not(:disabled) { color: var(--text); background: none !impor
 .saytag.stopped { color: var(--bad-ink); border-color: color-mix(in srgb, var(--bad) 50%, transparent); }
 .sayrep { margin-top: 5px; color: var(--text); }
 .say.told { border-left-color: var(--accent); background: var(--surface); }
+.say.told.narr { border-left-color: var(--line2); } .say.told.narr .toldtext { color: var(--muted); }   /* written beside its code while it worked */
 .say.told .toldtext { margin-top: 3px; }
 .say.told .toldtext p:first-child { margin-top: 0; }
 .say.told .toldtext p:last-child { margin-bottom: 0; }
@@ -758,6 +759,16 @@ button.linkbtn { padding: 0; border: 0; background: none; color: var(--accent); 
 .nri .sum { font-size: 12px; color: var(--muted); margin: 3px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .nrw[data-size="s"] .sum { display: none; }
 .nrmore { margin-top: 6px; font-size: 12px; }
+/* the summary of the last look (top of the tile) and its sources (bottom) */
+.nrsumm { margin: 0 0 10px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface3); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.nrsumm p { margin: 2px 0 0; } .nrsumm .m { font-size: 11px; color: var(--muted); }
+.nrsumm a.cite { color: var(--link); text-decoration: none; font-size: 11px; vertical-align: super; line-height: 0; } .nrsumm a.cite:hover { text-decoration: underline; }
+.nrsumm.wait { color: var(--muted); font-size: 12px; }
+.nrsrc { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 12.5px; }
+.nrsrc summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.nrsrc ol { margin: 6px 0 0; padding-left: 22px; display: grid; gap: 4px; } .nrsrc li { overflow-wrap: anywhere; }
+.nrsrc a { color: var(--link); text-decoration: none; } .nrsrc a:hover { text-decoration: underline; }
+.nrw[data-size="s"] .nrsumm p { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .nredit { display: grid; gap: 10px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .nredit label, .nrdlg.dlg label { display: grid; gap: 4px; margin: 0; font-size: 12.5px; color: var(--muted); }
 .nredit label.inl, .nrdlg.dlg label.inl { display: flex; align-items: center; gap: 8px; }
@@ -1422,7 +1433,7 @@ function handle(e) {
       break;
     }
     case "aside": { const it = [...(t.said || [])].reverse().find((x) => x.outcome === "status" && !x.aside); if (it) { it.aside = d.answer; it.source = d.source; it.seconds = d.seconds; } break; }
-    case "say": (t.told = t.told || []).push({ts: e.ts, text: d.text, persona: d.persona}); break;
+    case "say": (t.told = t.told || []).push({ts: e.ts, text: d.text, persona: d.persona, narration: !!d.narration}); break;
     case "resuming": t.activity.push({ts: e.ts, kind: "learn", text: `continuing the turn that was cut off at step ${d.step}: ${d.task}`}); break;
     case "steer": t.activity.push({ts: e.ts, kind: "learn", text: `${d.persona}: heard you at step ${d.step} - "${d.text}"`}); break;
     case "redirect": t.activity.push({ts: e.ts, kind: "warn", text: `${d.persona}: cut the model's reply at step ${d.step} to hear you (nothing in it ran)`}); break;
@@ -1490,7 +1501,7 @@ function renderQueue() {   // requests sent while a turn runs: they start by the
 function saidHtml(t) {   // what you said while it worked, what became of it, and what the assistant told you meanwhile (say())
   const told = (t.told || []).map((s) => ({...s, told: true}));
   return [...(t.said || []), ...told].sort((a, b) => (a.ts || 0) - (b.ts || 0)).map((s) => {
-    if (s.told) return `<div class="say told"><span class="saywho">${esc(s.persona || "assistant")}</span> <div class="toldtext">${md(s.text)}</div></div>`;
+    if (s.told) return `<div class="say told${s.narration ? " narr" : ""}"><span class="saywho">${esc(s.persona || "assistant")}</span> <div class="toldtext">${md(s.text)}</div></div>`;
     const tag = s.outcome === "corrected" && s.replaces ? "swapping the task" : {corrected: "added to the task", queued: "queued for after", status: "quick reply", stopped: "stopped"}[s.outcome] || s.outcome;
     const reply = s.outcome === "status" ? `<div class="sayrep">${esc(s.aside || s.answer)}${!s.aside && s.asking ? ' <span class="saywait">(the task\'s own answer is coming...)</span>' : ""}</div>` : "";
     const sent = splitAttach(s.text);
@@ -2501,6 +2512,20 @@ function nrItem(it) {
   return `<li class="nri ${it.read ? "" : "unread"}" data-nritem="${it.id}">${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(it.title)}</a>` : esc(it.title)}
     <div class="m">${esc([it.source, agoOf(it.published || it.first_seen)].filter(Boolean).join(" · "))}</div>${it.summary ? `<p class="sum">${esc(it.summary)}</p>` : ""}</li>`;
 }
+function nrSummary(w) {   // what the last look found, in a few sentences; [n] links to source n
+  const s = w.summary;
+  if (!s || !s.text) return w.summary_wanted ? `<div class="nrsumm wait">Writing a summary of what it found...</div>` : "";
+  const src = {}; (s.sources || []).forEach((x) => { src[x.n] = x; });
+  const text = esc(s.text).replace(/\[(\d{1,2})\]/g, (m, n) => { const x = src[n], u = x && safeUrl(x.url);
+    return u ? `<a class="cite" href="${esc(u)}" target="_blank" rel="noopener noreferrer" title="${esc(x.title)}">[${n}]</a>` : m; });
+  return `<div class="nrsumm"><div class="m">Summary of the last look · ${esc(agoOf(s.ts))}</div><p>${text}</p></div>`;
+}
+function nrSources(w) {   // the bottom of the tile: the summary's sources, numbered as in the summary
+  const src = ((w.summary || {}).text && (w.summary || {}).sources) || [];
+  if (!src.length) return "";
+  return `<details class="nrsrc"><summary>Sources (${src.length})</summary><ol>${src.map((x) => { const u = safeUrl(x.url);
+    return `<li value="${Number(x.n) || 1}">${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a>` : esc(x.title)}${x.source ? ` <span class="kv">${esc(x.source)}</span>` : ""}</li>`; }).join("")}</ol></details>`;
+}
 function nrAlertText(a) { return a.all ? "every new item" : [(a.keywords || []).join(", "), a.about ? `anything about ${a.about}` : ""].filter(Boolean).join(" or "); }
 function nrCard(w, i, count) {
   const k = nrKind(w.kind) || {label: w.kind, icon: "news"};
@@ -2511,9 +2536,11 @@ function nrCard(w, i, count) {
     : w.last_ok ? `looked ${agoOf(w.last_ok)} · every ${w.every} min` : "waiting for its first look";
   const body = NR.editing === w.id ? nrEdit(w, k, i, count)
     : `<div class="nrstat ${w.error ? "err" : ""}">${esc(status)}${alert ? ` · notifies on ${esc(alert)}` : ""}</div>
+      ${nrSummary(w)}
       ${w.items.length ? `<ul class="nrlist">${w.items.slice(0, shown).map(nrItem).join("")}</ul>` : `<div class="kv">${w.error ? "" : "Nothing yet."}</div>`}
       ${w.items.length > shown ? `<button type="button" class="nrmore" data-nract="more">Show more</button>` : ""}
-      ${w.unread ? `<button type="button" class="nrmore" data-nract="read">Mark all read</button>` : ""}`;
+      ${w.unread ? `<button type="button" class="nrmore" data-nract="read">Mark all read</button>` : ""}
+      ${nrSources(w)}`;
   return `<section class="card nrw ${w.paused ? "paused" : ""} ${NR.flash.has(w.id) ? "flash" : ""}" data-size="${esc(w.size)}" data-nrw="${w.id}">
     <div class="nrh"><svg class="ic"><use href="#i-${NR_ICON[k.icon] || "news"}"/></svg><h3>${esc(w.title)}</h3>${w.unread ? `<i class="n" title="new items">${w.unread}</i>` : ""}
       <button type="button" class="iconbtn ${NR.busy.has(w.id) ? "spin" : ""}" data-nract="refresh" title="Look now" aria-label="Look now"><svg class="ic"><use href="#i-refresh"/></svg></button>

@@ -208,6 +208,20 @@ def code_blocks(text: str, native: bool = False) -> list[str]:
     return out
 
 
+CALL_TEXT_RE = re.compile(r"<tool_call>.*?(?:</tool_call>|\Z)|<function=\w+>.*?(?:</function>|\Z)|<think>.*?(?:</think>|\Z)",
+                          re.DOTALL)
+FINAL_CALL_RE = re.compile(r"(?<![\w.])final\(")
+
+
+def spoken(text: str, native: bool = False) -> str:
+    """What a step's reply says to the user beside the code it runs: the text without the blocks that run and any
+    tool-call template. Live (2026-10-21, flagged): "Open https://console.cloud.google.com/auth/clients ... click your
+    Nango client" was written beside an ask_user call whose question said only "Paste the Client ID"; the steps
+    showed only in the thinking view, and the user answered "I'm stuck"."""
+    text = FENCE_RE.sub(lambda m: "" if m.group(1) or (not native and _is_code(m.group(2))) else m.group(0), text or "")
+    return CALL_TEXT_RE.sub("", text).strip()
+
+
 def _is_code(body: str) -> bool:
     try:
         tree = ast.parse(body)
@@ -304,9 +318,31 @@ def translate_tool_calls(text: str, tools: dict[str, str]) -> tuple[list[str], l
     for name, body in XML_CALL_RE.findall(text):
         if name == "python":
             continue   # TOOL_CALL_RE's job
-        code = call_to_code(name, {k: v for k, v in XML_PARAM_RE.findall(body)}, tools)
+        code = call_to_code(name, {k: xml_value(k, v) for k, v in XML_PARAM_RE.findall(body)}, tools)
         (codes.append(code) if code else failed.append(name))
     return codes, failed
+
+
+# Parameters that are text even when they look like JSON: an answer that is a grid, a file's JSON content, a question
+TEXT_PARAMS = {"answer", "answer_var", "code", "content", "data", "text", "question", "search", "query", "prompt",
+               "goal", "message", "name", "path", "url", "instructions"}
+
+
+def xml_value(key: str, value: str) -> Any:
+    """A <parameter=...> value as the call means it: a list or dict written as JSON is that list or dict. Live
+    (2026-10-22, Qwen3.8 Flash Next): <parameter=options>["Yes, go ahead", "No"]</parameter> reached ask_user as one
+    string, and its eight buttons were '[', '"', 'Y', 'e', 's', ...  Text parameters stay text."""
+    s = value.strip()
+    if key in TEXT_PARAMS or not s or s[0] not in "[{":
+        return value
+    try:
+        out = json.loads(s)
+    except ValueError:
+        try:
+            out = ast.literal_eval(s)   # ['a', 'b'] written with Python quotes
+        except (ValueError, SyntaxError, MemoryError, RecursionError):
+            return value
+    return out if isinstance(out, (list, dict)) else value
 
 
 def call_args(arguments: str) -> dict[str, Any]:
@@ -591,6 +627,8 @@ class Worker:
         self.budget: Callable[[], Any] | None = None
         self.checkpoint = checkpoint    # json of the conversation after every step (for resume)
         self.carry_from: Path | None = None   # the previous turn's folder, when this turn follows up on it (_carry)
+        self.narrate = False            # what a step says beside its code goes to the user's chat (limits.narrate)
+        self._narrated = ""
         self._task_idx = 0              # index of the task message (compaction rewrites everything after it)
         self._task_text = ""
         self._progress_log = ""         # a pre-Jev checkpoint's log (resume only); new logs are self._entries
@@ -719,6 +757,16 @@ class Worker:
 
     def _note(self, doing: str) -> None:
         self._doing = (doing, time.time())
+
+    def _narrate(self, text: str, code: str, step: int) -> None:
+        """Send what this step says beside its code to the user's chat, as the work goes on (limits.narrate). Not on
+        the step that hands over the answer (the answer follows), and not the same words twice in a row."""
+        if not self.narrate or FINAL_CALL_RE.search(code):
+            return
+        said = spoken(text, self.native)
+        if said and said != self._narrated:
+            self._narrated = said
+            self.on_step("narrate", {"persona": self.persona.name, "step": step, "text": said[:4000]})
 
     def status(self) -> dict[str, Any]:
         """What the worker is doing right now (safe to read from another thread): a status answer is made of this."""
@@ -904,6 +952,7 @@ class Worker:
                         res.answer, res.stopped = self._with_unresolved(out.text), "plain"
                         break
                 code = "\n\n".join(blocks)
+                self._narrate(out.text, code, step)
                 self._ran_code, self._pauses = True, 0
                 self.on_step("code", {"persona": self.persona.name, "step": step, "code": code})
                 self._note("running code: " + ([ln.strip() for ln in code.splitlines() if ln.strip()] or [""])[0][:100])

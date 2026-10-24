@@ -75,6 +75,11 @@ limits:
   memory_search: 10             # + turns from ANY time that share words with the request (full-text index)
   memory_facts: 6               # + remembered facts that share words with the request
   follow_turns: 2               # a follow-up carries this session's last N turns as real conversation
+  follow_always: 1              # 1: every turn after the first is treated as a follow-up (the last turns, folder and
+                                # REPL go along); 0: only when Jev reads it as one (light Jev missed "go ahead and
+                                # continue", flagged session 2026-10-22; evals/bench/flags_12_15_17.py)
+  narrate: 1                    # 1: what the worker writes beside a tool call goes to the chat as it works (it held
+                                # links and click-by-click steps meant for the user); 0: only in the thinking view
   ask_timeout: 1800             # seconds a worker's ask_user() waits for the user before carrying on
   progress_every: 8             # every N steps Jev checks a long task isn't going in circles
   compact_tokens: 60000         # past this estimated size, older steps condense to a progress log. Only where the
@@ -131,6 +136,10 @@ newsroom:
                          # else the X_BEARER_TOKEN environment variable, else an X account connected in Nango
   x_integration: ""      # the Nango integration for X, if its name isn't x / twitter
   allow_local: false     # true: a tile may follow a feed on this machine or network (blocked by default)
+  summary: true          # a short summary of what the last look found at the top of each tile, with its sources (notebook
+                         # #17); written between your turns by the quick model (else the default persona's), one at a time
+  summary_items: 10      # the newest items a summary is written from
+  summary_tokens: 700    # its reply budget
 
 # Cron jobs (jevh/cron.py, docs/architecture/23-cron.md): tasks the assistant does on a schedule, made on the dashboard's Cron page.
 # Each run is a turn of its own in a fresh session; the dashboard has to be running for jobs to start.

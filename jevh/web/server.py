@@ -127,9 +127,13 @@ class Hub:
         nr.export_env(cfg)
         self.newsroom = nr.Newsroom(cfg.workspace / "newsroom.db", self.newsroom_cfg, judge=self._judge_about,
                                     tool_env=lambda: self.harness.tool_env)   # (its web looks use the engine chosen in Settings)
+        # the summary at the top of each tile: written between the user's turns, by the harness's own quick model
+        self.newsroom_summaries = nr.Summarizer(
+            self.newsroom, self._summarize, ready=lambda: not self.busy.locked(),
+            on_change=lambda: self.publish("newsroom", {"rev": self.newsroom.rev()}))
         self.newsroom_runner = nr.Runner(
             self.newsroom, on_alerts=lambda notes: self.publish("newsroom_alert", {"notes": notes}),
-            on_change=lambda: self.publish("newsroom", {"rev": self.newsroom.rev()}))
+            on_change=lambda: (self.publish("newsroom", {"rev": self.newsroom.rev()}), self.newsroom_summaries.wake()))
         # cron jobs (jevh/cron.py): the page lists them; the runner starts each on its schedule, in a harness of its own
         self.cron_cfg = cron.settings(cfg.raw)
         self.cron = cron.CronJobs(cfg.workspace / "cron.db", self.cron_cfg)
@@ -175,6 +179,13 @@ class Hub:
                     self.loop.call_soon_threadsafe(self._offer, q, evt)
                 except RuntimeError:   # the event loop is closed: the server is shutting down
                     return
+
+    def _summarize(self, widget: dict, items: list[dict]) -> dict:
+        """A tile's summary, by the model light Jev's checks use (the quick model, else the default persona's), counted in
+        usage as `newsroom` (no turn of the chat's)."""
+        h = self.harness
+        h._tl.turn, h._tl.persona, h._tl.task, h._tl.kind = 0, "", None, "newsroom"
+        return nr.summarize_with(h._check_llm(), widget, items, int(self.newsroom_cfg["summary_tokens"]))
 
     def _judge_about(self, text: str, about: str) -> float:
         """P(this new item is about what a widget's `about` says): Jev's answer, asked of the harness of the moment."""
@@ -488,10 +499,13 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         hub.devices.loop = hub.loop            # and calls to devices to their connections
         if hub.newsroom_cfg["enabled"]:
             hub.newsroom_runner.start()
+            if hub.newsroom_cfg["summary"]:
+                hub.newsroom_summaries.start()
         if hub.cron_cfg["enabled"]:
             hub.cron_runner.start()
         yield
         hub.newsroom_runner.stop()
+        hub.newsroom_summaries.stop()
         hub.cron_runner.stop()
         try:   # the dashboard is going away: so is the browser the session kept open
             from ..tools.browser import close_kept
@@ -1065,6 +1079,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
                           session=hub.harness.session)
         if not w.get("existing"):
             r = await asyncio.to_thread(room.refresh, w["id"])
+            hub.newsroom_summaries.wake()
             if r["alerts"]:
                 hub.publish("newsroom_alert", {"notes": r["alerts"]})
         return {"widget": room.widget(w["id"]), "existing": bool(w.get("existing"))}
@@ -1076,6 +1091,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         w = newsroom_call(hub.newsroom.update_widget, num(body, "id"), **change)
         if "params" in change:   # follows something else: look at once
             await asyncio.to_thread(hub.newsroom.refresh, w["id"])
+            hub.newsroom_summaries.wake()
         return {"widget": hub.newsroom.widget(w["id"])}
 
     @app.post("/api/newsroom/delete")
@@ -1098,6 +1114,7 @@ def create_app(cfg: Config | None = None, port: int = 8740, harness_factory=None
         room = hub.newsroom
         ids = [num(body, "id")] if body.get("id") else [w["id"] for w in room.widgets() if not w["paused"]]
         results = await asyncio.to_thread(lambda: [newsroom_call(room.refresh, i) for i in ids])
+        hub.newsroom_summaries.wake()
         notes = [n for r in results for n in r["alerts"]]
         if notes:
             hub.publish("newsroom_alert", {"notes": notes})

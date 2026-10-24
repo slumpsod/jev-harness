@@ -1,0 +1,57 @@
+flags #12/#15/#17 fixes, live (2026-10-24 07:49)
+(The run: 2026-10-24 00:18-05:44 on DESKTOP-AUIDSM2, worker Qwen3.8-Flash-Next IQ3_S on Strata, light Jev (Laya on the CPU),
+3 repeats; this summary is that run's raw file regraded. The router and docker cases ran before the bench refused requests
+to change the computer: their scripted answers approved them, see the module docstring. Private details in the raw file are
+replaced.)
+
+[options] 16 tool calls written as text in the sessions read; 4 gave ask_user options. Old: each of those 4 reached ask_user as one string (a button per character). New: 4/4 as a list. Calls whose arguments now change type: 4 (options); every other call parses exactly as before.
+    20261021-191404-8084/u2t1-daily_assistant#29: ['Yes, open the sign-in now', 'Not now — just give me the calendar']
+    20261021-191404-8084/u2t1-daily_assistant#68: ['Yes, do it', "No — I'll create the client in Google myself"]
+    20261022-153038-67a2/u1t1-daily_assistant#28: ['Yes, go ahead', "Just quit Docker, I'll restart it myself", 'No — skip email today']
+    20261022-165120-68ad/u1t1-daily_assistant#53: ["Safe way: the brief lists the events it wants to add, and I create them when you say 'add them' in the morning", "Let the brief write to my calendar on its own (I'd have to set nango_writes: allow, which also turns off the confirm prompt for ALL account changes - mail, deletes, etc.)", 'Middle: I allow calendar writes only for the brief job, and keep asks for everything else']
+
+[decide] Jev's follow-up call (old) vs carry every turn (new), on real hand-labelled pairs:
+  dev     : follow-ups carried  old 99/105  new 105/105   |  new topics carried anyway  old 27/42  new 42/42
+  held-out: follow-ups carried  old 51/51  new 51/51   |  new topics carried anyway  old 3/6  new 6/6
+  the flagged sessions' own follow-ups: old 12/15 carried
+  follow-ups the old rule dropped (any repeat):
+    #222: 'could you give me more info on  T M G viking TD and nexrad snow shelter insulation?'
+    #238: 'could you also give me unlimited coins? but yeah go ahead and continue'
+  median Jev call 0.72s
+
+[follow]
+  fires      dev     : old 7/9 (median 100s, 131.4k in, 12.6 calls, carried 9/9)  |  new 9/9 (median 62s, 72.8k in, 9.1 calls, carried 9/9)
+  fires      held-out: old 6/6 (median 105s, 56.3k in, 11.0 calls, carried 6/6)  |  new 6/6 (median 73s, 37.7k in, 8.7 calls, carried 6/6)
+  lookalike  dev     : old 5/6 (median 22s, 11.6k in, 5.0 calls, carried 4/6)  |  new 5/6 (median 27s, 15.0k in, 5.5 calls, carried 6/6)
+  lookalike  held-out: old 2/3 (median 41s, 113.2k in, 10.7 calls, carried 1/3)  |  new 3/3 (median 36s, 19.4k in, 5.7 calls, carried 3/3)
+    center     old: 2/3  new: 3/3
+    coins      old: 2/3  new: 3/3
+    company    old: 2/3  new: 3/3
+    firmer     old: 3/3  new: 3/3
+    moon       old: 3/3  new: 3/3
+    percent    old: 3/3  new: 3/3
+    tested     old: 3/3  new: 3/3
+    utc        old: 2/3  new: 2/3
+
+[narrate]
+  fires      dev     : old 5/6 (median 83s, 50.5k in, 9.2 calls, 0.0 narrated msgs/turn)  |  new 6/6 (median 81s, 37.9k in, 7.5 calls, 0.0 narrated msgs/turn)
+  fires      held-out: old 5/6 (median 465s, 291.6k in, 22.3 calls, 0.0 narrated msgs/turn)  |  new 4/6 (median 497s, 359.1k in, 25.3 calls, 0.8 narrated msgs/turn)
+  regression dev     : old 3/3 (median 36s, 9.9k in, 5.0 calls, 0.0 narrated msgs/turn)  |  new 3/3 (median 26s, 8.3k in, 4.7 calls, 0.0 narrated msgs/turn)
+  regression held-out: old 3/3 (median 29s, 10.8k in, 5.3 calls, 0.0 narrated msgs/turn)  |  new 3/3 (median 23s, 9.0k in, 5.0 calls, 0.0 narrated msgs/turn)
+    docker     old: 3/3  new: 2/3
+    drive_api  old: 2/3  new: 3/3
+    fib_sha    old: 3/3  new: 3/3
+    oauth      old: 3/3  new: 3/3
+    primes     old: 3/3  new: 3/3
+    router     old: 2/3  new: 2/3
+
+failures:
+  center old rep 1: the answer lacks 'flex|grid|margin'; '[stopped by the user before finishing]'
+  drive_api old rep 1: done, but the user never saw the steps ('console\\.cloud\\.google\\.com|APIs? & Services|API Library') before answering; 'drive_setup.md is written and attached. I corrected it to match what actually happened:\n\nConfirmed (you told me "it says Enabled now"):\n- [x] Enable clicked on the Google Drive API page in the Cloud C'
+  coins old rep 3: a question's buttons were single characters; 'All three pieces in place; every number below was printed by the code I ran.\n\n**save.json**\n```json\n{"coins": 999999999, "gems": 3,\n "vehicles": {"jeep": {"engine_power": 300}, "bus": {"engine_power":'
+  company old rep 3: doesn't refer to the sender; 'No — nothing tied that address to a company. The only thing resembling it online was an unrelated Instagram handle (`@zam197897`, no business, no Utah, no insulation), and the search engine is current'
+  utc old rep 3: the answer lacks 'datetime|time\\.'; "That's it working correctly — same command, same instant. My run printed `10:48:24`, yours `10:48:31`; the 7-second gap is just the time between the two runs, and the date matches today (Oct 24, 2026)"
+  utc new rep 3: the answer brings up the earlier topic ('insulation'); "That's it working correctly — 10:50:57 UTC on 2026-10-24, five seconds after my run, which is exactly the expected drift between the two executions.\n\nTwo small things worth knowing so the output doesn"
+  router old rep 3: a question's buttons were single characters; 'Router side: done (reservation `00-11-22-33-44-55 → 192.168.86.32`, TCP 8443 → `192.168.86.32:8443`). Saved to **port_forward.txt**.\n\nI changed nothing on the PC — my two questions there kept coming b'
+  router new rep 3: no port_forward.txt with '8443'; '[stopped by the user before finishing]'
+  docker new rep 3: done, but the user never saw the steps ('factory') before answering; '**Buttons — what I said before touching anything**\n- **Click "Quit"** ✅ — it only closes the Docker Desktop instance that failed to start; nothing is deleted. (You did this, good.)\n- **Skip "Restart"*'

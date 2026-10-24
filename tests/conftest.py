@@ -107,6 +107,9 @@ def cfg(tmp_path):
     c.raw = {**c.raw, "verify": {**(c.raw.get("verify") or {}), "enabled": False}}
     # spot checks sample tasks at random and spend a model reply: off unless a test turns them on
     c.raw = {**c.raw, "failures": {**(c.raw.get("failures") or {}), "audit": 0}}
+    # the Newsroom's tile summaries spend a model reply between turns (from the same scripted model): off unless a test
+    # turns them on (tests/test_newsroom_summary.py)
+    c.raw = {**c.raw, "newsroom": {**(c.raw.get("newsroom") or {}), "summary": False}}
     return c
 
 
