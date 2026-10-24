@@ -34,6 +34,28 @@ finished run shows a toast and puts a count on the rail's clock until you open t
 whose time passed while it was closed (or while you were mid-turn for more than 10 minutes) is listed as *missed*, not run late. How it works:
 [architecture/23-cron.md](architecture/23-cron.md). The same from a terminal: `jevh cron`.
 
+## The chat bar
+
+Under the message box: the persona (**Jev routes**, or one pinned), the model tier (**Jev decides**, fast or strong), the
+**thinking level**, Watch browser, the project folder and the context ring.
+
+**Thinking** is how long the model thinks before it answers (`thinking.level`). Unlike the Settings page it needs no Save:
+a choice is saved at once (`POST /api/config/thinking`, into `workspace/settings.yaml`), even while a turn runs. A task
+already running keeps the level it started with; the next task or hand-off uses the new one. Every open page, phone and
+app hears of it (a `thinking` event) and shows the new choice. System One (Jev) does not choose it.
+
+- **Auto** sends nothing, so the model uses its own default (Qwen3.8 on Strata thinks at xhigh, its most).
+- **None**, **Low**, **Medium** and **High** are sent with every request as `reasoning_effort`; Strata, vLLM, llama.cpp and
+  OpenAI's reasoning models read it. A Claude model gets the level as its effort, and None turns its thinking off. A model
+  whose own block sets a level keeps it. Light Jev's quick side questions and the Newsroom's summaries keep thinking off
+  whatever this says.
+
+Measured live, 2026-10-24 (Qwen3.8 on Strata, `python evals/bench/thinking_level.py`, 3 repeats): on everyday tasks,
+**Auto** passed 24/24 at a median 33 s; **Medium** 21/24 at 22 s (a third faster; its misses were real slips such as
+computing F(39) for F(40)); **Low** about the same as Medium; **None** 23/24 at 22 s on tasks where code does the work, but
+only 16/36 on questions it must reason through. **High** is the same as Auto on Strata. Auto stays the default; Medium is
+the faster choice when an occasional slip is acceptable.
+
 ## Sending files
 
 The paperclip at the left of the message box attaches photos, screenshots, PDFs and other files (images, PDFs, text, CSV
@@ -88,7 +110,6 @@ apply to every browser, the phone page and the command line.
 |---|---|
 | Model | The model every assistant runs on (`models.strong`). "Each assistant's own" leaves each one on the model in its persona file. The list is what your local servers say they serve (LM Studio's models, loaded or not; the model a llama.cpp server has loaded); "Other" takes any `provider:model`, such as `anthropic:claude-opus-5-5`. |
 | Quick model | Where Jev sends easy tasks (`models.fast`). Off: every task uses the main model. |
-| Thinking | How long the model thinks before it answers (`thinking.level`): **Auto** sends nothing, so the model uses its own default (Qwen3.8 on Strata thinks at xhigh, its most). **None**, **Low**, **Medium** and **High** are sent with every request as `reasoning_effort`; Strata, vLLM, llama.cpp and OpenAI's reasoning models read it. A Claude model gets the level as its effort, and None turns its thinking off. A model whose own block sets a level keeps it. Light Jev's quick side questions and the Newsroom's summaries keep thinking off whatever this says. Measured live, 2026-10-24 (Qwen3.8 on Strata, `python evals/bench/thinking_level.py`, 3 repeats): on everyday tasks, **Auto** passed 24/24 at a median 33 s; **Medium** 21/24 at 22 s (a third faster; its misses were real slips such as computing F(39) for F(40)); **Low** about the same as Medium; **None** 23/24 at 22 s on tasks where code does the work, but only 16/36 on questions it must reason through. **High** is the same as Auto on Strata. Auto stays the default; Medium is the faster choice when an occasional slip is acceptable. |
 | Chat glass | How see-through the desktop app's orb chat is (`appearance.orb_glass`, 0 to 100). Unlike the rest, it is saved as soon as you let go of the slider, even while a turn runs, and every signed-in app's orb picks it up. The strip under it previews the look. |
 | Web search | The engine behind `web.search` and `web.ask` (workers) and the Newsroom's web widgets. **DuckDuckGo** needs nothing (it reads a web page, which can ask for a human check). **SearXNG** takes your server's address; its `settings.yml` must allow the `json` format. **Brave Search** takes an API key (api.search.brave.com has a free plan). **Test search** runs one real search with what is on the page, before you save. |
 
@@ -97,8 +118,8 @@ or key). It is refused while a turn is running: the turn keeps the model it has.
 the first one may wait while a model loads. **Reset** forgets everything saved here, so the config files decide again.
 
 They are saved in `workspace/settings.yaml`, which is read last: a choice made here wins over `config.yaml`,
-`~/.jevh/config.yaml` and `config.local.yaml`, and those files (and their comments) are never rewritten. Only `models`, `thinking`,
-`search` and `appearance` are read from it. It can hold a Brave key, so it is created readable by your user account only, and the page is never
+`~/.jevh/config.yaml` and `config.local.yaml`, and those files (and their comments) are never rewritten. Only `models`, `thinking` (the chat bar's
+picker), `search`, `jev` and `appearance` are read from it. It can hold a Brave key, so it is created readable by your user account only, and the page is never
 sent the key back (it says "saved"). A dashboard started with `--model` ignores the two model choices, and says so.
 
 ### Restart now

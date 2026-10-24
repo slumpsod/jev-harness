@@ -319,9 +319,10 @@ phone, in landscape, and on a tablet.
 under it. **Appearance** (the palette at the bottom of the rail) sets how much you see: Compact, Steps,
 Verbatim or Hidden, plus the theme, accent, type, width, density and corners. See [docs/dashboard.md](docs/dashboard.md).
 
-The persona, model tier, Watch browser, project folder and context ring sit under the message box (hover the ring: what
-the prompt is made of, and the model's context window). Pin a persona or
-set the tier (Jev decides / fast / strong) there. Click an answer's avatar to inspect that turn,
+The persona, model tier, thinking level, Watch browser, project folder and context ring sit under the message box (hover
+the ring: what the prompt is made of, and the model's context window). Pin a persona,
+set the tier (Jev decides / fast / strong) or choose how long the model thinks (auto / none / low / medium / high; see
+[docs/dashboard.md](docs/dashboard.md#the-chat-bar)) there. Click an answer's avatar to inspect that turn,
 and reload any time: the event history replays.
 
 **The message box works while a task runs** (see Talking to a running task): what you send is added to the task's

@@ -344,6 +344,12 @@ class Harness:
         self.tool_env = self._tool_env()   # (after: the tools ask the backend light Jev uses)
         self._escalated = False
 
+    def reload_thinking(self) -> None:
+        """A new thinking level (the chat bar's picker): the next model client is built with it. Safe while a turn runs,
+        unlike reload_settings: a task already running keeps the client it has; the next task or hand-off gets the new one."""
+        with self._llm_lock:
+            self._llms.clear()
+
     def _nango_summary(self) -> str:
         with nango.using(self.tool_env):
             return nango.summary()
