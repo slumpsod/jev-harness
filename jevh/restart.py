@@ -94,6 +94,12 @@ def _alive(pid: int) -> bool:
             return k.WaitForSingleObject(h, 0) == 0x102   # WAIT_TIMEOUT: still running
         finally:
             k.CloseHandle(h)
+    try:   # (Linux) exited, but its parent hasn't collected it yet: a zombie still answers kill(pid, 0)
+        with open(f"/proc/{pid}/stat", "rb") as f:
+            if f.read().rsplit(b")", 1)[1].split()[0] == b"Z":
+                return False
+    except (OSError, IndexError):
+        pass
     try:
         os.kill(pid, 0)
     except ProcessLookupError:

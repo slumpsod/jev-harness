@@ -1,5 +1,6 @@
 """Restart now (Settings, Updates): /api/restart and the helper that starts the harness again (jevh/restart.py)."""
 import asyncio
+import os
 import subprocess
 import sys
 import time
@@ -126,6 +127,15 @@ def test_helper_ends_an_old_process_that_hangs(tmp_path):
         assert old.wait(5) is not None and (tmp_path / "ran.txt").exists()
     finally:
         old.kill()
+
+
+def test_a_zombie_counts_as_exited():
+    """(Linux) A process that exited but wasn't collected by its parent still answers kill(pid, 0)."""
+    if not os.path.exists("/proc/self/stat"):
+        pytest.skip("no /proc")
+    old = sleeper(0)
+    assert wait_for(lambda: not restart._alive(old.pid), 10)
+    old.wait()
 
 
 def test_schedule_runs_it_again_detached(tmp_path):
