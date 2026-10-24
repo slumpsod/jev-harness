@@ -40,13 +40,19 @@ def main(argv: list[str] | None = None) -> None:
 def server_config(app, port: int) -> uvicorn.Config:
     """How the dashboard is served (also by `jevh app`). Devices send files inside one WebSocket message: uvicorn's 16 MB
     default is less than wire.MAX_FILE in base64. websockets-sansio: the default implementation uses websockets' legacy
-    server, deprecated since websockets 14."""
+    server, deprecated since websockets 14. On the way down, open event streams and device connections are given a few
+    seconds, not waited on for ever (they never end by themselves)."""
     return uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", ws="websockets-sansio",
-                          ws_max_size=wire.MAX_MESSAGE)
+                          ws_max_size=wire.MAX_MESSAGE, timeout_graceful_shutdown=GRACE)
+
+
+GRACE = 5   # seconds
 
 
 def serve(app, port: int) -> None:
-    uvicorn.Server(server_config(app, port)).run()
+    server = uvicorn.Server(server_config(app, port))
+    app.state.stop = lambda: setattr(server, "should_exit", True)   # Settings, Updates: Restart now (/api/restart)
+    server.run()
 
 
 if __name__ == "__main__":

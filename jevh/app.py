@@ -351,6 +351,7 @@ class App:
                 self.serve_error = f"{type(e).__name__}: {e}"
                 return False
             self.server = uvicorn.Server(server_config(app, port))
+            app.state.stop, app.state.restart_cmd = self.quit, self.restart_cmd   # (/api/restart: the whole app starts again)
             thread = threading.Thread(target=self.server.run, name="jevh-dashboard", daemon=True)
             thread.start()
             for _ in range(150):
@@ -702,6 +703,12 @@ class App:
         else:
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text(f'@start "" "{pythonw()}" -m jevh app --hidden\r\n', encoding="utf-8")
+
+    def restart_cmd(self) -> list[str]:
+        """This app's own command line for a restart: in the tray again if it is there now, else with its window."""
+        from .restart import command
+        cmd = [a for a in command() if a != "--hidden"]
+        return cmd + ["--hidden"] if self.window is not None and not self._main_visible() else cmd
 
     def quit(self) -> None:
         self._quitting = True
