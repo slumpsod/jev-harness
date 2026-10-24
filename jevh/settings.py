@@ -3,6 +3,7 @@
     Model         which model every assistant runs on (models.strong); "each assistant's own" leaves it to their files
     Quick model   the model easy tasks go to (models.fast); "off" always uses the main one
     Web search    DuckDuckGo, SearXNG (your server's address) or Brave Search (an API key); `Test` tries it first
+    Thinking      how much the model thinks before it answers: auto (the model's own default), none, low, medium, high
     Jev           full (the System One model makes every decision) or light (UNVERIFIED: a small model that runs on a
                   CPU makes the decisions it is good at; the rest go to the task's model, or are skipped: jevh/light.py)
     Chat glass    how see-through the desktop app's orb chat is (appearance.orb_glass, 0 solid to 100): saved at once,
@@ -33,6 +34,7 @@ from typing import Any
 import yaml
 
 from . import light
+from .llm import THINKING_LEVELS, thinking_level
 from .config import SETTINGS_FILE, Config, load_config, read_settings
 from .tools import web
 
@@ -63,7 +65,8 @@ def view(cfg: Config) -> dict[str, Any]:
     return {"model": _model_text(cfg.models.get("strong")), "fast": _model_text(cfg.models.get("fast")),
             "search": {"provider": str(s.get("provider") or "duckduckgo"), "searxng_url": str(s.get("searxng_url") or ""),
                        "brave_key": bool(s.get("brave_api_key") or os.environ.get("BRAVE_SEARCH_API_KEY"))},
-            "appearance": appearance(cfg), "jev": jev_view(cfg), "file": str(path(cfg)), "saved": path(cfg).is_file()}
+            "appearance": appearance(cfg), "jev": jev_view(cfg), "thinking": thinking_level(cfg.raw),
+            "file": str(path(cfg)), "saved": path(cfg).is_file()}
 
 
 def jev_view(cfg: Config) -> dict[str, str]:
@@ -195,7 +198,7 @@ def _clean_jev(current: dict[str, Any], given: dict[str, Any]) -> dict[str, Any]
 
 
 def save(cfg: Config, change: dict[str, Any]) -> dict[str, Any]:
-    """Validate `change` ({model?, fast?, search?: {provider, searxng_url?, brave_api_key?}, jev?: {mode?, checks?}}), write it into the settings
+    """Validate `change` ({model?, fast?, thinking?, search?: {provider, searxng_url?, brave_api_key?}, jev?: {mode?, checks?}}), write it into the settings
     file (keeping what was saved before for the parts not mentioned), and load it into `cfg`. -> view(cfg).
     SettingsError, with nothing written, when a choice cannot be saved."""
     layer = read_settings(cfg.workspace)
@@ -209,7 +212,12 @@ def save(cfg: Config, change: dict[str, Any]) -> dict[str, Any]:
         layer["search"] = _clean_search(layer.get("search") or {}, change["search"])
     if isinstance(change.get("jev"), dict):
         layer["jev"] = _clean_jev(layer.get("jev") if isinstance(layer.get("jev"), dict) else {}, change["jev"])
-    unknown = set(change) - {"model", "fast", "search", "jev"}
+    if "thinking" in change:
+        level = str(change["thinking"] or "auto").strip().lower()
+        if level not in THINKING_LEVELS:
+            raise SettingsError(f"Thinking: choose one of {', '.join(THINKING_LEVELS)}")
+        layer["thinking"] = {"level": level}
+    unknown = set(change) - {"model", "fast", "search", "jev", "thinking"}
     if unknown:
         raise SettingsError(f"unknown setting: {', '.join(sorted(unknown))}")
     _write(path(cfg), layer)
@@ -271,7 +279,7 @@ def reload(cfg: Config) -> None:
     fresh = load_config(cfg.source, settings_dir=cfg.workspace)   # (the folder save() wrote to)
     cfg.models = fresh.models
     cfg.jev = fresh.jev
-    for key in ("models", "search", "appearance", "jev"):
+    for key in ("models", "search", "appearance", "jev", "thinking"):
         if fresh.raw.get(key) is None:
             cfg.raw.pop(key, None)
         else:

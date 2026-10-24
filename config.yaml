@@ -254,6 +254,14 @@ workspace: workspace
 models:
   fast: {provider: lmstudio, model: ornith-1.5-35b-a3b}
 
+# How much the worker's model thinks before it answers (the Settings tab sets it; jevh/llm.py with_thinking):
+#   auto (send nothing: the model's own default - Qwen3.8 on Strata: xhigh, its longest) | none | low | medium | high
+# Sent as `reasoning_effort` (Strata, vLLM, llama.cpp, OpenAI reasoning models); a Claude model gets it as its effort, and
+# none turns its thinking off. A model block's own `extra: {reasoning_effort: ...}` or `effort:` wins over it. The quick
+# side questions (light Jev's checks) and the Newsroom's summaries keep thinking off whatever this says.
+thinking:
+  level: auto
+
 # The web search engine for web.search / web.ask and the Newsroom's web widgets. Normally chosen in the dashboard's Settings tab
 # (saved in workspace/settings.yaml, which wins over this file); set it here to fix it for everyone.
 #   search: {provider: duckduckgo}                                  # the default: no account, can ask for a human check

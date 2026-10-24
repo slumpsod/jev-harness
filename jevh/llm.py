@@ -517,6 +517,47 @@ def see_image(llm: LLM, path: str, question: str) -> str:
         return f"(could not look at the image: {str(e).splitlines()[0][:200]} - this model may not take images)"
 
 
+# How much the worker's model thinks before it answers (config `thinking.level`, the Settings tab). auto sends nothing: the
+# model's own default (Qwen3.8 on Strata: xhigh, its longest). The others go in each request as `reasoning_effort`, which
+# Strata, vLLM, llama.cpp and OpenAI's reasoning models read (Strata: none, low, medium, high = xhigh); for a Claude model
+# they set its effort, and none turns its thinking off.
+THINKING_LEVELS = ("auto", "none", "low", "medium", "high")
+_LOCAL_URL = re.compile(r"https?://(127\.0\.0\.1|localhost|\[::1\])[:/]")
+
+
+def thinking_level(raw: dict[str, Any] | None) -> str:
+    """The configured level (`thinking: {level: ...}`), "auto" when none or an unknown one is set."""
+    t = (raw or {}).get("thinking")
+    level = str((t.get("level") if isinstance(t, dict) else t) or "auto").strip().lower()
+    return level if level in THINKING_LEVELS else "auto"
+
+
+def with_thinking(block: dict[str, Any], level: str, providers: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """`block` (a model config) with the thinking level laid over it. A level the block sets itself wins (a persona's
+    `extra: {reasoning_effort: ...}` or `effort:`): the setting is for every model that has none of its own."""
+    if level in ("", "auto") or not isinstance(block, dict):
+        return block
+    prov = providers.get(block.get("provider")) or {}
+    out = dict(block)
+    if prov.get("type") == "anthropic":
+        if level == "none":
+            out.setdefault("thinking", False)
+        elif not out.get("effort"):
+            out["effort"] = level
+        return out
+    if prov.get("type") != "openai":
+        return block
+    extra = dict(out.get("extra") or {})
+    ctk = dict(extra.get("chat_template_kwargs") or {})
+    if "reasoning_effort" in extra or "reasoning" in extra or "enable_thinking" in ctk or "reasoning_effort" in ctk:
+        return block
+    extra["reasoning_effort"] = level
+    if level == "none" and _LOCAL_URL.match(str(prov.get("base_url", ""))):
+        extra["chat_template_kwargs"] = {**ctk, "enable_thinking": False}   # (llama.cpp and LM Studio read this one)
+    out["extra"] = extra
+    return out
+
+
 def make_llm(model_cfg: dict[str, Any], providers: dict[str, dict[str, Any]]) -> LLM:
     def build(cfg: dict[str, Any]) -> LLM:
         pname = cfg["provider"]
