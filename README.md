@@ -75,6 +75,11 @@ python evals/bench/thinking_level.py   # the Thinking setting, live: each level 
 python evals/bench/newsroom_summary.py # the Newsroom's tile summaries, live: real items from your board, fresh public sources and hard
                                          #   cases (an injected headline, unrelated stories...): sources cited, numbers and names grounded;
                                          #   a chat turn with summaries being written (old vs new); the dashboard path (--stage, --holdout, --offline)
+python evals/bench/session_context.py  # a follow-up continuing the same assistant's conversation (new) vs the last 2 replies
+                                         #   as a summary (old), live, on multi-turn sessions against local stand-ins (the flagged
+                                         #   Sonos session, an orders API, a topic switch, a script built up, a persona change):
+                                         #   pass rate per turn, re-reads, time, tokens (--reps, -k, --holdout, --compact-at,
+                                         #   --offline). 2026-10-24: all turns pass both ways; follow-ups -2% to -27% time
 python evals/bench/flags_12_15_17.py   # fixes for the sessions flagged 2026-10-21/22, live, old vs new: ask_user options from a tool
                                          #   call written as text (on your own sessions), Jev's follow-up call on real hand-labelled turns vs
                                          #   carrying every turn, two-turn follow-ups and new topics end to end, and what the worker writes

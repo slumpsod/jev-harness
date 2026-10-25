@@ -67,7 +67,7 @@ DEFAULT_THRESHOLDS = {"no_fit": 0.6, "owned": 0.3, "orphan": 0.5, "same_speciali
 DEFAULT_LIMITS = {"max_mcp_tools": 3, "memory_search": 10, "memory_facts": 6, "follow_turns": 2,
                   "ask_timeout": 1800, "progress_every": 8, "compact_tokens": 60000, "keep_steps": 3,
                   "keep_reasoning": 40000, "thinking_watch": 0, "watch_every": 4000, "watch_after": 6000,
-                  "follow_always": 1, "narrate": 1}
+                  "follow_always": 1, "session_context": 1, "narrate": 1}
 
 
 def shell_env(env: dict[str, str] | None = None) -> dict[str, str]:

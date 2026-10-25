@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import hashlib
 import json
 import os
 import platform
@@ -182,6 +183,15 @@ RESTORED_NOTE = ("[Resumed after an interruption. Your REPL was restarted and it
 CARRIED_NOTE = ("[This follows your previous turn. Its working folder is {dir} - the files you wrote there are still "
                 "there (use that path).{state}]")
 CARRIED_STATE = " Your REPL state from the end of that turn is back: variables: {vars}; functions/classes: {defs}.{lost}"
+# Session-long context (limits.session_context): a follow-up by the same assistant continues that turn's own conversation
+# - every step, the code it ran and what came back - instead of a summary of the last replies (flag #18, 2026-10-24: with
+# two replies of 3000 chars carried, the worker rewrote its Sonos helper each turn and read its old checkpoint off disk
+# to get back what it had done). Earlier requests are condensed first once the prompt passes the compaction limit.
+EARLIER_HEAD = ("[Earlier in this conversation - condensed to save context. Your REPL variables, files and working "
+                "folders from then are intact. The steps still needed are kept in full; the rest are one-line notes.]")
+EARLIER_CHARS = 2000       # of each earlier request and of the answer to it, in the condensed record
+PROGRESS_MARK = "[Progress so far"
+SYSTEM_FILE = "thinking/system.txt"   # (in the task's folder, with the harness's other logs: never handed over as work)
 TIMEOUT_RESTORED_NOTE = ("[timed out after {secs:.0f}s; the REPL was restarted and its state as of the end of your "
                          "previous step was brought back - variables: {vars}; functions/classes: {defs}.{lost} "
                          "Anything this block created or changed in memory is gone; files it wrote are still there.]")
@@ -627,6 +637,9 @@ class Worker:
         self.budget: Callable[[], Any] | None = None
         self.checkpoint = checkpoint    # json of the conversation after every step (for resume)
         self.carry_from: Path | None = None   # the previous turn's folder, when this turn follows up on it (_carry)
+        self.continue_from: dict | None = None   # that turn's checkpoint: its conversation goes on (session_context)
+        self._turns: list[dict] = []    # the requests in this conversation: {start (message index), request, answer}
+        self._earlier = ""              # earlier requests, condensed (_compact_earlier); it heads the task message
         self.narrate = False            # what a step says beside its code goes to the user's chat (limits.narrate)
         self._narrated = ""
         self._task_idx = 0              # index of the task message (compaction rewrites everything after it)
@@ -822,12 +835,26 @@ class Worker:
             else:
                 self._progress_log = resume.get("progress_log", "")
             # (the resume note goes in once the REPL state is restored: it says what came back)
+            self._turns, self._earlier = resume.get("turns") or [], resume.get("earlier", "")
         else:
             listed = describe_ctx(ctx)
             self._task_text = (task + (f"\n\n(In your REPL:\n{listed})" if listed else "")
                                + ("" if getattr(self.llm, "unlimited_thinking", False) else FIRST_STEP_NUDGE))
+            carried = self._carried() if self.continue_from else None
+            if carried is not None:   # the same assistant's last turn: its conversation goes on, every step of it
+                prior = carried
+                system, added = self._kept_system(system)
+                self._task_text += added
+            else:
+                self._turns, self._earlier = [], ""
             messages = [{"role": "system", "content": system}, *prior, {"role": "user", "content": self._task_text}]
             self._task_idx = len(messages) - 1
+            self._turns = self._turns + [{"start": self._task_idx, "request": task[:EARLIER_CHARS], "answer": ""}]
+            try:   # what this task's prompt started with (a continued conversation reuses the server's cache of it)
+                (Path(self.workdir) / SYSTEM_FILE).parent.mkdir(parents=True, exist_ok=True)
+                (Path(self.workdir) / SYSTEM_FILE).write_text(system, encoding="utf-8")
+            except OSError:
+                pass
         res = WorkerResult(answer="")
         self._last_err, self._err_streak = None, 0
         with Repl(self.workdir, self.artifacts, self.handlers, self.tools,
@@ -1008,7 +1035,11 @@ class Worker:
                 res.stopped = "max_steps"
             if res.stopped in ("final", "plain"):   # the state a follow-up turn starts from (carry_from)
                 self._snapshot()
-        res.transcript = messages
+        if self._turns:
+            self._turns[-1]["answer"] = (res.answer or "")[:EARLIER_CHARS]
+        # this request's part only (what learning, the failure log and the turn's notes read): an earlier request carried
+        # in the same conversation is not this turn's work
+        res.transcript = messages[:1] + messages[self._task_idx:] if 0 < self._task_idx < len(messages) else messages
         self._save(messages, res.steps, True, res.stopped)
         return res
 
@@ -1065,6 +1096,11 @@ class Worker:
         limit, _ = self._limit()
         if size <= limit:
             return
+        if self._task_idx > 1:   # earlier requests in this conversation go first: this one's steps are what it works on
+            self._compact_earlier(messages, step, size, limit)
+            size = self._tokens(messages)
+            if size <= limit:
+                return
         body = messages[self._task_idx + 1:]
         keep = 2 * self.keep_steps
         if len(body) <= keep:
@@ -1101,7 +1137,7 @@ class Worker:
         self._entries, self._dropped = entries, self._dropped + dropped
         if self.archive:
             self._save_history(groups)
-        task_msg = {"role": "user", "content": self._task_text + "\n\n[Progress so far - earlier steps condensed to "
+        task_msg = {"role": "user", "content": self._earlier_text() + self._task_text + "\n\n" + PROGRESS_MARK + " - earlier steps condensed to "
                     "save context (the ones still needed are kept in full); your REPL variables and files are "
                     "intact." + self._history_note() + "\n" + self._render_log() + "]"}
         before = int(size)
@@ -1110,6 +1146,103 @@ class Worker:
         self.on_step("compact", {"persona": self.persona.name, "step": step, "tokens_before": before,
                                  "tokens_after": after, "full": sum(e["keep"] for e in self._entries),
                                  "notes": sum(not e["keep"] for e in self._entries), "dropped": self._dropped})
+
+    def _earlier_text(self) -> str:
+        return self._earlier + "\n\n" if self._earlier else ""
+
+    def _kept_system(self, system: str) -> tuple[str, str]:
+        """A continued conversation keeps the system prompt it started with, word for word: the model server has read
+        that start of the prompt already and reuses it (live 2026-10-24: a prompt rebuilt each turn - this turn's folder
+        near its top, light Jev's tool, skill and helper picks varying - changed every turn, and every turn re-read all
+        of it). What this request's prompt has that the kept one lacks goes in the request's message instead, with this
+        request's working folder. -> (the system prompt, what to add to the task message)."""
+        prev = ""
+        if self.carry_from is not None:
+            try:
+                prev = (Path(self.carry_from) / SYSTEM_FILE).read_text(encoding="utf-8")
+            except OSError:
+                prev = ""
+        if not prev:
+            return system, ""
+        here = system.replace(str(self.workdir), str(self.carry_from))   # (the kept prompt names the first folder)
+        have = set(prev.split("\n\n"))
+        new = [part for part in here.split("\n\n") if part.strip() and part not in have]
+        added = (f"\n\n[Your REPL now starts in this request's own working folder: {self.workdir}.")
+        if new:
+            added += (" These instructions are new or changed for this request; where they differ from the ones at the "
+                      "start of this conversation, follow these:\n\n" + "\n\n".join(new))
+        return prev, added + "]"
+
+    def _carried(self) -> list[dict] | None:
+        """The previous turn's conversation (its checkpoint, without the system prompt), to continue: None when there is
+        none. A turn cut off mid-step can end on a tool call nothing answered, which a server refuses: such a call is left
+        out. Its record of requests comes along (for _compact_earlier); a checkpoint saved before there was a record is
+        one request."""
+        cp = self.continue_from or {}
+        msgs = [dict(m) for m in cp.get("messages") or [] if m.get("role") != "system"]
+        answered = {m.get("tool_call_id") for m in msgs if m["role"] == "tool"}
+        for i, m in enumerate(msgs):
+            calls = m.get("tool_calls") or []
+            if m["role"] == "assistant" and calls and not all(c.get("id") in answered for c in calls):
+                msgs[i] = {k: v for k, v in m.items() if k != "tool_calls"}
+                left = [c for c in calls if c.get("id") in answered]
+                if left:
+                    msgs[i]["tool_calls"] = left
+        while msgs and msgs[-1]["role"] == "assistant" and not (msgs[-1].get("content") or msgs[-1].get("tool_calls")):
+            msgs.pop()   # (a reply that was only an unanswered call: nothing left of it)
+        if not msgs:
+            return None
+        turns = [dict(t) for t in cp.get("turns") or []]
+        if not turns:
+            request = str(cp.get("task_text", "")).split("\n\n(In your REPL:")[0]
+            turns = [{"start": int(cp.get("task_idx") or 1), "request": request[:EARLIER_CHARS], "answer": ""}]
+        self._turns = [t for t in turns if 0 < int(t.get("start", 0)) <= len(msgs)]
+        self._earlier = str(cp.get("earlier") or "")
+        return msgs
+
+    def _compact_earlier(self, messages: list[dict], step: int, size: float, limit: float) -> None:
+        """Condense the earlier requests of this conversation (everything before this task message) into a record at the
+        head of the task message: each request, its steps - the ones Jev says the work still needs in full, the rest as
+        one-line notes, as _compact does - and the answer given. This request and its steps are left as they are."""
+        idx = self._task_idx
+        earlier = [t for t in self._turns if t["start"] < idx]
+        if idx <= 1 or not earlier:
+            return
+        now = self._task_text[-2000:]
+        sections = []
+        for i, t in enumerate(earlier):
+            end = earlier[i + 1]["start"] if i + 1 < len(earlier) else idx
+            groups = _steps(messages[t["start"] + 1:end])
+            sections.append((t, [{"brief": self._condense(g), "full": self._full(g), "score": None, "keep": False}
+                                 for g in groups]))
+        every = [e for _, es in sections for e in es]
+        self._score(every, now)
+        cap = self._log_cap(limit)
+        heads = sum(len(t["request"]) + len(t.get("answer") or "") + 80 for t, _ in sections) + len(self._earlier)
+        room = max(MIN_FULL_LOG, cap - heads)
+        dropped = self._fit(every, now, room, room)
+        kept = {id(e) for e in every}
+        parts = [self._earlier[len(EARLIER_HEAD):].strip()] if self._earlier.startswith(EARLIER_HEAD) else []
+        for t, entries in sections:
+            log = "".join(e["full"] + "\n" if e["keep"] else e["brief"] for e in entries if id(e) in kept)
+            # a request whose own steps were condensed while it ran: its progress log is in its task message
+            progress = str(messages[t["start"]].get("content", "")).split(PROGRESS_MARK, 1)
+            if len(progress) > 1:
+                log = _clip_mid(progress[1].strip().rstrip("]"), cap // 3) + "\n" + log
+            parts.append(f"## Request: {t['request'].strip()}\n" + (log or "(no steps)\n")
+                         + (f"You answered: {t['answer'].strip()}\n" if t.get("answer") else ""))
+        record = "\n".join(p for p in parts if p)
+        if len(record) > 3 * cap:   # a very long session: the oldest requests go first
+            record = "[... the oldest requests left out ...]\n" + record[-3 * cap:]
+        self._earlier = EARLIER_HEAD + "\n" + record + (f"\n({dropped} earlier steps left out)" if dropped else "")
+        task_msg = {**messages[idx], "content": self._earlier_text() + str(messages[idx].get("content", ""))}
+        messages[:] = messages[:1] + [task_msg] + messages[idx + 1:]
+        self._task_idx = 1
+        self._turns = [{**self._turns[-1], "start": 1}]
+        self.on_step("compact", {"persona": self.persona.name, "step": step, "tokens_before": int(size),
+                                 "tokens_after": int(self._tokens(messages)), "earlier": len(earlier),
+                                 "full": sum(e["keep"] for e in every), "notes": sum(not e["keep"] for e in every),
+                                 "dropped": dropped})
 
     # -- sizing the prompt ---------------------------------------------------------------------------------
     def _calibrate(self, messages: list[dict], out) -> None:
@@ -1381,6 +1514,11 @@ class Worker:
             self._snapshot()
         data = {"version": 1, "persona": self.persona.name, "task_text": self._task_text, "task_idx": self._task_idx,
                 "progress_log": self._render_log(), "compact": {"entries": self._entries, "dropped": self._dropped, "seq": self._seq},
+                "turns": self._turns, "earlier": self._earlier,
+                # (which system prompt it ran under: the bench counts how often a follow-up's prompt start, which the
+                # model server caches, stayed the same)
+                "system_sha": hashlib.sha1(str(messages[0].get("content", "")).encode()).hexdigest()[:12]
+                if messages and messages[0]["role"] == "system" else "",
                 "step": step, "finished": finished, "stopped": stopped,
                 "workdir": str(self.workdir), "saved": time.time(),
                 "messages": [m for m in messages if m["role"] != "system"]}

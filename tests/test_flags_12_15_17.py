@@ -121,6 +121,7 @@ def test_narration_can_be_turned_off(cfg):
 def test_every_turn_carries_the_last_ones_even_when_jev_reads_a_new_topic(cfg):
     """Live 2026-10-22 (light Jev): "could you also give me unlimited coins? but yeah go ahead and continue" was read as
     a new topic; the worker had nothing of the game it had been modding and went off to start Docker."""
+    cfg.limits["session_context"] = 0   # (the summary path: tests/test_session_context.py has the conversation going on)
     llm = ScriptedLLM([py("save = {'coins': 120}\nfinal('Patched the save: coins 120.')"),
                        py("save['coins'] = 10**9\nfinal(str(save['coins']))")])
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(rules())), llm_factory=lambda p: llm)

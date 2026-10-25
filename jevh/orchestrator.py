@@ -103,6 +103,8 @@ def turn_notes(result: WorkerResult, cap: int = 2000) -> str:
     return log or "(no code or tools were run for this reply: it came from the conversation and the model itself)"
 
 
+SESSION_TURNS = 200   # at most this many of a session's turns are read to find where its assistant last changed
+
 NARRATED_KEPT = 4   # of what workers wrote beside their code, the last N go into the turn's memory record
 
 
@@ -426,8 +428,7 @@ class Harness:
         if resume:  # continuing an interrupted task: its own conversation is the context
             route.follows = False
         if route.follows:  # the exchange this answers goes along as real context, not via the memory gate
-            root.history = [(t.user, t.assistant, t.notes) for t in self.memory.session_turns(
-                self.session, self.cfg.lim("follow_turns"))]
+            root.history = [(t.user, t.assistant, t.notes) for t in self._history_turns(route.persona)]
         result = self.run_task(root, goal=message, allow_collab=True, resume=resume)
         cancelled = root.status == "cancelled"
         if root.status == "done":  # a crashed turn's error text must not become "memory"
@@ -493,6 +494,29 @@ class Harness:
             if m and m[2] == "1" and int(m[1]) < turn_no and (best is None or int(m[1]) > best[0]):
                 best = (int(m[1]), d, m[3])
         return best[1] if best and best[2] == persona else None
+
+    def _history_turns(self, persona: str) -> list:
+        """The turns a follow-up carries as conversation. With limits.session_context, every turn of this session since
+        the assistant last changed (the same assistant's conversation continues from its checkpoint; these are what it
+        falls back on, and what the memory gate leaves out as already said); else the last follow_turns."""
+        if not self.cfg.lim("session_context"):
+            return self.memory.session_turns(self.session, self.cfg.lim("follow_turns"))
+        turns = self.memory.session_turns(self.session, SESSION_TURNS)
+        same = []
+        for t in reversed(turns):
+            if t.persona != persona:
+                break
+            same.append(t)
+        # another assistant had the last turn: what it said is still what this message answers
+        return same[::-1] or turns[-self.cfg.lim("follow_turns"):]
+
+    @staticmethod
+    def _read_checkpoint(path: Path) -> dict | None:
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return data if isinstance(data, dict) and data.get("messages") else None
 
     def _note_cut_off(self) -> dict[str, Any] | None:
         """The last turn when it was cut off (_last_cut_off). One that never finished at all (a crash, a restart) was
@@ -1051,6 +1075,8 @@ class Harness:
         worker.retry_delay = float(interject.settings(self.cfg.raw)["retry_delay"])
         if task.parent is None and not resume and task.history:   # a follow-up: start where the last turn left off
             worker.carry_from = self._previous_folder(turn_no, persona.name)
+            if worker.carry_from is not None and self.cfg.lim("session_context"):
+                worker.continue_from = self._read_checkpoint(worker.carry_from / "checkpoint.json")
         worker.step_value, worker.keep_at = self._compact_fn(task), self.cfg.t("compact_keep")
         if self.cfg.lim("thinking_watch"):
             worker.thinking_watch = self._watch_fn(task)
