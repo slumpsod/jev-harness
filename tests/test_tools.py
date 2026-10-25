@@ -208,6 +208,8 @@ def test_worker_calls_an_mcp_tool_jev_picked(cfg):
 
 
 def test_project_is_visible_to_dev_only_when_open(cfg, tmp_path):
+    cfg.limits["session_context"] = 0   # (each turn's own system prompt; a continued conversation keeps its first one
+    # and gets what changed in the request: tests/test_session_context.py)
     (tmp_path / "repo").mkdir()
     llm = ScriptedLLM([py("final(str(ctx.get('project')) + '|' + str(project.root))")] * 2)
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(tool_rules(tools_yes={"project"}))), llm_factory=lambda p: llm)

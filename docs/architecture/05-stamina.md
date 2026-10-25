@@ -227,3 +227,19 @@ the message continues the conversation) now starts with the previous turn's REPL
 names that turn's folder (`CARRIED_NOTE`, in the task text so compaction keeps it). Live (2026-10-12, a chess game
 played over several turns, flagged session 8): every move began "the helper module was lost - let me rebuild it". A
 new topic still starts fresh. Bench: `evals/bench/flagged.py --stage carry`.
+
+### Earlier requests in a continued conversation
+
+With `limits.session_context` (see [01-turn.md](01-turn.md)) the same assistant's conversation goes on across requests, so
+the prompt holds earlier requests and all their steps. They are left whole until the prompt passes the compaction limit;
+then `_compact` condenses them before touching this request's steps (`Worker._compact_earlier`): each earlier request
+becomes a record at the head of this task message (`EARLIER_HEAD`) - the request, its steps (Jev keeps the ones the work
+still needs in full, as for this request's own steps; the rest become one-line notes; a request that was compacted while
+it ran keeps its progress log), and the answer it gave. The next request continues from that, and condenses the requests
+after it onto the same record. The checkpoint keeps the record (`earlier`) and where each request starts (`turns`), so a
+resumed or continued conversation has them. A turn cut off mid-step can end on a tool call nothing answered: `_carried`
+leaves such a call out, since a server refuses a call without its result.
+Live check, 2026-10-24 (`evals/bench/session_context.py -k data,sonos --arm new --compact-at 0.05`, i.e. compaction at
+the 16k floor instead of ~209k): 8 of 9 follow-ups ran with earlier requests condensed, and all 9 passed - the speakers'
+volumes, the stalled stream found and fixed, "what was the total again?" five requests later. (The Sonos replay's first
+request, squeezed into 16k on its own, ran out the bench's 12 minutes: within-turn compaction at a size no real window has.)

@@ -460,6 +460,8 @@ def test_a_message_is_known_to_come_from_the_device_it_was_written_on(cfg):
 
 
 def test_the_worker_is_told_which_computer_this_is(cfg):
+    cfg.limits["session_context"] = 0   # (each turn's own system prompt; a continued conversation keeps its first one
+    # and gets what changed in the request: tests/test_session_context.py)
     seen = []
 
     class Spy(ScriptedLLM):

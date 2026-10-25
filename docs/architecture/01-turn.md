@@ -33,7 +33,7 @@ sequenceDiagram
   Note over H: limits.follow_always (default 1): follows = True<br/>whenever the session has an earlier turn
   H->>B: open(None, "user", persona, message) - root Task
   opt route.follows
-    H->>Mem: session_turns(session, follow_turns=2)
+    H->>Mem: _history_turns(persona): since the assistant changed
     Mem-->>H: user, assistant, notes per turn
     Note over H: root.history = those turns<br/>(real chat turns, not via the memory gate)
   end
@@ -55,7 +55,7 @@ sequenceDiagram
 | Recent context | `orchestrator.py:255`, `memory.py:132` | the session's last 2 turns, each clipped to 900 chars |
 | Routing | `orchestrator.py:265`, `jev.py:165` | `{latest_request, recent_conversation}` → `RouteDecision` |
 | Root task | `orchestrator.py:269`, `bus.py:91` | `Task(id, parent=None, requester="user", to, text)` |
-| Follow-up history | `orchestrator.py:273`, `memory.py:137` | `[(user, assistant, notes)]` × `limits.follow_turns` |
+| Follow-up history | `orchestrator.py` `_history_turns`, `memory.py` `session_turns` | `[(user, assistant, notes)]`: every turn since the assistant changed (`session_context`), else × `limits.follow_turns`; the same assistant continues its checkpoint's conversation instead |
 | Memory write | `orchestrator.py:278`, `memory.py:111` | turn + `turn_notes()` (code run and outputs, 2k chars) |
 | Learning | `orchestrator.py:280`, `:398` | runs on its own thread with the model that just ran the task |
 | Result | `orchestrator.py:284` | `TurnResult` incl. `usage.summary(session, turn)` and a checkpoint path if resumable |
@@ -75,6 +75,34 @@ the turns the user flagged; it already carried most new topics anyway. The cost 
 topic. `follow_always: 0` puts Jev's call back. Live (2026-10-24, Strata + Laya, `evals/bench/flags_12_15_17.py`, 3 repeats):
 two-turn follow-ups 15/15 new vs 13/15 old, new topics after a task 8/9 vs 7/9 (one new-arm answer offered to go back to
 the earlier topic at its end), about 3k more input tokens on a new topic's turn.
+
+**Session-long context** (`limits.session_context: 1`, the default since 2026-10-24): a follow-up by the **same
+assistant** no longer gets those turns as a summary. It continues that turn's own conversation: the checkpoint the worker
+saved (`Worker.continue_from`, `_carried`), every step of it - the code it ran and what came back - with the new request
+appended. So it goes on, request after request, until another assistant takes a turn (that one starts its own, with the
+last `follow_turns` turns as a summary, as before) or the user starts a New session. Nothing is cut short until the
+prompt reaches the compaction limit (`context.compact_at`, 80% of the window); then the earlier requests are condensed
+first (`Worker._compact_earlier`, see [05-stamina.md](05-stamina.md#earlier-requests-in-a-continued-conversation)).
+What learning, the failure log and the turn's memory notes read (`result.transcript`) is this request's part only. The
+conversation keeps the system prompt it began with, word for word (`Worker._kept_system`, saved as
+`thinking/system.txt` in each task folder): the model server has already read that start of the prompt and reuses it.
+What this request's prompt adds - a tool guide, skill or helper light Jev picked only now, and this request's own working
+folder - goes in the request's message instead. (First live check: a prompt rebuilt each turn, with the turn's folder near
+its top and light Jev's picks varying, changed on every follow-up, so every follow-up re-read all of it.) Flagged 2026-10-24 (session
+20261024-141900-8b4f, Sonos speakers): with two replies of 3000 chars carried (1-3k tokens), the worker rewrote its speaker
+helper every turn and read its own old `checkpoint.json` off disk to get back what it had done; the six turns kept whole
+were about 71k tokens, under a third of Strata's 262k window. `session_context: 0` puts the summary back.
+
+Live, 2026-10-24 (Qwen3.8-Flash-Next on Strata, light Jev; `evals/bench/session_context.py`, 2 repeats, 82 turns against
+local stand-ins: the flagged Sonos session replayed on four fake speakers, an orders API, and held out a topic switch and
+a script built over four requests): every turn passed in both arms (old 38/38, new 44/44 with the persona-change check),
+so the gain is in the work, not the pass rate. Follow-ups took less time in every scenario: the Sonos replay 713 s ->
+519 s a run (-27%; "turn the volume up to 25%" 93 s -> 44 s, "I don't hear anything" 306 s -> 155 s and no longer
+re-discovering the speakers), the orders API -2%, the topic switch -12%, the script -8%. Fewer steps (159 vs 212) and
+model calls (177 vs 236), less code written in follow-ups (80k vs 96k chars), fewer re-reads of the data (2 vs 11). The
+prompts are bigger (2.8M input tokens vs 2.0M), but most of each is the conversation's start, which stays the same (32
+of 34 follow-ups kept the system prompt; the other 2 were the persona change) and the server reuses. One slower turn:
+the Sonos replay's last request in one run (170 s median vs 71 s). Results: `evals/bench/session_context_summary.txt`.
 
 ## Task setup: what `run_task` builds
 

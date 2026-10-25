@@ -483,6 +483,7 @@ def followup_rules(continues, replies, persona="daily_assistant"):
 
 
 def test_answer_to_a_clarifying_question_gets_the_exchange(cfg):
+    cfg.limits["session_context"] = 0   # (the summary a follow-up gets with it off, or after another assistant)
     llm = ScriptedLLM(["Which state, and mail forwarding or DMV?", "USPS mail forwarding in Utah: ..."])
     h = Harness(cfg, jev=Jev(cfg, FakeSystemOne(followup_rules(0.3, 0.1))), llm_factory=lambda p: llm)
     h.learning = False
@@ -499,6 +500,7 @@ def test_answer_to_a_clarifying_question_gets_the_exchange(cfg):
 def test_follow_up_sees_what_the_last_answer_was_based_on(cfg):
     """Live 2026-09-28: 'where did you pull that from?' saw only the reply and confessed to
     making up a price the worker had read off the store's page."""
+    cfg.limits["session_context"] = 0   # (the summary a follow-up gets with it off, or after another assistant)
     llm = ScriptedLLM([py("print('Fairview 4 Piece Lounge Set - Dark / Sale price $2,999.99 / Only 2 units left')"),
                        "It's $2,999.99, and the Dark finish has 2 left.",
                        "From the store's product listing."])

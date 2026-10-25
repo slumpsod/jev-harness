@@ -1,0 +1,54 @@
+Session-long context, live (evals/bench/session_context.py): old = the last 2 replies as a summary (session_context 0), new = the conversation goes on (1).
+82 turns, 2 repeat(s).
+
+== all scenarios
+  old: 38/38 turns passed (follow-ups 30/30); median 55 s/turn, follow-up median 54 s; steps 212, model calls 236, tokens in 1993k / out 101k; re-reads in follow-ups 11; code written in follow-ups 96k chars; read an old checkpoint 0x; errors 0
+  new: 44/44 turns passed (follow-ups 34/34); median 50 s/turn, follow-up median 50 s; steps 159, model calls 177, tokens in 2778k / out 84k; re-reads in follow-ups 2; code written in follow-ups 80k chars; read an old checkpoint 0x; errors 0
+
+== tuned scenarios (sonos, data, persona)
+  old: 22/22 turns passed (follow-ups 18/18); median 71 s/turn, follow-up median 71 s; steps 159, model calls 171, tokens in 1596k / out 80k; re-reads in follow-ups 11; code written in follow-ups 67k chars; read an old checkpoint 0x; errors 0
+  new: 28/28 turns passed (follow-ups 22/22); median 54 s/turn, follow-up median 54 s; steps 116, model calls 124, tokens in 2269k / out 63k; re-reads in follow-ups 2; code written in follow-ups 51k chars; read an old checkpoint 0x; errors 0
+
+== held out (topic, build)
+  old: 16/16 turns passed (follow-ups 12/12); median 40 s/turn, follow-up median 37 s; steps 53, model calls 65, tokens in 397k / out 21k; re-reads in follow-ups 0; code written in follow-ups 29k chars; read an old checkpoint 0x; errors 0
+  new: 16/16 turns passed (follow-ups 12/12); median 42 s/turn, follow-up median 34 s; steps 43, model calls 53, tokens in 509k / out 21k; re-reads in follow-ups 0; code written in follow-ups 28k chars; read an old checkpoint 0x; errors 0
+
+-- sonos: pass rate per turn (old -> new), median seconds, re-reads
+  turn 1 (can you check all of the smart speakers on my netw...): old 2/2 248s redo 5 code 31.5k | new 2/2 302s redo 0 code 35.9k
+  turn 2 (yeah so what you can do with the sonos speakers...): old 2/2 206s redo 1 code 21.6k | new 2/2 113s redo 0 code 10.0k
+  turn 3 (turn the volume up to 25%...): old 2/2 93s redo 0 code 7.5k | new 2/2 44s redo 0 code 1.6k
+  turn 4 (turn the volume up to 75%...): old 2/2 38s redo 0 code 1.6k | new 2/2 38s redo 0 code 1.2k
+  turn 5 (i dont hear anything, are you sure the music playi...): old 2/2 306s redo 5 code 17.1k | new 2/2 155s redo 0 code 6.7k
+  turn 6 (turn the volume down to 25% and play the music...): old 2/2 71s redo 0 code 4.0k | new 2/2 170s redo 0 code 2.7k
+
+-- data: pass rate per turn (old -> new), median seconds, re-reads
+  turn 1 (pull the orders from my shop's API at http://127.0...): old 2/2 56s redo 4 code 4.2k | new 2/2 53s redo 6 code 4.9k
+  turn 2 (break that down by region...): old 2/2 66s redo 0 code 5.3k | new 2/2 78s redo 0 code 9.5k
+  turn 3 (which month was best for the top region?...): old 2/2 40s redo 0 code 1.1k | new 2/2 38s redo 0 code 2.6k
+  turn 4 (and what's the worst selling product in that regio...): old 2/2 48s redo 0 code 2.1k | new 2/2 64s redo 0 code 6.2k
+  turn 5 (what was the total again, and where did the data c...): old 2/2 81s redo 5 code 6.4k | new 2/2 51s redo 2 code 3.5k
+
+-- persona: pass rate per turn (old -> new), median seconds, re-reads
+  turn 1 (give me a 3-day beginner workout plan, keep it sho...): new 2/2 22s redo 0 code 0.2k
+  turn 2 (save that plan as C:\Users\Jedidiah\Projects\jev-h...): new 2/2 49s redo 0 code 5.5k
+  turn 3 (now add a line at the end saying 'start Monday'...): new 2/2 24s redo 0 code 1.6k
+
+-- topic: pass rate per turn (old -> new), median seconds, re-reads
+  turn 1 (get the orders from http://127.0.0.1:58075/sales a...): old 2/2 34s redo 5 code 2.7k | new 2/2 37s redo 5 code 2.9k
+  turn 2 (unrelated - what's 17% of 2350?...): old 2/2 20s redo 0 code 0.0k | new 2/2 16s redo 0 code 0.0k
+  turn 3 (ok back to the orders: which region had the fewest...): old 2/2 27s redo 0 code 0.4k | new 2/2 25s redo 0 code 0.6k
+  turn 4 (and what was the average order value you found ear...): old 2/2 26s redo 0 code 0.5k | new 2/2 23s redo 0 code 0.1k
+
+-- build: pass rate per turn (old -> new), median seconds, re-reads
+  turn 1 (write a python script at C:\Users\Jedidiah\Project...): old 2/2 55s redo 0 code 8.3k | new 2/2 60s redo 0 code 7.9k
+  turn 2 (add a `done <n>` command that marks item n as done...): old 2/2 71s redo 0 code 11.3k | new 2/2 65s redo 0 code 10.1k
+  turn 3 (add priorities: `add --high <text>` makes a high-p...): old 2/2 115s redo 0 code 14.6k | new 2/2 108s redo 0 code 15.4k
+  turn 4 (now use it: add 'buy milk' as high priority and 'c...): old 2/2 47s redo 0 code 2.1k | new 2/2 42s redo 0 code 2.3k
+
+follow-up turns, total seconds per run (old -> new), scenarios run on both arms:
+  sonos: 713 s -> 519 s (-27%)   runs old [608, 817], new [662, 377]
+  data: 236 s -> 230 s (-2%)   runs old [251, 220], new [207, 254]
+  topic: 72 s -> 64 s (-12%)   runs old [77, 68], new [57, 71]
+  build: 233 s -> 215 s (-8%)   runs old [220, 246], new [222, 208]
+
+new arm: 32/34 follow-ups continued a conversation; 0 condensed earlier requests; system prompt unchanged from the turn before in 32/34 (the model server's cached prompt start holds)
